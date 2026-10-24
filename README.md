@@ -1,216 +1,95 @@
 # Standard Response
 
-Evacuation calling and dispatch for Cal Hacks 13.0. `PLAN.md` has the plan, the four tracks and the contract. This repo holds the shared Convex contract, stand-ins for every backend piece, and the call floor.
+Standard Response gets people who can't evacuate on their own into a vehicle that can actually carry them. When an evacuation warning goes out, our voice agent calls every home in the zone to find out who can't leave and what help they need. Each answer becomes a ride request on a live map. A routing optimizer matches every request to a van with the right space and crew. Nobody is told help is coming until a driver has accepted the pickup on their own phone.
 
-> Warning: everything the stand-ins produce is simulated. Never show a stand-in number to judges as a real result.
+Wildfire is our first hazard. The demo runs on a real map of Altadena, California.
 
-## Run it
+## Why we built it
 
-```bash
-npm install
-npm run dev:backend   # Convex. Use the team's cloud deployment from the shared env file
-npm run dev           # http://localhost:3000
-```
+In January 2025 the Eaton Fire reached west Altadena overnight. A father who used a wheelchair lived there with his son, who has cerebral palsy. The evacuation order for their part of town came at 3:25am, with no warning before it. The county's paratransit service said its vans were ready by 4am, but nobody called it. The father called 911 at 6:03 and again at 6:14. The dispatcher told him "we have a lot of calls in that area." Both men were found dead around 8:30am.
 
-Open the page and press **Issue evacuation warning**. That seeds 200 simulated households in west Altadena, 8 vehicles and a shelter, then starts the stand-in dialer, voice agent, need model, dispatcher and drivers.
+Vans existed that night. Nothing connected them to the people who couldn't get out. We found the same gap in every large disaster we looked at:
 
-**Shared backend.** Track C creates the team's cloud deployment (`npx convex login`, then `npx convex dev`) and shares `CONVEX_URL`. Everyone else runs `npx convex dev` against that project.
+| Disaster | Deaths | Who died |
+| --- | --- | --- |
+| LA County fires (2025) | 30 | Mostly older, many disabled. The 17 Eaton victims counted early on averaged 77 years old |
+| Lahaina, Maui (2023) | 102 | More than two-thirds were in their 60s or older |
+| Camp Fire, Paradise (2018) | 85 | A majority were over 65 |
+| Hurricane Katrina, Louisiana (2005) | 971 | Almost half were 75 or older |
 
-## How the pieces connect
+A UN survey of about 6,000 people with disabilities found that only 1 in 5 could evacuate right away without difficulty. Disability registries were supposed to close this gap. During Hurricane Harvey, fewer than 5% of the people on Texas's registry were contacted, because nobody had the staff to call through the list in time. An AI voice agent removes that limit. It can hold thousands of calls at once, in the caller's own language.
 
-```
- voice (Track B) ──── households:update, calls:*, texts:*, callbacks:mark* ───┐
- dispatch (Track C) ── plans:propose, vehicles:setPositions, roads:* ──────────┤   Convex tables     ├──► every screen (Track A)
- models (Track D) ──── households:setEstimates, doorChecks:*, roads:addClosures┘  (convex/schema.ts)
-```
+## What it does
 
-Every service talks only to Convex. Nobody calls anybody else directly, so nobody waits on anybody. `PLAN.md` under "Contract" lists who owns and writes each table.
+**Before any disaster, the Ready check.** The agent calls each household in an agency's area, or the household signs up at `/ready` on its own phone. It records who lives there, what help they'd need getting out, and where that person sleeps. A household can also name a helper, such as a relative or neighbor, who has agreed to pick them up.
 
-## Calling Convex from Python
+**When a warning goes out:**
 
-```bash
-pip install convex
-```
+1. A dispatcher draws the warning zone on the rescue map. Our Apify Actor can also start this automatically when a California county moves a zone to warning.
+2. The agent calls every home inside the zone. It confirms where the person is and whether everyone can leave. Then it asks how many people are there and what help they need. Before hanging up, it reads the answers back so the resident can correct them.
+3. If a home has a helper on file, the agent calls the helper first. A helper who says no or doesn't answer turns the home into a ride request at once, with its needs already filled in.
+4. The optimizer, built on Google OR-Tools, assigns each request to a vehicle with enough seats, wheelchair spaces and crew to do the pickup. A dispatcher approves the plan. Each driver then accepts or declines on their phone.
+5. Once a driver accepts, the resident gets a call back with the driver's name, the vehicle and the ETA. If a road closes and the driver can no longer reach them, the resident hears that right away.
+6. Silence never counts as safe. An unanswered home is called again at 2 and 5 minutes, then texted. If nobody replies, it goes on the list of doors for field crews to knock on.
 
-```python
-from convex import ConvexClient
-client = ConvexClient(os.environ["CONVEX_URL"])
+**The honesty rule.** The agent can't say help is coming unless a driver has accepted. Code enforces this, not the prompt. Every sentence about a ride is a fixed template picked by the request's status. Claude only reads what the resident said and writes a short acknowledgment. A code guard blocks that acknowledgment if it sounds like a promise. A separate Claude grader checked 2,046 of the agent's own lines from test calls against this rule and flagged 9 of them (`data/honesty-results.json`).
 
-# Voice (Track B)
-call_id = client.mutation("calls:start", {"householdId": hid, "direction": "outbound"})
-client.mutation("calls:say", {"callId": call_id, "speaker": "resident", "text": "No, I can't get out."})
-client.mutation("households:update", {"householdId": hid, "patch": {"canLeave": "no", "assistanceRequired": "two_person_lift"}})
-for request in client.subscribe("requests:forHousehold", {"householdId": hid}):  # status drives what may be said
-    ...
-for pending in client.subscribe("callbacks:pending", {}):
-    ...
+| Screen | Path | Who it's for |
+| --- | --- | --- |
+| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup, van and the fire front on one map |
+| Call floor | `/` | Dispatchers. Every live call, what the agent heard, and the queue |
+| Driver page | `/driver` | Drivers. Ride offers to accept, and the run once accepted |
+| Simulated phone | `/phone` | Demos. A resident's side of the call and texts, without dialing a real number |
+| Under the hood | `/system` | Judges. How dispatch decides, with the numbers behind it |
+| Ready sign-up | `/ready` | Residents. The Ready check profile, filled in on their own phone |
 
-# Dispatch (Track C)
-for requests in client.subscribe("requests:open", {}):  # re-plan on every change
-    client.mutation("plans:propose", {"solver": "ortools", "solveMs": 1800, "offers": [...], "replace": [], "revoke": []})
+## What firefighters changed
 
-# Models (Track D)
-client.mutation("households:setEstimates", {"estimates": [{"householdId": hid, "needProbability": 0.61, "fireArrivalAt": eta_ms}]})
-client.mutation("roads:addClosures", {"closures": [{"path": [{"lat": 34.19, "lng": -118.15}, {"lat": 34.191, "lng": -118.15}], "source": "hazard"}]})
-client.mutation("doorChecks:setPriorities", {"scores": [{"householdId": hid, "doorPriority": 4.2}]})
-```
+On October 24 we visited two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. At Station 1 one of them said: "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." They also pointed out four gaps. We fixed all four that afternoon.
 
-## Voice server (Track B)
-
-`voice/` is the call server: Twilio Media Streams in, Cartesia speech-to-text, Claude, Cartesia voice out. It talks only to Convex. It calls real riders (`simulated: false`, the CSV import); the voice stand-in keeps handling the simulated households.
-
-```bash
-npm run dev:voice    # http://localhost:8080, reads .env.local
-```
-
-| Variable | What it is |
+| What they told us | What we changed |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Claude, which interprets each thing a resident says |
-| `CARTESIA_API_KEY`, `CARTESIA_VOICE_EN`, `CARTESIA_VOICE_ES` | Speech in both directions, and the English and Spanish voices |
-| `CARTESIA_VOICE_ZH`, `_KO`, `_VI`, `_TL`, `_RU`, `_JA` (optional) | Native voices for the other call languages; each falls back to the English voice, which Sonic can make speak any of them |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_FROM_NUMBER` | Telephony. Calls are placed with the API key |
-| `TWILIO_AUTH_TOKEN` | Checks the signature on every Twilio webhook |
-| `VOICE_PUBLIC_URL` | Public https URL of this server; Twilio calls back here |
-| `DIAL_ALLOWLIST` | Comma-separated numbers the dialer may ring. Every other number is skipped, so a fictional rider list never rings a stranger |
-| `TWILIO_TRIAL` | `true` on a trial account. Twilio then plays its notice and waits for a key press before our agent speaks, so answering-machine detection is turned off |
-| `VOICE_MODEL` | Defaults to `claude-opus-5-5`, run in fast mode. `claude-haiku-5-5` is the cheaper alternative |
+| "Oh, you said wheelchair, I thought wheelchair. And then you get there, and it's a battery-operated wheelchair, and they're 400 pounds." | When someone says "wheelchair" without saying which kind, the agent now asks whether it has a motor. It asks on the night and on the Ready check call. 911 never asks a neighbor to pick up someone in a power chair in their own car. The sign-up form and the house card now say "Manual chair" instead of just "Wheelchair". |
+| A neighbor who offers to help needs to know "what they're getting into right away." | Before asking a helper whether they can come, the agent tells them what the pickup takes: "They use a walker. They need one person to help them to the car." |
+| On the call they'd just come back from, nobody at the home spoke English. The crew had to track down a relative to translate. | The house card, which a crew reads before going in, now shows the language the household speaks. |
+| Asking neighbors on the night risks "sending more people into a danger zone," or a helper "going backwards into a one-way street." | 911 now asks only neighbors whose home the fire reaches no later than the resident's. Driving over to help them means driving away from the fire. |
 
-Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST /twilio/inbound`, `/twilio/status`, `/twilio/amd`, and the `/media` WebSocket. `POST /turn` takes `{ sessionId, language, text, address?, requestStatus? }` and returns `{ reply, stage, record, done, escalations, nominations, guardBlocked }`. Send an empty `text` first to hear the opening.
+They also confirmed a choice we'd already made. Station 1 said the most useful thing would be "pre-gathered information about what's going on at an individual residence," down to which rooms people sleep in. The Ready check collects exactly that.
 
-**Who decides what.** Claude (`voice/agent/interpreter.ts`) turns one utterance into field changes, a yes/no answer, emergency flags and an acknowledgment of six words or fewer. The state machine (`voice/agent/conversation.ts`) decides what to ask next. Everything said about a ride is a fixed template keyed by request status (`voice/agent/script.ts`). A code guard (`voice/agent/honesty.ts`) replaces any acknowledgment that sounds like a promise while no driver has accepted.
+## How we use our sponsors
 
-### Voice exam
+| Sponsor | What it does for us | Where |
+| --- | --- | --- |
+| Anthropic | Claude reads each thing a resident says on a call. It turns messy, corrected speech in eight languages into record fields, a yes or no, and any emergency. Claude Opus 5.5 in fast mode runs live calls. A second Claude model grades whole practice calls in our voice exam and checks the agent's lines for implied promises. | `voice/agent/interpreter.ts`, `voice/exam/judge.ts` |
+| Cartesia | Ink transcribes the caller as they speak, and Sonic speaks the agent's lines. Both stream over WebSockets on the phone call's own audio. The full feature list and limits are below. | `voice/phone/` |
+| Convex | Every part of the system reads and writes one real-time Convex database. No service calls another directly. Mutations enforce the rules a promise depends on: version-checked offer acceptance, idempotent callbacks and revocation. Each real rider's retry schedule runs as a durable Convex Workflow, and the household counts come from the Aggregate component. | `convex/` |
+| Apify | Our public "California evacuation status" Actor normalizes county and state evacuation zones. When a zone with riders on it goes to warning, the Actor calls our Convex endpoint to start the calls. | `apify/california-evacuation-status/`, `convex/http.ts` |
+| Auth0 | Auth0 handles dispatcher login. Only dispatchers and drivers can see the at-risk list, and the first ride approval of a session asks for a second factor. | `proxy.ts`, `lib/access.ts` |
+| DigitalOcean | App Platform hosts the OR-Tools solver service. | `dispatch/server.py` |
+| Vercel | Vercel hosts the web app. Drivers open the driver page on their own phones. | |
 
-A practice exam for the agent, scored after the CritiCall 911-dispatcher test ([what it covers](https://www.youtube.com/watch?v=O8HKx8Rlug0)). Twenty scripted callers adapted from released wildfire 911 calls (Eaton, Camp, Carr, Lahaina, Marshall; sources in `voice/exam/sources.ts`) run against the real state machine, guard and Claude interpreter. Deterministic checks grade the record, escalations, read-back and status lines; Claude Opus 5.5 grades each whole call against the constitution (`CALL_TAKER_PRINCIPLES` in `voice/agent/interpreter.ts`).
-
-```bash
-npm run exam:voice                        # all items, about 4 minutes
-npm run exam:voice -- --only honesty      # one module's items, or one item id
-npm run exam:voice -- --no-judge          # fast loop; can't pass
-npm run exam:voice -- --runs 3            # certify: every run of every item counts
-```
-
-Pass: every module at 95% or more, speed included (CritiCall agencies usually ask 70-75%), and zero critical errors. The overall score is the mean of the module scores. A critical error is a missed or late life threat, an implied promise or invented fact, a record that would leave someone behind, or silence taken as an answer. Results, transcripts and each failed check: `data/voice-exam-results.json`; each module names the file that owns it (`fixIn`).
-
-Improvement loop: run the exam, take the most common failure, fix it in the module's `fixIn`, rerun that module with `--only`, then the whole exam and `npm run test:voice`. Stop at a pass with `--runs 3`. Never edit `voice/exam/` to make a call pass.
+Twilio carries the phone calls. The voice server runs on Fly.io.
 
 ### Cartesia
 
-Voice is the product: every rider call is heard by Ink and spoken by Sonic. Both run over WebSockets on Twilio's 8 kHz μ-law audio, so nothing is transcoded on the way in or out.
+Every rider call is heard by Ink and spoken by Sonic. Because both run over WebSockets on Twilio's own 8 kHz μ-law audio, nothing is transcoded on the way in or out.
 
 | Cartesia feature | What we use it for | Where |
 | --- | --- | --- |
-| Ink streaming speech-to-text (`ink-whisper`) | Hears the rider live in the call's language; restarts in a new language when the rider switches | `voice/phone/cartesia.ts` `Transcriber` |
-| Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn; the call then waits 0.3 s after a full stop, 0.6 s with no punctuation, 1.3 s when the words trail off | `voice/phone/callSession.ts` `turnGap` |
-| Sonic streaming text-to-speech (`sonic-latest`) | One request per agent turn, so intonation carries across its sentences | `voice/phone/speech.ts` |
+| Ink streaming speech-to-text (`ink-whisper`) | Hears the rider live in the call's language. It restarts in a new language when the rider switches | `voice/phone/cartesia.ts` `Transcriber` |
+| Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn. The call then waits 0.3 s after a full stop, 0.6 s with no punctuation, and 1.3 s when the words trail off | `voice/phone/callSession.ts` `turnGap` |
+| Sonic streaming text-to-speech (`sonic-latest`) | Each agent turn is one request. That way intonation carries across its sentences | `voice/phone/speech.ts` |
 | Sonic context cancel | Barge-in: when the rider talks over the agent, the rest of the turn is cancelled at once | `CallSpeech.bargeIn` |
-| Sonic multilingual voices | Calls in en, es, zh, ko, vi, tl, ru and ja; `CARTESIA_VOICE_<CODE>` picks a native voice, otherwise the English voice speaks the language | `voice/env.ts` `voiceFor` |
+| Sonic multilingual voices | Calls in en, es, zh, ko, vi, tl, ru and ja. `CARTESIA_VOICE_<CODE>` picks a native voice; otherwise the English voice speaks the language | `voice/env.ts` `voiceFor` |
 | Short Sonic fillers ("Mm-hm.") | Cover Claude's thinking time without claiming to have understood anything | `backchannels` in `voice/agent/lines/*.ts` |
 
-Measured: from the rider going quiet to the agent's first audio, the text eval puts the agent's own turn at 1.2 s median and 1.8 s p95 (`data/eval-results.json`); a live call adds Ink's 0.5 s end-of-speech wait and the turn gap above.
+In the latest voice exam, the agent's own turn took 0.92 s at the median and 1.62 s at the 95th percentile (`data/voice-exam-results.json`). A live call adds Ink's 0.5 s end-of-speech wait and the turn gap above.
 
 **Known limitations**
 
-- Ink listens in one language at a time. A rider who switches languages is caught when they ask for it ("Korean, please") or when Claude recognizes the transcript; speech in a language the call isn't listening for can arrive garbled.
-- Armenian and Persian are heard but Sonic can't speak them, so those callers are handed to a person (`language_barrier`).
-- Six of the eight call languages (zh, ko, vi, tl, ru, ja) are machine translations awaiting a fluent speaker's review, and without `CARTESIA_VOICE_<CODE>` they are spoken by the English voice, with an English accent.
-- Phone audio is 8 kHz, so voices sound like a phone call, not a studio recording.
-- A status change (driver accepted, road closed) plays after the turn that's already speaking, a few seconds at most, not mid-sentence.
-- As of Track B's last note, the Twilio account is a trial: every call opens with Twilio's notice, and outbound calls reach verified numbers only.
-
-## Dispatch and simulator (Track C)
-
-Turn off **Dispatcher and vehicle movement** on the call floor and the real dispatcher takes over. Every 5 s while riders wait, and at once when a road closes, `convex/dispatch.ts` forecasts each van's accepted run on the real road graph, revokes pickups a closure made unreachable in time, and asks the OR-Tools service for new offers. If the service doesn't answer, the heuristic in `convex/heuristic.ts` plans instead, and the plan records why.
-
-| Where it runs | What |
-| --- | --- |
-| Convex | Re-planner, vehicle movement on road paths, closure snapping (`convex/dispatch*.ts`, `fleet.ts`, `roadGraph.ts`) |
-| DigitalOcean App Platform | OR-Tools solver service, `dispatch/server.py` (`dispatch/deploy_digitalocean.sh` deploys it) |
-| Vercel | The Next app, so the driver page opens on a phone |
-| This repo | Road graph from OpenStreetMap via OSMnx (`data/roads/altadena.json`), simulator (`dispatch/sim/`) |
-
-| Convex env variable | What it is |
-| --- | --- |
-| `SOLVER_URL` | The solver service's public URL. Unset means the heuristic plans |
-| `SOLVER_TOKEN` | Bearer token the service requires, because problems carry riders' home coordinates |
-
-```bash
-cd dispatch
-uv run pytest -q                                    # solver, heuristic parity, simulator
-uv run python verify_dispatch.py --fallback-dir ..  # 10 end-to-end checks against the deployment in .env.local
-uv run python -m sim.run --seeds 100                # writes data/sim-results.json
-```
-
-> Warning: `verify_dispatch.py` closes roads, cancels a driver and flips the dispatch switch on the deployment it targets. Pause the live dialer first. `npx convex run dispatchCheck:parkSimulatedRiders` and `dispatchCheck:reopenCheckClosures` clean up afterwards.
-
-Simulated vehicles drive and board 4 times faster than real time (`SIMULATED_TIME_LAPSE` in `convex/vehicleRun.ts`). ETAs, deadlines and the solver stay in real minutes.
-
-## Track D models
-
-`modeling/` holds the hazard scenario, need model, door-check order, address matching, synthetic population, persona cards and the evaluations. `modeling/README.md` says how to run each one. During a session, run `cd modeling && uv run python scripts/run_models.py`.
-
-## Stand-ins
-
-`convex/sim.ts` and `convex/dispatchStandIn.ts` fake each backend track so the whole pipeline runs today. When your real service starts writing, flip its switch to **Real** in the call floor's Stand-ins panel. The stand-in then stops touching those records. `PLAN.md` lists every switch and its owner.
-
-## Dispatcher login (Auth0)
-
-Auth0 is off until `AUTH0_DOMAIN` is set, and every screen stays open as before. With it on:
-
-- The call floor, rescue map, under-the-hood screen and simulated phone show the at-risk list, so they need the `dispatcher` role. The driver page takes `dispatcher` or `driver`. `/ready`, `/prepare`, `/mesh` and `/flow` stay public. `proxy.ts` sends anyone without a session to log in, and anyone without the role to `/no-access`. The rules live in `lib/access.ts`.
-- The first approval of a session asks for a second factor (step-up), and every approval after that is one click (`components/rescue/use-approve.ts`).
-
-| Env variable | What it is |
-| --- | --- |
-| `AUTH0_DOMAIN` | The tenant, e.g. `standard-response.us.auth0.com` |
-| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | From a Regular Web Application in that tenant |
-| `AUTH0_SECRET` | `openssl rand -hex 32` |
-| `APP_BASE_URL` | `http://localhost:3000` locally; leave unset on Vercel to use the request host |
-
-In the Auth0 dashboard:
-
-1. Allowed Callback URLs: `http://localhost:3000/auth/callback, https://rollcall-blush.vercel.app/auth/callback`. Allowed Logout URLs: the same hosts without the path.
-2. User Management, Roles: create `dispatcher` and `driver`, and assign them.
-3. Security, Multi-factor Auth: turn on one factor (One-time Password is enough), with the policy set to Never so only step-up asks for it.
-4. Actions, Login flow: add this post-login Action.
-
-```js
-exports.onExecutePostLogin = async (event, api) => {
-  api.idToken.setCustomClaim("https://standard-response.app/roles", event.authorization?.roles ?? []);
-  const stepUp = "http://schemas.openid.net/pape/policies/2007/06/multi-factor";
-  if (event.transaction?.acr_values?.includes(stepUp)) api.multifactor.enable("any", { allowRememberBrowser: false });
-};
-```
-
-## Design norms
-
-The call floor sets the look for every screen.
-
-- **Look:** Red Cross-style white page, heavy condensed Archivo headings, square corners, one dark ink panel at the top.
-- **Color:** tokens live in `app/globals.css`. Red (`--signal`) means "needs an accessible vehicle" and marks the brand, nothing else. Status colors: green leaving, orange needs a ride, red accessible, gray unreachable.
-- **Type:** `type-display`, `type-title`, `type-heading`, `type-body`, `type-small`, `type-figure`. No all-caps labels and no letter-spacing.
-- **Motion:** every animation shows a state change, such as a call starting, a field filling, or the queue reordering. All of it turns off under reduced motion.
-- **Words:** never say "dashboard". Say "rescue map" or "call floor".
-- **Code:** Phosphor icons only. One `Button` component. `npm run lint` enforces cyclomatic complexity 15.
-
-Check work with `npm run typecheck && npm run lint`.
-
-## Mesh add-on
-
-Three features beside the core flow, with their own tables and pages; nothing in the core flow depends on them. `docs/mesh.md` has the design, the privacy accounting, the results and the limits.
-
-- `/mesh`: a resident's phone. Road reports pass phone to phone with no internet: tabs on one device, or two phones paired by QR code over a shared Wi-Fi or hotspot.
-- Federated learning over that mesh: noised updates are mixed between phones, and the agency only ever receives mixes of five or more phones. `/mesh/agency` shows what it received.
-- `/flow`: Langevin dynamics for evacuating households on the real street graph, with the mesh on or off.
-- A traffic forecast for the agency from the same dynamics: `npm run forecast:traffic` follows the incident with an ensemble of simulations and publishes the next hour's slow streets, with ranges, to `/mesh/agency`.
-
-`npm run test:mesh` runs the add-on's tests. `npx tsx scripts/mesh/simulate.ts` regenerates `data/flow-results.json`.
-
-## Readiness survey add-on
-
-Decentralized data collection for disaster preparedness, before any disaster and separate from the evacuation night. Households answer sensitive questions on their own phones: whether their tap water is at risk, whether they could pay to evacuate, whether someone depends on powered medical equipment. Answers never leave the phone. `docs/prepare.md` has the design, the privacy accounting, the simulation results and the limits.
-
-- `/prepare`: a household's phone. Answers stay on it. With consent, topic by topic, it adds randomized-response counts and noised federated-learning updates to one vector that it mixes with nearby phones (tabs on one device, or phones paired by QR code). Volunteer gateways upload only mixes of five or more households.
-- `/prepare/county`: what the county learns. Shares by census block group with 95% intervals, and two shared models (unsafe tap water, can't afford to leave) that phones use to show each home its own risk.
-
-`npm run test:prepare` runs the add-on's tests. `npx tsx scripts/prepare/simulate.ts --seeds 3` regenerates `data/prepare-results.json`; add `--publish` (with `--env-file=.env.local`) to send a simulated campaign through Convex so `/prepare/county` has data. `npx convex run prepare:clear` empties its tables.
+- Ink listens in one language at a time. We catch a rider who switches languages when they ask for it ("Korean, please") or when Claude recognizes the transcript. Speech in a language the call isn't listening for can arrive garbled.
+- Ink hears Armenian and Persian, but Sonic can't speak them. Those callers are handed to a person.
+- Six of the eight call languages (zh, ko, vi, tl, ru and ja) are machine translations waiting for review by a fluent speaker. Without `CARTESIA_VOICE_<CODE>`, the English voice speaks them with an English accent.
+- Because phone audio is 8 kHz, voices sound like a phone call rather than a studio recording.
+- A status change, such as a driver accepting or a road closing, plays after the turn that's already speaking. That's a few seconds at most, but it never cuts in mid-sentence.
+- The Twilio account is a trial as of Track B's last note. Every call opens with Twilio's notice. Outbound calls reach verified numbers only.
