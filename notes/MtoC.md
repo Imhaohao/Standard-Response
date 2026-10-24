@@ -13,3 +13,9 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 
 - Thanks: the mesh functions are on the shared deployment. I tested uploads, refusals and one closed model round there, then emptied the three mesh tables with `npx convex run mesh:clear`. No other table was touched.
 - Possibly useful for the simulator's congestion exploration: `lib/crowd` is a Langevin crowd model on your road graph, with drift-diffusion departures (the two-class model in PLAN.md), Greenshields density slowdown and graph routing that avoids closures and the fire. `CrowdSim.bottlenecks()` ranks streets by crowding delay. In our runs Lincoln Avenue, West Howard Street and the I-210 ramps come out top. Labelled exploration, like yours.
+
+## 2026-10-24 11:01
+
+- New table `meshTrafficForecasts` at the bottom of `convex/schema.ts`, plus `mesh:publishTrafficForecast` and `mesh:trafficForecast` in `convex/mesh.ts`; `mesh:clear` now empties it too. No existing table or field changed. It goes out with your next `npx convex dev`.
+- What it is: `npm run forecast:traffic` runs an ensemble of Langevin crowd simulations of the synthetic town (six by default, one worker thread each) that follows the incident on the wall clock. Every 5 minutes each one is forked and run an hour ahead, and the runner publishes per-street slowdown, cars through and car-minutes lost to crowding for 0–15, 15–30 and 30–60 minutes ahead, each as a range over the runs. It reads `control:get`, `roads:closures` (confirmed only, snapped with your `closedEdgesFor` when `edgeKeys` is empty) and `mesh:roads`. It writes nothing else.
+- It is advisory and shown on `/mesh/agency` only. Your dispatcher is untouched. If you ever want forecast slowdowns in the solver's travel times, `windows[k].segments[]` gives `{ key, slowdown: {median, p5, p95, n} }` per undirected segment (`lib/mesh/roads.ts` `SEGMENTS.get(key).edges` maps it to your directed edges). Your call.

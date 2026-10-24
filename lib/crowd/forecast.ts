@@ -176,37 +176,64 @@ export function summarize(branches: Branch[], segments: Segment[], baseMinute: n
   };
 }
 
-// The ensemble that follows the incident. `blockedTruth` returns the segments known blocked now.
+export const memberSeed = (seed: number, member: number) => seed * 1009 + member;
+export const branchSeed = (seed: number, forecast: number, member: number) => seed * 7919 + forecast * 101 + member;
+
+// One simulation following the incident. Blocked streets are replaced as the agency learns of them.
+export class ForecastMember {
+  readonly sim: CrowdSim;
+  private blocked = new Set<number>();
+
+  constructor(ground: Ground, households: Household[], seed: number, params: CrowdParams = DEFAULT_CROWD) {
+    this.sim = new CrowdSim(ground, households, seededRandom(seed), () => this.blocked, params);
+  }
+
+  setBlocked(blocked: Set<number>) {
+    if (blocked.size === this.blocked.size && [...blocked].every((segment) => this.blocked.has(segment))) return;
+    this.blocked = blocked;
+    this.sim.refreshBlockages();
+  }
+
+  advanceTo(minute: number) {
+    advance(this.sim, minute);
+  }
+
+  // The hour ahead from the present, on a fork, so the member itself stays at the present.
+  branch(seed: number): Branch {
+    return runBranch(this.sim.fork(seededRandom(seed)));
+  }
+}
+
+// The whole ensemble in one thread. The runner spreads the same members over worker threads.
 export class TrafficEnsemble {
-  readonly members: CrowdSim[];
+  readonly members: ForecastMember[];
   private forecasts = 0;
 
   constructor(
     readonly ground: Ground,
     readonly households: Household[],
-    blockedTruth: () => Set<number>,
     size: number,
     private readonly seed: number,
     params: CrowdParams = DEFAULT_CROWD,
   ) {
-    this.members = Array.from({ length: size }, (_, k) => new CrowdSim(ground, households, seededRandom(seed * 1009 + k), blockedTruth, params));
+    this.members = Array.from({ length: size }, (_, k) => new ForecastMember(ground, households, memberSeed(seed, k), params));
   }
 
   get minutes() {
-    return Math.min(...this.members.map((member) => member.minutes));
+    return Math.min(...this.members.map((member) => member.sim.minutes));
+  }
+
+  setBlocked(blocked: Set<number>) {
+    for (const member of this.members) member.setBlocked(blocked);
   }
 
   advanceTo(minute: number) {
-    for (const member of this.members) advance(member, minute);
-  }
-
-  refreshBlockages() {
-    for (const member of this.members) member.refreshBlockages();
+    for (const member of this.members) member.advanceTo(minute);
   }
 
   forecast(): TrafficForecast {
     this.forecasts += 1;
-    const branches = this.members.map((member, k) => runBranch(member.fork(seededRandom(this.seed * 7919 + this.forecasts * 101 + k))));
+    const branches = this.members.map((member, k) => member.branch(branchSeed(this.seed, this.forecasts, k)));
     return summarize(branches, this.ground.segments, this.minutes, this.households.length);
   }
 }

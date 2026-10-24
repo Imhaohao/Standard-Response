@@ -6,6 +6,28 @@ import { v } from "convex/values";
 
 export const canLeave = v.union(v.literal("yes"), v.literal("no"), v.literal("unsure"));
 
+// Mesh add-on traffic forecast (lib/crowd/forecast.ts). Every figure is a range over ensemble members.
+const forecastRange = v.object({ median: v.union(v.number(), v.null()), p5: v.union(v.number(), v.null()), p95: v.union(v.number(), v.null()), n: v.number() });
+export const trafficForecastFields = {
+  issuedAt: v.number(),
+  warningIssuedAt: v.number(),
+  baseMinute: v.number(),
+  horizonMinutes: v.number(),
+  members: v.number(),
+  households: v.number(),
+  blockedSegments: v.number(),
+  computeSeconds: v.number(),
+  timeline: v.array(v.object({ minute: v.number(), moving: forecastRange, arrived: forecastRange, jammedShare: forecastRange, meanSpeed: forecastRange })),
+  windows: v.array(
+    v.object({
+      from: v.number(),
+      to: v.number(),
+      streets: v.array(v.object({ name: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange, cars: forecastRange })),
+      segments: v.array(v.object({ key: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange })),
+    }),
+  ),
+};
+
 export const mobility = v.union(
   v.literal("walks"),
   v.literal("walker"),
@@ -472,4 +494,8 @@ export default defineSchema({
     staleMass: v.number(),
     refused: v.number(),
   }),
+
+  // The traffic forecast the Langevin crowd model runner (scripts/mesh/traffic-forecast.ts) publishes
+  // for the agency view. Simulated traffic of the synthetic town, with ranges over ensemble members.
+  meshTrafficForecasts: defineTable(trafficForecastFields).index("by_issuedAt", ["issuedAt"]),
 });

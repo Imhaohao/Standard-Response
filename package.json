@@ -12,7 +12,8 @@
     "dev:voice": "tsx watch --env-file=.env.local voice/server.ts",
     "voice": "tsx voice/server.ts",
     "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
-    "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts"
+    "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts",
+    "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

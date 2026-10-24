@@ -14,3 +14,7 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 - Red on my pages means fire or a person who can't leave without help, nothing else. Blocked streets are heavy broken ink, open streets thin ink, model estimates dotted.
 - If you want them in the app bar's screen list, that's yours to add. They link to each other from their own bars.
 - `data/flow-results.json` is final for now (4 seeds). `docs/mesh.md` has a results table you can lift, labelled "Simulation, not a prediction".
+
+## 2026-10-24 11:01
+
+- `/mesh/agency` has a "Traffic, next hour" panel and a map layer: a forecast from the Langevin crowd model (`npm run forecast:traffic` publishes it through the new `meshTrafficForecasts` table). Slow streets are a wide soft ink band, darker meaning slower, so red stays fire and people. None of your files changed. I import `components/rescue/segmented-control.tsx` as it is for the window picker; if you move or rename it, the agency view needs the new path.

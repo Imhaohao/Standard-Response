@@ -3,6 +3,7 @@ import { internalMutation, mutation, MutationCtx, query, QueryCtx } from "./_gen
 import { DEFAULT_TRAINING, GlobalModel, INITIAL_MODEL, isValidMix, Mix, UPLOAD_MIN_MASS } from "../lib/mesh/federated";
 import { coarsenTime, consensusOf, isValidReport, REPORT_TTL_MS, RoadReport } from "../lib/mesh/reports";
 import { addToRound, closeRound, emptyRound, freshOptimizerState, OpenRound, roundIsReady } from "../lib/mesh/rounds";
+import { trafficForecastFields } from "./schema";
 
 // Mesh add-on: what phones upload when one of them has internet, and what the agency reads back.
 // Uploads carry no phone or person id. Road reports are kept as sent (with their random report id,
@@ -13,6 +14,10 @@ import { addToRound, closeRound, emptyRound, freshOptimizerState, OpenRound, rou
 const MAX_REPORTS_PER_UPLOAD = 400;
 const MAX_MIXES_PER_UPLOAD = 8;
 const READ_LIMIT = 8000;
+const FORECASTS_KEPT = 3;
+const MAX_FORECAST_WINDOWS = 6;
+const MAX_FORECAST_POINTS = 40;
+const MAX_FORECAST_ROWS = 400;
 
 const reportArg = v.object({
   id: v.string(),
@@ -171,13 +176,40 @@ export const rounds = query({
   },
 });
 
+// Written by the traffic forecast runner. Keeps the last few forecasts and drops older ones.
+export const publishTrafficForecast = mutation({
+  args: trafficForecastFields,
+  returns: v.null(),
+  handler: async (ctx, forecast) => {
+    const sizes = forecast.windows.map((w) => w.segments.length + w.streets.length);
+    if (forecast.windows.length > MAX_FORECAST_WINDOWS || forecast.timeline.length > MAX_FORECAST_POINTS || sizes.some((n) => n > MAX_FORECAST_ROWS)) {
+      throw new Error("traffic forecast too large");
+    }
+    await ctx.db.insert("meshTrafficForecasts", forecast);
+    const older = await ctx.db.query("meshTrafficForecasts").withIndex("by_issuedAt").order("desc").take(FORECASTS_KEPT + 10);
+    for (const row of older.slice(FORECASTS_KEPT)) await ctx.db.delete("meshTrafficForecasts", row._id);
+    return null;
+  },
+});
+
+// The agency view: the newest forecast for the current incident, or null.
+export const trafficForecast = query({
+  args: {},
+  handler: async (ctx) => {
+    const control = await ctx.db.query("control").first();
+    const latest = await ctx.db.query("meshTrafficForecasts").withIndex("by_issuedAt").order("desc").first();
+    if (!latest || control?.warningIssuedAt === undefined || latest.warningIssuedAt !== control.warningIssuedAt) return null;
+    return latest;
+  },
+});
+
 // Clears every mesh table, from the command line only: `npx convex run mesh:clear`.
 export const clear = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
     let removed = 0;
-    for (const table of ["meshReports", "meshModels", "meshRound"] as const) {
+    for (const table of ["meshReports", "meshModels", "meshRound", "meshTrafficForecasts"] as const) {
       for (const row of await ctx.db.query(table).take(READ_LIMIT)) {
         await ctx.db.delete(table, row._id);
         removed += 1;

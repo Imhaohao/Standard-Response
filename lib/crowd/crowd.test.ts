@@ -135,8 +135,7 @@ describe("traffic forecast", () => {
   });
 
   it("summarises an ensemble's hour ahead as ranges over its members", () => {
-    const blocked = () => new Set<number>();
-    const ensemble = new TrafficEnsemble(ground, households, blocked, 3, 11, params);
+    const ensemble = new TrafficEnsemble(ground, households, 3, 11, params);
     ensemble.advanceTo(15);
     const forecast = ensemble.forecast();
     assert.equal(forecast.members, 3);
