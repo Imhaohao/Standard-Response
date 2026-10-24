@@ -130,7 +130,9 @@ export class Conversation {
     const urgent = this.handleEmergency(heard);
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
 
-    const transition = heard.wantsRepeat ? { step: this.step } : this.advance(heard);
+    // Asking us to repeat isn't a failed answer, so it doesn't use up a try.
+    if (heard.wantsRepeat) return this.reply(heard, urgent, []);
+    const transition = this.advance(heard);
     this.moveTo(transition.step);
     return this.reply(heard, urgent, transition.lines ?? []);
   }
@@ -236,9 +238,19 @@ export class Conversation {
     return { step: this.afterCanLeave() };
   }
 
-  // People leaving on their own skip the needs questions and go straight to the neighbor question.
+  // People leaving on their own skip the needs questions, but still hear a short read-back so a
+  // mistaken "yes, we can get out" can be corrected.
   private afterCanLeave(): Step {
-    return needsRide(this.record) ? "household" : "neighbor";
+    return needsRide(this.record) ? "household" : "readback";
+  }
+
+  // After a correction, go back to the first thing the record is now missing.
+  private nextMissing(): Step {
+    if (!needsRide(this.record)) return "readback";
+    if (this.record.peopleCount === undefined) return "household";
+    if (this.record.mobility === undefined) return "needs";
+    if (hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined) return "assistance";
+    return "readback";
   }
 
   household(): Transition {
@@ -268,7 +280,7 @@ export class Conversation {
   readback(heard: Interpretation): Transition {
     this.readbacks += 1;
     if (this.readbacks >= MAX_READBACKS) return { step: "neighbor" };
-    if (this.changedThisTurn) return { step: "readback", lines: [LINES[this.language].readbackFixed] };
+    if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
     if (heard.answer === "yes") return { step: "neighbor" };
     if (heard.answer === "no") return { step: "fix" };
     return { step: "readback" };
@@ -276,7 +288,7 @@ export class Conversation {
 
   fix(): Transition {
     if (!this.changedThisTurn) return this.retryOr("neighbor");
-    return { step: "readback", lines: [LINES[this.language].readbackFixed] };
+    return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
   }
 
   neighbor(): Transition {

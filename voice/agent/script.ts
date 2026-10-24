@@ -40,6 +40,8 @@ type Lines = {
   people: (count: number) => string;
   pets: string;
   noCar: string;
+  leavingOnOwn: string;
+  byCar: string;
   mobility: Record<Mobility, string>;
   assistance: Record<Assistance, string>;
   oxygen: string;
@@ -77,6 +79,8 @@ const EN: Lines = {
   people: (count) => (count === 1 ? "one person" : `${count} people`),
   pets: "with pets",
   noCar: "no car",
+  leavingOnOwn: "you're leaving on your own",
+  byCar: "by car",
   mobility: {
     walks: "everyone can walk",
     walker: "someone uses a walker",
@@ -125,6 +129,8 @@ const ES: Lines = {
   people: (count) => (count === 1 ? "una persona" : `${count} personas`),
   pets: "con mascotas",
   noCar: "sin carro",
+  leavingOnOwn: "usted sale por su cuenta",
+  byCar: "en carro",
   mobility: {
     walks: "todos pueden caminar",
     walker: "alguien usa andadera",
@@ -148,7 +154,10 @@ export const LINES: Record<Language, Lines> = { en: EN, es: ES };
 
 export function readback(record: AgentRecord, language: Language) {
   const lines = LINES[language];
+  const leaving = record.canLeave === "yes" && record.hasCar !== false && !record.mobility;
   const parts = [
+    leaving ? lines.leavingOnOwn : undefined,
+    leaving && record.hasCar ? lines.byCar : undefined,
     record.peopleCount !== undefined ? lines.people(record.peopleCount) : undefined,
     record.mobility ? lines.mobility[record.mobility] : undefined,
     record.medical?.includes("oxygen") ? lines.oxygen : undefined,

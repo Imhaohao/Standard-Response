@@ -31,6 +31,8 @@ type TwilioMessage =
   | { event: "stop" }
   | { event: "connected" };
 
+type TurnTiming = { spokeAt: number; heardAt: () => number | null };
+
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 export function handleMediaStream(socket: WebSocket) {
@@ -154,30 +156,33 @@ class CallSession implements LiveCall {
     this.residentSpoke = true;
     const spokeAt = this.lastSpeechAt;
     this.logLine("resident", utterance);
+    // First audio the resident hears after they stop, whether the backchannel or the reply itself.
+    let heardAt: number | null = null;
     let backchanneled = false;
     const backchannel = setTimeout(() => {
       backchanneled = true;
-      this.speech.say([this.pickBackchannel()], this.language, () => this.logLatency(spokeAt, "backchannel"));
+      this.speech.say([this.pickBackchannel()], this.language, () => {
+        heardAt = Date.now();
+        this.logLatency(spokeAt, "backchannel");
+      });
     }, BACKCHANNEL_AFTER_MS);
     try {
       const turn = await this.conversation.hear(utterance);
       clearTimeout(backchannel);
       this.syncLanguage();
-      this.speakTurn(turn, backchanneled ? null : spokeAt, backchanneled);
+      this.speakTurn(turn, { spokeAt, heardAt: () => heardAt }, backchanneled);
     } finally {
       this.thinking = false;
       if (this.heardSoFar.trim() !== "") void this.takeTurn();
     }
   }
 
-  private speakTurn(turn: AgentTurn, spokeAt: number | null, dropAcknowledgment = false) {
+  private speakTurn(turn: AgentTurn, timing: TurnTiming | null, dropAcknowledgment = false) {
     const sentences = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
     const text = sentences.join(" ");
-    const startedAt = Date.now();
     this.speech.say(sentences, this.language, () => {
-      const latencyMs = spokeAt === null ? undefined : Date.now() - spokeAt;
-      console.log(`[call ${this.callSid}] reply audio after ${Date.now() - startedAt}ms of synthesis`);
-      this.logLine("agent", text, latencyMs);
+      const firstAudio = timing?.heardAt() ?? Date.now();
+      this.logLine("agent", text, timing ? firstAudio - timing.spokeAt : undefined);
     });
     if (this.callId) fireAndForget("setStage", convex().mutation(api.calls.setStage, { callId: this.callId, stage: turn.stage }));
     if (turn.done) void this.speech.whenSilent().then(() => this.finish(true));

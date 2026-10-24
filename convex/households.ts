@@ -21,11 +21,15 @@ export type RecordPatch = typeof recordPatch.type;
 
 type Correction = NonNullable<Doc<"households">["corrections"]>[number];
 
+// Inbound callers start with this placeholder. Filling it in isn't a correction.
+export const UNCONFIRMED_ADDRESS = "Address not confirmed";
+
 // A field that already had a value and now has a different one is a correction.
 function correctionsBetween(household: Doc<"households">, patch: RecordPatch, at: number): Correction[] {
   return Object.entries(patch).flatMap(([field, value]) => {
     const before = household[field as keyof RecordPatch];
-    if (before === undefined || JSON.stringify(before) === JSON.stringify(value)) return [];
+    if (before === undefined || before === UNCONFIRMED_ADDRESS) return [];
+    if (JSON.stringify(before) === JSON.stringify(value)) return [];
     return [{ field, from: JSON.stringify(before), to: JSON.stringify(value), at }];
   });
 }
@@ -215,7 +219,7 @@ export const findOrCreateByPhone = mutation({
     if (existing) return existing._id;
     const now = Date.now();
     return await ctx.db.insert("households", {
-      address: "Address not confirmed",
+      address: UNCONFIRMED_ADDRESS,
       callbackNumber,
       language: language ?? "en",
       callStatus: "in_call",
