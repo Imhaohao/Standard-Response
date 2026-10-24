@@ -13,6 +13,7 @@ import type * as calls from "../calls.js";
 import type * as control from "../control.js";
 import type * as dispatchStandIn from "../dispatchStandIn.js";
 import type * as doorChecks from "../doorChecks.js";
+import type * as estimates from "../estimates.js";
 import type * as events from "../events.js";
 import type * as households from "../households.js";
 import type * as model from "../model.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   control: typeof control;
   dispatchStandIn: typeof dispatchStandIn;
   doorChecks: typeof doorChecks;
+  estimates: typeof estimates;
   events: typeof events;
   households: typeof households;
   model: typeof model;

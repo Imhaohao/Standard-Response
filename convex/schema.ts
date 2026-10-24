@@ -316,6 +316,8 @@ export default defineSchema({
     spokenAddress: v.string(),
     status: v.union(v.literal("open"), v.literal("matched"), v.literal("unmatched")),
     matchedHouseholdId: v.optional(v.id("households")),
+    // Track D: why a nomination couldn't be matched ("no house number", "two streets match"), for the dispatcher.
+    note: v.optional(v.string()),
     at: v.number(),
   }).index("by_status", ["status"]),
 
@@ -352,6 +354,18 @@ export default defineSchema({
     // What the resident says first before correcting it, for correction test cases.
     correction: v.optional(v.object({ field: v.string(), firstSays: v.string() })),
   }).index("by_householdId", ["householdId"]),
+
+  // Track D singleton. The on-screen smoothing toggle, plus what the model runner last did.
+  modelState: defineTable({
+    // Spatial smoothing of need estimates from answered neighbors. Toggled on screen.
+    smoothing: v.boolean(),
+    // Door-check aging weight, fixed once per incident (keyed by warningIssuedAt) so the order is stable.
+    doorAlpha: v.optional(v.number()),
+    incidentKey: v.optional(v.number()),
+    lastRunAt: v.optional(v.number()),
+    // Counts from the last run: households estimated, door checks scored, closures added, matches.
+    stats: v.optional(v.record(v.string(), v.number())),
+  }),
 
   // Singleton row. Operator controls plus one switch per stand-in.
   control: defineTable({
