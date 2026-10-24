@@ -50,8 +50,17 @@ export async function approveAssignment(ctx: MutationCtx, assignmentId: Id<"assi
 export async function acceptAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
   const refs = { requestId: assignment.requestId, assignmentId, planVersion: assignment.planVersion };
+  // A repeated Accept from the same phone: report the acceptance it already made, and write nothing.
+  if (assignment.status === "accepted") return "accepted" as const;
   if (assignment.status !== "offered") {
     await audit(ctx, "stale_accept_rejected", `Accept on a ${assignment.status} offer rejected`, refs);
+    return "changed" as const;
+  }
+  // Accepted runs are frozen: an older offer that now sits before an accepted stop can't join the run.
+  const run = await liveAssignmentsForVehicle(ctx, assignment.vehicleId);
+  const lastAccepted = Math.max(-1, ...run.filter((a) => a.status === "accepted").map((a) => a.stopOrder));
+  if (assignment.stopOrder <= lastAccepted) {
+    await endOpenOffer(ctx, assignment, "replaced");
     return "changed" as const;
   }
   await ctx.db.patch("assignments", assignmentId, { status: "accepted", respondedAt: Date.now() });

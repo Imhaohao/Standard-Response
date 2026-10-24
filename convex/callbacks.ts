@@ -37,6 +37,8 @@ export const pending = query({
 async function setState(ctx: MutationCtx, callbackId: Id<"callbacks">, patch: Partial<Doc<"callbacks">>) {
   const callback = await ctx.db.get("callbacks", callbackId);
   if (!callback) throw new Error(`Callback ${callbackId} not found`);
+  // Played is final. A repeated or late event must not move it back or restamp its time.
+  if (callback.state === "played") return;
   await ctx.db.patch("callbacks", callbackId, patch);
 }
 
