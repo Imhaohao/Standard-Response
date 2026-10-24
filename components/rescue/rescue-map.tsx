@@ -15,6 +15,7 @@ import { useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
 import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
+import { FireSpreadLayer } from "./fire-spread-layer";
 import { FleetPanel } from "./fleet-panel";
 import { FireScrubber, MapToolbar, MapTool, MapTopBar } from "./map-chrome";
 import { ContextAction, ContextSpot, MapContextMenu } from "./map-context-menu";
@@ -75,6 +76,7 @@ export function RescueMap() {
         controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
         {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
+        <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
         <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
       </MapStage>
 
