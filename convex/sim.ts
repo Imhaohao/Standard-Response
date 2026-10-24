@@ -13,6 +13,7 @@ import { needModelRunnerLive } from "./estimates";
 // before the real piece exists. Flip its switch in `control` once the real one writes.
 
 export const TICK_MS = 900;
+const MAX_RUN_MS = 45 * 60_000;
 const RING_MS = 1800;
 const RETRY_AFTER_MS = 20_000;
 const TEXT_REPLY_WAIT_MS = 25_000;
@@ -173,6 +174,18 @@ async function standInNeedModel(ctx: MutationCtx, now: number) {
   }
 }
 
+// The loop runs ~2 functions a second; left on overnight it exhausts the Convex plan.
+async function stopLoop(ctx: MutationCtx, control: Doc<"control">, now: number) {
+  await ctx.db.patch("control", control._id, { dialerRunning: false });
+  const minutes = Math.round(MAX_RUN_MS / 60_000);
+  await ctx.db.insert("events", {
+    kind: "control",
+    message: `Simulation stopped after ${minutes} minutes to save Convex usage. Reset to run again`,
+    at: now,
+  });
+  return null;
+}
+
 export const tick = internalMutation({
   args: { generation: v.number() },
   returns: v.null(),
@@ -180,17 +193,22 @@ export const tick = internalMutation({
     const control = await ctx.db.query("control").first();
     if (!control || control.tickGeneration !== generation || !control.warningIssuedAt) return null;
     const now = Date.now();
-    if (control.simulateVoice) {
-      await standInVoiceAgent(ctx, now);
-      if (control.dialerRunning) await standInDialer(ctx, control, now);
-      await standInTextFollowUp(ctx, now);
-    }
-    if (control.simulateVoice) await standInCallbacks(ctx, now);
-    if (control.simulateNeedModel || !(await needModelRunnerLive(ctx, now))) await standInNeedModel(ctx, now);
-    if (control.autoApprove) await approveLeftovers(ctx);
+    if (now - control.warningIssuedAt > MAX_RUN_MS) return await stopLoop(ctx, control, now);
+    await runStandIns(ctx, control, now);
     if (control.simulateDispatch) await standInDispatch(ctx, control, now, TICK_MS);
     else await ctx.scheduler.runAfter(0, internal.fleet.tick, { tickMs: TICK_MS });
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation });
     return null;
   },
 });
+
+async function runStandIns(ctx: MutationCtx, control: Doc<"control">, now: number) {
+  if (control.simulateVoice) {
+    await standInVoiceAgent(ctx, now);
+    if (control.dialerRunning) await standInDialer(ctx, control, now);
+    await standInTextFollowUp(ctx, now);
+    await standInCallbacks(ctx, now);
+  }
+  if (control.simulateNeedModel || !(await needModelRunnerLive(ctx, now))) await standInNeedModel(ctx, now);
+  if (control.autoApprove) await approveLeftovers(ctx);
+}
