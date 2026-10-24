@@ -30,8 +30,7 @@ function fitsInACar(household: Household) {
 const needsRide = (household: Household) =>
   (household.outcome === "needs_ride" || household.outcome === "needs_accessible") && household.canLeave !== undefined;
 
-// Has a car, by tonight's call or the Ready check. A neighbor just outside the warning zone counts
-// too: they aren't evacuating, so they're free to drive over.
+// Has a car, by tonight's call or the Ready check.
 function canDrive(household: Household) {
   if (!household.callbackNumber) return false;
   const hasCar = household.hasCar === true || household.ready?.exitPlan === "own_car";
@@ -50,13 +49,24 @@ export async function busyHelpers(ctx: QueryCtx) {
   return busy;
 }
 
+// Palo Alto Fire told us a neighbor sent back for someone can end up "going backwards" into the
+// danger zone. So we only ask a neighbor the fire reaches no later than the resident: driving over
+// to pick them up is then driving away from the fire. That also leaves out a neighbor outside the
+// warning zone, who would have to drive in.
+const awayFromTheFire = (neighbor: Household, resident: Household) => neighbor.fireArrivalAt <= resident.fireArrivalAt;
+
+function mayAsk(household: Household, resident: Located, skip: Set<string>): household is Located {
+  if (household._id === resident._id || skip.has(household._id)) return false;
+  return canDrive(household) && located(household) && awayFromTheFire(household, resident);
+}
+
 async function nearestDriver(ctx: MutationCtx, resident: Located, skip: Set<string>, reachMeters: number) {
   const lists = await Promise.all(
     DRIVER_OUTCOMES.map((outcome) => ctx.db.query("households").withIndex("by_outcome", (q) => q.eq("outcome", outcome)).take(1000)),
   );
   let best: { household: Household; meters: number } | null = null;
   for (const household of lists.flat()) {
-    if (household._id === resident._id || skip.has(household._id) || !canDrive(household) || !located(household)) continue;
+    if (!mayAsk(household, resident, skip)) continue;
     const meters = metersBetween(resident, household);
     if (meters <= reachMeters && (!best || meters < best.meters)) best = { household, meters };
   }
