@@ -1,6 +1,6 @@
 {
  "label": "Door-team simulation on the real west Altadena road graph with synthetic households. Simulated; a policy test, not a forecast.",
- "generatedAt": "2026-10-24T02:19:06-0700",
+ "generatedAt": "2026-10-24T04:00:17-0700",
  "setup": {
   "teams": 6,
   "homesOnList": 400,
@@ -485,5 +485,60 @@
   "30% of nominations wrong: our order checks 90% of truly needy homes before their deadline (nearest-first 69%, random 43%); worst wait 294 min (nearest-first 287, random 388, ours without aging 302).",
   "north fifth answers at half the rate: our order checks 49% of truly needy homes before their deadline (nearest-first 46%, random 25%); worst wait 473 min (nearest-first 468, random 652, ours without aging 487).",
   "isolated pocket: nobody answers within 900 m of the northwest edge: our order checks 79% of truly needy homes before their deadline (nearest-first 60%, random 33%); worst wait 417 min (nearest-first 413, random 555, ours without aging 429)."
- ]
+ ],
+ "alphaSensitivity": {
+  "15 min": {
+   "worstWait": {
+    "mean": 292.0,
+    "p5": 259.0,
+    "p95": 311.6
+   },
+   "needyInTime": {
+    "mean": 89.1,
+    "p5": 82.8,
+    "p95": 95.2
+   },
+   "chosen": false
+  },
+  "30 min": {
+   "worstWait": {
+    "mean": 294.4,
+    "p5": 258.4,
+    "p95": 315.4
+   },
+   "needyInTime": {
+    "mean": 88.7,
+    "p5": 77.9,
+    "p95": 96.8
+   },
+   "chosen": true
+  },
+  "60 min": {
+   "worstWait": {
+    "mean": 297.6,
+    "p5": 264.5,
+    "p95": 318.2
+   },
+   "needyInTime": {
+    "mean": 89.3,
+    "p5": 83.3,
+    "p95": 95.7
+   },
+   "chosen": false
+  },
+  "120 min": {
+   "worstWait": {
+    "mean": 298.7,
+    "p5": 267.3,
+    "p95": 318.8
+   },
+   "needyInTime": {
+    "mean": 89.3,
+    "p5": 81.5,
+    "p95": 96.0
+   },
+   "chosen": false
+  },
+  "reading": "Across 15 to 120 minutes the worst wait moves only 292 to 299 min: with 6 teams for 400 homes, team capacity sets the worst case and the aging weight barely matters. 30 minutes is safe, not decisive."
+ }
 }

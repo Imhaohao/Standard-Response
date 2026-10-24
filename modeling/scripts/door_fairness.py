@@ -37,6 +37,29 @@ def spread(values: list[float]) -> dict:
     return {"mean": round(float(a.mean()), 1), "p5": round(float(np.percentile(a, 5)), 1), "p95": round(float(np.percentile(a, 95)), 1)}
 
 
+WAIT_EQUIVALENCES = [15.0, 30.0, 60.0, 120.0]
+
+
+def alpha_sensitivity(population, base_rates, hazard, travel, seeds: int) -> dict:
+    """How the aging weight trades worst-case wait against checking needy homes in time (baseline worlds).
+    alpha is set so N minutes on the list equals the 90th-percentile need-and-urgency term; 30 is our choice."""
+    rows = {}
+    for minutes in WAIT_EQUIVALENCES:
+        config = DoorConfig(wait_equivalence_minutes=minutes)
+        worst, in_time = [], []
+        for seed in range(seeds):
+            world = build_world(random.Random(seed), population, SCENARIOS[0], hazard, travel, base_rates)
+            alpha = alpha_at_start(world, travel, list(DEFAULT_TEAMS), config)
+            result = simulate(world, "score", travel, list(DEFAULT_TEAMS), random.Random(1000 + seed), alpha)
+            worst.append(float(result.wait.max()))
+            in_time.append(result.checked_in_time * 100)
+        rows[f"{minutes:.0f} min"] = {"worstWait": spread(worst), "needyInTime": spread(in_time), "chosen": minutes == DoorConfig().wait_equivalence_minutes}
+    worsts = [row["worstWait"]["mean"] for row in rows.values()]
+    rows["reading"] = (f"Across 15 to 120 minutes the worst wait moves only {min(worsts):.0f} to {max(worsts):.0f} min: with 6 teams for 400 homes, "
+                       "team capacity sets the worst case and the aging weight barely matters. 30 minutes is safe, not decisive.")
+    return rows
+
+
 def headlines(results: dict) -> list[str]:
     """Plain sentences computed from the numbers, for the screen and the pitch. Nothing typed in by hand."""
     lines = []
@@ -79,6 +102,7 @@ def main() -> None:
                     cell["slowAreaWorst"].append(float(result.wait[world.slow_area].max()))
         results[scenario.name] = {policy: {k: spread(v) for k, v in cell.items() if v} for policy, cell in cells.items()}
         print(scenario.name, {p: (results[scenario.name][p]["worstWait"]["mean"], results[scenario.name][p]["needyInTime"]["mean"]) for p in POLICIES})
+    sensitivity = alpha_sensitivity(population, base_rates, hazard, travel, args.seeds)
     out = {
         "label": "Door-team simulation on the real west Altadena road graph with synthetic households. Simulated; a policy test, not a forecast.",
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -92,6 +116,7 @@ def main() -> None:
         "ranges": "mean, and 5th to 95th percentile across seeds",
         "results": results,
         "headlines": headlines(results),
+        "alphaSensitivity": sensitivity,
     }
     (DATA / "door-fairness.json").write_text(json.dumps(out, indent=1))
 
