@@ -255,7 +255,6 @@ uniform sampler2D tBloom;
 uniform sampler2D tBuildingState;
 uniform vec2 uResolution;
 uniform float uPixelRatio;
-uniform float uTanHalfFov;
 uniform float uBaseElevation;
 uniform vec3 uPaper;
 uniform vec3 uInk;
@@ -264,6 +263,24 @@ uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uDebug;
 uniform float uInkStrength;
+uniform vec3 uCamRight;
+uniform vec3 uCamUp;
+uniform float uViewMpp;
+uniform float uPatternScale;
+uniform float uPatternBlend;
+
+// Tone is printed on the town, not on the glass: every dot, hatch and speck is laid out in the
+// camera's own right and up directions but measured in metres, so it slides with the streets when
+// the map pans. uPatternScale snaps that metre grid to a power of two near the current zoom, and
+// uPatternBlend crossfades into the next power as the zoom passes, so dots keep a readable size.
+vec2 gPattern;
+float gPatternWidth;
+
+void placePattern(vec3 world) {
+  gPattern = vec2(dot(world, uCamRight), dot(world, uCamUp)) * uPatternScale;
+  vec2 width = fwidth(gPattern);
+  gPatternWidth = max(width.x, width.y);
+}
 
 float decodeId(vec2 uv) {
   vec3 c = texture(tId, uv).rgb * 255.0;
@@ -347,29 +364,44 @@ float inkLines(vec2 uv, float idC, float depthC, vec3 normalC, float metersPerPi
 }
 
 const mat2 ROT45 = mat2(0.7071, -0.7071, 0.7071, 0.7071);
+const float OCTAVE_MIDDLE = 1.4142;
+const float DOT_CELL = 3.4;
 
-float screentone(float coverage, float cell) {
-  if (coverage <= 0.001) return 0.0;
-  vec2 p = ROT45 * gl_FragCoord.xy / cell;
-  vec2 f = fract(p) - 0.5;
+// Below a few pixels a cell can't hold a dot any more, so the pattern gives way to its average tone
+// instead of shimmering.
+float dotsAt(vec2 p, float coverage, float cell, float width) {
+  vec2 f = fract(ROT45 * p / cell) - 0.5;
   float r = sqrt(coverage / 3.14159);
-  float d = length(f);
-  float aa = 0.75 / cell;
-  return 1.0 - smoothstep(r - aa, r + aa, d);
+  float aa = max(0.75 * width / cell, 1e-3);
+  float dots = 1.0 - smoothstep(r - aa, r + aa, length(f));
+  return mix(dots, coverage, smoothstep(0.45, 0.8, width / cell));
+}
+
+float screentone(float coverage) {
+  if (coverage <= 0.001) return 0.0;
+  float cell = DOT_CELL * uPixelRatio * OCTAVE_MIDDLE;
+  float fine = dotsAt(gPattern, coverage, cell, gPatternWidth);
+  float coarse = dotsAt(gPattern * 0.5, coverage, cell, gPatternWidth * 0.5);
+  return mix(fine, coarse, uPatternBlend);
 }
 
 // A hatch line is thin, so it needs room. With a period close to the width of the antialiasing
 // band every line smears into its neighbour and an 18% hatch comes out as a third of the paper.
+float linesAt(vec2 p, float coverage, float period, vec2 direction, float width) {
+  float f = abs(fract(dot(p, direction) / period) - 0.5) * period;
+  float halfWidth = clamp(coverage, 0.0, 0.9) * period * 0.5;
+  float aa = max(0.55 * width, halfWidth * 0.4);
+  float lines = 1.0 - smoothstep(halfWidth - aa, halfWidth + aa, f);
+  return mix(lines, coverage, smoothstep(0.3, 0.6, width / period));
+}
+
 float hatch(float coverage, float spacing, float angle) {
   if (coverage <= 0.001) return 0.0;
-  float period = max(spacing, 3.0 * uPixelRatio);
-  float c = cos(angle);
-  float s = sin(angle);
-  float x = dot(gl_FragCoord.xy, vec2(c, s));
-  float f = abs(fract(x / period) - 0.5) * period;
-  float halfWidth = clamp(coverage, 0.0, 0.9) * period * 0.5;
-  float aa = max(0.55, halfWidth * 0.4);
-  return 1.0 - smoothstep(halfWidth - aa, halfWidth + aa, f);
+  float period = max(spacing, 3.0 * uPixelRatio) * OCTAVE_MIDDLE;
+  vec2 direction = vec2(cos(angle), sin(angle));
+  float fine = linesAt(gPattern, coverage, period, direction, gPatternWidth);
+  float coarse = linesAt(gPattern * 0.5, coverage, period, direction, gPatternWidth * 0.5);
+  return mix(fine, coarse, uPatternBlend);
 }
 
 // Three ink levels from the light, like hand-laid tone sheets.
@@ -379,32 +411,37 @@ float toneLevel(float shade, float light, float mid, float dark) {
   return dark;
 }
 
-float stipple(vec2 mapXY, float density) {
-  vec2 cell = floor(gl_FragCoord.xy / (2.0 * uPixelRatio));
-  return step(1.0 - density, hash12(cell));
+float specksAt(vec2 p, float density) {
+  return step(1.0 - density, hash12(floor(p / (2.0 * uPixelRatio * OCTAVE_MIDDLE))));
 }
 
-float landuseInk(float kind, float shade, vec2 mapXY, float cell) {
+float stipple(float density) {
+  return mix(specksAt(gPattern, density), specksAt(gPattern * 0.5 + 97.0, density), uPatternBlend);
+}
+
+float landuseInk(float kind, float shade) {
   float shadow = shade < 0.2 ? 0.26 : 0.0;
-  if (kind == 1.0 || kind == 2.0 || kind == 7.0) return max(stipple(mapXY, 0.1), screentone(shadow, cell));
+  if (kind == 1.0 || kind == 2.0 || kind == 7.0) return max(stipple(0.1), screentone(shadow));
   if (kind == 3.0) return hatch(0.16, 6.0 * uPixelRatio, 0.0);
-  if (kind == 4.0 || kind == 6.0) return screentone(max(0.1, shadow), cell);
-  if (kind == 5.0) return screentone(max(0.04, shadow), cell);
-  if (kind == 8.0) return max(screentone(0.07, cell), stipple(mapXY, 0.05));
-  if (kind == 9.0) return max(stipple(mapXY, 0.12), screentone(shadow, cell));
-  return screentone(max(0.05, shadow), cell);
+  if (kind == 4.0 || kind == 6.0) return screentone(max(0.1, shadow));
+  if (kind == 5.0) return screentone(max(0.04, shadow));
+  if (kind == 8.0) return max(screentone(0.07), stipple(0.05));
+  if (kind == 9.0) return max(stipple(0.12), screentone(shadow));
+  return screentone(max(0.05, shadow));
 }
 
-float terrainInk(float shade, float up, vec3 w, float metersPerPixel, float cell) {
+float contourLine(float e) {
+  return 1.0 - smoothstep(0.0, 1.0, abs(fract(e + 0.5) - 0.5) / max(fwidth(e), 1e-4));
+}
+
+float terrainInk(float shade, float up, vec3 w, float metersPerPixel) {
   float steep = 1.0 - up;
   float slopeHatch = hatch(clamp((steep - 0.16) * 1.2, 0.0, 0.32) * (1.0 - shade * 0.7), 6.5 * uPixelRatio, 0.35);
   float elevation = w.y + uBaseElevation;
-  float interval = metersPerPixel > 3.0 ? 100.0 : 25.0;
-  float e = elevation / interval;
-  float contour = 1.0 - smoothstep(0.0, 1.0, abs(fract(e + 0.5) - 0.5) / max(fwidth(e), 1e-4));
+  float contour = mix(contourLine(elevation / 25.0), contourLine(elevation / 100.0), smoothstep(2.5, 3.5, metersPerPixel));
   // The yard tone is a town-scale texture: it says "this is a settled block" when a house is one
   // pixel wide. Close up it is only dirt on the paper, so it fades out as the detail comes in.
-  float yard = screentone(shade < 0.25 ? 0.16 : 0.0, cell) * smoothstep(0.8, 3.0, metersPerPixel);
+  float yard = screentone(shade < 0.25 ? 0.16 : 0.0) * smoothstep(0.8, 3.0, metersPerPixel);
   return max(max(yard, slopeHatch), contour * 0.35);
 }
 
@@ -412,20 +449,19 @@ float terrainInk(float shade, float up, vec3 w, float metersPerPixel, float cell
 // no face left to light. The tone is what makes the built-up area read as a place. It shares the
 // terrain's dot grid: a house is one pixel wide there, so two screens next to each other would read
 // as noise rather than as two surfaces.
-float buildingTone(float shade, float detail, float cell, float lit, float plain) {
-  return mix(screentone(plain, cell), screentone(toneLevel(shade, lit * 0.5, lit, plain * 0.9), cell), detail);
+float buildingTone(float shade, float detail, float lit, float plain) {
+  return mix(screentone(plain), screentone(toneLevel(shade, lit * 0.5, lit, plain * 0.9)), detail);
 }
 
-float surfaceInk(float surface, float shade, float up, vec3 w, float metersPerPixel, float cell, float detail) {
-  vec2 mapXY = vec2(w.x, -w.z);
-  if (surface == S_WALL) return buildingTone(shade, detail, cell, 0.16, 0.12);
-  if (surface == S_ROOF) return buildingTone(shade, detail, cell, 0.1, 0.08);
-  if (surface == S_ROAD) return screentone(shade < 0.25 ? 0.2 : 0.0, cell) * detail;
+float surfaceInk(float surface, float shade, float up, vec3 w, float metersPerPixel, float detail) {
+  if (surface == S_WALL) return buildingTone(shade, detail, 0.16, 0.12);
+  if (surface == S_ROOF) return buildingTone(shade, detail, 0.1, 0.08);
+  if (surface == S_ROAD) return screentone(shade < 0.25 ? 0.2 : 0.0) * detail;
   // A tree is 5 m across, so at town scale it is a fraction of a pixel and its canopy tone aliases
   // into a random dark speck. Fading the tone keeps the tree cover visible as a stipple.
-  if (surface == S_TREE) return screentone(toneLevel(shade, 0.0, 0.12, 0.34) * mix(0.42, 1.0, detail), cell);
-  if (surface > S_LANDUSE) return landuseInk(surface - S_LANDUSE, shade, mapXY, cell);
-  return terrainInk(shade, up, w, metersPerPixel, cell);
+  if (surface == S_TREE) return screentone(toneLevel(shade, 0.0, 0.12, 0.34) * mix(0.42, 1.0, detail));
+  if (surface > S_LANDUSE) return landuseInk(surface - S_LANDUSE, shade);
+  return terrainInk(shade, up, w, metersPerPixel);
 }
 
 vec4 buildingState(float id) {
@@ -471,7 +507,7 @@ vec3 flameColor(float f) {
 }
 
 // Smoke is drawn over the map as ink puffs (components/map/smoke-layer.tsx), not here.
-vec3 overlayFire(vec3 color, vec2 uv, float cell) {
+vec3 overlayFire(vec3 color, vec2 uv) {
   float flame = flameTongues(uv);
   color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
   return color;
@@ -495,13 +531,15 @@ void main() {
   float depth = shimmer.z;
   float grain = (hash12(gl_FragCoord.xy) - 0.5) * 0.035;
   vec3 paper = uPaper + grain;
-  // Screen size of the halftone dot. A close-up is read one house at a time, so the dots have to be
-  // big enough to see as dots; at town scale a coarse screen would only block up the texture.
-  float detail0 = detailAmount(depth * 2.0 * uTanHalfFov / uResolution.y);
-  float cell = mix(2.7, 4.4, detail0) * uPixelRatio;
+  placePattern(worldPosition(uv, depth));
+  // Level of detail follows the zoom, never each pixel's own distance. Read per pixel, the far half
+  // of a tilted view crosses into town-scale drawing before the near half does, and the seam between
+  // them sweeps across the map like a shadow every time the zoom changes.
+  float metersPerPixel = uViewMpp;
+  float detail = detailAmount(metersPerPixel);
 
   if (depth >= 1.0) {
-    fragColor = vec4(overlayFire(paper, vUv, cell), 1.0);
+    fragColor = vec4(overlayFire(paper, vUv), 1.0);
     return;
   }
 
@@ -510,11 +548,8 @@ void main() {
     if (uDebug < 1.5) fragColor = vec4(vec3(g.r), 1.0);
     else if (uDebug < 2.5) fragColor = vec4(texture(tNormal, uv).xyz, 1.0);
     else if (uDebug < 3.5) fragColor = vec4(vec3(g.g * 255.0 / 20.0), 1.0);
-    else if (uDebug < 4.5) {
-      float mpp = depth * 2.0 * uTanHalfFov / uResolution.y;
-      fragColor = vec4(vec3(surfaceInk(floor(g.g * 255.0 + 0.5), g.r, g.b * 2.0 - 1.0, worldPosition(uv, depth), mpp, 2.7 * uPixelRatio, detailAmount(mpp))), 1.0);
-    }
-    else if (uDebug < 5.5) fragColor = vec4(vec3(inkLines(uv, decodeId(uv), linearDepth(uv), texture(tNormal, uv).xyz * 2.0 - 1.0, depth * 2.0 * uTanHalfFov / uResolution.y)), 1.0);
+    else if (uDebug < 4.5) fragColor = vec4(vec3(surfaceInk(floor(g.g * 255.0 + 0.5), g.r, g.b * 2.0 - 1.0, worldPosition(uv, depth), metersPerPixel, detail)), 1.0);
+    else if (uDebug < 5.5) fragColor = vec4(vec3(inkLines(uv, decodeId(uv), linearDepth(uv), texture(tNormal, uv).xyz * 2.0 - 1.0, metersPerPixel)), 1.0);
     else fragColor = vec4(vec3(buildingState(decodeId(uv)).r), 1.0);
     return;
   }
@@ -524,13 +559,11 @@ void main() {
   float up = surface == S_TERRAIN ? smoothNormal(uv).y : g.b * 2.0 - 1.0;
   float idC = decodeId(uv);
   float depthC = linearDepth(uv);
-  float metersPerPixel = depthC * 2.0 * uTanHalfFov / uResolution.y;
   vec3 w = worldPosition(uv, depth);
   vec2 mapXY = vec2(w.x, -w.z);
 
-  float detail = detail0;
   float lod = 1.0 - 0.55 * smoothstep(0.45, 1.5, metersPerPixel);
-  float tone = surfaceInk(surface, shade, up, w, metersPerPixel, cell, detail) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
+  float tone = surfaceInk(surface, shade, up, w, metersPerPixel, detail) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
   float ink = max(tone * 0.85, lines);
   vec3 color = mix(paper, uInk, ink * uInkStrength);
@@ -573,13 +606,14 @@ void main() {
   float future = step(uFireNow, minutes) * step(minutes, uFireNow + 31.0) * uFireOn;
   float fm = minutes / 30.0;
   float iso = 1.0 - smoothstep(0.0, 1.3, abs(fract(fm + 0.5) - 0.5) / max(fwidth(fm), 1e-4));
-  float dash = step(0.45, fract(dot(gl_FragCoord.xy, vec2(0.7071, 0.7071)) / (9.0 * uPixelRatio)));
+  float dashPeriod = 9.0 * uPixelRatio * OCTAVE_MIDDLE;
+  float dash = mix(step(0.45, fract(dot(gPattern, vec2(0.7071)) / dashPeriod)), step(0.45, fract(dot(gPattern * 0.5, vec2(0.7071)) / dashPeriod)), uPatternBlend);
   color = mix(color, uRed, iso * dash * future * 0.55);
 
   float glow = frontGlow(mapXY, minutes);
   color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.6);
   float bloom = texture(tBloom, vUv).r;
   color += uEmber * min(bloom, 1.0) * 0.45 + vec3(1.0, 0.85, 0.6) * smoothstep(0.75, 1.15, glow) * 0.3;
-  fragColor = vec4(overlayFire(color, vUv, cell), 1.0);
+  fragColor = vec4(overlayFire(color, vUv), 1.0);
 }
 `;

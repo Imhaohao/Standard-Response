@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowUp, Wind } from "@phosphor-icons/react";
+import { ArrowUp } from "@phosphor-icons/react";
 import { MapShape } from "@/components/map/layers";
 import { DangerZones, zonesAt } from "@/lib/ink-map/danger";
-import { ChromeSurface } from "./map-chrome";
+import { Switch } from "@/components/ui/switch";
 
 const HAZARD = "var(--signal)";
 
@@ -55,15 +55,20 @@ function WindReading({ danger }: { danger: DangerZones }) {
   );
 }
 
+// The map lays one translucent fill per band, so the likeliest ground is where all three stack.
+const stackedOpacity = (layers: number) => Math.min(1, BAND_FILL_OPACITY * 2.2 * layers);
+
 function BandKey({ probabilities }: { probabilities: number[] }) {
+  const ordered = [...probabilities].sort((a, b) => a - b);
+  const percent = (probability: number) => Math.round(probability * 100);
   return (
-    <span className="inline-flex items-center gap-2" aria-hidden>
-      {probabilities.map((probability, index) => (
-        <span key={probability} className="type-small inline-flex items-center gap-1 tabular-nums">
-          <span className="size-2.5 rounded-sm bg-signal" style={{ opacity: Math.min(1, BAND_FILL_OPACITY * 2.2 * (index + 1)) }} />
-          {Math.round(probability * 100)}%
-        </span>
-      ))}
+    <span className="type-small inline-flex items-center gap-2 text-on-panel-muted">
+      <span className="flex h-2.5 w-14 shrink-0 overflow-hidden rounded-full" aria-hidden>
+        {ordered.map((probability, index) => (
+          <span key={probability} className="flex-1 bg-signal" style={{ opacity: stackedOpacity(index + 1) }} />
+        ))}
+      </span>
+      {percent(ordered[0])}–{percent(ordered[ordered.length - 1])}% chance it burns by then
     </span>
   );
 }
@@ -71,29 +76,17 @@ function BandKey({ probabilities }: { probabilities: number[] }) {
 function describe(danger: DangerZones) {
   const source = danger.wind.source === "nws" ? "the National Weather Service wind forecast" : `the scenario's own wind (${danger.wind.note ?? "no live wind"})`;
   const built = new Date(danger.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return `Shaded areas show the chance each spot has burned by the slider's minute, from ${danger.members} spread-model runs under ${source}. Built at ${built}. A model forecast, not an observation.`;
+  return `Shaded areas show the chance each spot has burned by the slider's minute, from ${danger.members} spread-model runs under ${source}. Built at ${built}.`;
 }
 
 export function ForecastControl({ danger, shown, onToggle }: { danger: DangerZones; shown: boolean; onToggle: () => void }) {
   return (
-    <ChromeSurface className="flex items-center gap-3 py-1.5 pr-3 pl-1.5">
-      <button
-        type="button"
-        aria-pressed={shown}
-        onClick={onToggle}
-        title={describe(danger)}
-        className={`type-small inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 font-semibold whitespace-nowrap transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-on-panel ${
-          shown ? "bg-on-panel text-panel" : "bg-panel-raised text-on-panel hover:bg-panel"
-        }`}
-      >
-        <Wind weight="bold" className="size-4" />
-        {shown ? "Hide fire forecast" : "Show fire forecast"}
-      </button>
-      <WindReading danger={danger} />
-      <span className={`transition-opacity duration-150 ${shown ? "" : "opacity-40"}`}>
-        <BandKey probabilities={danger.probabilities} />
+    <>
+      <span title={describe(danger)}>
+        <Switch checked={shown} onChange={onToggle} label="Fire forecast" className="-ml-1 rounded-lg px-1 py-0.5 hover:bg-panel-raised" />
       </span>
-      <span className="sr-only">{describe(danger)}</span>
-    </ChromeSurface>
+      {shown && <BandKey probabilities={danger.probabilities} />}
+      {shown && <WindReading danger={danger} />}
+    </>
   );
 }

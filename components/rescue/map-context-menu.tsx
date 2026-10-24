@@ -109,7 +109,7 @@ function OpenMenu({ spot, hazard, danger, minutes, toLatLng, onAction, onClose }
         <Fact label={`Forecast by +${scenarioClock(minutes)}`} value={forecastChance(danger, spot.point, minutes)} />
       </dl>
       <div className="flex flex-col gap-0.5 border-t border-line pt-1">
-        <MenuItem Icon={RoadHorizon} label="Close a road from here" onSelect={() => onAction("closure", spot.point)} />
+        <MenuItem Icon={RoadHorizon} label="Close this street" onSelect={() => onAction("closure", spot.point)} />
         <MenuItem Icon={Path} label="Start a warning zone here" onSelect={() => onAction("zone", spot.point)} />
         <MenuItem Icon={Copy} label="Copy coordinates" onSelect={copy} />
       </div>

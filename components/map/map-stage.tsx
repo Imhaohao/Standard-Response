@@ -20,7 +20,7 @@ type StageValue = {
   data: InkMapData;
   size: Size;
   version: number;
-  project: (point: Point) => ScreenPoint;
+  project: (point: Point, lift?: number) => ScreenPoint;
   toScreen: (point: LatLng) => ScreenPoint;
   toLocal: (point: LatLng) => Point;
   toLatLng: (point: Point) => LatLng;
@@ -56,9 +56,11 @@ export function MapStage({
   fronts,
   highlights,
   onPick,
+  onHover,
   onContextPick,
   focus,
   interactive = false,
+  underlay,
   children,
   controls,
   className = "",
@@ -71,9 +73,11 @@ export function MapStage({
   fronts?: { minutes: number; ring: Point[] }[];
   highlights?: Map<number, BuildingState>;
   onPick?: (point: Point) => void;
+  onHover?: (point: Point | null) => void;
   onContextPick?: (point: Point, screen: { x: number; y: number }) => void;
   focus?: FlyTarget | null;
   interactive?: boolean;
+  underlay?: ReactNode;
   children?: ReactNode;
   controls?: ReactNode;
   className?: string;
@@ -95,9 +99,10 @@ export function MapStage({
   useFlyTo(renderer, focus);
 
   const groundAt = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!size) return null;
-      const rect = event.currentTarget.getBoundingClientRect();
+    (event: ClientPoint) => {
+      const box = boxRef.current;
+      if (!size || !box) return null;
+      const rect = box.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const ground = mode === "paper" ? unframe(frame, size, x, y, PAPER_FIT) : handle?.renderer.pickGround(x, y) ?? null;
@@ -114,6 +119,8 @@ export function MapStage({
     },
     [onPick, groundAt, dragged],
   );
+
+  const hover = useHoverPick(groundAt, onHover);
 
   const contextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -136,6 +143,7 @@ export function MapStage({
     <div
       ref={boxRef}
       onClick={onPick ? click : undefined}
+      {...hover}
       onContextMenu={onContextPick ? contextMenu : undefined}
       className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
@@ -143,6 +151,7 @@ export function MapStage({
       {value && (
         <StageContext.Provider value={value}>
           <svg width={value.size.width} height={value.size.height} className="pointer-events-none absolute inset-0" aria-hidden>
+            {underlay}
             {mode === "ink" && hazard && <SmokeLayer fronts={hazard.field.fronts} minutes={minutes ?? 0} />}
             {children}
           </svg>
@@ -151,6 +160,33 @@ export function MapStage({
       )}
     </div>
   );
+}
+
+// The ground under the pointer, at most once a frame: picking on the 3D surface marches a ray
+// over the terrain, too much work to repeat for every mouse event.
+type ClientPoint = { clientX: number; clientY: number };
+
+function useHoverPick(groundAt: (event: ClientPoint) => { ground: Point } | null, onHover: ((point: Point | null) => void) | undefined) {
+  const frame = useRef(0);
+  const latest = useRef<ClientPoint | null>(null);
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  const move = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      latest.current = { clientX: event.clientX, clientY: event.clientY };
+      if (frame.current) return;
+      frame.current = requestAnimationFrame(() => {
+        frame.current = 0;
+        if (latest.current) onHover?.(groundAt(latest.current)?.ground ?? null);
+      });
+    },
+    [groundAt, onHover],
+  );
+  const leave = useCallback(() => {
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    onHover?.(null);
+  }, [onHover]);
+  return onHover ? { onMouseMove: move, onMouseLeave: leave } : {};
 }
 
 const EMPTY: Map<number, BuildingState> = new Map();
@@ -228,7 +264,7 @@ type StageInputs = {
 function stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }: StageInputs): StageValue {
   const ink = mode === "ink" ? handle?.renderer : undefined;
   const flat = fitFrame(frame, size, PAPER_FIT);
-  const project = mode === "paper" ? flat : ink ? (point: Point) => ink.project(point) : () => HIDDEN;
+  const project = mode === "paper" ? flat : ink ? (point: Point, lift = 0) => ink.project(point, lift) : () => HIDDEN;
   return {
     data,
     size,

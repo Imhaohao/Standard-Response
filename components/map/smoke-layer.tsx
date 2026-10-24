@@ -6,8 +6,10 @@ import { ScenarioFront } from "@/lib/ink-map/fire-field";
 import { useMapStage } from "./map-stage";
 
 // Smoke drawn the manga way: round puffs with an ink outline and a halftone shadow, rising off the
-// stretches of fire front that are spreading fastest and leaning downwind. Each puff is animated by
-// CSS in screen space, so React only re-renders when the view or the fire's minute changes.
+// stretches of fire front that are spreading fastest and leaning downwind. Each puff's path is a
+// real line in the air, from the burning ground to a point downwind and high above it, projected
+// through the camera, so the plume keeps its heading at any zoom. CSS animates the puff along it,
+// so React only re-renders when the view or the fire's minute changes.
 
 const SOURCES = 5;
 const PUFFS_PER_SOURCE = 14;
@@ -16,6 +18,9 @@ const SOURCE_SPACING_METERS = 300;
 // The scenario's wind carries smoke toward the west-southwest.
 const DOWNWIND: Point = [-0.92, -0.38];
 const DRIFT_METERS = 1000;
+const RISE_METERS = 650;
+const PUFF_METERS = 60;
+const MAX_PUFF_PIXELS = 280;
 const SAMPLES = 64;
 
 type Source = { point: Point; strength: number };
@@ -61,22 +66,9 @@ export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minut
   const puffs = useMemo(() => {
     const list: Puff[] = [];
     sources.forEach((source, s) => {
-      const base = project(source.point);
-      if (!base.visible) return;
-      const downwind = project([source.point[0] + DOWNWIND[0] * DRIFT_METERS, source.point[1] + DOWNWIND[1] * DRIFT_METERS]);
-      // How many pixels a few hundred metres take at this zoom, so the plume scales with the map.
-      const scale = Math.min(Math.hypot(downwind.x - base.x, downwind.y - base.y), 900);
       for (let i = 0; i < PUFFS_PER_SOURCE; i++) {
-        const jitter = Math.sin(s * 12.9 + i * 78.2);
-        list.push({
-          key: `${s}-${i}`,
-          x: base.x + jitter * scale * 0.05,
-          y: base.y,
-          r: scale * (0.06 + 0.035 * source.strength) * (1 + jitter * 0.25),
-          dx: downwind.x - base.x + jitter * scale * 0.12,
-          dy: downwind.y - base.y - scale * (0.9 + 0.5 * source.strength),
-          delay: -((i / PUFFS_PER_SOURCE) * LIFE_SECONDS + s * 0.7),
-        });
+        const puff = puffFrom(project, source, s, i);
+        if (puff) list.push(puff);
       }
     });
     return list;
@@ -104,6 +96,30 @@ export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minut
       <rect width={size.width} height={size.height} fill="url(#smoke-tone)" mask="url(#smoke-shadow)" opacity={0.5} />
     </g>
   );
+}
+
+type Project = (point: Point, lift?: number) => { x: number; y: number; visible: boolean };
+
+const offset = ([x, y]: Point, east: number, north: number): Point => [x + east, y + north];
+
+function puffFrom(project: Project, source: Source, sourceIndex: number, puffIndex: number): Puff | null {
+  const jitter = Math.sin(sourceIndex * 12.9 + puffIndex * 78.2);
+  const ground = offset(source.point, jitter * 50, jitter * -20);
+  const base = project(ground);
+  if (!base.visible) return null;
+  const drift = DRIFT_METERS * (1 + jitter * 0.12);
+  const top = project(offset(ground, DOWNWIND[0] * drift, DOWNWIND[1] * drift), RISE_METERS * (0.8 + 0.4 * source.strength));
+  const edge = project(offset(ground, PUFF_METERS, 0));
+  const pixelsPerPuff = Math.hypot(edge.x - base.x, edge.y - base.y);
+  return {
+    key: `${sourceIndex}-${puffIndex}`,
+    x: base.x,
+    y: base.y,
+    r: Math.min(MAX_PUFF_PIXELS, pixelsPerPuff * (1 + 0.6 * source.strength) * (1 + jitter * 0.25)),
+    dx: top.x - base.x,
+    dy: top.y - base.y,
+    delay: -((puffIndex / PUFFS_PER_SOURCE) * LIFE_SECONDS + sourceIndex * 0.7),
+  };
 }
 
 function PuffPass({ puffs, draw }: { puffs: Puff[]; draw: (r: number) => ReactNode }) {

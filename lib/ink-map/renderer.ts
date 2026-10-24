@@ -158,7 +158,6 @@ export class InkMapRenderer {
       uCameraWorld: { value: new THREE.Matrix4() },
       uResolution: { value: new THREE.Vector2(1, 1) },
       uPixelRatio: { value: this.options.pixelRatio },
-      uTanHalfFov: { value: 0.25 },
       uBaseElevation: { value: this.data.terrain.base },
       uPaper: { value: new THREE.Vector3(pr, pg, pb) },
       uInk: { value: new THREE.Vector3(...INK_PALETTE.ink) },
@@ -172,6 +171,11 @@ export class InkMapRenderer {
       uPulse: { value: 1 },
       uDebug: { value: 0 },
       uInkStrength: { value: this.view.kind === "overview" ? 0.58 : 0.72 },
+      uCamRight: { value: new THREE.Vector3(1, 0, 0) },
+      uCamUp: { value: new THREE.Vector3(0, 1, 0) },
+      uViewMpp: { value: 1 },
+      uPatternScale: { value: 1 },
+      uPatternBlend: { value: 0 },
     };
   }
 
@@ -246,7 +250,22 @@ export class InkMapRenderer {
     const u = this.composite.material.uniforms;
     u.uInvProjection.value.copy(this.camera.projectionMatrixInverse);
     u.uCameraWorld.value.copy(this.camera.matrixWorld);
-    u.uTanHalfFov.value = Math.tan((this.camera.fov * Math.PI) / 360);
+    this.placeTone(this.camera.position.distanceTo(target));
+  }
+
+  // The tone grid's scale for the shader: metres per device pixel at the centre of the view, and
+  // the power-of-two grid nearest it (see placePattern in shaders.ts).
+  private placeTone(centreDepth: number) {
+    const u = this.composite.material.uniforms;
+    const devicePixels = this.cssSize.height * this.options.pixelRatio;
+    const metersPerPixel = (centreDepth * 2 * Math.tan((this.camera.fov * Math.PI) / 360)) / devicePixels;
+    const octave = Math.log2(metersPerPixel);
+    const step = Math.floor(octave);
+    u.uViewMpp.value = metersPerPixel;
+    u.uPatternScale.value = 2 ** -step;
+    u.uPatternBlend.value = THREE.MathUtils.smoothstep(octave - step, 0.4, 0.6);
+    u.uCamRight.value.set(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    u.uCamUp.value.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
   }
 
   private redrawView() {

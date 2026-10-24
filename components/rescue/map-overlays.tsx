@@ -7,6 +7,7 @@ import { Anchor, GeoLine, MapLine } from "@/components/map/layers";
 import { Point } from "@/lib/ink-map/data";
 import { ArrowsClockwise, Pause, Users, Van as VanIcon, Wheelchair } from "@phosphor-icons/react";
 import { headCount } from "./request-badge";
+import { StreetPick, ZoneDraft } from "./use-drawing-tools";
 import { Person, Van, VanState } from "./use-rescue-board";
 
 const PAPER = "var(--map-paper)";
@@ -137,26 +138,66 @@ function Zone() {
   return <GeoLine route={zone.polygon} close fill={INK} fillOpacity={0.05} stroke={INK} strokeWidth={1.6} strokeDasharray="9 5" />;
 }
 
-// What the dispatcher is drawing right now, before it is saved.
-function Draft({ tool, draft }: { tool: string; draft: Point[] }) {
-  if (draft.length === 0) return null;
-  const color = tool === "closure" ? HAZARD : INK;
-  const closed = tool === "zone" && draft.length > 2;
+// The zone being drawn: the streets walked so far, the edge to the corner under the pointer, and the
+// edge that would close it back to the first corner.
+function ZoneInProgress({ draft }: { draft: ZoneDraft }) {
+  const closed = draft.closing.length > 0 ? [...draft.boundary, ...draft.closing] : draft.boundary;
+  const [first] = draft.corners;
   return (
     <g>
-      <MapLine route={closed ? [...draft, draft[0]] : draft} fill={closed ? color : "none"} fillOpacity={0.08} stroke={color} strokeWidth={2.5} strokeDasharray="7 5" />
-      {draft.map((point, index) => (
-        <Anchor key={index} point={point}>
-          <circle r={4} fill={color} stroke={PAPER} strokeWidth={2} />
+      {draft.closing.length > 0 && <MapLine route={closed} close fill={INK} fillOpacity={draft.hoveringFirst ? 0.1 : 0.05} stroke="none" />}
+      <MapLine route={draft.closing} fill="none" stroke={INK} strokeOpacity={draft.hoveringFirst ? 1 : 0.4} strokeWidth={2} strokeDasharray="5 5" strokeLinecap="round" />
+      {!draft.previewCrosses && <MapLine route={draft.preview} fill="none" stroke={INK} strokeOpacity={0.7} strokeWidth={2.4} strokeDasharray="6 5" strokeLinecap="round" strokeLinejoin="round" />}
+      <MapLine route={draft.boundary} fill="none" stroke={PAPER} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
+      <MapLine route={draft.boundary} fill="none" stroke={INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+      {draft.corners.slice(1).map((corner, index) => (
+        <Anchor key={index} point={corner}>
+          <circle r={4.5} fill={INK} stroke={PAPER} strokeWidth={2} />
         </Anchor>
       ))}
+      {first && (
+        <Anchor point={first}>
+          {draft.closing.length > 0 && <circle r={draft.hoveringFirst ? 12 : 9} fill={draft.hoveringFirst ? INK : PAPER} fillOpacity={draft.hoveringFirst ? 0.12 : 1} stroke={INK} strokeWidth={2} className="transition-[r] duration-150" />}
+          <circle r={5.5} fill={INK} stroke={PAPER} strokeWidth={2} />
+        </Anchor>
+      )}
+      {draft.target && !draft.hoveringFirst && (
+        <Anchor point={draft.target}>
+          <circle r={7} fill={PAPER} stroke={INK} strokeOpacity={draft.previewCrosses ? 0.35 : 1} strokeWidth={2.2} />
+        </Anchor>
+      )}
+    </g>
+  );
+}
+
+const TAG_CHAR_WIDTH = 6.4;
+
+// The street block under the pointer while the closing tool is out, marked the way a closed road
+// is marked, with a tag saying which street a click closes.
+function StreetUnderPointer({ street }: { street: StreetPick }) {
+  const shape = street.edge.shape;
+  const middle = shape[Math.floor(shape.length / 2)];
+  const label = `Close ${street.name ?? "this street"}`;
+  const width = label.length * TAG_CHAR_WIDTH + 16;
+  return (
+    <g>
+      <MapLine route={shape} fill="none" stroke={PAPER} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
+      <MapLine route={shape} fill="none" stroke={HAZARD} strokeWidth={4} strokeDasharray="1 7" strokeLinecap="round" strokeLinejoin="round" />
+      <Anchor point={middle}>
+        <g transform={`translate(${-width / 2} -34)`}>
+          <rect width={width} height={22} rx={6} fill={INK} />
+          <text x={8} y={15} fontSize={11.5} fontWeight={700} fill="white">
+            {label}
+          </text>
+        </g>
+      </Anchor>
     </g>
   );
 }
 
 type OverlayProps = {
-  tool: string;
-  draft: Point[];
+  zone: ZoneDraft | null;
+  street: StreetPick | null;
   people: Person[];
   vans: Van[];
   focusId: string | null;
@@ -170,7 +211,7 @@ function lookedAtVan(people: Person[], focusId: string | null, vanFocusId: strin
   return vanFocusId ?? people.find((person) => person._id === focusId)?.assignment?.vehicleId ?? null;
 }
 
-export function MapOverlays({ tool, draft, people, vans, focusId, stillHome, vanFocusId, onVanHover }: OverlayProps) {
+export function MapOverlays({ zone, street, people, vans, focusId, stillHome, vanFocusId, onVanHover }: OverlayProps) {
   const focusedVan = lookedAtVan(people, focusId, vanFocusId);
   // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
   const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
@@ -192,7 +233,8 @@ export function MapOverlays({ tool, draft, people, vans, focusId, stillHome, van
       {ordered.map((person) => (
         <RequestPin key={person._id} person={person} focused={person._id === focusId || (vanFocusId !== null && person.assignment?.vehicleId === vanFocusId)} />
       ))}
-      <Draft tool={tool} draft={draft} />
+      {zone && <ZoneInProgress draft={zone} />}
+      {street && <StreetUnderPointer street={street} />}
     </g>
   );
 }

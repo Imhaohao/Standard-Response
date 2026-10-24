@@ -116,3 +116,46 @@ export function runRoute(data: InkMapData, start: Point, stops: Point[], closed:
   }
   return route;
 }
+
+function metersToSegment([px, py]: Point, [ax, ay]: Point, [bx, by]: Point) {
+  const [dx, dy] = [bx - ax, by - ay];
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+export function metersToLine(point: Point, line: Point[]) {
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) best = Math.min(best, metersToSegment(point, line[i - 1], line[i]));
+  return best;
+}
+
+// The block of street (one edge of the drive graph, corner to corner) nearest a point.
+export function nearestStreetBlock(data: InkMapData, point: Point, withinMeters: number): GraphEdge | null {
+  let best: GraphEdge | null = null;
+  let bestDistance = withinMeters;
+  for (const edge of data.graph.edges) {
+    const distance = metersToLine(point, edge.shape);
+    if (distance < bestDistance) {
+      best = edge;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+// The street's name, from the drawn road that runs closest to the middle of a block.
+export function streetName(data: InkMapData, edge: GraphEdge): string | null {
+  const middle = edge.shape[Math.floor(edge.shape.length / 2)];
+  let best: string | null = null;
+  let bestDistance = 25;
+  for (const road of data.roads) {
+    if (!road.name) continue;
+    const distance = metersToLine(middle, road.path);
+    if (distance < bestDistance) {
+      best = road.name;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
