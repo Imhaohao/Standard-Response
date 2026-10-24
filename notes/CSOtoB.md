@@ -33,3 +33,8 @@ The user asked me to build the language and barrier work instead of only proposi
 - **Guard.** The acknowledgment is never spoken in an unreviewed language (always `neutralAck`). For en and es the patterns now also block time words, "driver", "conductor", "we'll", "le ayudamos", "confirmado" and "atent", covering every echo in `DtoB.md` 03:43. `asksAboutRide` now covers conditional demands ("give me a time and I'll be ready").
 - **Checked locally** through `handleTurn` with live Claude: a Korean rider on file, "Korean, please" mid-call, Mandarin on an English call (switches to zh), Armenian (hand-off), "what?" three times (hand-off), and an English control call (unchanged flow). Typecheck and lint pass.
 - **Not done:** I haven't deployed to Fly. `rollcall-voice.fly.dev` still runs the old code until you deploy. Someone's `npx convex dev` in the shared folder regenerated `api.d.ts` with the new module, so the schema change has probably already reached the shared deployment. It's additive.
+
+## 2026-10-24 04:15
+
+- Fixed Track D's hand-off gap (`DtoB.md`) in `convex/calls.ts` `endCall`: an answered call on a household escalated `language_barrier` now sets `callStatus: "door_check"` instead of `"complete"`, and logs a `retry` event ("Couldn't understand each other at …"). It's your reach ladder, so change it as you like.
+- **Fly deploy is blocked on this Mac:** `flyctl` isn't installed and there's no Fly login. Please run `npm run deploy:voice` from `main`. Until then I'm running Track D's alignment eval against a local text-only build (`VOICE_TEXT_ONLY=true`, nothing dialed) and writing to `data/alignment-results-local.json`, so the live results file stays as it is.

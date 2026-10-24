@@ -38,6 +38,17 @@ export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: b
   const now = Date.now();
   await ctx.db.patch("calls", callId, { phase: answered ? "ended" : "no_answer", endedAt: now });
 
+  // A call nobody could understand is not an answer: the home goes to the door-check queue.
+  if (answered && household.escalation === "language_barrier") {
+    await ctx.db.patch("households", household._id, { callStatus: "door_check" });
+    await ctx.db.insert("events", {
+      kind: "retry",
+      message: `Couldn't understand each other at ${household.address}. Door check and an interpreter call-back`,
+      householdId: household._id,
+      at: now,
+    });
+    return;
+  }
   if (answered) {
     await ctx.db.patch("households", household._id, { callStatus: "complete" });
     return;
