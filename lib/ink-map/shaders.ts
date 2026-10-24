@@ -197,7 +197,7 @@ float arrivalMinutes(vec2 mapXY) {
 float frontGlow(vec2 mapXY, float minutes) {
   float ragged = (fbm(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04)) - 0.5) * 9.0;
   float behind = uFireNow - (minutes + ragged);
-  float band = smoothstep(-1.5, 0.5, behind) * (1.0 - smoothstep(2.0, 11.0, behind));
+  float band = smoothstep(-1.5, 0.5, behind) * (1.0 - smoothstep(1.5, 6.5, behind));
   float flicker = 0.75 + 0.25 * sin(uTime * 7.0 + hash12(floor(mapXY / 9.0)) * 6.28);
   return band * flicker * uFireOn;
 }
@@ -216,7 +216,7 @@ void main() {
   vec2 mapXY = vec2(w.x, -w.z);
   float minutes = arrivalMinutes(mapXY);
   float glow = frontGlow(mapXY, minutes);
-  float burned = (1.0 - smoothstep(uFireNow - 8.0, uFireNow, minutes)) * uFireOn;
+  float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
   float embers = burned * step(0.985, hash12(floor(mapXY / 6.0) + floor(uTime * 2.0))) * 0.8;
   color = vec4(glow + embers, 0.0, 0.0, 1.0);
 }
@@ -441,10 +441,10 @@ void main() {
 
   vec4 state = buildingState(idC);
   if (state.r > 0.0) {
-    float wash = surface == S_ROOF ? 0.55 : 0.35;
+    float wash = surface == S_ROOF ? 0.8 : 0.45;
     float pulse = state.g > 0.5 ? 0.75 + 0.25 * uPulse : 1.0;
-    color = mix(color, mix(paper, uRed, 0.7), wash * state.r * pulse * (1.0 - lines));
-    color = mix(color, uRed * 0.8, lines * state.r);
+    color = mix(color, mix(paper, uRed, 0.92), wash * state.r * pulse * (1.0 - lines));
+    color = mix(color, uRed, lines * state.r);
   }
 
   float minutes = arrivalMinutes(mapXY);
@@ -455,16 +455,18 @@ void main() {
     color = mix(color, uInk, scorch * 0.45);
     color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));
   }
-  float future = step(uFireNow, minutes) * step(minutes, uFireLast + 0.5) * uFireOn;
+  // Only the next front is worth drawing. Every front out to the last one would stripe the whole
+  // town in red and drown out the roofs that mean somebody is waiting.
+  float future = step(uFireNow, minutes) * step(minutes, uFireNow + 31.0) * uFireOn;
   float fm = minutes / 30.0;
   float iso = 1.0 - smoothstep(0.0, 1.3, abs(fract(fm + 0.5) - 0.5) / max(fwidth(fm), 1e-4));
   float dash = step(0.45, fract(dot(gl_FragCoord.xy, vec2(0.7071, 0.7071)) / (9.0 * uPixelRatio)));
-  color = mix(color, uRed, iso * dash * future * 0.7);
+  color = mix(color, uRed, iso * dash * future * 0.55);
 
   float glow = frontGlow(mapXY, minutes);
-  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.85);
+  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.6);
   float bloom = texture(tBloom, vUv).r;
-  color += uEmber * bloom * 0.9 + vec3(1.0, 0.85, 0.6) * smoothstep(0.7, 1.2, glow) * 0.35;
+  color += uEmber * bloom * 0.5 + vec3(1.0, 0.85, 0.6) * smoothstep(0.75, 1.15, glow) * 0.25;
   fragColor = vec4(color, 1.0);
 }
 `;

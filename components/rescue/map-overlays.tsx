@@ -19,19 +19,22 @@ type Route = FunctionReturnType<typeof api.dispatch.routes>[number];
 // Labels sit on a paper casing so they stay readable over streets and screentone.
 const LABEL = { fill: INK, stroke: PAPER, strokeWidth: 3, paintOrder: "stroke" as const, fontSize: 11, fontWeight: 700 };
 
+// Every pin is red, because every pin is a person who is still waiting. Escalation changes the
+// shape and the size, not the colour: a bigger mark, a ring that keeps going out, and a word.
 function RequestPin({ request }: { request: OpenRequest }) {
   const escalated = Boolean(request.escalation);
-  const fill = escalated ? HAZARD : INK;
+  const size = escalated ? 7.5 : 5.5;
   return (
     <GeoAnchor at={{ lat: request.lat!, lng: request.lng! }}>
-      {escalated && <circle r={13} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
+      <circle r={size + 5} fill={HAZARD} fillOpacity={escalated ? 0.22 : 0.12} />
+      {escalated && <circle r={16} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
       {request.needsLift ? (
-        <rect x={-5.5} y={-5.5} width={11} height={11} fill={fill} stroke={PAPER} strokeWidth={2} />
+        <rect x={-size} y={-size} width={size * 2} height={size * 2} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
       ) : (
-        <circle r={5.5} fill={fill} stroke={PAPER} strokeWidth={2} />
+        <circle r={size} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
       )}
       {escalated && (
-        <text x={10} y={-8} {...LABEL} fill={HAZARD}>
+        <text x={13} y={-10} {...LABEL} fill={HAZARD}>
           {escalationShort(request.escalation!)}
         </text>
       )}

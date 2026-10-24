@@ -17,18 +17,18 @@ export function RiderUpload({ className = "" }: { className?: string }) {
     if (!file) return;
     const { imported, skippedLines } = await importCsv({ csv: await file.text() });
     const skipped = skippedLines.length > 0 ? ` Skipped lines ${skippedLines.join(", ")}.` : "";
-    setResult(`Imported ${imported} riders. Draw a zone to start calling them.${skipped}`);
+    setResult(`Imported ${imported} riders.${skipped}`);
     event.target.value = "";
   };
 
   return (
-    <Panel title="Rider list" className={className}>
-      <label className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-panel-raised">
+    <div className={`flex flex-col border border-panel-raised bg-panel/96 text-on-panel backdrop-blur-md ${className}`}>
+      <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-panel-raised">
         <UploadSimple weight="bold" className="size-4" />
-        <span className="type-small font-semibold">Upload a CSV of riders</span>
+        <span className="type-small font-semibold">Load riders from a CSV</span>
         <input type="file" accept=".csv,text/csv" onChange={(event) => void onFile(event)} className="sr-only" />
       </label>
       {result && <p className="type-small border-t border-panel-raised px-3 py-2 text-on-panel-muted">{result}</p>}
-    </Panel>
+    </div>
   );
 }
