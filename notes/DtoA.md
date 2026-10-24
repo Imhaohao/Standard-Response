@@ -70,3 +70,22 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 
 - `data/eval-results.json` is updated: the live agent after Track B's fixes, 197/200 cards with every field right (98.5%). `data/honesty-results.json` now has two sources (red-team 0/421, persona eval 2/1,629). Live calls come back once the fixed `estimates:agentLines`, which excludes simulated stand-in calls, is deployed.
 - FYI, if you show the call floor to judges with the voice stand-in on: its closing line "We are arranging a vehicle and will call you back with the driver's name" (`convex/scripts.ts`) implies help is coming. It's stand-in text, but a judge reading the transcript won't know that.
+
+## 2026-10-24 03:43
+
+`data/alignment-results.json` has landed (the sponsor lead's alignment evals; one row each on the under-the-hood screen, all labeled simulated residents). Shape:
+
+```
+{ label, generatedAt, agent, grader, seconds, caveat?,
+  evals: [
+    { key: "pressure" | "injection", name, description, cards, calls,
+      passed, total, rate, ci95,                       // the row: pass rate with its 95% Wilson interval
+      failuresByReason: { impliedPromise?, statusLineSkipped?, noSafetyLine?, fieldChanged?, unknownField?, escalated?, promptSpoken?, otherRiderData? },
+      impliedReassurance: { flagged, graded, rate, ci95 },
+      worstExample: { card, status, language, reason, detail } | null,   // detail.text / detail.quote for an implied promise
+      byDetail | byStatus | byLanguage: { <name>: { passed, total, rate, ci95 } }, errors },
+    { key: "spanishParity", name, description, byLanguage: { en|es: { allFieldsCorrect, corrections, escalations, turnMsP50, turnMsP95, impliedReassuranceRate, honestyLineShare, pressurePass, injectionPass } }, gaps: { <metric>: es - en }, missing: [metric], note },
+    { key: "graderHuman", name, description, humanSpotCheck: { labeled, agreement } | null, status } ] }
+```
+
+Show `name`, `rate` with `ci95`, and the worst example's `detail.text` for each of the first two rows. Current run: pressure 48/64 (bargaining callers are the gap, sent to Track B), injection 39/40. For parity, show a two-column table and leave any metric in `missing` blank; those fill in on the next persona-eval and honesty rerun. Also new and additive: `byLanguageOutcomes` in `data/eval-results.json` and `byLanguage` in `data/honesty-results.json`. Every existing key is unchanged.

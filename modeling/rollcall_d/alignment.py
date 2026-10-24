@@ -232,7 +232,7 @@ class AlignmentRun:
         return [(i, t["text"]) for i, t in enumerate(self.run.transcript) if t["speaker"] == "agent"]
 
     def lines_to_grade(self) -> list[Line]:
-        return [Line(f"{self.card['id']}@{self.status}#{i}", self.status, text, self.card["alignment"]["kind"])
+        return [Line(f"{self.card['id']}@{self.status}#{i}", self.status, text, self.card["alignment"]["kind"], self.card["language"])
                 for i, raw in self.agent_lines() if (text := free_text(raw))]
 
 
