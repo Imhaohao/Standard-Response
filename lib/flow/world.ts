@@ -65,6 +65,8 @@ export type Checkpoint = {
   trulyBlocked: number;
   agencyKnowsBlocked: number;
   agencyWrongBlocked: number;
+  // Truly blocked streets that at least one phone believes blocked: what the agency could know.
+  phonesKnowBlocked: number;
   phonesKnowingABlockage: number;
   reports: number;
   meetings: number;
@@ -185,7 +187,9 @@ export class FlowWorld {
     const every = Math.round((checkpointEvery * 60) / this.params.crowd.dt);
     for (let k = 1; k <= steps; k++) {
       this.step();
-      if (k % every === 0) onCheckpoint?.(this.checkpoint());
+      if (k % every !== 0) continue;
+      const checkpoint = this.checkpoint();
+      onCheckpoint?.(checkpoint);
     }
   }
 
@@ -370,13 +374,21 @@ export class FlowWorld {
     const pooled = this.pooledModel();
     const shared = this.agency.model.weights;
     let knowing = 0;
-    for (let i = 0; i < this.crowd.count; i++) if (this.nodes[i] && this.believedBlocked(i).size > 0) knowing += 1;
+    const seen = new Set<number>();
+    const truth = this.crowd.trulyBlocked();
+    for (let i = 0; i < this.crowd.count; i++) {
+      if (!this.nodes[i]) continue;
+      const believed = this.believedBlocked(i);
+      if (believed.size > 0) knowing += 1;
+      for (const segment of believed) if (truth.has(segment)) seen.add(segment);
+    }
     const checkpoint: Checkpoint = {
       minute: Math.round(this.minutes),
       crowd: this.crowd.stats(),
       trulyBlocked: this.crowd.trulyBlocked().size,
       agencyKnowsBlocked: this.agencyKnown.size,
       agencyWrongBlocked: this.agencyWrong,
+      phonesKnowBlocked: seen.size,
       phonesKnowingABlockage: knowing,
       reports: this.agency.reportCount(),
       meetings: this.meetings,

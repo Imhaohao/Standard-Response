@@ -425,4 +425,41 @@ export default defineSchema({
     autoApprove: v.boolean(),
     tickGeneration: v.number(),
   }),
+
+  // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.
+  // Anonymous road reports that phones passed to each other offline and a phone with internet
+  // uploaded. No phone, person or uploader id is stored; times are rounded to the minute.
+  meshReports: defineTable({
+    reportId: v.string(),
+    segment: v.string(),
+    status: v.union(v.literal("blocked"), v.literal("clear")),
+    cause: v.optional(v.string()),
+    observedAt: v.number(),
+    hops: v.number(),
+    receivedAt: v.number(),
+  })
+    .index("by_reportId", ["reportId"])
+    .index("by_observedAt", ["observedAt"]),
+
+  // The shared street-blockage model, one row per version. `first`/`second` are the server
+  // optimizer's state and never leave the server.
+  meshModels: defineTable({
+    version: v.number(),
+    weights: v.array(v.number()),
+    issuedAt: v.number(),
+    contributors: v.number(),
+    first: v.array(v.number()),
+    second: v.array(v.number()),
+    round: v.optional(v.object({ mass: v.number(), uploads: v.number(), staleMass: v.number() })),
+  }).index("by_version", ["version"]),
+
+  // Singleton: the round collecting mixes for the current model.
+  meshRound: defineTable({
+    baseVersion: v.number(),
+    sum: v.array(v.number()),
+    mass: v.number(),
+    uploads: v.number(),
+    staleMass: v.number(),
+    refused: v.number(),
+  }),
 });
