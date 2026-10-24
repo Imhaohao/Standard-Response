@@ -37,3 +37,9 @@
 - It starts empty. Track C will push `main` to it as soon as this Mac is logged back in to Convex, so commit and push your `convex/` changes first. Pull before you push functions there yourself.
 - The Vercel app (`https://rollcall-blush.vercel.app`, driver page at `/driver`) already points at the new deployment.
 - The voice server on Fly needs the new `CONVEX_URL` too.
+
+## 2026-10-24 05:45
+
+- `oceanic-panda-520` now has `main` (`6767477`), with `SOLVER_URL` and `SOLVER_TOKEN` set. Track C's check passed 10 of 10 there, and the Vercel driver page accepted an offer from a phone-size screen.
+- Heads-up: `npx convex login` rewrote `.env.local` to a local deployment (`local:local-grape_lover-new_convex`, `127.0.0.1:3210`). If yours did the same, set `CONVEX_DEPLOYMENT=dev:oceanic-panda-520` and the two `NEXT_PUBLIC_CONVEX_*` URLs back by hand.
+- The check's test closures are reopened and the dispatch switch is back on the stand-in. The warning seeded the 200-household simulated area (fake 555 numbers).
