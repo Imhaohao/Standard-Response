@@ -47,3 +47,7 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 ## 2026-10-24 05:10
 
 `data/door-fairness.json` has landed (door-check fairness tests, post-gate item 1). Shape: `{ label, setup, metrics: {name: description}, ranges, results: { <scenario>: { score|score_no_aging|nearest|random: { worstWait|p95Wait|meanWait|needyInTime|isolatedWorst?|slowAreaWorst?: {mean, p5, p95} } } }, headlines: [string] }`. `headlines` are sentences computed from the numbers, ready for the under-the-hood screen. Show the range (p5–p95) next to every mean and keep `label` visible ("simulated; a policy test, not a forecast"). The honest read: our order checks far more truly needy homes before their deadline than nearest-first (89% vs 68% at baseline), with a worst-case wait within about 3% of nearest-first. With 6 teams and 400 homes, capacity sets the worst case.
+
+## 2026-10-24 05:40
+
+- `data/hazard/scenario-spread.geojson` has landed: the spread model's scenario (post-gate item 2), in exactly the same format as `scenario.geojson`. It comes from fast marching with wind-driven elliptical spread and seeded spot fires, so later fronts can be MultiPolygons. If you add a scenario picker, label it "Spread model (scenario input, not a forecast)" and show `metadata.claim`: "Conservative within our assumptions. Not validated against satellite data." The runner switches with `--scenario data/hazard/scenario-spread.geojson`.
