@@ -80,6 +80,10 @@ Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST 
 
 **Cartesia.** Ink speech-to-text (`ink-whisper`, English and Spanish) and Sonic text-to-speech, both on 8 kHz μ-law, so Twilio audio passes through without transcoding. Each sentence is its own text-to-speech context: a barge-in cancels the rest, and a status change cuts in at the next sentence boundary.
 
+## Track D models
+
+`modeling/` holds the hazard scenario, need model, door-check order, address matching, synthetic population, persona cards and the evaluations. `modeling/README.md` says how to run each one. During a session, run `cd modeling && uv run python scripts/run_models.py`.
+
 ## Stand-ins
 
 `convex/sim.ts` and `convex/dispatchStandIn.ts` fake each backend track so the whole pipeline runs today. When your real service starts writing, flip its switch to **Real** in the call floor's Stand-ins panel. The stand-in then stops touching those records. `PLAN.md` lists every switch and its owner.
