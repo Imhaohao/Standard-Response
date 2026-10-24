@@ -153,6 +153,35 @@ Simulated vehicles drive and board 4 times faster than real time (`SIMULATED_TIM
 
 `convex/sim.ts` and `convex/dispatchStandIn.ts` fake each backend track so the whole pipeline runs today. When your real service starts writing, flip its switch to **Real** in the call floor's Stand-ins panel. The stand-in then stops touching those records. `PLAN.md` lists every switch and its owner.
 
+## Dispatcher login (Auth0)
+
+Auth0 is off until `AUTH0_DOMAIN` is set, and every screen stays open as before. With it on:
+
+- The call floor, rescue map, under-the-hood screen and simulated phone show the at-risk list, so they need the `dispatcher` role. The driver page takes `dispatcher` or `driver`. `/ready`, `/prepare`, `/mesh` and `/flow` stay public. `proxy.ts` sends anyone without a session to log in, and anyone without the role to `/no-access`. The rules live in `lib/access.ts`.
+- The first approval of a session asks for a second factor (step-up), and every approval after that is one click (`components/rescue/use-approve.ts`).
+
+| Env variable | What it is |
+| --- | --- |
+| `AUTH0_DOMAIN` | The tenant, e.g. `standard-response.us.auth0.com` |
+| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | From a Regular Web Application in that tenant |
+| `AUTH0_SECRET` | `openssl rand -hex 32` |
+| `APP_BASE_URL` | `http://localhost:3000` locally; leave unset on Vercel to use the request host |
+
+In the Auth0 dashboard:
+
+1. Allowed Callback URLs: `http://localhost:3000/auth/callback, https://rollcall-blush.vercel.app/auth/callback`. Allowed Logout URLs: the same hosts without the path.
+2. User Management, Roles: create `dispatcher` and `driver`, and assign them.
+3. Security, Multi-factor Auth: turn on one factor (One-time Password is enough), with the policy set to Never so only step-up asks for it.
+4. Actions, Login flow: add this post-login Action.
+
+```js
+exports.onExecutePostLogin = async (event, api) => {
+  api.idToken.setCustomClaim("https://standard-response.app/roles", event.authorization?.roles ?? []);
+  const stepUp = "http://schemas.openid.net/pape/policies/2007/06/multi-factor";
+  if (event.transaction?.acr_values?.includes(stepUp)) api.multifactor.enable("any", { allowRememberBrowser: false });
+};
+```
+
 ## Design norms
 
 The call floor sets the look for every screen.

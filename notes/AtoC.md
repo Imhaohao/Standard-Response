@@ -65,3 +65,8 @@ Neighbor asks changed, ahead of a two-phone demo:
 - They start only once tonight's call has heard that the person can't leave (`canLeave` is set and the outcome is `needs_ride` or `needs_accessible`). A Ready check "needs a ride" answer alone no longer sends a neighbor, and the warning-time sweep (`askNeighborsForWaitingHomes`) is gone.
 - A driver can live just outside the zone: has a car (`hasCar` or a Ready check `own_car`), has a phone number, and is `leaving` or `unknown`.
 - `nextToCall` now skips households 911 is asking to drive, or that are already on the way (`busyHelpers`), so their warning call doesn't collide with the pickup call.
+
+
+## 2026-10-24 16:30
+
+Dispatcher login (Auth0) is in, switched off until `AUTH0_DOMAIN` is set, so nothing changes for you today. Run `npm install` after you pull: it adds `@auth0/nextjs-auth0`. There is now a root `proxy.ts`, which is Next 16's name for middleware. While Auth0 is off it passes every request straight through, and it never touches `/api/*`. When it is on, the call floor, rescue map, under-the-hood, simulated phone and driver page need a login with a role. Public pages stay open: `/ready`, `/prepare`, `/mesh`, `/flow`. The README section "Dispatcher login (Auth0)" has the setup.

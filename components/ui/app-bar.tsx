@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { formatElapsed, useNow } from "@/lib/time";
+import { AccountChip } from "../account/account-chip";
+import { formatElapsed } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 
 type Screen = { href: string; label: string; also?: string[] };
 
@@ -49,7 +51,7 @@ function ScreenNav() {
 }
 
 export function WarningClock({ issuedAt }: { issuedAt: number }) {
-  const now = useNow();
+  const now = useSimNow();
   return (
     <div className="flex items-baseline gap-2">
       <span className="type-small text-ink-muted">Since the warning</span>
@@ -69,7 +71,10 @@ export function AppBar({ children }: { children?: ReactNode }) {
         <span className="type-small hidden truncate text-ink-muted sm:inline">{AREA_NAME}</span>
       </div>
       <ScreenNav />
-      {children && <div className="ml-auto flex max-w-full flex-wrap items-center gap-3">{children}</div>}
+      <div className="ml-auto flex max-w-full flex-wrap items-center gap-3">
+        {children}
+        <AccountChip />
+      </div>
     </header>
   );
 }

@@ -1,16 +1,15 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { ReactNode, useState } from "react";
 import { CaretDown, Check, Flame, Info, Phone } from "@phosphor-icons/react";
-import { api } from "@/convex/_generated/api";
 import { deathsIfUnserved, expectedDeaths } from "@/convex/fatalityRisk";
 import { ESCALATION_LABELS, phoneForPeople } from "@/lib/labels";
-import { useNow } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Button, ButtonLink } from "../ui/button";
 import { Panel, PanelEmpty } from "../ui/panel";
 import { OpenRequest, byUrgency } from "./marks";
 import { ESCALATION_SHORT, RequestBadge, VanChip, needStage } from "./request-badge";
+import { useApprove } from "./use-approve";
 import { Assignment, Person } from "./use-rescue-board";
 
 export type FocusProps = {
@@ -46,7 +45,7 @@ function TimeLeft({ minutes }: { minutes: number }) {
 }
 
 function ApproveButton({ assignment }: { assignment: Assignment }) {
-  const approve = useMutation(api.offers.approve);
+  const approve = useApprove();
   return (
     <Button
       variant="onPanel"
@@ -55,7 +54,7 @@ function ApproveButton({ assignment }: { assignment: Assignment }) {
       size="sm" square
       onClick={(event) => {
         event.stopPropagation();
-        void approve({ assignmentId: assignment._id });
+        void approve([assignment._id]);
       }}
     >
       <Check weight="bold" className="size-4" />
@@ -229,10 +228,10 @@ function DeathEstimate({ people, unplaced }: { people: Person[]; unplaced: OpenR
 }
 
 function ApproveAll({ proposed }: { proposed: Assignment[] }) {
-  const approve = useMutation(api.offers.approve);
+  const approve = useApprove();
   if (proposed.length === 0) return null;
   return (
-    <Button variant="onPanel" size="sm" onClick={() => void Promise.all(proposed.map((a) => approve({ assignmentId: a._id })))}>
+    <Button variant="onPanel" size="sm" onClick={() => void approve(proposed.map((assignment) => assignment._id))}>
       Approve {proposed.length} vans
     </Button>
   );
@@ -245,7 +244,7 @@ const committed = (person: Person) => person.assignment?.status === "accepted" |
 type NeedPanelProps = { people: Person[]; unplaced: OpenRequest[]; focus: FocusProps; className?: string };
 
 export function NeedPanel({ people, unplaced, focus, className = "" }: NeedPanelProps) {
-  const now = useNow(15_000);
+  const now = useSimNow(15_000);
   const sorted = [...people].sort(byUrgency);
   const needYou = sorted.filter((person) => person.escalation && !committed(person));
   const waiting = sorted.filter((person) => !person.escalation && !committed(person));

@@ -63,3 +63,8 @@ The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back u
 - The dialer's queue (`households.queue` / `nextToCall`) no longer returns a household that is being asked to drive or is already on the way.
 - The recruited question is now "Could you pick them up and drive them out?", because the neighbor may live just outside the zone.
 - Interpreter, checked live on Haiku: "No, I need help ASAP" in answer to `askCanLeave` gives `canLeave=no`. The same words during the greeting give no update, so the neighbor is called one question later. If you want the greeting to catch it, that change belongs in your `interpreter.ts`.
+
+
+## 2026-10-24 16:30
+
+Dispatcher login (Auth0) is in, switched off until `AUTH0_DOMAIN` is set, so nothing changes for you today. Run `npm install` after you pull: it adds `@auth0/nextjs-auth0`. There is now a root `proxy.ts`, which is Next 16's name for middleware. While Auth0 is off it passes every request straight through, and it never touches `/api/*`. When it is on, the call floor, rescue map, under-the-hood, simulated phone and driver page need a login with a role. Public pages stay open: `/ready`, `/prepare`, `/mesh`, `/flow`. The README section "Dispatcher login (Auth0)" has the setup.
