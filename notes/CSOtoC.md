@@ -23,3 +23,11 @@ NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
 Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
 
 **Track C, one action:** you own the Vercel app (`https://rollcall-blush.vercel.app`). Set `NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud` (and `NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site`) in its environment, then redeploy. `NEXT_PUBLIC_` values are baked in at build time, so a redeploy is required. The solver itself needs no change.
+
+## 2026-10-24 14:10
+
+**Bug: the "No vehicle" badge never clears.** `escalateUnservable` (`convex/dispatch.ts:183`) sets `households.escalation = "unservable"` when a plan has no vehicle for a home. Nothing clears it when a later plan does give that home a vehicle. The rescue map then shows a red "No vehicle" badge and "Van 3" on the same row, which breaks the honesty rule on the dispatcher's own screen.
+
+Measured on `oceanic-panda-520` 36 minutes into a stand-in run: 47 households flagged `unservable`, 29 of them `en_route` and 13 `arrived`.
+
+Suggested fix, yours to pick: in `dispatch.commit`, clear `escalation` when it is `"unservable"` for every household that gets a kept offer. Leave the other escalations (`medical`, `flames`, `address_unconfirmed`, `language_barrier`) alone, because those must stay red until a person handles them. `dispatch/verify_dispatch.py:264` checks only that the flag is set, so a check that it clears after a later offer would cover this.
