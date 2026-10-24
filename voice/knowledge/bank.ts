@@ -56,7 +56,9 @@ export type Reading = {
   reply?: string;
 };
 
-export type ScriptTurn = { step: ScriptStep; agent: string; resident: string; reading: Reading };
+// checked: both readers agreed on what the turn means (voice/knowledge/checker.ts). Only checked
+// turns are indexed; the rest stay so each script reads as the whole call.
+export type ScriptTurn = { step: ScriptStep; agent: string; resident: string; reading: Reading; checked?: boolean };
 
 export type Script = {
   id: string;
@@ -80,7 +82,7 @@ export const principleDocs = (card: PrincipleCard): DocumentInfo[] =>
   }));
 
 export const dialogDocs = (script: Script): DocumentInfo[] =>
-  script.turns.map((turn, index) => ({
+  script.turns.flatMap((turn, index) => (turn.checked ? [{
     id: `${script.id}-${index}`,
     text: momentText(turn.agent, turn.resident),
     metadata: {
@@ -89,7 +91,7 @@ export const dialogDocs = (script: Script): DocumentInfo[] =>
       step: turn.step,
       reading: JSON.stringify(turn.reading),
     },
-  }));
+  }] : []));
 
 export type Guidance = {
   principles: { principle: string; situation: string; guidance: string }[];

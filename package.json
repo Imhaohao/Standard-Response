@@ -18,7 +18,7 @@
     "test:workflow": "vitest run tests/workflow --environment edge-runtime",
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
     "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts",
-    "knowledge:generate": "tsx --env-file=.env.local voice/knowledge/generate.ts",
+    "knowledge:generate": "VOICE_MODEL=claude-haiku-5-5 VOICE_KNOWLEDGE=off VOICE_HEDGED_REQUESTS=1 tsx --env-file=.env.local voice/knowledge/generate.ts",
     "knowledge:index": "tsx --env-file=.env.local voice/knowledge/upload.ts"
   },
   "dependencies": {

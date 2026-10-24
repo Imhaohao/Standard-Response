@@ -318,8 +318,10 @@ function request(turn: TurnContext, kind: Hazard, guidance: Guidance | null) {
     .catch((error: unknown) => (error instanceof Anthropic.RateLimitError ? standard() : Promise.reject(error)));
 }
 
-export async function interpret(turn: TurnContext): Promise<Interpretation> {
-  const kind = currentHazard();
+export const interpret = (turn: TurnContext) => interpretFor(turn, currentHazard());
+
+// For a hazard other than the operator's current one: the dialog bank's checker reads every hazard.
+export async function interpretFor(turn: TurnContext, kind: Hazard): Promise<Interpretation> {
   const guidance = await recall(turn.question, turn.utterance, kind, turn.language);
   const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(turn, kind, guidance)));
   const text = response.content.find((block) => block.type === "text");

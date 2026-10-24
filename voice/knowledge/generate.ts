@@ -8,11 +8,13 @@ import { CALL_TAKER_PRINCIPLES, OUTPUT_SCHEMA, parse, SYSTEM } from "../agent/in
 import { FIELDS } from "../agent/record";
 import { LINES } from "../agent/script";
 import { BANK_FILES, PrincipleCard, Reading, Script, SCRIPT_STEPS, ScriptStep, ScriptTurn } from "./bank";
+import { secondReading, tidyReadings } from "./checker";
 import { realCallerLines, Seed, seedFor } from "./seeds";
 
 // Builds the two files Moss indexes (voice/knowledge/upload.ts), with Claude Haiku as the writer and
-// the agent's own code as the checker: every reading must survive the interpreter's parser and every
-// spoken line the honesty guard, or it is dropped.
+// the agent itself as the checker: every reading must survive the interpreter's parser, every spoken
+// line the honesty guard, and the live interpreter must read the turn the same way (checker.ts), or
+// the turn is dropped.
 //
 //   npm run knowledge:generate -- principles        the principles database
 //   npm run knowledge:generate -- scripts 3000      the 911 dialog bank (resumes where it stopped)
@@ -20,8 +22,7 @@ import { realCallerLines, Seed, seedFor } from "./seeds";
 const WRITER_MODEL = "claude-haiku-5-5";
 const CONCURRENCY = 32;
 const CARDS_PER_PRINCIPLE_AND_HAZARD = 10;
-const MIN_TURNS = 5;
-const MIN_KEPT_SHARE = 0.75;
+const MIN_CHECKED_TURNS = 3;
 
 const client = new Anthropic({ maxRetries: 8 });
 
@@ -111,7 +112,11 @@ async function generatePrinciples() {
   const cards = constitutionCards();
   const jobs = CALL_TAKER_PRINCIPLES.flatMap((principle) => HAZARDS.map((hazard) => ({ principle, hazard })));
   await pooled(jobs, async ({ principle, hazard }) => {
-    cards.push(...(await cardsFor(principle, hazard)));
+    const drawn = await cardsFor(principle, hazard).catch((error: unknown) => {
+      console.error(`[principles] ${principle.id} / ${hazard} failed`, error instanceof Error ? error.message : error);
+      return [];
+    });
+    cards.push(...drawn);
     console.log(`[principles] ${principle.id} / ${hazard}: ${cards.length} cards`);
   });
   mkdirSync(dirname(BANK_FILES.principles), { recursive: true });
@@ -191,16 +196,20 @@ function readingHolds(reading: Reading, seed: Seed) {
   return everyChangeParsed && onlyKnownFields && [reading.ack, reading.reply, reading.feeling].every((line) => speakable(line, seed.language));
 }
 
-function checkedTurns(turns: ScriptTurn[], seed: Seed): ScriptTurn[] {
-  return turns
-    .filter((turn) => turn.resident.trim() !== "" && readingHolds(turn.reading, seed))
+async function checkedTurns(drafted: ScriptTurn[], seed: Seed): Promise<ScriptTurn[]> {
+  const turns = tidyReadings(drafted)
+    .filter((turn) => turn.resident !== "")
     .map((turn) => ({ ...turn, agent: fixedQuestion(turn.step, seed.language) ?? turn.agent }));
+  const agreed = await secondReading(turns, seed);
+  return turns.map((turn, index) => ({ ...turn, checked: agreed[index] && readingHolds(turn.reading, seed) }));
 }
 
 async function writeScript(seed: Seed): Promise<Script | null> {
   const draft = await structured<{ persona: string; turns: ScriptTurn[] }>(scriptSystemFor(seed.hazard), scriptPrompt(seed), scriptSchemaFor(seed.hazard));
-  const turns = checkedTurns(draft.turns, seed);
-  if (turns.length < MIN_TURNS || turns.length < draft.turns.length * MIN_KEPT_SHARE) return null;
+  const turns = await checkedTurns(draft.turns, seed);
+  const checked = turns.filter((turn) => turn.checked).length;
+  console.log(`[scripts] ${seed.id}: ${checked} of ${turns.length} turns checked`);
+  if (checked < MIN_CHECKED_TURNS) return null;
   return { id: seed.id, hazard: seed.hazard, language: seed.language, persona: draft.persona, twists: seed.twists, seedCall: seed.seedCall, turns };
 }
 

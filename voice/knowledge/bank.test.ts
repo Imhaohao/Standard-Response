@@ -28,9 +28,13 @@ test("each resident turn is one document searched the way a live turn asks", () 
     persona: "An older man alone.",
     twists: [],
     seedCall: 3,
-    turns: [{ step: "household", agent: "¿Cuántas personas?", resident: "Solo yo", reading: { set: ["peopleCount=1"] } }],
+    turns: [{ step: "household", agent: "¿Cuántas personas?", resident: "Solo yo", reading: { set: ["peopleCount=1"] }, checked: true },
+      { step: "needs", agent: "¿Alguien usa andadera?", resident: "eh", reading: { set: [] }, checked: false },
+    ],
   };
-  const [doc] = dialogDocs(script);
+  const docs = dialogDocs(script);
+  assert.equal(docs.length, 1, "an unchecked turn is not indexed");
+  const [doc] = docs;
   assert.equal(doc.id, "s0001-0");
   assert.equal(doc.text, momentText("¿Cuántas personas?", "Solo yo"));
   assert.deepEqual(JSON.parse(doc.metadata!.reading), { set: ["peopleCount=1"] });
