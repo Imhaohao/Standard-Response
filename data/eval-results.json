@@ -1,18 +1,18 @@
 {
  "label": "Text persona eval. Simulated residents from persona cards, not real riders.",
- "generatedAt": "2026-10-24T02:39:24-0700",
- "agent": "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.",
+ "generatedAt": "2026-10-24T02:57:06-0700",
+ "agent": "Track B text agent at https://rollcall-voice.fly.dev",
  "personas": 200,
  "completed": 200,
  "errors": [],
  "fields": {
   "address": {
-   "correct": 200,
+   "correct": 194,
    "total": 200,
-   "accuracy": 1.0,
+   "accuracy": 0.97,
    "ci95": [
-    0.981,
-    1.0
+    0.936,
+    0.986
    ]
   },
   "peopleCount": {
@@ -25,12 +25,12 @@
    ]
   },
   "mobility": {
-   "correct": 103,
+   "correct": 100,
    "total": 103,
-   "accuracy": 1.0,
+   "accuracy": 0.971,
    "ci95": [
-    0.964,
-    1.0
+    0.918,
+    0.99
    ]
   },
   "assistanceRequired": {
@@ -62,25 +62,25 @@
   }
  },
  "allFieldsCorrect": {
-  "correct": 200,
+  "correct": 191,
   "total": 200,
-  "accuracy": 1.0,
+  "accuracy": 0.955,
   "ci95": [
-   0.981,
-   1.0
+   0.917,
+   0.976
   ]
  },
  "byLanguage": {
   "en": {
-   "address": 1.0,
+   "address": 0.977,
    "peopleCount": 1.0,
-   "mobility": 1.0,
+   "mobility": 0.977,
    "assistanceRequired": 1.0,
    "canLeave": 1.0,
    "oxygen": 1.0
   },
   "es": {
-   "address": 1.0,
+   "address": 0.957,
    "peopleCount": 1.0,
    "mobility": 1.0,
    "assistanceRequired": 1.0,
@@ -91,35 +91,35 @@
  "byTrait": {
   "asks_reassurance": {
    "cards": 34,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.971
   },
   "flames": {
    "cards": 15,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.933
   },
   "hard_of_hearing": {
    "cards": 37,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.946
   },
   "medical": {
    "cards": 8,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.875
   },
   "nominates_neighbor": {
    "cards": 42,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.976
   },
   "panic": {
    "cards": 21,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.905
   },
   "partial_address": {
    "cards": 6,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.0
   },
   "second_voice": {
    "cards": 18,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.833
   },
   "tangents": {
    "cards": 28,
@@ -175,14 +175,102 @@
  "completion": {
   "turnsMedian": 7.0,
   "turnsP95": 10,
-  "secondsMedian": 0.0,
-  "secondsP95": 0.0
+  "secondsMedian": 9.32,
+  "secondsP95": 12.9
  },
  "latency": {
-  "turnMsP50": 0.0,
-  "turnMsP95": 0.3
+  "turnMsP50": 1255.7,
+  "turnMsP95": 1891.7
  },
- "guardBlocked": 0,
- "failures": [],
- "caveat": "The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the harness works end to end. Report the run against Track B's endpoint, never this one."
+ "guardBlocked": 63,
+ "failures": [
+  {
+   "persona": "P-045",
+   "field": "mobility",
+   "expected": "walks",
+   "got": null,
+   "traits": [
+    "second_voice",
+    "flames"
+   ]
+  },
+  {
+   "persona": "P-047",
+   "field": "address",
+   "expected": "2585 Catherine Road, Altadena",
+   "got": "Catherine Road, cerca de la esquina",
+   "traits": [
+    "hard_of_hearing",
+    "partial_address"
+   ]
+  },
+  {
+   "persona": "P-062",
+   "field": "mobility",
+   "expected": "walks",
+   "got": null,
+   "traits": []
+  },
+  {
+   "persona": "P-087",
+   "field": "address",
+   "expected": "2536 La Fiesta Avenue, Altadena",
+   "got": "La Fiesta Avenue, near the corner",
+   "traits": [
+    "partial_address",
+    "panic",
+    "second_voice"
+   ]
+  },
+  {
+   "persona": "P-093",
+   "field": "address",
+   "expected": "398 East Palm Street, Altadena",
+   "got": "East Palm Street",
+   "traits": [
+    "partial_address",
+    "asks_reassurance",
+    "medical"
+   ]
+  },
+  {
+   "persona": "P-099",
+   "field": "address",
+   "expected": "2776 Casitas Avenue, Altadena",
+   "got": "Casitas Avenue, near the corner",
+   "traits": [
+    "partial_address",
+    "second_voice",
+    "nominates_neighbor"
+   ]
+  },
+  {
+   "persona": "P-122",
+   "field": "address",
+   "expected": "65 Reever Way, Altadena",
+   "got": "Reever Way, near the corner",
+   "traits": [
+    "partial_address",
+    "panic"
+   ]
+  },
+  {
+   "persona": "P-135",
+   "field": "mobility",
+   "expected": "walks",
+   "got": null,
+   "traits": [
+    "hard_of_hearing"
+   ]
+  },
+  {
+   "persona": "P-137",
+   "field": "address",
+   "expected": "272 West Terrace Street, Altadena",
+   "got": "West Terrace Street, cerca de la esquina",
+   "traits": [
+    "partial_address"
+   ]
+  }
+ ]
 }

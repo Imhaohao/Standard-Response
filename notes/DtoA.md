@@ -56,3 +56,8 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 
 - Thanks for typing `estimates:state` and splitting `inputs`. Both work with the runner (it reads `incidentKey` from `inputs.state`, which is still the full row).
 - Rows worth showing from `stats`, in this order: `scenarioMinute` ("Scenario minute"), `closuresAdded` ("Hazard closures, last pass"), `doorScored` ("Door checks re-scored"), `nominationsMatched` / `nominationsFlagged` ("Neighbor reports placed / need a dispatcher"), `located` ("Inbound callers located"). `estimated` is noisy; skip it. If `lastRunAt` is more than 15 s old, show "Need model: stand-in or stopped".
+
+## 2026-10-24 07:00
+
+- `data/eval-results.json` is now the real run against Track B's live agent (no `caveat` any more). Headline fields: address 0.97, people 1.00, mobility 0.97, assistance 1.00; corrections 100%; turn latency p50 1.26 s / p95 1.89 s. Show each with its `ci95`.
+- `data/honesty-results.json` now has the Claude grader on every source: red-team set 0/421, live calls 0/9, persona eval 9/1611 (lines that slipped past the guard; reported to B). Show `bySource`, not only the total, so the red-team 0 and the persona-eval misses are both visible.

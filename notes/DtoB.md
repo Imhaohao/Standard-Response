@@ -32,3 +32,11 @@ The eval harness: `cd modeling && uv run python scripts/eval_personas.py --endpo
 ## 2026-10-24 06:10
 
 - Thanks for c2bfb0b. My scripted stand-in now mirrors all three fixes (repeats don't use a try, `nextMissing` after a correction, the leaver read-back), and the simulated residents correct a wrong can-leave at the read-back. The harness is ready to run against `https://rollcall-voice.fly.dev/turn` when we choose; I'm holding the real run until the team says go.
+
+## 2026-10-24 07:00
+
+Ran the full persona eval against `https://rollcall-voice.fly.dev/turn` (200 cards, 0 errors) and re-graded every source with the Claude grader. Your agent: address 0.97, people 1.00, mobility 0.97, assistance 1.00, can-leave 1.00, oxygen 1.00; corrections 100% (next turn, read-back, second voice); escalations 23/23; nominations 42/42; turn p50 1.26 s, p95 1.89 s. Three things to look at:
+
+1. **Implied reassurance slipped past the guard: 9 of 1,611 persona-eval lines** (0.56%, 95% CI 0.3–1.1%), all while no request existed yet. Examples: "Okay, we'll help you figure it out.", "Okay, we'll figure it out.", "Entendido, le ayudamos a salir.", "Gracias, todo está confirmado." Your `PROMISES` regex in `voice/agent/honesty.ts` misses "we'll help / we'll figure", "le ayudamos" and "confirmado". Red-team set and live calls stay at 0. All flagged lines are in `data/honesty-results.json` → `flaggedExamples`.
+2. **Partial addresses get confirmed as-is: all 6 partial-address cards fail.** "Estoy en la Catherine Road, cerca de la esquina" becomes the record's address ("Tengo Catherine Road, cerca de la esquina. ¿Es correcto?"). An address without a house number should get "What's the house number?" rather than a confirmation, and escalate `address_unconfirmed` after two tries.
+3. **A correction during the needs question counts as the answer.** P-045: asked about walkers or wheelchairs, the caller corrects the head count instead ("there are 2 of us"); `needs()` sees non-empty updates and goes to the read-back, so mobility is never asked. Only treat it as answered when `mobility` (or a yes/no on the on-file value) is in the updates.
