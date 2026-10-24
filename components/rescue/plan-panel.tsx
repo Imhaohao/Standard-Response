@@ -69,7 +69,7 @@ function ModelState() {
   return (
     <>
       <div title={hint}>
-        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Neighbor smoothing" />
+        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Guess need from neighbors' answers" />
       </div>
       {state?.stats && <ModelStats stats={state.stats} />}
     </>
@@ -87,7 +87,7 @@ function ApprovalMode() {
   const auto = control?.autoApprove ?? true;
   return (
     <div className="flex items-center justify-between gap-2 border-t border-panel-raised px-4 py-2">
-      <span className="type-small font-semibold">Offers</span>
+      <span className="type-small font-semibold">Ride offers</span>
       <SegmentedControl
         options={APPROVAL_OPTIONS}
         value={auto ? "auto" : "manual"}
@@ -98,12 +98,21 @@ function ApprovalMode() {
   );
 }
 
+function PlanVersion({ plan }: { plan: { version: number; solver: keyof typeof SOLVER_LABELS; solveMs: number } | null | undefined }) {
+  if (!plan) return <span className="type-small mr-3 text-on-panel-muted">None yet</span>;
+  return (
+    <span className="type-small mr-3 rounded-md bg-surface-sunk px-1.5 py-0.5 font-semibold tabular-nums" title={`${SOLVER_LABELS[plan.solver]} solver, ${plan.solveMs} ms`}>
+      v{plan.version}
+    </span>
+  );
+}
+
 export function PlanPanel({ className = "" }: { className?: string }) {
   const plan = useQuery(api.plans.latest);
   return (
     <Panel
-      title={plan ? `Plan v${plan.version}` : "No plan yet"}
-      aside={plan && <span className="type-small mr-3 rounded-md bg-surface-sunk px-1.5 py-0.5 font-semibold tabular-nums">{SOLVER_LABELS[plan.solver]} {plan.solveMs} ms</span>}
+      title="Dispatch plan"
+      aside={<PlanVersion plan={plan} />}
       className={className}
     >
       {plan && <ChangeCounts changes={plan.changes} />}

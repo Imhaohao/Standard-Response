@@ -6,22 +6,20 @@ import { ScenarioFront } from "@/lib/ink-map/fire-field";
 import { useMapStage } from "./map-stage";
 
 // Smoke drawn the manga way: round puffs with an ink outline and a halftone shadow, rising off the
-// stretches of fire front that are spreading fastest and leaning downwind. Each puff's path is a
+// whole burning edge and leaning downwind, thickest where the front is spreading fastest. Each puff's path is a
 // real line in the air, from the burning ground to a point downwind and high above it, projected
 // through the camera, so the plume keeps its heading at any zoom. CSS animates the puff along it,
 // so React only re-renders when the view or the fire's minute changes.
 
-const SOURCES = 5;
-const PUFFS_PER_SOURCE = 14;
+const PUFFS = 72;
 const LIFE_SECONDS = 9;
-const SOURCE_SPACING_METERS = 300;
+const EDGE_SAMPLES = 96;
 // The scenario's wind carries smoke toward the west-southwest.
 const DOWNWIND: Point = [-0.92, -0.38];
 const DRIFT_METERS = 1000;
 const RISE_METERS = 650;
 const PUFF_METERS = 60;
 const MAX_PUFF_PIXELS = 280;
-const SAMPLES = 64;
 
 type Source = { point: Point; strength: number };
 
@@ -41,20 +39,26 @@ function distanceToRing(ring: Point[], [x, y]: Point) {
 function smokeSources(fronts: ScenarioFront[], minutes: number): Source[] {
   const index = fronts.findLastIndex((front) => front.minutes <= minutes);
   if (index < 0) return [];
-  const now = fronts[index];
   const next = fronts[index + 1];
-  const nextRing = next ? sampleRing(next.ring, SAMPLES * 2) : null;
-  const candidates = sampleRing(now.ring, SAMPLES)
-    .map((point) => ({ point, strength: nextRing ? distanceToRing(nextRing, point) : 1 }))
-    .sort((a, b) => b.strength - a.strength);
-  const picked: Source[] = [];
-  for (const candidate of candidates) {
-    if (picked.length === SOURCES) break;
-    const crowded = picked.some((source) => Math.hypot(source.point[0] - candidate.point[0], source.point[1] - candidate.point[1]) < SOURCE_SPACING_METERS);
-    if (!crowded) picked.push(candidate);
+  const nextRing = next ? sampleRing(next.ring, EDGE_SAMPLES * 2) : null;
+  const edge = sampleRing(fronts[index].ring, EDGE_SAMPLES).map((point) => ({ point, strength: nextRing ? distanceToRing(nextRing, point) : 1 }));
+  const strongest = Math.max(...edge.map((source) => source.strength)) || 1;
+  return edge.map((source) => ({ ...source, strength: Math.max(0.2, source.strength / strongest) }));
+}
+
+const hash = (n: number) => {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+// Each puff rises from its own spot on the edge, picked more often where the front runs hotter.
+function sourceFor(sources: Source[], total: number, puffIndex: number) {
+  let left = hash(puffIndex + 1) * total;
+  for (const source of sources) {
+    left -= source.strength;
+    if (left <= 0) return source;
   }
-  const strongest = picked[0]?.strength || 1;
-  return picked.map((source) => ({ ...source, strength: Math.max(0.45, source.strength / strongest) }));
+  return sources[sources.length - 1];
 }
 
 type Puff = { key: string; x: number; y: number; r: number; dx: number; dy: number; delay: number };
@@ -64,13 +68,13 @@ export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minut
   const sources = useMemo(() => smokeSources(fronts, minutes), [fronts, minutes]);
 
   const puffs = useMemo(() => {
+    if (sources.length === 0) return [];
+    const total = sources.reduce((sum, source) => sum + source.strength, 0);
     const list: Puff[] = [];
-    sources.forEach((source, s) => {
-      for (let i = 0; i < PUFFS_PER_SOURCE; i++) {
-        const puff = puffFrom(project, source, s, i);
-        if (puff) list.push(puff);
-      }
-    });
+    for (let i = 0; i < PUFFS; i++) {
+      const puff = puffFrom(project, sourceFor(sources, total, i), i);
+      if (puff) list.push(puff);
+    }
     return list;
     // `version` changes whenever the camera moves; `project` is stable across those moves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,9 +106,9 @@ type Project = (point: Point, lift?: number) => { x: number; y: number; visible:
 
 const offset = ([x, y]: Point, east: number, north: number): Point => [x + east, y + north];
 
-function puffFrom(project: Project, source: Source, sourceIndex: number, puffIndex: number): Puff | null {
-  const jitter = Math.sin(sourceIndex * 12.9 + puffIndex * 78.2);
-  const ground = offset(source.point, jitter * 50, jitter * -20);
+function puffFrom(project: Project, source: Source, puffIndex: number): Puff | null {
+  const jitter = hash(puffIndex * 7.3) * 2 - 1;
+  const ground = offset(source.point, jitter * 40, hash(puffIndex * 3.1) * 80 - 40);
   const base = project(ground);
   if (!base.visible) return null;
   const drift = DRIFT_METERS * (1 + jitter * 0.12);
@@ -112,13 +116,13 @@ function puffFrom(project: Project, source: Source, sourceIndex: number, puffInd
   const edge = project(offset(ground, PUFF_METERS, 0));
   const pixelsPerPuff = Math.hypot(edge.x - base.x, edge.y - base.y);
   return {
-    key: `${sourceIndex}-${puffIndex}`,
+    key: String(puffIndex),
     x: base.x,
     y: base.y,
     r: Math.min(MAX_PUFF_PIXELS, pixelsPerPuff * (1 + 0.6 * source.strength) * (1 + jitter * 0.25)),
     dx: top.x - base.x,
     dy: top.y - base.y,
-    delay: -((puffIndex / PUFFS_PER_SOURCE) * LIFE_SECONDS + sourceIndex * 0.7),
+    delay: -hash(puffIndex * 5.7) * LIFE_SECONDS,
   };
 }
 

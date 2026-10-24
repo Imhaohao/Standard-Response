@@ -68,7 +68,7 @@ function BandKey({ probabilities }: { probabilities: number[] }) {
           <span key={probability} className="flex-1 bg-signal" style={{ opacity: stackedOpacity(index + 1) }} />
         ))}
       </span>
-      {percent(ordered[0])}–{percent(ordered[ordered.length - 1])}% chance it burns by then
+      {percent(ordered[0])}–{percent(ordered[ordered.length - 1])}% chance of fire within the hour
     </span>
   );
 }
@@ -76,7 +76,7 @@ function BandKey({ probabilities }: { probabilities: number[] }) {
 function describe(danger: DangerZones) {
   const source = danger.wind.source === "nws" ? "the National Weather Service wind forecast" : `the scenario's own wind (${danger.wind.note ?? "no live wind"})`;
   const built = new Date(danger.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return `Shaded areas show the chance each spot has burned by the slider's minute, from ${danger.members} spread-model runs under ${source}. Built at ${built}.`;
+  return `Shaded areas show the chance each spot has burned an hour from now, from ${danger.members} spread-model runs under ${source}. Built at ${built}.`;
 }
 
 export function ForecastControl({ danger, shown, onToggle }: { danger: DangerZones; shown: boolean; onToggle: () => void }) {

@@ -169,7 +169,7 @@ export function PlaybackBar({ clock, children }: { clock: FireClock; children?: 
           {playback.paused ? <Play weight="fill" className="size-4 translate-x-px" /> : <Pause weight="fill" className="size-4" />}
         </Button>
         <SegmentedControl options={SPEED_OPTIONS} value={String(playback.speed)} onChange={(value) => playback.setSpeed(Number(value))} ariaLabel="Playback speed" />
-        <FireProgress clock={clock} />
+        <FireProgress clock={clock} paused={playback.paused} />
         <span className="type-small w-16 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
           +{scenarioClock(clock.minutes)}
         </span>
@@ -179,8 +179,9 @@ export function PlaybackBar({ clock, children }: { clock: FireClock; children?: 
   );
 }
 
-function FireProgress({ clock }: { clock: FireClock }) {
+function FireProgress({ clock, paused }: { clock: FireClock; paused: boolean }) {
   const share = clock.last ? Math.min(1, clock.minutes / clock.last) : 0;
+  const tone = paused ? "bg-on-panel-muted" : "bg-signal";
   return (
     <div
       role="progressbar"
@@ -191,8 +192,8 @@ function FireProgress({ clock }: { clock: FireClock }) {
       aria-valuetext={`${scenarioClock(clock.minutes)} after the warning`}
       className="relative h-1 min-w-0 flex-1 rounded-full bg-line"
     >
-      <div className="absolute inset-y-0 left-0 rounded-full bg-signal" style={{ width: `${share * 100}%` }} />
-      <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal shadow-[0_0_0_2px_var(--color-panel)]" style={{ left: `${share * 100}%` }} />
+      <div className={`absolute inset-y-0 left-0 rounded-full ${tone}`} style={{ width: `${share * 100}%` }} />
+      <div className={`absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_0_2px_var(--color-panel)] ${tone}`} style={{ left: `${share * 100}%` }} />
     </div>
   );
 }

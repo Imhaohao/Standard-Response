@@ -3,7 +3,7 @@
 import { Copy, Path, RoadHorizon } from "@phosphor-icons/react";
 import { ComponentType, useEffect, useRef } from "react";
 import { LatLng } from "@/lib/geo";
-import { chanceAt, DangerZones } from "@/lib/ink-map/danger";
+import { chanceAt, DangerZones, FORECAST_AHEAD_MINUTES } from "@/lib/ink-map/danger";
 import { Point } from "@/lib/ink-map/data";
 import { arrivalAt, NEVER_BURNS } from "@/lib/ink-map/fire-field";
 import { Hazard } from "@/lib/ink-map/hazard";
@@ -106,7 +106,7 @@ function OpenMenu({ spot, hazard, danger, minutes, toLatLng, onAction, onClose }
     >
       <dl className="type-small flex flex-col gap-1 px-2.5 pt-1.5 pb-2.5">
         <Fact label="Scenario fire" value={scenarioArrival(hazard, spot.point, minutes)} />
-        <Fact label={`Forecast by +${scenarioClock(minutes)}`} value={forecastChance(danger, spot.point, minutes)} />
+        <Fact label="Fire within the hour" value={forecastChance(danger, spot.point, minutes + FORECAST_AHEAD_MINUTES)} />
       </dl>
       <div className="flex flex-col gap-0.5 border-t border-line pt-1">
         <MenuItem Icon={RoadHorizon} label="Close this street" onSelect={() => onAction("closure", spot.point)} />

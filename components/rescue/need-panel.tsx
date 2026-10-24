@@ -4,7 +4,7 @@ import { ReactNode, useState } from "react";
 import { CaretDown, Check, Flame, Info, Phone } from "@phosphor-icons/react";
 import { deathsIfUnserved, expectedDeaths } from "@/convex/fatalityRisk";
 import { ESCALATION_LABELS, phoneForPeople } from "@/lib/labels";
-import { useNow } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Button, ButtonLink } from "../ui/button";
 import { Panel, PanelEmpty } from "../ui/panel";
 import { OpenRequest, byUrgency } from "./marks";
@@ -244,7 +244,7 @@ const committed = (person: Person) => person.assignment?.status === "accepted" |
 type NeedPanelProps = { people: Person[]; unplaced: OpenRequest[]; focus: FocusProps; className?: string };
 
 export function NeedPanel({ people, unplaced, focus, className = "" }: NeedPanelProps) {
-  const now = useNow(15_000);
+  const now = useSimNow(15_000);
   const sorted = [...people].sort(byUrgency);
   const needYou = sorted.filter((person) => person.escalation && !committed(person));
   const waiting = sorted.filter((person) => !person.escalation && !committed(person));

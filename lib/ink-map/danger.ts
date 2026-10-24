@@ -68,6 +68,9 @@ export function useDangerZones(origin: LatLng | undefined): DangerZones | null {
 }
 
 // For each probability, the latest frame at or before the clock, widest band first so the darker bands paint on top.
+// The forecast looks this far past the clock: where the fire could be within the hour.
+export const FORECAST_AHEAD_MINUTES = 60;
+
 export function zonesAt(danger: DangerZones, minutes: number): DangerZone[] {
   const latest = new Map<number, DangerZone>();
   for (const zone of danger.zones) {

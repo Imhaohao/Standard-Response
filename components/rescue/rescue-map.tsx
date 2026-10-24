@@ -11,7 +11,7 @@ import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
 import { LatLng } from "@/lib/geo";
 import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
-import { useDangerZones } from "@/lib/ink-map/danger";
+import { FORECAST_AHEAD_MINUTES, useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
 import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
@@ -85,13 +85,13 @@ export function RescueMap() {
         className="absolute inset-0"
         controls={
           <>
-            <ZoomControls className="absolute right-[21.75rem] bottom-24" />
+            <ZoomControls className="absolute right-3 bottom-3" />
             {mapFocus.card && <HouseCard householdId={mapFocus.card.householdId} at={mapFocus.card.point} onClose={mapFocus.closeCard} />}
           </>
         }
         underlay={
           <>
-            {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
+            {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
             <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
           </>
         }
@@ -128,6 +128,7 @@ export function RescueMap() {
                 {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
               </PlaybackBar>
             </div>
+            <div className="w-10 shrink-0" aria-hidden />
           </div>
         </div>
       </PanelDesk>
