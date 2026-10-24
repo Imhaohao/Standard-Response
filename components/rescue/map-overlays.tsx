@@ -49,14 +49,19 @@ const STATE_BADGE: Partial<Record<VanState, { icon: ReactNode; spin?: boolean; l
   boarding: { icon: <Users weight="fill" size={10} color="white" x={-5} y={-5} />, label: "Picking up" },
 };
 
-function VanMark({ van }: { van: Van }) {
+function VanMark({ van, onHover }: { van: Van; onHover: (id: string | null) => void }) {
   const busy = van.stops.length > 0;
   const label = van.vehicle.label;
   const width = label.length * 6.6 + 26;
   const badge = STATE_BADGE[van.state];
   return (
     <Anchor point={van.at}>
-      <g transform={`translate(${-width / 2} -10)`}>
+      <g
+        transform={`translate(${-width / 2} -10)`}
+        className="pointer-events-auto cursor-pointer"
+        onPointerEnter={() => onHover(van.vehicle._id)}
+        onPointerLeave={() => onHover(null)}
+      >
         <rect width={width} height={20} rx={5} fill={busy ? INK : PAPER} stroke={busy ? PAPER : INK} strokeWidth={busy ? 2 : 1.5} />
         <VanIcon x={5} y={3} size={14} weight="fill" color={busy ? "white" : INK} />
         <text x={22} y={14} fontSize={11} fontWeight={700} fill={busy ? "white" : INK}>
@@ -78,12 +83,12 @@ function VanMark({ van }: { van: Van }) {
 
 // The streets a van will drive, from where it is through each stop. Solid with moving ticks once a
 // driver has said yes; dashed while it is only an offer, because an offer is not a commitment.
-function VanRoute({ van, focused }: { van: Van; focused: boolean }) {
+function VanRoute({ van, focused, faded }: { van: Van; focused: boolean; faded: boolean }) {
   if (!van.route) return null;
   const rerouting = van.state === "rerouting";
   const width = focused || rerouting ? 3.2 : 2.2;
   return (
-    <g opacity={van.committed || focused ? 1 : 0.8}>
+    <g opacity={faded ? 0.15 : van.committed || focused ? 1 : 0.8} className="transition-opacity duration-200">
       <MapLine route={van.route} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" strokeLinejoin="round" />
       <MapLine
         route={van.route}
@@ -139,24 +144,39 @@ function Draft({ tool, draft }: { tool: string; draft: Point[] }) {
   );
 }
 
-type OverlayProps = { tool: string; draft: Point[]; people: Person[]; vans: Van[]; focusId: string | null };
+type OverlayProps = {
+  tool: string;
+  draft: Point[];
+  people: Person[];
+  vans: Van[];
+  focusId: string | null;
+  vanFocusId: string | null;
+  onVanHover: (id: string | null) => void;
+};
 
-export function MapOverlays({ tool, draft, people, vans, focusId }: OverlayProps) {
-  const focusedVan = people.find((person) => person._id === focusId)?.assignment?.vehicleId;
+// The van whose run is being looked at: one hovered directly, or the van serving the person hovered.
+function lookedAtVan(people: Person[], focusId: string | null, vanFocusId: string | null) {
+  return vanFocusId ?? people.find((person) => person._id === focusId)?.assignment?.vehicleId ?? null;
+}
+
+export function MapOverlays({ tool, draft, people, vans, focusId, vanFocusId, onVanHover }: OverlayProps) {
+  const focusedVan = lookedAtVan(people, focusId, vanFocusId);
   // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
   const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
+  // The looked-at route draws last, on top of every other.
+  const routes = [...vans].sort((a, b) => Number(a.vehicle._id === focusedVan) - Number(b.vehicle._id === focusedVan));
   return (
     <g>
       <Zone />
       <Closures />
-      {vans.map((van) => (
-        <VanRoute key={van.vehicle._id} van={van} focused={van.vehicle._id === focusedVan} />
+      {routes.map((van) => (
+        <VanRoute key={van.vehicle._id} van={van} focused={van.vehicle._id === focusedVan} faded={focusedVan !== null && van.vehicle._id !== focusedVan} />
       ))}
       {vans.map((van) => (
-        <VanMark key={van.vehicle._id} van={van} />
+        <VanMark key={van.vehicle._id} van={van} onHover={onVanHover} />
       ))}
       {ordered.map((person) => (
-        <RequestPin key={person._id} person={person} focused={person._id === focusId} />
+        <RequestPin key={person._id} person={person} focused={person._id === focusId || (vanFocusId !== null && person.assignment?.vehicleId === vanFocusId)} />
       ))}
       <Draft tool={tool} draft={draft} />
     </g>

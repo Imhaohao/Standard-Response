@@ -40,6 +40,7 @@ export function RescueMap() {
   const board = useRescueBoard(data ?? null, toLocal);
   const { homes, withOpenRequest, highlights } = useRoofs(data ?? null, board.people, toLocal);
   const { focus, flyTarget, focusProps } = usePersonFocus();
+  const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
   const { tool, setTool, draft, status, pick } = useDrawingTools(toLatLng);
 
@@ -62,7 +63,7 @@ export function RescueMap() {
         controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
         {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
-        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} />
+        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
       </MapStage>
 
       <div className="pointer-events-none absolute inset-0 flex flex-col">
@@ -76,7 +77,7 @@ export function RescueMap() {
           <div className="min-w-0 flex-1" />
           <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
             <PlanPanel />
-            <FleetPanel vans={board.vans} />
+            <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
             <DoorCheckPanel />
             <RiderUpload />
           </div>

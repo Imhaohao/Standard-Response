@@ -24,11 +24,16 @@ function vanTitle(van: Van) {
 }
 
 // One line per van: who it is, where it is heading, and a badge only when it needs a look.
-function VanRow({ van }: { van: Van }) {
+function VanRow({ van, onHover }: { van: Van; onHover: (id: string | null) => void }) {
   const next = van.stops[0];
   const state = STATE[van.state];
   return (
-    <li className="flex items-center gap-2 px-4 py-1" title={vanTitle(van)}>
+    <li
+      className="flex items-center gap-2 px-4 py-1 transition-colors duration-150 hover:bg-surface-sunk"
+      title={vanTitle(van)}
+      onPointerEnter={() => onHover(van.vehicle._id)}
+      onPointerLeave={() => onHover(null)}
+    >
       <VanChip label={van.vehicle.label} busy={van.stops.length > 0}>
         <CapacityIcons seats={van.vehicle.seats} wheelchairSpaces={van.vehicle.wheelchairSpaces} />
       </VanChip>
@@ -57,7 +62,7 @@ function StateCount({ state, vans }: { state: VanState; vans: Van[] }) {
   );
 }
 
-export function FleetPanel({ vans, className = "" }: { vans: Van[]; className?: string }) {
+export function FleetPanel({ vans, onVanHover, className = "" }: { vans: Van[]; onVanHover: (id: string | null) => void; className?: string }) {
   return (
     <Panel
       title="Vans"
@@ -74,7 +79,7 @@ export function FleetPanel({ vans, className = "" }: { vans: Van[]; className?: 
       {vans.length ? (
         <ul className="flex flex-col pb-2">
           {vans.map((van) => (
-            <VanRow key={van.vehicle._id} van={van} />
+            <VanRow key={van.vehicle._id} van={van} onHover={onVanHover} />
           ))}
         </ul>
       ) : (
