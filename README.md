@@ -81,6 +81,33 @@ Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST 
 
 **Cartesia.** Ink speech-to-text (`ink-whisper`, English and Spanish) and Sonic text-to-speech, both on 8 kHz μ-law, so Twilio audio passes through without transcoding. Each sentence is its own text-to-speech context: a barge-in cancels the rest, and a status change cuts in at the next sentence boundary.
 
+## Dispatch and simulator (Track C)
+
+Turn off **Dispatcher and vehicle movement** on the call floor and the real dispatcher takes over. Every 5 s while riders wait, and at once when a road closes, `convex/dispatch.ts` forecasts each van's accepted run on the real road graph, revokes pickups a closure made unreachable in time, and asks the OR-Tools service for new offers. If the service doesn't answer, the heuristic in `convex/heuristic.ts` plans instead, and the plan records why.
+
+| Where it runs | What |
+| --- | --- |
+| Convex | Re-planner, vehicle movement on road paths, closure snapping (`convex/dispatch*.ts`, `fleet.ts`, `roadGraph.ts`) |
+| DigitalOcean App Platform | OR-Tools solver service, `dispatch/server.py` (`dispatch/deploy_digitalocean.sh` deploys it) |
+| Vercel | The Next app, so the driver page opens on a phone |
+| This repo | Road graph from OpenStreetMap via OSMnx (`data/roads/altadena.json`), simulator (`dispatch/sim/`) |
+
+| Convex env variable | What it is |
+| --- | --- |
+| `SOLVER_URL` | The solver service's public URL. Unset means the heuristic plans |
+| `SOLVER_TOKEN` | Bearer token the service requires, because problems carry riders' home coordinates |
+
+```bash
+cd dispatch
+uv run pytest -q                                    # solver, heuristic parity, simulator
+uv run python verify_dispatch.py --fallback-dir ..  # 10 end-to-end checks against the deployment in .env.local
+uv run python -m sim.run --seeds 100                # writes data/sim-results.json
+```
+
+> Warning: `verify_dispatch.py` closes roads, cancels a driver and flips the dispatch switch on the deployment it targets. Pause the live dialer first. `npx convex run dispatchCheck:parkSimulatedRiders` and `dispatchCheck:reopenCheckClosures` clean up afterwards.
+
+Simulated vehicles drive and board 4 times faster than real time (`SIMULATED_TIME_LAPSE` in `convex/vehicleRun.ts`). ETAs, deadlines and the solver stay in real minutes.
+
 ## Track D models
 
 `modeling/` holds the hazard scenario, need model, door-check order, address matching, synthetic population, persona cards and the evaluations. `modeling/README.md` says how to run each one. During a session, run `cd modeling && uv run python scripts/run_models.py`.
