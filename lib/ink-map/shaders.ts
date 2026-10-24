@@ -569,11 +569,13 @@ void main() {
   float minutes = arrivalMinutes(mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn;
   if (burned > 0.0) {
-    // Minutes since the fire passed. Scorch and embers belong to the band just behind the front;
-    // stamping them on the whole scar turns the town into wallpaper and hides the street grid.
+    // Minutes since the fire passed. A crosshatch marks the whole scar as charred, but at full
+    // weight only in the band just behind the front; full strength everywhere turns the town into
+    // wallpaper and hides the street grid. Embers stay in that fresh band alone.
     float age = uFireNow - minutes;
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
-    float scorch = hatch(0.16, 8.0 * uPixelRatio, -0.75) * burned * fresh;
+    float crosshatch = max(hatch(0.16, 8.0 * uPixelRatio, -0.75), hatch(0.16, 8.0 * uPixelRatio, 0.8208));
+    float scorch = crosshatch * burned * (0.4 + 0.6 * fresh);
     float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
     color = mix(color, color * vec3(0.8, 0.77, 0.74), burned * (0.35 + 0.35 * fresh));
     color = mix(color, uInk, scorch * 0.45);
