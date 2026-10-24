@@ -29,3 +29,7 @@ NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
 ```
 
 Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
+
+## 2026-10-24 15:42
+
+Typecheck failed because `components/ui/app-bar.tsx` and `components/rescue/need-panel.tsx` imported `@/lib/use-sim-now`, which is not in the repo. Deadlines and the warning clock stay on the wall clock (same as the rest of the screens), so both now call `useNow` from `lib/time.ts`. No new hook.

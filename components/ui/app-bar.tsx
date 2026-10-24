@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { AccountChip } from "../account/account-chip";
-import { formatElapsed } from "@/lib/time";
-import { useSimNow } from "@/lib/use-sim-now";
+import { formatElapsed, useNow } from "@/lib/time";
 
 type Screen = { href: string; label: string; also?: string[] };
 
@@ -51,7 +50,7 @@ function ScreenNav() {
 }
 
 export function WarningClock({ issuedAt }: { issuedAt: number }) {
-  const now = useSimNow();
+  const now = useNow();
   return (
     <div className="flex items-baseline gap-2">
       <span className="type-small text-ink-muted">Since the warning</span>
