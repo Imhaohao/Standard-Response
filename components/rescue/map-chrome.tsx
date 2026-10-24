@@ -1,11 +1,14 @@
 "use client";
 
-import { ArrowClockwise, ArrowCounterClockwise, Check, Cursor, Fire, FireExtinguisher, Icon, Path, RoadHorizon } from "@phosphor-icons/react";
-import { ReactNode } from "react";
+import { ArrowCounterClockwise, Check, Cursor, Fire, FireExtinguisher, Icon, Path, Pause, Play, RoadHorizon } from "@phosphor-icons/react";
+import { useMutation, useQuery } from "convex/react";
+import { ReactNode, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
 import type { SurfaceMode } from "@/components/map/map-stage";
 import { FireClock } from "@/lib/ink-map/hazard";
 import { Crews, FireResponse } from "@/lib/ink-map/ignition";
+import { PLAYBACK_SPEEDS } from "@/lib/sim-clock";
 import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
 import { SegmentedControl } from "../ui/segmented-control";
@@ -152,41 +155,64 @@ export const scenarioClock = (minutes: number) => {
   return hours > 0 ? `${hours}h ${whole % 60}m` : `${whole}m`;
 };
 
-function ClockState({ previewing }: { previewing: boolean }) {
-  return (
-    <span className={`type-small inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 font-bold ${previewing ? "bg-on-panel text-panel" : "bg-surface-sunk"}`}>
-      <span className={`size-2 rounded-full ${previewing ? "bg-panel" : "bg-on-panel"}`} aria-hidden />
-      {previewing ? "Preview" : "Now"}
-    </span>
-  );
-}
+const SPEED_OPTIONS = PLAYBACK_SPEEDS.map((speed) => ({ value: String(speed), label: `${speed}×` }));
 
-// The fire over time: the minute being shown, and below it whatever is drawn for that minute.
-export function FireScrubber({ clock, children }: { clock: FireClock; children?: ReactNode }) {
+// The night's clock, which everyone on the deployment shares: play or pause it and pick how fast it
+// runs. The bar shows how far the fire scenario has got and can't be dragged, since calls,
+// dispatch and the vans all run on this clock and none of them can jump ahead.
+export function PlaybackBar({ clock, children }: { clock: FireClock; children?: ReactNode }) {
+  const playback = usePlayback();
   return (
     <ChromeSurface className="flex w-full max-w-2xl flex-col gap-1.5 px-3 py-2">
       <div className="flex items-center gap-3">
-        <ClockState previewing={clock.scrubbing} />
-        <input
-          type="range"
-          min={0}
-          max={clock.last || 1}
-          value={Math.round(clock.minutes)}
-          onChange={(event) => clock.scrub(Number(event.target.value))}
-          aria-label="Minutes after the warning"
-          className="h-1 min-w-0 flex-1 accent-signal"
-        />
-        <span className="type-small w-14 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
+        <Button variant="onPanel" size="sm" square onClick={playback.toggle} aria-label={playback.paused ? "Play" : "Pause"} title={playback.paused ? "Play" : "Pause"}>
+          {playback.paused ? <Play weight="fill" className="size-4 translate-x-px" /> : <Pause weight="fill" className="size-4" />}
+        </Button>
+        <SegmentedControl options={SPEED_OPTIONS} value={String(playback.speed)} onChange={(value) => playback.setSpeed(Number(value))} ariaLabel="Playback speed" />
+        <FireProgress clock={clock} />
+        <span className="type-small w-16 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
           +{scenarioClock(clock.minutes)}
         </span>
-        {clock.scrubbing && (
-          <Button variant="onPanel" size="sm" onClick={clock.follow}>
-            <ArrowClockwise weight="bold" className="size-3.5" />
-            Back to now
-          </Button>
-        )}
       </div>
       {children && <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-line pt-1.5">{children}</div>}
     </ChromeSurface>
   );
+}
+
+function FireProgress({ clock }: { clock: FireClock }) {
+  const share = clock.last ? Math.min(1, clock.minutes / clock.last) : 0;
+  return (
+    <div
+      role="progressbar"
+      aria-label="Fire scenario"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(clock.last)}
+      aria-valuenow={Math.round(clock.minutes)}
+      aria-valuetext={`${scenarioClock(clock.minutes)} after the warning`}
+      className="relative h-1 min-w-0 flex-1 rounded-full bg-line"
+    >
+      <div className="absolute inset-y-0 left-0 rounded-full bg-signal" style={{ width: `${share * 100}%` }} />
+      <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal shadow-[0_0_0_2px_var(--color-panel)]" style={{ left: `${share * 100}%` }} />
+    </div>
+  );
+}
+
+function usePlayback() {
+  const clock = useQuery(api.control.get)?.clock;
+  const setPlayback = useMutation(api.control.setPlayback);
+  const speed = clock?.speed ?? 1;
+  const [resumeAt, setResumeAt] = useState(1);
+  const paused = speed === 0;
+  return {
+    paused,
+    speed: paused ? resumeAt : speed,
+    toggle: () => {
+      if (!paused) setResumeAt(speed);
+      void setPlayback({ speed: paused ? resumeAt : 0 });
+    },
+    setSpeed: (next: number) => {
+      setResumeAt(next);
+      if (!paused) void setPlayback({ speed: next });
+    },
+  };
 }

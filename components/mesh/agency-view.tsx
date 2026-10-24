@@ -18,6 +18,7 @@ import { SEGMENT_INDEX, SEGMENT_LIST, SEGMENTS } from "@/lib/mesh/roads";
 import { ROUND_MASS } from "@/lib/mesh/rounds";
 import { segmentFireMinutes, streetFeatures } from "@/lib/mesh/street-features";
 import { formatClock, useNow } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Figure, Figures } from "./figures";
 import { HowItWorks, TechTags } from "./technology";
 import { ForecastStreets, TrafficPanel, useTrafficForecast } from "./traffic-forecast";
@@ -53,7 +54,7 @@ function useFireMinutes() {
 // Where the shared model expects blockages that nobody has reported yet.
 function useEstimates(roads: Roads | undefined, weights: number[] | undefined, issuedAt: number | undefined) {
   const fire = useFireMinutes();
-  const now = useNow(60_000);
+  const now = useSimNow(60_000);
   return useMemo(() => {
     if (!fire || !weights || !roads || !now) return [];
     const minutes = issuedAt === undefined ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;

@@ -1,6 +1,7 @@
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { located, metersBetween } from "./model";
+import { simNow } from "./clock";
 
 // When tonight's call hears that someone can't get out and nobody agreed ahead of time to come for
 // them, 911 calls the nearest neighbor with a car straight away and asks them to pick the person up.
@@ -76,7 +77,7 @@ export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"househo
   for (const plan of plans) if (plan.helperHouseholdId) skip.add(plan.helperHouseholdId);
   const neighbor = await nearestDriver(ctx, resident, skip);
   if (!neighbor) return;
-  const now = Date.now();
+  const now = await simNow(ctx);
   await ctx.db.insert("pickupPlans", {
     householdId,
     helperName: neighbor.residentName ?? `the neighbor at ${neighbor.address}`,

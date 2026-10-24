@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import { seedSimulatedArea } from "./seed";
+import { simNow } from "./clock";
 
 // Track C's end-to-end check (dispatch/verify_dispatch.py) on a deployment that already holds a
 // real rider list. Internal only: run with `npx convex run dispatchCheck:<name>`.
@@ -15,7 +16,7 @@ export const seedSimulatedRiders = internalMutation({
     const firstNumber = `+1626555${String(1000 + batch * 200).padStart(4, "0")}`;
     const taken = await ctx.db.query("households").withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", firstNumber)).first();
     if (taken) return 0;
-    await seedSimulatedArea(ctx, Date.now(), { withFleet: false, batch });
+    await seedSimulatedArea(ctx, await simNow(ctx), { withFleet: false, batch });
     return 200;
   },
 });

@@ -7,6 +7,7 @@ import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
 import { askNearbyDriver, busyHelpers } from "./neighborPickups";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
+import { simNow } from "./clock";
 
 const recordPatch = v.object({
   canLeave: v.optional(canLeave),
@@ -47,7 +48,7 @@ export async function applyRecordPatch(
   if (!household) throw new Error(`Household ${householdId} not found`);
   const merged = { ...household, ...patch };
   const outcome = outcomeFor(merged);
-  const corrections = correctionsBetween(household, patch, Date.now());
+  const corrections = correctionsBetween(household, patch, await simNow(ctx));
   await ctx.db.patch("households", householdId, {
     ...patch,
     outcome,
@@ -61,7 +62,7 @@ export async function applyRecordPatch(
       kind: "record",
       message: `${household.address} marked ${outcome.replace("_", " ")}`,
       householdId,
-      at: Date.now(),
+      at: await simNow(ctx),
     });
   }
 }
@@ -94,7 +95,7 @@ export const setEstimates = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { estimates }) => {
-    const now = Date.now();
+    const now = await simNow(ctx);
     for (const estimate of estimates) {
       const household = await ctx.db.get("households", estimate.householdId);
       if (!household) continue;
@@ -238,7 +239,7 @@ export const findOrCreateByPhone = mutation({
       .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
       .first();
     if (existing) return existing._id;
-    const now = Date.now();
+    const now = await simNow(ctx);
     return await ctx.db.insert("households", {
       address: UNCONFIRMED_ADDRESS,
       callbackNumber,

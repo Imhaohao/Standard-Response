@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
-import { useNow } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { createProjection } from "./data";
 import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts } from "./fire-field";
 
@@ -41,29 +41,15 @@ export function useHazard(origin: LatLng | undefined): Hazard | null {
   }, [origin, file]);
 }
 
-// Minute 0 is the warning and the scenario runs on the wall clock, the same clock Track D's
-// deadlines use. The scrubber is how anyone looks ahead.
+// Minute 0 is the warning, and the fire runs on the night's clock, the same clock Track D's
+// deadlines use. At normal speed that is the wall clock; the rescue map can pause or speed it up.
 export const SIM_MINUTES_PER_SECOND = 1 / 60;
 
-export type FireClock = {
-  minutes: number;
-  last: number;
-  scrubbing: boolean;
-  scrub: (minutes: number) => void;
-  follow: () => void;
-};
+export type FireClock = { minutes: number; last: number };
 
 export function useFireClock(hazard: Hazard | null, issuedAt: number | undefined): FireClock {
-  const now = useNow(400);
-  const [override, setOverride] = useState<number | null>(null);
-  const follow = useCallback(() => setOverride(null), []);
+  const now = useSimNow(250);
   const last = hazard?.field.fronts[hazard.field.fronts.length - 1]?.minutes ?? 0;
-  const elapsed = issuedAt === undefined ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
-  return {
-    minutes: Math.min(override ?? Math.max(0, elapsed), last),
-    last,
-    scrubbing: override !== null,
-    scrub: setOverride,
-    follow,
-  };
+  const elapsed = issuedAt === undefined || now === 0 ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
+  return { minutes: Math.min(Math.max(0, elapsed), last), last };
 }

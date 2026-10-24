@@ -1,10 +1,13 @@
 "use client";
 
+import { useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
 import { InkMapData, Point } from "@/lib/ink-map/data";
 import { contains } from "@/lib/ink-map/fire-field";
 import { Hazard } from "@/lib/ink-map/hazard";
+import { simTime } from "@/lib/sim-clock";
 import { downwindOf, FireResponse, ignitionHazard } from "@/lib/ink-map/ignition";
 import { streetNetwork } from "@/lib/ink-map/street-network";
 import { warningZoneAround } from "@/lib/ink-map/warning-zone";
@@ -22,14 +25,15 @@ const FIRST_RESPONSE: FireResponse = { construction: "older", engines: 1 };
 export function useSimulatedFire(scenario: Hazard | null, data: InkMapData | null, homes: Home[], toLocal: (at: LatLng) => Point) {
   const [ignition, setIgnition] = useState<Ignition | null>(null);
   const [response, setResponse] = useState<FireResponse>(FIRST_RESPONSE);
+  const clock = useQuery(api.control.get)?.clock;
 
   const ignite = useCallback(
     (point: Point) => {
       const home = nearestHome(homes, point, toLocal);
       if (!home) return;
-      setIgnition({ point: toLocal(home), wind: downwindOf(scenario?.field.fronts), startedAt: Date.now() });
+      setIgnition({ point: toLocal(home), wind: downwindOf(scenario?.field.fronts), startedAt: simTime(clock, Date.now()) });
     },
-    [homes, toLocal, scenario],
+    [homes, toLocal, scenario, clock],
   );
 
   const fire = useMemo(() => (ignition && data ? ignitionHazard(data.buildings, ignition.point, ignition.wind, response) : null), [data, ignition, response]);

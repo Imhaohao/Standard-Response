@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
 import { closureSource, point } from "./schema";
+import { simNow } from "./clock";
 
 export const closures = query({
   args: {},
@@ -32,7 +33,7 @@ export const addClosures = mutation({
           : null;
       if (existing) continue;
       const confirmed = closure.confirmed ?? closure.source !== "resident";
-      await ctx.db.insert("roadClosures", { ...closure, confirmed, at: Date.now() });
+      await ctx.db.insert("roadClosures", { ...closure, confirmed, at: await simNow(ctx) });
       added += 1;
     }
     return added;

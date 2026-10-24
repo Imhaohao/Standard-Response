@@ -10,7 +10,6 @@ import { transitionRequest } from "./requests";
 // plans.ts and offers.ts, not here.
 
 const CITY_SPEED_MPS = 7;
-const SIMULATED_SPEED_MPS = 60;
 const DRIVER_ACCEPTS_AFTER_MS = 6_000;
 const ARRIVED_WITHIN_METERS = 40;
 
@@ -94,7 +93,8 @@ async function driveAccepted(ctx: MutationCtx, assignment: Doc<"assignments">, s
 
 async function moveVehicles(ctx: MutationCtx, tickMs: number) {
   const accepted = await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", "accepted")).take(200);
-  const stepMeters = (SIMULATED_SPEED_MPS * tickMs) / 1000;
+  // Vans drive at the speed their ETAs assume; playback speed is what makes the night go faster.
+  const stepMeters = (CITY_SPEED_MPS * tickMs) / 1000;
   for (const assignment of accepted) await driveAccepted(ctx, assignment, stepMeters);
 }
 

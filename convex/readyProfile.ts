@@ -1,6 +1,7 @@
 import { MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { callPriorityFor } from "./model";
+import { simNow } from "./clock";
 
 // Writing a Ready check profile. Shared by the resident's sign-up page, the agent's Ready check call
 // and the stand-in. The record fields are written straight to the household without touching
@@ -57,7 +58,7 @@ async function arrangePickup(ctx: MutationCtx, household: Household, helper: Hel
     status: "arranged",
     helperAttempts: 0,
     residentAttempts: 0,
-    updatedAt: Date.now(),
+    updatedAt: await simNow(ctx),
     simulated,
   });
 }
@@ -69,7 +70,7 @@ export async function saveProfile(
 ) {
   const household = await ctx.db.get("households", householdId);
   if (!household) throw new Error(`Household ${householdId} not found`);
-  const now = Date.now();
+  const now = await simNow(ctx);
   await ctx.db.patch("households", householdId, {
     ...profile.record,
     ready: profile.ready,

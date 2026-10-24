@@ -3,13 +3,14 @@ import { query, MutationCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Id } from "./_generated/dataModel";
 import { callPriorityFor, insidePolygon } from "./model";
+import { simNow } from "./clock";
 
 // Voice agent: "Is there anyone else on your street who might not be able to leave?"
 export const add = mutation({
   args: { fromHouseholdId: v.optional(v.id("households")), spokenAddress: v.string() },
   returns: v.id("nominations"),
   handler: async (ctx, args) => {
-    return await ctx.db.insert("nominations", { ...args, status: "open", at: Date.now() });
+    return await ctx.db.insert("nominations", { ...args, status: "open", at: await simNow(ctx) });
   },
 });
 
@@ -26,7 +27,7 @@ export const flagged = query({
 });
 
 async function logMatch(ctx: MutationCtx, message: string, householdId?: Id<"households">) {
-  await ctx.db.insert("events", { kind: "model", message, householdId, at: Date.now() });
+  await ctx.db.insert("events", { kind: "model", message, householdId, at: await simNow(ctx) });
 }
 
 // Track D matched the spoken address to a household, or couldn't (say why in `note`).
@@ -92,7 +93,7 @@ export const matchAddress = mutation({
         needPrior: Math.max(needPrior, NOMINATED_NEED_PRIOR_FLOOR),
         needProbability,
         fireArrivalAt,
-        callPriority: callPriorityFor(needProbability, fireArrivalAt, Date.now()),
+        callPriority: callPriorityFor(needProbability, fireArrivalAt, await simNow(ctx)),
         simulated: false,
       }));
     await ctx.db.patch("nominations", nominationId, { status: "matched", matchedHouseholdId: householdId, note: undefined });

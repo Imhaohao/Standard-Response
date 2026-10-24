@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
 import { seedFleetIfEmpty } from "./seed";
+import { simNow } from "./clock";
 
 export const list = query({
   args: {},
@@ -27,5 +28,5 @@ export const setPositions = mutation({
 export const ensureFleet = mutation({
   args: {},
   returns: v.boolean(),
-  handler: async (ctx) => await seedFleetIfEmpty(ctx, Date.now()),
+  handler: async (ctx) => await seedFleetIfEmpty(ctx, await simNow(ctx)),
 });

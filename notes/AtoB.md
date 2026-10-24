@@ -68,3 +68,13 @@ The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back u
 ## 2026-10-24 16:30
 
 Dispatcher login (Auth0) is in, switched off until `AUTH0_DOMAIN` is set, so nothing changes for you today. Run `npm install` after you pull: it adds `@auth0/nextjs-auth0`. There is now a root `proxy.ts`, which is Next 16's name for middleware. While Auth0 is off it passes every request straight through, and it never touches `/api/*`. When it is on, the call floor, rescue map, under-the-hood, simulated phone and driver page need a login with a role. Public pages stay open: `/ready`, `/prepare`, `/mesh`, `/flow`. The README section "Dispatcher login (Auth0)" has the setup.
+
+## 2026-10-24 15:42
+
+The night now runs on a shared clock that the rescue map can pause or play at 1×, 10×, 30× or 60× (`control.clock`, `lib/sim-clock.ts`, `control:setPlayback`). Until someone presses a control, it reads the same as the wall clock, so nothing changes for you.
+
+- **In Convex**, use `await simNow(ctx)` from `convex/clock.ts` for every time you store or compare: `at`, `createdAt`, deadlines, ring and retry waits. I switched every existing `Date.now()` in `convex/` to it. The exceptions are solve timings, the mesh and survey add-ons, and the re-plan cadence and lock in `dispatch.ts`, which stay on the wall clock so faster playback never calls the solver more often.
+- **In the browser**, use `useSimNow()` from `lib/use-sim-now.ts` wherever you compare against a stored time. `useFireClock` already reads it.
+- **Faster playback** moves the clock further on each 900 ms tick. It doesn't tick more often. `fleet:tick` receives `tickMs` scaled by the speed, and the dispatch snapshot carries `now` on the night's clock. While paused, the loop stops scheduling ticks, so a paused night costs nothing.
+- **Real phone calls** still run at real speed, so a run with live calls is best left at 1×.
+- **Stand-in vans** now drive at the 7 m/s their ETAs assume, not 60 m/s. Use 10× or more to make them visibly move.

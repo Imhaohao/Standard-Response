@@ -5,6 +5,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { vehicleCanServe } from "./model";
 import { approveAssignment, liveAssignmentsFor, liveAssignmentsForVehicle, replaceAssignment, revokeAssignment } from "./offers";
 import { audit } from "./requests";
+import { simNow } from "./clock";
 
 const offer = v.object({
   requestId: v.id("requests"),
@@ -59,7 +60,7 @@ async function changeFor(ctx: MutationCtx, assignmentId: Id<"assignments">, kind
 // Writes plan vN. Accepted runs never change here except through `revoke`.
 export async function writePlan(ctx: MutationCtx, plan: Proposal, autoApprove: boolean) {
   const version = await nextVersion(ctx);
-  const now = Date.now();
+  const now = await simNow(ctx);
   const changes: Change[] = [];
   for (const id of plan.replace) {
     changes.push(await changeFor(ctx, id, "replace"));

@@ -17,7 +17,7 @@ import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FireSpreadLayer } from "./fire-spread-layer";
 import { FleetPanel } from "./fleet-panel";
-import { DrawingHint, FireScrubber, MapToolbar, MapTopBar, SimulatedFireHint } from "./map-chrome";
+import { DrawingHint, PlaybackBar, MapToolbar, MapTopBar, SimulatedFireHint } from "./map-chrome";
 import { ContextAction, ContextSpot, MapContextMenu } from "./map-context-menu";
 import { MapOverlays } from "./map-overlays";
 import { Home, homeMarks, requestMarks } from "./marks";
@@ -124,9 +124,9 @@ export function RescueMap() {
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>
             <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
-              <FireScrubber clock={clock}>
+              <PlaybackBar clock={clock}>
                 {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
-              </FireScrubber>
+              </PlaybackBar>
             </div>
           </div>
         </div>
@@ -157,19 +157,7 @@ function useFireOnScreen(data: InkMapData | null, warningIssuedAt: number | unde
   const simulated = useSimulatedFire(scenario, data, homes, toLocal);
   const hazard = simulated.hazard ?? scenario;
   const clock = useFireClock(hazard, simulated.startedAt ?? warningIssuedAt);
-  const { follow } = clock;
-  const { ignite: igniteAt, clear: clearFire } = simulated;
-  const ignite = useCallback(
-    (point: Point) => {
-      igniteAt(point);
-      follow();
-    },
-    [igniteAt, follow],
-  );
-  const putOut = useCallback(() => {
-    clearFire();
-    follow();
-  }, [clearFire, follow]);
+  const { ignite, clear: putOut } = simulated;
   const fire = simulated.hazard;
   const summary = fire ? { burned: fire.burnedAt.length, outAt: fire.outAt, homesReached: simulated.homesToWarn } : null;
   return {

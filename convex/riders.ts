@@ -5,6 +5,7 @@ import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
 import { callPriorityFor, insidePolygon, located, Point } from "./model";
 import { fileLanguageOf } from "./languages";
+import { simNow } from "./clock";
 
 // The agency's rider list. Columns, in any order:
 // rider_id, name, address, lat, lng, phone, language, mobility, assistance
@@ -96,7 +97,7 @@ export const importCsv = mutation({
   args: { csv: v.string() },
   returns: v.object({ imported: v.number(), skippedLines: v.array(v.number()) }),
   handler: async (ctx, { csv }) => {
-    const now = Date.now();
+    const now = await simNow(ctx);
     const skippedLines: number[] = [];
     let imported = 0;
     for (const [index, row] of parseRows(csv).entries()) {
@@ -129,7 +130,7 @@ export const setZone = mutation({
   returns: v.number(),
   handler: async (ctx, { polygon }) => {
     if (polygon.length < 3) throw new Error("A zone needs at least three points");
-    await ctx.db.insert("zones", { polygon, drawnAt: Date.now() });
+    await ctx.db.insert("zones", { polygon, drawnAt: await simNow(ctx) });
     return await markZone(ctx, polygon);
   },
 });

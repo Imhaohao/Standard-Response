@@ -10,6 +10,7 @@ import { seedSimulatedArea } from "./seed";
 import { Helper, saveProfile } from "./readyProfile";
 import { helperFor, profileFromPersona } from "./readySim";
 import { seededRandom } from "./roll";
+import { simNow } from "./clock";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
@@ -18,6 +19,7 @@ import { seededRandom } from "./roll";
 
 const READY_TICK_MS = 700;
 const HOMES_PER_TICK = 3;
+const MOST_HOMES_PER_TICK = 30;
 const MAX_MISSES = 2;
 const UNKNOWN_NEED_PRIOR = 0.5;
 const PLACEHOLDER_ARRIVAL_MINUTES = 90;
@@ -44,9 +46,9 @@ type ProfileArgs = ObjectType<typeof profileArgs>;
 
 const blankToUndefined = (value: string | undefined) => (value?.trim() ? value.trim() : undefined);
 
-function profileFrom(args: ProfileArgs, via: "call" | "form") {
+function profileFrom(args: ProfileArgs, via: "call" | "form", now: number) {
   const { exitPlan: plan, bedroom: room, care, note, helper: arranged, ...record } = args;
-  const ready = { at: Date.now(), via, verified: via === "call", exitPlan: plan, bedroom: room, care, note: blankToUndefined(note) };
+  const ready = { at: now, via, verified: via === "call", exitPlan: plan, bedroom: room, care, note: blankToUndefined(note) };
   return { record, ready, helper: arranged as Helper | undefined };
 }
 
@@ -65,7 +67,7 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
     await ctx.db.patch("households", existing._id, { address: place.address, lat: place.lat, lng: place.lng });
     return existing._id;
   }
-  const now = Date.now();
+  const now = await simNow(ctx);
   const fireArrivalAt = now + PLACEHOLDER_ARRIVAL_MINUTES * 60_000;
   return await ctx.db.insert("households", {
     address: place.address,
@@ -92,8 +94,8 @@ export const submit = mutation({
   handler: async (ctx, { phone, address, lat, lng, language, ...profile }) => {
     if (phone.trim() === "" || address.trim() === "") throw new Error("A phone number and an address are needed");
     const householdId = await findOrCreateHome(ctx, { phone: phone.trim(), address: address.trim(), lat, lng, language });
-    await saveProfile(ctx, householdId, profileFrom(profile, "form"));
-    await ctx.db.insert("events", { kind: "record", message: `${address.trim()} signed up for the Ready check`, householdId, at: Date.now() });
+    await saveProfile(ctx, householdId, profileFrom(profile, "form", await simNow(ctx)));
+    await ctx.db.insert("events", { kind: "record", message: `${address.trim()} signed up for the Ready check`, householdId, at: await simNow(ctx) });
     return householdId;
   },
 });
@@ -103,7 +105,7 @@ export const saveFromCall = mutation({
   args: { householdId: v.id("households"), ...profileArgs },
   returns: v.null(),
   handler: async (ctx, { householdId, ...profile }) => {
-    await saveProfile(ctx, householdId, profileFrom(profile, "call"));
+    await saveProfile(ctx, householdId, profileFrom(profile, "call", await simNow(ctx)));
     return null;
   },
 });
@@ -189,7 +191,7 @@ export const start = mutation({
   handler: async (ctx) => {
     const control = await controlRow(ctx);
     if (control.warningIssuedAt) throw new Error("The Ready check runs before a warning. Reset first");
-    const now = Date.now();
+    const now = await simNow(ctx);
     if (!(await ctx.db.query("households").first())) await seedSimulatedArea(ctx, now);
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { readyCheckRunning: true, readyCheckStartedAt: now, readyCheckGeneration });
@@ -223,7 +225,7 @@ async function standInReadyCall(ctx: MutationCtx, household: Doc<"households">, 
     await ctx.db.patch("households", household._id, { readyMisses: (household.readyMisses ?? 0) + 1 });
     return;
   }
-  const profile = profileFromPersona(persona, random, Date.now());
+  const profile = profileFromPersona(persona, random, await simNow(ctx));
   const arranged = profile.ready.exitPlan === "helper" && located(household) ? await helperFor(ctx, household, nearby, random) : undefined;
   await saveProfile(ctx, household._id, { ...profile, helper: arranged });
 }
@@ -231,7 +233,7 @@ async function standInReadyCall(ctx: MutationCtx, household: Doc<"households">, 
 async function finish(ctx: MutationCtx, control: Doc<"control">, households: Doc<"households">[]) {
   const profiled = households.filter((household) => household.ready).length;
   await ctx.db.patch("control", control._id, { readyCheckRunning: false });
-  await ctx.db.insert("events", { kind: "control", message: `Ready check finished: ${profiled} of ${households.length} homes on file`, at: Date.now() });
+  await ctx.db.insert("events", { kind: "control", message: `Ready check finished: ${profiled} of ${households.length} homes on file`, at: await simNow(ctx) });
 }
 
 // One step of the stand-in campaign: a few simulated homes "answer" per tick, so the map fills in.
@@ -241,12 +243,15 @@ export const tick = internalMutation({
   handler: async (ctx, { generation }) => {
     const control = await ctx.db.query("control").first();
     if (!control?.readyCheckRunning || control.readyCheckGeneration !== generation || control.warningIssuedAt) return null;
+    const speed = control.clock?.speed ?? 1;
+    if (speed === 0) return null;
     const households = await ctx.db.query("households").take(1000);
     const simulatedWaiting = control.simulateVoice ? households.filter((household) => household.simulated && needsCall(household)) : [];
     const realWaiting = households.some((household) => !household.simulated && needsCall(household));
     if (simulatedWaiting.length === 0 && !realWaiting) return await finish(ctx, control, households);
     const nearby = households.filter(located);
-    for (const household of simulatedWaiting.slice(0, HOMES_PER_TICK)) await standInReadyCall(ctx, household, nearby);
+    const homes = Math.min(HOMES_PER_TICK * speed, MOST_HOMES_PER_TICK);
+    for (const household of simulatedWaiting.slice(0, homes)) await standInReadyCall(ctx, household, nearby);
     await ctx.scheduler.runAfter(READY_TICK_MS, internal.ready.tick, { generation });
     return null;
   },

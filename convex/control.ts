@@ -1,11 +1,14 @@
 import { v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
+import { Doc } from "./_generated/dataModel";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { retimeSimulatedArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { startPickupChecks } from "./pickups";
 import { startCall } from "./calls";
-import { TICK_MS } from "./sim";
+import { MAX_RUN_MS, TICK_MS } from "./sim";
+import { simNow } from "./clock";
+import { clockAtSpeed, PLAYBACK_SPEEDS, runningMs } from "../lib/sim-clock";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
 
 const DEFAULTS = {
@@ -27,14 +30,14 @@ async function controlRow(ctx: MutationCtx) {
 }
 
 async function logControl(ctx: MutationCtx, message: string) {
-  await ctx.db.insert("events", { kind: "control", message, at: Date.now() });
+  await ctx.db.insert("events", { kind: "control", message, at: await simNow(ctx) });
 }
 
 export const get = query({
   args: {},
   handler: async (ctx) => {
     const row = await ctx.db.query("control").first();
-    if (!row) return { ...DEFAULTS, warningIssuedAt: undefined, hazard: DEFAULT_HAZARD };
+    if (!row) return { ...DEFAULTS, warningIssuedAt: undefined, clock: undefined, hazard: DEFAULT_HAZARD };
     return { ...row, hazard: row.hazard ?? DEFAULT_HAZARD };
   },
 });
@@ -46,13 +49,14 @@ export const issueWarning = mutation({
   handler: async (ctx) => {
     const control = await controlRow(ctx);
     if (control.warningIssuedAt) return null;
-    const now = Date.now();
+    const clock = clockAtSpeed(control.clock, control.clock?.speed || 1, Date.now());
+    const now = clock.simAt;
     if (await ctx.db.query("households").first()) await retimeSimulatedArea(ctx, now);
     else await seedSimulatedArea(ctx, now);
     await seedFleetIfEmpty(ctx, now);
     const tickGeneration = control.tickGeneration + 1;
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
-    await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration });
+    await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration, clock: { ...clock, ranMs: 0 } });
     await startPickupChecks(ctx, now);
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation: tickGeneration });
@@ -72,6 +76,36 @@ export const setHazard = mutation({
     return null;
   },
 });
+
+// Pausing stops the loops, so a paused night costs nothing; playing again starts them on a new
+// generation. Faster playback moves the clock further each tick instead of ticking more often.
+export const setPlayback = mutation({
+  args: { speed: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { speed }) => {
+    if (speed !== 0 && !PLAYBACK_SPEEDS.some((allowed) => allowed === speed)) throw new Error(`Playback runs at ${PLAYBACK_SPEEDS.join(", ")} times, or pauses`);
+    const control = await controlRow(ctx);
+    const real = Date.now();
+    const resuming = (control.clock?.speed ?? 1) === 0 && speed > 0;
+    const clock = clockAtSpeed(control.clock, speed, real);
+    await ctx.db.patch("control", control._id, { clock });
+    if (resuming) await restartLoops(ctx, { ...control, clock }, real);
+    return null;
+  },
+});
+
+async function restartLoops(ctx: MutationCtx, control: Doc<"control">, real: number) {
+  if (control.warningIssuedAt && runningMs(control.clock!, real) < MAX_RUN_MS) {
+    const tickGeneration = control.tickGeneration + 1;
+    await ctx.db.patch("control", control._id, { tickGeneration });
+    await ctx.scheduler.runAfter(0, internal.sim.tick, { generation: tickGeneration });
+  }
+  if (control.readyCheckRunning && !control.warningIssuedAt) {
+    const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
+    await ctx.db.patch("control", control._id, { readyCheckGeneration });
+    await ctx.scheduler.runAfter(0, internal.ready.tick, { generation: readyCheckGeneration });
+  }
+}
 
 export const setDialer = mutation({
   args: { running: v.boolean() },
@@ -168,6 +202,7 @@ export const reset = mutation({
       readyCheckRunning: false,
       readyCheckStartedAt: undefined,
       readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1,
+      clock: undefined,
     });
     await ctx.scheduler.runAfter(0, internal.control.clearTables, {});
     return null;

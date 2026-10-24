@@ -538,6 +538,8 @@ export default defineSchema({
     readyCheckStartedAt: v.optional(v.number()),
     readyCheckRunning: v.optional(v.boolean()),
     readyCheckGeneration: v.optional(v.number()),
+    // Track A: the night's clock (lib/sim-clock.ts). Absent means it reads the wall clock.
+    clock: v.optional(v.object({ speed: v.number(), realAt: v.number(), simAt: v.number(), ranMs: v.number() })),
   }),
 
   // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.

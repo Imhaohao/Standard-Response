@@ -6,7 +6,8 @@ import { Phone, PhoneCall, PhoneIncoming, PhoneOutgoing } from "@phosphor-icons/
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { languageName, STAGES, stageIndex } from "@/lib/labels";
-import { formatElapsed, useNow } from "@/lib/time";
+import { formatElapsed } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Waveform } from "../ui/waveform";
 
 export type ActiveCall = FunctionReturnType<typeof api.calls.active>[number];
@@ -79,7 +80,7 @@ export function LineList({
   selectedId: Id<"calls"> | null;
   onSelect: (id: Id<"calls">) => void;
 }) {
-  const now = useNow(500);
+  const now = useSimNow(500);
   if (calls.length === 0) return <Empty />;
   return (
     <ol className="flex flex-col">

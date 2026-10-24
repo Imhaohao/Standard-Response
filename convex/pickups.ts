@@ -7,6 +7,7 @@ import { resolveFollowUpFor } from "./calls";
 import { askNearbyDriver } from "./neighborPickups";
 import { syncRequest } from "./requests";
 import { pickupFailure, pickupStatus } from "./schema";
+import { simNow } from "./clock";
 
 // The pickup check. When a warning covers a household with a helper on file, the helper is called
 // first ("can you pick up Walter now?"), then the resident once the helper's ETA has passed ("has
@@ -43,7 +44,7 @@ const RECRUIT_FAILURE_EVENTS: Record<Failure, (helper: string, place: string) =>
 };
 
 async function logPickup(ctx: MutationCtx, plan: Plan, message: string) {
-  await ctx.db.insert("events", { kind: "dispatch", message, householdId: plan.householdId, at: Date.now() });
+  await ctx.db.insert("events", { kind: "dispatch", message, householdId: plan.householdId, at: await simNow(ctx) });
 }
 
 async function placeOf(ctx: MutationCtx, plan: Plan) {
@@ -57,7 +58,7 @@ const streetOf = (address: string) => address.replace(/^\s*\d+[A-Za-z]?\s+/, "")
 // resident can't be reached to say whether anyone came.
 export async function fellThrough(ctx: MutationCtx, plan: Plan, reason: Failure) {
   const place = await placeOf(ctx, plan);
-  await ctx.db.patch("pickupPlans", plan._id, { status: "fell_through", reason, ringing: undefined, updatedAt: Date.now() });
+  await ctx.db.patch("pickupPlans", plan._id, { status: "fell_through", reason, ringing: undefined, updatedAt: await simNow(ctx) });
   await logPickup(ctx, plan, (plan.recruited ? RECRUIT_FAILURE_EVENTS : FAILURE_EVENTS)[reason](plan.helperName, place));
   if (reason === "resident_unreachable") await resolveFollowUpFor(ctx, plan.householdId, "door_check");
   else if (plan.recruited) await askNearbyDriver(ctx, plan.householdId);
@@ -66,13 +67,13 @@ export async function fellThrough(ctx: MutationCtx, plan: Plan, reason: Failure)
 
 async function markComing(ctx: MutationCtx, plan: Plan, etaMinutes: number | undefined) {
   const minutes = Math.min(Math.max(Math.round(etaMinutes ?? DEFAULT_ETA_MINUTES), 1), MAX_ETA_MINUTES);
-  const now = Date.now();
+  const now = await simNow(ctx);
   await ctx.db.patch("pickupPlans", plan._id, { status: "coming", ringing: undefined, helperEtaAt: now + minutes * 60_000, updatedAt: now });
   await logPickup(ctx, plan, `${plan.helperName} is on the way to ${await placeOf(ctx, plan)}, about ${minutes} min out`);
 }
 
 async function markDone(ctx: MutationCtx, plan: Plan) {
-  await ctx.db.patch("pickupPlans", plan._id, { status: "done", ringing: undefined, updatedAt: Date.now() });
+  await ctx.db.patch("pickupPlans", plan._id, { status: "done", ringing: undefined, updatedAt: await simNow(ctx) });
   await ctx.db.patch("households", plan.householdId, { outcome: "leaving", callStatus: "complete" });
   // A neighbor's pickup leaves a ride request open behind it; nobody needs that van now.
   await syncRequest(ctx, plan.householdId);
@@ -99,7 +100,7 @@ export async function expireStaleChecks(ctx: MutationCtx, now: number) {
 
 export async function beginAttempt(ctx: MutationCtx, plan: Plan, who: Role) {
   const attempts = who === "helper" ? { helperAttempts: plan.helperAttempts + 1 } : { residentAttempts: plan.residentAttempts + 1 };
-  await ctx.db.patch("pickupPlans", plan._id, { ...attempts, ringing: who, lastAttemptAt: Date.now(), updatedAt: Date.now() });
+  await ctx.db.patch("pickupPlans", plan._id, { ...attempts, ringing: who, lastAttemptAt: await simNow(ctx), updatedAt: await simNow(ctx) });
 }
 
 export async function helperReplied(ctx: MutationCtx, plan: Plan, coming: boolean, etaMinutes?: number) {
@@ -121,7 +122,7 @@ export async function noAnswer(ctx: MutationCtx, plan: Plan, who: Role) {
   if (plan.status === "coming" && who === "resident" && plan.residentAttempts >= MAX_RESIDENT_ATTEMPTS) {
     return await fellThrough(ctx, plan, "resident_unreachable");
   }
-  await ctx.db.patch("pickupPlans", plan._id, { ringing: undefined, updatedAt: Date.now() });
+  await ctx.db.patch("pickupPlans", plan._id, { ringing: undefined, updatedAt: await simNow(ctx) });
 }
 
 async function livePlan(ctx: MutationCtx, planId: Id<"pickupPlans">) {
@@ -167,7 +168,7 @@ export const residentTold = mutation({
   handler: async (ctx, { planId }) => {
     const plan = await livePlan(ctx, planId);
     if (plan.residentToldAt !== undefined) return null;
-    await ctx.db.patch("pickupPlans", planId, { residentToldAt: Date.now(), updatedAt: Date.now() });
+    await ctx.db.patch("pickupPlans", planId, { residentToldAt: await simNow(ctx), updatedAt: await simNow(ctx) });
     await logPickup(ctx, plan, `Told ${await placeOf(ctx, plan)} that ${plan.helperName} is on the way`);
     return null;
   },

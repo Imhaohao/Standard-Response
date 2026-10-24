@@ -6,6 +6,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { audit, releaseRequest, transitionRequest } from "./requests";
 import { queueCallback } from "./callbacks";
 import { OFFER_TTL_MS } from "./model";
+import { simNow } from "./clock";
 
 
 const LIVE = new Set<Doc<"assignments">["status"]>(["proposed", "offered", "accepted"]);
@@ -35,7 +36,7 @@ async function mustGet(ctx: QueryCtx, assignmentId: Id<"assignments">) {
 export async function approveAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
   if (assignment.status !== "proposed") return;
-  await ctx.db.patch("assignments", assignmentId, { status: "offered", offeredAt: Date.now() });
+  await ctx.db.patch("assignments", assignmentId, { status: "offered", offeredAt: await simNow(ctx) });
   const request = await ctx.db.get("requests", assignment.requestId);
   if (request?.status === "received") await transitionRequest(ctx, request._id, "approved");
   await audit(ctx, "approved", "Offer approved and sent to the driver", {
@@ -54,7 +55,7 @@ export async function acceptAssignment(ctx: MutationCtx, assignmentId: Id<"assig
     await audit(ctx, "stale_accept_rejected", `Accept on a ${assignment.status} offer rejected`, refs);
     return "changed" as const;
   }
-  await ctx.db.patch("assignments", assignmentId, { status: "accepted", respondedAt: Date.now() });
+  await ctx.db.patch("assignments", assignmentId, { status: "accepted", respondedAt: await simNow(ctx) });
   await transitionRequest(ctx, assignment.requestId, "driver_accepted");
   await audit(ctx, "accepted", "Driver accepted", refs);
   await queueCallback(ctx, { ...assignment, _id: assignmentId }, "driver_accepted");
@@ -66,7 +67,7 @@ async function endOpenOffer(
   assignment: Doc<"assignments">,
   status: "declined" | "expired" | "replaced",
 ) {
-  await ctx.db.patch("assignments", assignment._id, { status, respondedAt: Date.now() });
+  await ctx.db.patch("assignments", assignment._id, { status, respondedAt: await simNow(ctx) });
   await releaseRequest(ctx, assignment.requestId);
   await audit(ctx, status, `Offer ${status}`, {
     requestId: assignment.requestId,
@@ -87,7 +88,7 @@ export async function replaceAssignment(ctx: MutationCtx, assignmentId: Id<"assi
 export async function revokeAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
   if (assignment.status !== "accepted") return replaceAssignment(ctx, assignmentId);
-  await ctx.db.patch("assignments", assignmentId, { status: "revoked", respondedAt: Date.now() });
+  await ctx.db.patch("assignments", assignmentId, { status: "revoked", respondedAt: await simNow(ctx) });
   await transitionRequest(ctx, assignment.requestId, "reassigning");
   await audit(ctx, "revoked", "Accepted pickup revoked", {
     requestId: assignment.requestId,
@@ -101,7 +102,7 @@ export async function revokeAssignment(ctx: MutationCtx, assignmentId: Id<"assig
 export async function closeAssignmentsFor(ctx: MutationCtx, requestId: Id<"requests">) {
   for (const assignment of await liveAssignmentsFor(ctx, requestId)) {
     const status = assignment.status === "accepted" ? "revoked" : "replaced";
-    await ctx.db.patch("assignments", assignment._id, { status, respondedAt: Date.now() });
+    await ctx.db.patch("assignments", assignment._id, { status, respondedAt: await simNow(ctx) });
   }
 }
 

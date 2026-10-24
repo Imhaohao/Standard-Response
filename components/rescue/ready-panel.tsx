@@ -5,7 +5,7 @@ import { FunctionReturnType } from "convex/server";
 import { Bed, Car, Check, Handshake, LinkBreak, PhoneCall, UsersThree, Van, Wheelchair, type Icon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
-import { useNow } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Button } from "../ui/button";
 import { Panel } from "../ui/panel";
 import { Home } from "./marks";
@@ -155,7 +155,7 @@ function rowStatus(pickup: Pickup, now: number): ReactNode {
 
 function PickupRowItem({ pickup, focus }: { pickup: Pickup; focus: HomeFocus }) {
   const { Icon, tone } = STATUS[pickup.status];
-  const now = useNow(15_000);
+  const now = useSimNow(15_000);
   return (
     <li>
       <button

@@ -9,6 +9,7 @@ import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
 import { closedEdgeSet, edgePath, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
 import { nextStop, positionAt, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
+import { simNow } from "./clock";
 
 // Simulated vehicles drive their accepted runs along real road paths. Replaces the straight-line
 // movement in dispatchStandIn.ts when the dispatch stand-in is switched off.
@@ -142,7 +143,7 @@ async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles
 }
 
 async function event(ctx: MutationCtx, message: string, householdId?: Id<"households">) {
-  await ctx.db.insert("events", { kind: "dispatch", message, householdId, at: Date.now() });
+  await ctx.db.insert("events", { kind: "dispatch", message, householdId, at: await simNow(ctx) });
 }
 
 type Visit = { fleet: Fleet; vehicle: Doc<"vehicles">; route: Doc<"vehicleRoutes">; load: Doc<"vehicleLoads"> };
@@ -249,8 +250,8 @@ export const tick = internalMutation({
   handler: async (ctx, { tickMs }) => {
     const control = await ctx.db.query("control").first();
     if (!control || control.simulateDispatch || !control.warningIssuedAt) return null;
-    const now = Date.now();
-    await maybeReplan(ctx, now);
+    const now = await simNow(ctx);
+    await maybeReplan(ctx, Date.now());
     if (control.simulateDrivers) await standInDrivers(ctx, now);
     await moveFleet(ctx, now, tickMs);
     return null;

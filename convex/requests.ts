@@ -6,6 +6,7 @@ import { auditKind, escalation, requestStatus } from "./schema";
 import { deadlineFor, rideNeedFor, vehicleCanServe } from "./model";
 import { closeAssignmentsFor, liveAssignmentsFor, replaceAssignment, revokeAssignment } from "./offers";
 import { helperCovers } from "./pickupCover";
+import { simNow } from "./clock";
 
 export type RequestStatus = Doc<"requests">["status"];
 
@@ -26,7 +27,7 @@ export async function audit(
   message: string,
   refs: { requestId?: Id<"requests">; assignmentId?: Id<"assignments">; planVersion?: number } = {},
 ) {
-  await ctx.db.insert("auditLog", { kind, message, ...refs, at: Date.now() });
+  await ctx.db.insert("auditLog", { kind, message, ...refs, at: await simNow(ctx) });
 }
 
 export async function transitionRequest(ctx: MutationCtx, requestId: Id<"requests">, to: RequestStatus) {
@@ -36,7 +37,7 @@ export async function transitionRequest(ctx: MutationCtx, requestId: Id<"request
   if (!NEXT[request.status].includes(to)) {
     throw new Error(`Request ${requestId} cannot move from ${request.status} to ${to}`);
   }
-  await ctx.db.patch("requests", requestId, { status: to, updatedAt: Date.now() });
+  await ctx.db.patch("requests", requestId, { status: to, updatedAt: await simNow(ctx) });
   await audit(ctx, "status", `${request.status} to ${to}`, { requestId });
   return { ...request, status: to };
 }
@@ -80,7 +81,7 @@ export async function syncRequest(ctx: MutationCtx, householdId: Id<"households"
     if (open) await closeRequest(ctx, open);
     return;
   }
-  const fields = { ...need, deadlineAt: deadlineFor(household.fireArrivalAt), updatedAt: Date.now() };
+  const fields = { ...need, deadlineAt: deadlineFor(household.fireArrivalAt), updatedAt: await simNow(ctx) };
   // A neighbor on the way means no van yet; a ride already open keeps its van.
   if (!open && (await helperCovers(ctx, householdId))) return;
   if (!open) {
@@ -146,6 +147,6 @@ export async function escalateHousehold(ctx: MutationCtx, householdId: Id<"house
     kind: "dispatch",
     message: `${household.address} escalated: ${kind.replace("_", " ")}`,
     householdId,
-    at: Date.now(),
+    at: await simNow(ctx),
   });
 }

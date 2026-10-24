@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { languageName } from "@/lib/labels";
-import { formatCountdown, useNow } from "@/lib/time";
+import { formatCountdown } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { PanelEmpty } from "../ui/panel";
 
 const QUEUE_LENGTH = 12;
@@ -14,7 +15,7 @@ const QUEUE_LENGTH = 12;
 // the same numbers as the flags on the map.
 export function QueueList() {
   const queue = useQuery(api.households.queue, { limit: QUEUE_LENGTH });
-  const now = useNow(15_000);
+  const now = useSimNow(15_000);
   if (queue?.length === 0) return <PanelEmpty>Nobody is waiting to be called.</PanelEmpty>;
   return (
     <ol className="flex flex-col">

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
+import { simNow } from "./clock";
 
 // Track D's model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
 // It never reads `personas`: the models see only what a real agency would know.
@@ -52,7 +53,7 @@ export const setSmoothing = mutation({
     await ctx.db.insert("events", {
       kind: "model",
       message: enabled ? "Need model: neighbor smoothing on" : "Need model: neighbor smoothing off (census and known needs only)",
-      at: Date.now(),
+      at: await simNow(ctx),
     });
     return null;
   },
@@ -67,7 +68,7 @@ export const reportRun = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ensureState(ctx);
-    await ctx.db.patch("modelState", row._id, { ...args, lastRunAt: Date.now() });
+    await ctx.db.patch("modelState", row._id, { ...args, lastRunAt: await simNow(ctx) });
     return null;
   },
 });
@@ -128,7 +129,7 @@ export const inputs = query({
       .take(200);
     const closures = await ctx.db.query("roadClosures").take(2000);
     return {
-      now: Date.now(),
+      now: await simNow(ctx),
       warningIssuedAt: orNull(control?.warningIssuedAt),
       zone: zoneInput(zone),
       state: (await stateRow(ctx)) ?? DEFAULT_STATE,

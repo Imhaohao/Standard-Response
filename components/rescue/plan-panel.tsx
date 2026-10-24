@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { formatElapsed, useNow } from "@/lib/time";
+import { formatElapsed } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Panel } from "../ui/panel";
 import { Switch } from "../ui/switch";
 import { SegmentedControl } from "../ui/segmented-control";
@@ -62,7 +63,7 @@ function ModelStats({ stats }: { stats: Record<string, number> }) {
 function ModelState() {
   const state = useQuery(api.estimates.state);
   const setSmoothing = useMutation(api.estimates.setSmoothing);
-  const now = useNow(5000);
+  const now = useSimNow(5000);
   const lastRun = state?.lastRunAt;
   const hint = lastRun !== undefined && now - lastRun <= STALE_MS ? `Last pass ${formatElapsed(now - lastRun)} ago` : "Stand-in or stopped";
   return (

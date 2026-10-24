@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
+import { simNow } from "./clock";
 
 export const forHousehold = query({
   args: { householdId: v.id("households") },
@@ -17,14 +18,14 @@ export const recent = query({
 export const send = mutation({
   args: { householdId: v.id("households"), body: v.string() },
   returns: v.id("texts"),
-  handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "outbound", at: Date.now() }),
+  handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "outbound", at: await simNow(ctx) }),
 });
 
 // Simulated phone panel: a resident's reply. The voice track parses it.
 export const reply = mutation({
   args: { householdId: v.id("households"), body: v.string() },
   returns: v.id("texts"),
-  handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "inbound", at: Date.now() }),
+  handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "inbound", at: await simNow(ctx) }),
 });
 
 // Simulated phone panel: one thread per household, newest first.

@@ -10,6 +10,7 @@ import { vehicleCanServe } from "./model";
 import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
 import type { Snapshot } from "./dispatchSnapshot";
+import { simNow } from "./clock";
 
 // Track C's real dispatcher. Every few seconds, and right away when a road closes, it snapshots the
 // world, forecasts each vehicle's accepted run, revokes pickups a closure has made unreachable in
@@ -64,8 +65,7 @@ export const replan = internalAction({
   handler: async (ctx) => {
     try {
       const snap: Snapshot = await ctx.runQuery(internal.dispatchSnapshot.snapshot, {});
-      const now = Date.now();
-      const world = buildWorld(snap, now);
+      const world = buildWorld(snap, snap.now);
       const { solution, fallbackReason } = await solve(world.problem);
       await ctx.runMutation(internal.dispatch.commit, planFromSolution(world, solution, fallbackReason));
     } catch (error) {
@@ -175,7 +175,7 @@ async function explainRevocations(ctx: MutationCtx, revoke: CommitArgs["revoke"]
       kind: "dispatch",
       message: `${vehicle?.label ?? "A vehicle"} can no longer reach ${household?.address ?? "a rider"}: ${reason}`,
       householdId: assignment.householdId,
-      at: Date.now(),
+      at: await simNow(ctx),
     });
   }
 }
@@ -191,7 +191,7 @@ export const commit = internalMutation({
   args: commitArgs,
   returns: v.null(),
   handler: async (ctx, args) => {
-    const now = Date.now();
+    const now = await simNow(ctx);
     await saveClosureEdges(ctx, args.closureEdges);
     const revoke = await stillAccepted(ctx, args.revoke);
     const replace = await stillOpen(ctx, args.replace);
@@ -220,7 +220,8 @@ export const commit = internalMutation({
     const state = await stateRow(ctx);
     await ctx.db.patch("dispatchState", state._id, {
       replanStartedAt: undefined,
-      lastReplanAt: now,
+      // The re-plan cadence limits calls to the solver, so it runs on the wall clock.
+      lastReplanAt: Date.now(),
       closuresSeen: args.closuresSeen,
       lastSolver: args.solver,
       lastSolveMs: args.solveMs,

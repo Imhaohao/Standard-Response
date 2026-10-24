@@ -1,4 +1,5 @@
 import { internalQuery, QueryCtx } from "./_generated/server";
+import { simTime } from "../lib/sim-clock";
 import { Doc } from "./_generated/dataModel";
 
 // Everything one re-plan reads, in one consistent read.
@@ -39,6 +40,7 @@ async function onboardRiders(ctx: QueryCtx) {
 export async function readSnapshot(ctx: QueryCtx) {
   const control = await ctx.db.query("control").first();
   return {
+    now: simTime(control?.clock, Date.now()),
     requests: await openRequests(ctx),
     live: await assignmentsWith(ctx, ["proposed", "offered", "accepted"]),
     // A driver who declined, cancelled or let the offer expire isn't offered the same rider again.

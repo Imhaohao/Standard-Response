@@ -3,6 +3,7 @@ import { query, MutationCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { audit } from "./requests";
+import { simNow } from "./clock";
 
 type Announces = Doc<"callbacks">["announces"];
 
@@ -22,7 +23,7 @@ export async function queueCallback(ctx: MutationCtx, assignment: Doc<"assignmen
     householdId: assignment.householdId,
     announces,
     state: "pending",
-    createdAt: Date.now(),
+    createdAt: await simNow(ctx),
   });
 }
 
@@ -44,7 +45,7 @@ export const markPlaced = mutation({
   args: { callbackId: v.id("callbacks") },
   returns: v.null(),
   handler: async (ctx, { callbackId }) => {
-    await setState(ctx, callbackId, { state: "placed", placedAt: Date.now() });
+    await setState(ctx, callbackId, { state: "placed", placedAt: await simNow(ctx) });
     return null;
   },
 });
@@ -54,7 +55,7 @@ export const markPlayed = mutation({
   args: { callbackId: v.id("callbacks") },
   returns: v.null(),
   handler: async (ctx, { callbackId }) => {
-    await setState(ctx, callbackId, { state: "played", playedAt: Date.now() });
+    await setState(ctx, callbackId, { state: "played", playedAt: await simNow(ctx) });
     return null;
   },
 });

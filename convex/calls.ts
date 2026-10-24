@@ -4,6 +4,7 @@ import { mutation } from "./functions";
 import { Id } from "./_generated/dataModel";
 import { callPhase, callStage, requestStatus } from "./schema";
 import { outcomeFor } from "./model";
+import { simNow } from "./clock";
 
 const MAX_VOICE_ATTEMPTS = 2;
 
@@ -13,7 +14,7 @@ export async function startCall(
 ) {
   const household = await ctx.db.get("households", args.householdId);
   if (!household) throw new Error(`Household ${args.householdId} not found`);
-  const now = Date.now();
+  const now = await simNow(ctx);
   await ctx.db.patch("households", household._id, {
     callStatus: "in_call",
     attempts: household.attempts + 1,
@@ -36,7 +37,7 @@ export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: b
   if (!call) throw new Error(`Call ${callId} not found`);
   const household = await ctx.db.get("households", call.householdId);
   if (!household) throw new Error(`Household ${call.householdId} not found`);
-  const now = Date.now();
+  const now = await simNow(ctx);
   await ctx.db.patch("calls", callId, { phase: answered ? "ended" : "no_answer", endedAt: now });
 
   // A call nobody could understand is not an answer: the home goes to the door-check queue.
@@ -109,7 +110,7 @@ export const say = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert("transcriptLines", { ...args, at: Date.now() });
+    await ctx.db.insert("transcriptLines", { ...args, at: await simNow(ctx) });
     return null;
   },
 });
@@ -153,7 +154,7 @@ export async function resolveFollowUpFor(
         ? `Text reply from ${household.address} parsed into the record`
         : `${household.address} added to the door-check list for field teams`,
     householdId,
-    at: Date.now(),
+    at: await simNow(ctx),
   });
 }
 

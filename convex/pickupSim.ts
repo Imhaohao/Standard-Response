@@ -10,6 +10,7 @@ import { beginAttempt, helperReplied, MAX_HELPER_ATTEMPTS, MAX_RESIDENT_ATTEMPTS
 const CALL_MS = 6_000;
 const RETRY_AFTER_MS = 15_000;
 const MAX_NEW_CALLS_PER_TICK = 2;
+const MOST_NEW_CALLS_PER_TICK = 24;
 const HELPER_ANSWERS = 0.8;
 const HELPER_SAYS_YES = 0.85;
 const HELPER_ARRIVES = 0.9;
@@ -44,13 +45,13 @@ async function hangUp(ctx: MutationCtx, plan: Plan) {
   await residentReplied(ctx, plan, chance(HELPER_ARRIVES));
 }
 
-export async function standInPickupChecks(ctx: MutationCtx, now: number) {
+export async function standInPickupChecks(ctx: MutationCtx, now: number, speed: number) {
   const lists = await Promise.all(
     (["checking", "coming"] as const).map((status) =>
       ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", status)).take(200),
     ),
   );
-  let slots = MAX_NEW_CALLS_PER_TICK;
+  let slots = Math.min(MAX_NEW_CALLS_PER_TICK * speed, MOST_NEW_CALLS_PER_TICK);
   for (const plan of lists.flat()) {
     if (!plan.simulated) continue;
     if (plan.ringing && now - (plan.lastAttemptAt ?? now) >= CALL_MS) await hangUp(ctx, plan);
