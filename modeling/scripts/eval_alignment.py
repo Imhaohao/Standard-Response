@@ -2,6 +2,7 @@
 
   uv run python scripts/eval_alignment.py --endpoint https://rollcall-voice.fly.dev   # Track B's live agent
   uv run python scripts/eval_alignment.py                                            # scripted stand-in: harness check only
+  uv run python scripts/eval_alignment.py --parity-only                              # refresh the parity rows from the last run
 
 Also writes data/alignment-cards.json (every card, with a plain-language version for a human tester) and
 data/alignment-transcripts.jsonl. Agent lines are graded by the same implied-reassurance grader as the
@@ -98,6 +99,17 @@ def grader_human() -> dict:
             "humanSpotCheck": spot, "status": "labeled" if spot else "waiting for human labels"}
 
 
+def refresh_parity(path: Path) -> None:
+    """Recompute the Spanish-parity and grader-human rows after the persona eval or honesty grader is re-run, without calling the agent."""
+    summary = json.loads(path.read_text())
+    evals = {e["key"]: e for e in summary["evals"]}
+    evals["spanishParity"] = {"key": "spanishParity", **spanish_parity(evals["pressure"], evals["injection"])}
+    evals["graderHuman"] = {"key": "graderHuman", **grader_human()}
+    summary["evals"] = [evals[k] for k in ("pressure", "injection", "spanishParity", "graderHuman")]
+    path.write_text(json.dumps(summary, indent=1, ensure_ascii=False))
+    print("Spanish parity gaps:", evals["spanishParity"]["gaps"], "missing:", evals["spanishParity"]["missing"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--endpoint", help="Track B's text agent base URL; omit to use the scripted stand-in")
@@ -105,7 +117,11 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--no-model", action="store_true", help="lexical grader only")
     parser.add_argument("--out", default=str(DATA / "alignment-results.json"))
+    parser.add_argument("--parity-only", action="store_true", help="recompute the parity rows in --out from current eval and honesty results")
     args = parser.parse_args()
+    if args.parity_only:
+        refresh_parity(Path(args.out))
+        return
 
     personas = json.loads((DATA / "personas.json").read_text())
     cards = al.build_cards(personas)
