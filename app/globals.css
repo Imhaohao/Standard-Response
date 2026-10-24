@@ -25,6 +25,7 @@
   --unknown: oklch(0.8 0.008 60);
   --map-paper: oklch(0.963 0.012 85);
   --map-ink: oklch(0.235 0.012 60);
+  --smoke: oklch(0.9 0.008 70);
   --shadow-float: 0 1px 2px oklch(0.3 0.02 60 / 0.08), 0 6px 20px oklch(0.3 0.02 60 / 0.1);
 }
 
@@ -131,6 +132,14 @@ body {
   to { transform: translateX(100%); }
 }
 
+/* A smoke puff: grows as it rises and drifts downwind, then thins out. */
+@keyframes smoke-puff {
+  0% { transform: translate(0, 0) scale(0.35); opacity: 0; }
+  8% { opacity: 1; }
+  86% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(2.4); opacity: 0; }
+}
+
 @keyframes dash-flow {
   to { stroke-dashoffset: -24; }
 }
@@ -141,4 +150,5 @@ body {
   .animate-ringing { animation: ringing 1.2s ease-in-out infinite; }
   .animate-sweep { animation: sweep 1.6s var(--ease-standard) infinite; }
   .animate-dash-flow { animation: dash-flow 1.4s linear infinite; }
+  .animate-smoke-puff { animation: smoke-puff 9s linear infinite; }
 }

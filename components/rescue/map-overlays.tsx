@@ -1,118 +1,104 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { FunctionReturnType } from "convex/server";
+import { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
-import { Anchor, GeoAnchor, GeoLeg, GeoLine, MapLine } from "@/components/map/layers";
-import { LatLng } from "@/lib/geo";
+import { Anchor, GeoLine, MapLine } from "@/components/map/layers";
 import { Point } from "@/lib/ink-map/data";
-import { Van, Wheelchair } from "@phosphor-icons/react";
-import { awaitingRide, OpenRequest } from "./marks";
+import { ArrowsClockwise, Pause, Users, Van as VanIcon, Wheelchair } from "@phosphor-icons/react";
+import { headCount } from "./request-badge";
+import { Person, Van, VanState } from "./use-rescue-board";
 
 const PAPER = "var(--map-paper)";
 const INK = "var(--map-ink)";
 const HAZARD = "var(--signal)";
 
-type Vehicle = FunctionReturnType<typeof api.vehicles.list>[number];
-type Assignment = FunctionReturnType<typeof api.offers.active>[number];
-type Route = FunctionReturnType<typeof api.dispatch.routes>[number];
-
-const WAITING: OpenRequest["status"][] = ["received", "approved", "reassigning"];
+const WAITING: Person["status"][] = ["received", "approved", "reassigning"];
 
 // One badge per person, readable without reading: red means still waiting for a driver, ink means
 // a driver said yes. The glyph says what they need: a wheelchair, or how many people.
-function RequestPin({ request }: { request: OpenRequest }) {
-  const waiting = WAITING.includes(request.status);
-  const escalated = Boolean(request.escalation);
-  const r = escalated ? 13 : 10.5;
+function RequestPin({ person, focused }: { person: Person; focused: boolean }) {
+  const waiting = WAITING.includes(person.status) && person.assignment?.status !== "accepted";
+  const escalated = Boolean(person.escalation);
+  // Someone a driver already has is settled: drawn small, so the red pins carry the map.
+  const r = escalated ? 12 : waiting ? 10 : 7;
   const fill = waiting || escalated ? HAZARD : INK;
-  const people = request.load.seats + request.load.wheelchairSpaces + request.load.stretcherSpaces;
+  const reassigning = person.status === "reassigning";
   return (
-    <GeoAnchor at={{ lat: request.lat!, lng: request.lng! }}>
-      {(waiting || escalated) && <circle r={r} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
+    <Anchor point={person.at}>
+      {focused && <circle r={r + 9} fill="none" stroke={INK} strokeWidth={2.5} />}
+      {escalated && <circle r={r} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
       <circle r={r + 2.5} fill={PAPER} />
-      <circle r={r} fill={fill} strokeDasharray={request.status === "reassigning" ? "4 3" : undefined} stroke={request.status === "reassigning" ? PAPER : "none"} strokeWidth={1.5} />
-      {request.needsLift ? (
+      <circle r={r} fill={fill} strokeDasharray={reassigning ? "4 3" : undefined} stroke={reassigning ? PAPER : "none"} strokeWidth={1.5} />
+      {person.needsLift ? (
         <Wheelchair x={-r * 0.62} y={-r * 0.66} size={r * 1.28} weight="bold" color="white" />
       ) : (
-        <text y={4} textAnchor="middle" fontSize={r * 1.05} fontWeight={800} fill="white">
-          {people}
+        <text y={r * 0.38} textAnchor="middle" fontSize={r * 1.1} fontWeight={800} fill="white">
+          {headCount(person)}
         </text>
       )}
-      {escalated && <EscalationChip escalation={request.escalation!} r={r} />}
-    </GeoAnchor>
+    </Anchor>
   );
 }
 
-function EscalationChip({ escalation, r }: { escalation: string; r: number }) {
-  const label = escalationShort(escalation);
-  const width = label.length * 6.4 + 14;
-  return (
-    <g transform={`translate(${r + 5} ${-r - 4})`}>
-      <rect width={width} height={18} rx={9} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
-      <text x={width / 2} y={12.5} textAnchor="middle" fontSize={11} fontWeight={700} fill="white">
-        {label}
-      </text>
-    </g>
-  );
-}
+// The little round badge on a van's corner: the one thing worth knowing about it right now.
+const STATE_BADGE: Partial<Record<VanState, { icon: ReactNode; spin?: boolean; label: string }>> = {
+  rerouting: { icon: <ArrowsClockwise weight="bold" size={11} color="white" x={-5.5} y={-5.5} />, spin: true, label: "Changed course" },
+  stalled: { icon: <Pause weight="fill" size={10} color="white" x={-5} y={-5} />, label: "Not moving" },
+  idle: { icon: <Pause weight="fill" size={10} color="white" x={-5} y={-5} />, label: "Idle" },
+  boarding: { icon: <Users weight="fill" size={10} color="white" x={-5} y={-5} />, label: "Picking up" },
+};
 
-function escalationShort(escalation: string) {
-  return { address_unconfirmed: "Address?", medical: "Medical", flames: "Sees flames", unservable: "No vehicle", language_barrier: "Language" }[escalation] ?? escalation;
-}
-
-// A van is a dark chip with its name inside, so the label never floats away from the vehicle.
-// A van with nobody to fetch is drawn hollow.
-function VehicleMark({ vehicle, busy }: { vehicle: Vehicle; busy: boolean }) {
-  const width = vehicle.label.length * 6.6 + 26;
+function VanMark({ van }: { van: Van }) {
+  const busy = van.stops.length > 0;
+  const label = van.vehicle.label;
+  const width = label.length * 6.6 + 26;
+  const badge = STATE_BADGE[van.state];
   return (
-    <GeoAnchor at={{ lat: vehicle.lat, lng: vehicle.lng }}>
+    <Anchor point={van.at}>
       <g transform={`translate(${-width / 2} -10)`}>
         <rect width={width} height={20} rx={5} fill={busy ? INK : PAPER} stroke={busy ? PAPER : INK} strokeWidth={busy ? 2 : 1.5} />
-        <Van x={5} y={3} size={14} weight="fill" color={busy ? "white" : INK} />
+        <VanIcon x={5} y={3} size={14} weight="fill" color={busy ? "white" : INK} />
         <text x={22} y={14} fontSize={11} fontWeight={700} fill={busy ? "white" : INK}>
-          {vehicle.label}
+          {label}
         </text>
+        {badge && (
+          <g transform={`translate(${width} 0)`}>
+            <title>{badge.label}</title>
+            <circle r={8} fill={INK} stroke={PAPER} strokeWidth={2} />
+            <g className={badge.spin ? "motion-safe:animate-spin" : undefined} style={{ transformBox: "fill-box", transformOrigin: "center" }}>
+              {badge.icon}
+            </g>
+          </g>
+        )}
       </g>
-    </GeoAnchor>
+    </Anchor>
   );
 }
 
-// The route Track C's dispatcher computed: the real streets the van will drive. Dashed until a
-// driver says yes, because an offer is not a commitment.
-function VehicleRoute({ route, committed }: { route: Route; committed: boolean }) {
+// The streets a van will drive, from where it is through each stop. Solid with moving ticks once a
+// driver has said yes; dashed while it is only an offer, because an offer is not a commitment.
+function VanRoute({ van, focused }: { van: Van; focused: boolean }) {
+  if (!van.route) return null;
+  const rerouting = van.state === "rerouting";
+  const width = focused || rerouting ? 3.2 : 2.2;
   return (
-    <>
-      <GeoLine route={route.remaining} fill="none" stroke={PAPER} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
-      <GeoLine
-        route={route.remaining}
+    <g opacity={van.committed || focused ? 1 : 0.8}>
+      <MapLine route={van.route} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" strokeLinejoin="round" />
+      <MapLine
+        route={van.route}
         fill="none"
         stroke={INK}
-        strokeWidth={committed ? 2 : 1.4}
-        strokeDasharray={committed ? undefined : "5 4"}
+        strokeWidth={van.committed ? width : width - 0.6}
+        strokeDasharray={van.committed ? undefined : "6 5"}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={committed ? "" : "animate-dash-flow"}
+        className={van.committed ? "" : "animate-dash-flow"}
       />
-    </>
-  );
-}
-
-// Before the dispatcher has routed anything, the map still has to show which van is going where.
-function RunLeg({ assignment, vehicle, request }: { assignment: Assignment; vehicle: Vehicle; request: OpenRequest }) {
-  const committed = assignment.status === "accepted";
-  return (
-    <>
-      <GeoLeg start={{ lat: vehicle.lat, lng: vehicle.lng }} end={{ lat: request.lat!, lng: request.lng! }} stroke={PAPER} strokeWidth={4.5} />
-      <GeoLeg
-        start={{ lat: vehicle.lat, lng: vehicle.lng }}
-        end={{ lat: request.lat!, lng: request.lng! }}
-        stroke={INK}
-        strokeWidth={committed ? 2 : 1.4}
-        strokeDasharray={committed ? undefined : "5 4"}
-        className={committed ? "" : "animate-dash-flow"}
-      />
-    </>
+      {van.committed && (
+        <MapLine route={van.route} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeDasharray="2 10" strokeLinecap="round" className="animate-dash-flow" />
+      )}
+    </g>
   );
 }
 
@@ -122,8 +108,8 @@ function Closures() {
     <>
       {closures?.map((closure) => (
         <g key={closure._id}>
-          <GeoLine route={closure.path} stroke={PAPER} strokeWidth={7} strokeLinecap="round" />
-          <GeoLine route={closure.path} stroke={HAZARD} strokeWidth={3.5} strokeLinecap="round" />
+          <GeoLine route={closure.path} stroke={PAPER} strokeWidth={7} strokeLinecap="round" fill="none" />
+          <GeoLine route={closure.path} stroke={HAZARD} strokeWidth={3.5} strokeLinecap="round" strokeDasharray="1 6" fill="none" />
         </g>
       ))}
     </>
@@ -133,23 +119,17 @@ function Closures() {
 function Zone() {
   const zone = useQuery(api.riders.currentZone);
   if (!zone) return null;
-  return <GeoLine route={zone.polygon} close fill={INK} fillOpacity={0.07} stroke={INK} strokeWidth={1.6} strokeDasharray="9 5" />;
+  return <GeoLine route={zone.polygon} close fill={INK} fillOpacity={0.05} stroke={INK} strokeWidth={1.6} strokeDasharray="9 5" />;
 }
 
 // What the dispatcher is drawing right now, before it is saved.
 function Draft({ tool, draft }: { tool: string; draft: Point[] }) {
   if (draft.length === 0) return null;
   const color = tool === "closure" ? HAZARD : INK;
+  const closed = tool === "zone" && draft.length > 2;
   return (
     <g>
-      <MapLine
-        route={tool === "zone" && draft.length > 2 ? [...draft, draft[0]] : draft}
-        fill={tool === "zone" && draft.length > 2 ? color : "none"}
-        fillOpacity={0.08}
-        stroke={color}
-        strokeWidth={2.5}
-        strokeDasharray="7 5"
-      />
+      <MapLine route={closed ? [...draft, draft[0]] : draft} fill={closed ? color : "none"} fillOpacity={0.08} stroke={color} strokeWidth={2.5} strokeDasharray="7 5" />
       {draft.map((point, index) => (
         <Anchor key={index} point={point}>
           <circle r={4} fill={color} stroke={PAPER} strokeWidth={2} />
@@ -159,39 +139,24 @@ function Draft({ tool, draft }: { tool: string; draft: Point[] }) {
   );
 }
 
-export function MapOverlays({ tool, draft }: { tool: string; draft: Point[] }) {
-  const requests = useQuery(api.requests.open) ?? [];
-  const assignments = useQuery(api.offers.active) ?? [];
-  const vehicles = useQuery(api.vehicles.list) ?? [];
-  const routes = useQuery(api.dispatch.routes) ?? [];
-  const located = requests.filter(awaitingRide).filter((request) => request.lat !== undefined && request.lng !== undefined);
-  const vehicleById = new Map(vehicles.map((vehicle) => [vehicle._id, vehicle]));
-  const requestById = new Map(located.map((request) => [request._id, request]));
-  const routeByVehicle = new Map(routes.filter((route) => route.remaining.length > 1).map((route) => [route.vehicleId, route]));
-  const at = (request: OpenRequest): LatLng => ({ lat: request.lat!, lng: request.lng! });
-  const busyVehicles = new Set(assignments.map((assignment) => assignment.vehicleId));
+type OverlayProps = { tool: string; draft: Point[]; people: Person[]; vans: Van[]; focusId: string | null };
 
+export function MapOverlays({ tool, draft, people, vans, focusId }: OverlayProps) {
+  const focusedVan = people.find((person) => person._id === focusId)?.assignment?.vehicleId;
+  // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
+  const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
   return (
     <g>
       <Zone />
       <Closures />
-      {assignments.map((assignment) => {
-        const vehicle = vehicleById.get(assignment.vehicleId);
-        const request = requestById.get(assignment.requestId);
-        if (!vehicle || !request) return null;
-        const route = routeByVehicle.get(vehicle._id);
-        const committed = assignment.status === "accepted";
-        return route ? (
-          <VehicleRoute key={assignment._id} route={route} committed={committed} />
-        ) : (
-          <RunLeg key={assignment._id} assignment={assignment} vehicle={vehicle} request={request} />
-        );
-      })}
-      {vehicles.map((vehicle) => (
-        <VehicleMark key={vehicle._id} vehicle={vehicle} busy={busyVehicles.has(vehicle._id)} />
+      {vans.map((van) => (
+        <VanRoute key={van.vehicle._id} van={van} focused={van.vehicle._id === focusedVan} />
       ))}
-      {located.map((request) => (
-        <RequestPin key={request._id} request={{ ...request, lat: at(request).lat, lng: at(request).lng }} />
+      {vans.map((van) => (
+        <VanMark key={van.vehicle._id} van={van} />
+      ))}
+      {ordered.map((person) => (
+        <RequestPin key={person._id} person={person} focused={person._id === focusId} />
       ))}
       <Draft tool={tool} draft={draft} />
     </g>

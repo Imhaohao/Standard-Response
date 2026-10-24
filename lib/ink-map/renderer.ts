@@ -22,9 +22,14 @@ export const INK_PALETTE = {
   ember: [1.0, 0.42, 0.12],
 } as const;
 
+const FLIGHT_MS = 650;
 const SUN = new THREE.Vector3(-0.68, 0.62, -0.39).normalize();
 
-export type BuildingState = { level: number; pulse: boolean };
+// level: how red the roof goes for a person who needs a ride. occupancy: whether the household
+// under it has left (the roof clears) or is still home without a ride asked for (the roof goes dark).
+export type Occupancy = "stillHome" | "left";
+export type BuildingState = { level: number; pulse: boolean; occupancy?: Occupancy };
+const OCCUPANCY_BYTE: Record<Occupancy, number> = { stillHome: 255, left: 128 };
 export type ScreenPoint = { x: number; y: number; visible: boolean };
 
 type Options = { pixelRatio: number; detailRoads: boolean };
@@ -297,8 +302,33 @@ export class InkMapRenderer {
   }
 
   resetView() {
+    cancelAnimationFrame(this.flight);
     this.nav = { pan: new THREE.Vector3(), zoom: 1 };
     this.redrawView();
+  }
+
+  private flight = 0;
+
+  // Glides the view so a place sits in the middle of the map, zoomed in at least as far as asked.
+  flyTo([x, y]: Point, zoom: number) {
+    cancelAnimationFrame(this.flight);
+    const limit = this.view.kind === "overview" ? 14 : 4;
+    const from = { pan: this.nav.pan.clone(), zoom: this.nav.zoom };
+    const to = {
+      pan: new THREE.Vector3(x - this.home.target.x, 0, -y - this.home.target.z),
+      zoom: THREE.MathUtils.clamp(Math.max(zoom, this.nav.zoom), 1, limit),
+    };
+    const started = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - started) / FLIGHT_MS);
+      const eased = 1 - (1 - t) ** 3;
+      this.nav.pan.lerpVectors(from.pan, to.pan, eased);
+      this.nav.zoom = from.zoom * (to.zoom / from.zoom) ** eased;
+      this.clampPan();
+      this.redrawView();
+      if (t < 1) this.flight = requestAnimationFrame(step);
+    };
+    this.flight = requestAnimationFrame(step);
   }
 
   private renderStatic() {
@@ -399,6 +429,7 @@ export class InkMapRenderer {
     for (const [id, state] of states) {
       pixels[id * 4] = Math.round(Math.min(1, state.level) * 255);
       pixels[id * 4 + 1] = state.pulse ? 255 : 0;
+      pixels[id * 4 + 2] = state.occupancy ? OCCUPANCY_BYTE[state.occupancy] : 0;
     }
     this.buildingStates.needsUpdate = true;
   }
@@ -447,6 +478,7 @@ export class InkMapRenderer {
 
   dispose() {
     this.stop();
+    cancelAnimationFrame(this.flight);
     this.fireTexture?.dispose();
     for (const item of this.disposables) item.dispose();
   }

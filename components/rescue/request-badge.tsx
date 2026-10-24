@@ -13,7 +13,7 @@ export function needStage(request: OpenRequest): NeedStage {
   return "pickedUp";
 }
 
-const ESCALATION_SHORT: Record<NonNullable<OpenRequest["escalation"]>, string> = {
+export const ESCALATION_SHORT: Record<NonNullable<OpenRequest["escalation"]>, string> = {
   address_unconfirmed: "Address?",
   medical: "Medical",
   flames: "Sees flames",

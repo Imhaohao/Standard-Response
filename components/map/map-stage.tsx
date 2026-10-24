@@ -6,9 +6,10 @@ import { LatLng } from "@/lib/geo";
 import { InkMapView } from "@/lib/ink-map/camera";
 import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
 import { Hazard } from "@/lib/ink-map/hazard";
-import { BuildingState } from "@/lib/ink-map/renderer";
+import { BuildingState, InkMapRenderer } from "@/lib/ink-map/renderer";
 import { InkSurface } from "./ink-surface";
 import { PaperSurface } from "./paper-surface";
+import { SmokeLayer } from "./smoke-layer";
 import { closeupFrame, fitFrame, Frame, PAPER_FIT, Size, unframe } from "./projection";
 import { useMapGestures } from "./use-map-gestures";
 
@@ -55,6 +56,7 @@ export function MapStage({
   fronts,
   highlights,
   onPick,
+  focus,
   interactive = false,
   children,
   controls,
@@ -68,6 +70,7 @@ export function MapStage({
   fronts?: { minutes: number; ring: Point[] }[];
   highlights?: Map<number, BuildingState>;
   onPick?: (point: Point) => void;
+  focus?: FlyTarget | null;
   interactive?: boolean;
   children?: ReactNode;
   controls?: ReactNode;
@@ -87,6 +90,7 @@ export function MapStage({
 
   const renderer = mode === "ink" ? handle?.renderer ?? null : null;
   const dragged = useMapGestures(boxRef, renderer);
+  useFlyTo(renderer, focus);
 
   const click = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -117,6 +121,7 @@ export function MapStage({
       {value && (
         <StageContext.Provider value={value}>
           <svg width={value.size.width} height={value.size.height} className="pointer-events-none absolute inset-0" aria-hidden>
+            {mode === "ink" && hazard && <SmokeLayer fronts={hazard.field.fronts} minutes={minutes ?? 0} />}
             {children}
           </svg>
           {controls}
@@ -152,6 +157,20 @@ function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fron
       <PaperSurface data={data} frame={frame} size={size} fronts={fronts} minutes={minutes} />
     </svg>
   );
+}
+
+// A place to glide to. The key lets the same spot be asked for twice in a row.
+export type FlyTarget = { point: Point; key: string };
+const FLY_ZOOM = 4;
+
+function useFlyTo(renderer: InkMapRenderer | null, target: FlyTarget | null | undefined) {
+  const key = target?.key;
+  const point = target?.point;
+  useEffect(() => {
+    if (renderer && point) renderer.flyTo(point, FLY_ZOOM);
+    // Only a new target moves the map; the same person's point object changing must not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderer, key]);
 }
 
 function useElementSize(ref: React.RefObject<HTMLDivElement | null>) {

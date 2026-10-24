@@ -465,36 +465,13 @@ float flameTongues(vec2 uv) {
   return flame;
 }
 
-// A smoke plume rising from the front and bending downwind (the scenario wind blows toward the
-// west-southwest, screen left). Drawn the manga way: halftone puffs with an ink outline.
-vec2 smokePlume(vec2 uv) {
-  if (uFireOn < 0.5) return vec2(0.0);
-  float aspect = uResolution.x / uResolution.y;
-  float density = 0.0;
-  for (int i = 1; i <= 12; i++) {
-    float t = float(i) / 12.0;
-    vec2 source = uv - vec2(-0.16 * t * t / aspect, 0.42 * t);
-    density += min(texture(tBloom, source).g, 1.0) * (1.0 - t * 0.7);
-  }
-  density = 1.0 - exp(-density * 0.3);
-  vec2 q = vec2(uv.x * aspect, uv.y) * 13.0 + vec2(uTime * 0.04, -uTime * 0.12);
-  float puff = density * (0.1 + 1.25 * fbm(q));
-  float fill = smoothstep(0.4, 0.43, puff);
-  float rim = fill * (1.0 - smoothstep(0.43, 0.5, puff));
-  return vec2(fill, rim);
-}
-
 vec3 flameColor(float f) {
   vec3 hot = vec3(1.0, 0.9, 0.62);
   return f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
 }
 
+// Smoke is drawn over the map as ink puffs (components/map/smoke-layer.tsx), not here.
 vec3 overlayFire(vec3 color, vec2 uv, float cell) {
-  vec2 smoke = smokePlume(uv);
-  float smokeTone = screentone(0.22 + smoke.x * 0.1, cell);
-  vec3 smoky = mix(mix(color, uPaper * 0.97, 0.85), uInk, smokeTone * 0.55);
-  color = mix(color, smoky, smoke.x * 0.5);
-  color = mix(color, uInk, smoke.y * 0.5);
   float flame = flameTongues(uv);
   color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
   return color;
@@ -559,6 +536,13 @@ void main() {
   vec3 color = mix(paper, uInk, ink * uInkStrength);
 
   vec4 state = buildingState(idC);
+  float stillHome = step(0.75, state.b) * step(state.r, 0.0);
+  float left = step(0.25, state.b) * (1.0 - step(0.75, state.b));
+  if (stillHome > 0.0) {
+    float wash = surface == S_ROOF ? 0.82 : 0.6;
+    color = mix(color, uInk, wash * (1.0 - lines * 0.5));
+  }
+  if (left > 0.0) color = mix(color, paper, (surface == S_ROOF ? 0.75 : 0.4) * (1.0 - lines));
   if (state.r > 0.0) {
     float wash = surface == S_ROOF ? 0.8 : 0.45;
     float pulse = state.g > 0.5 ? 0.75 + 0.25 * uPulse : 1.0;
@@ -575,10 +559,13 @@ void main() {
     float age = uFireNow - minutes;
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
     float crosshatch = max(hatch(0.16, 8.0 * uPixelRatio, -0.75), hatch(0.16, 8.0 * uPixelRatio, 0.8208));
-    float scorch = crosshatch * burned * (0.4 + 0.6 * fresh);
+    float scorch = crosshatch * burned * (0.3 + 0.7 * fresh);
     float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
-    color = mix(color, color * vec3(0.8, 0.77, 0.74), burned * (0.35 + 0.35 * fresh));
-    color = mix(color, uInk, scorch * 0.45);
+    color = mix(color, color * vec3(0.84, 0.81, 0.78), burned * (0.25 + 0.4 * fresh));
+    color = mix(color, uInk, scorch * (0.22 + 0.2 * fresh) * (1.0 - lines));
+    // Homes the fire has passed are burned out: their roofs go to charcoal, the one mark that
+    // still reads at town scale once the scar has gone quiet.
+    if (surface == S_ROOF) color = mix(color, uInk * 1.35, burned * 0.6);
     color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));
   }
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole

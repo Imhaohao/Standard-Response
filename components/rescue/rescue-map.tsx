@@ -16,8 +16,10 @@ import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FleetPanel } from "./fleet-panel";
 import { FireScrubber, MapToolbar, MapTool, MapTopBar } from "./map-chrome";
 import { MapOverlays } from "./map-overlays";
-import { requestMarks } from "./marks";
+import { homeMarks, requestMarks } from "./marks";
+import { HomesPanel } from "./homes-panel";
 import { NeedPanel } from "./need-panel";
+import { Person, useRescueBoard } from "./use-rescue-board";
 import { PlanPanel } from "./plan-panel";
 import { RiderUpload } from "./map-tools";
 
@@ -29,7 +31,7 @@ export function RescueMap() {
   const danger = useDangerZones(data?.origin);
   const [forecastShown, setForecastShown] = useState(true);
   const control = useQuery(api.control.get);
-  const requests = useQuery(api.requests.open);
+  const homes = useQuery(api.households.coverage);
   const clock = useFireClock(hazard, control?.warningIssuedAt);
 
   const [mode, setMode] = useState<SurfaceMode>("ink");
@@ -41,8 +43,14 @@ export function RescueMap() {
   const addClosures = useMutation(api.roads.addClosures);
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
-  const marks = useMemo(() => requestMarks(requests ?? [], toLocal), [requests, toLocal]);
+  const board = useRescueBoard(data ?? null, toLocal);
+  const withOpenRequest = useMemo(() => new Set<string>(board.people.map((person) => person.householdId)), [board.people]);
+  const marks = useMemo(
+    () => [...homeMarks(homes ?? [], withOpenRequest, toLocal), ...requestMarks(board.people)],
+    [homes, withOpenRequest, toLocal, board.people],
+  );
   const highlights = useBuildingHighlights(data ?? null, marks);
+  const { focus, flyTarget, focusProps } = usePersonFocus();
 
   const cancel = useCallback(() => {
     setDraft([]);
@@ -86,25 +94,27 @@ export function RescueMap() {
         fronts={hazard?.field.fronts}
         highlights={highlights}
         onPick={pick}
+        focus={flyTarget}
         interactive={tool !== "look"}
         className="absolute inset-0"
         controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
         {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
-        <MapOverlays tool={tool} draft={draft} />
+        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} />
       </MapStage>
 
       <div className="pointer-events-none absolute inset-0 flex flex-col">
         <MapTopBar issuedAt={control?.warningIssuedAt} />
         <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
           <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
-            <NeedPanel />
+            <HomesPanel homes={homes ?? []} withOpenRequest={withOpenRequest} />
+            <NeedPanel people={board.people} focus={focusProps} className="shrink" />
             <NominationPanel />
           </div>
           <div className="min-w-0 flex-1" />
           <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
             <PlanPanel />
-            <FleetPanel />
+            <FleetPanel vans={board.vans} />
             <DoorCheckPanel />
             <RiderUpload />
           </div>
@@ -121,6 +131,24 @@ export function RescueMap() {
       </div>
     </div>
   );
+}
+
+// A row clicked in the list flies the map to that person and rings their pin; a row hovered rings
+// it without moving the map, so the list and the map point at each other.
+function usePersonFocus() {
+  const [picked, setPicked] = useState<Person | null>(null);
+  const [hovered, setHovered] = useState<Person | null>(null);
+  const focus = hovered?._id ?? picked?._id ?? null;
+  const flyTarget = useMemo(() => (picked ? { point: picked.at, key: picked._id } : null), [picked]);
+  const focusProps = useMemo(
+    () => ({
+      focusId: picked?._id ?? null,
+      onFocus: (person: Person) => setPicked((current) => (current?._id === person._id ? null : person)),
+      onHover: setHovered,
+    }),
+    [picked],
+  );
+  return { focus, flyTarget, focusProps };
 }
 
 // Enter finishes what is being drawn; Escape throws it away.
