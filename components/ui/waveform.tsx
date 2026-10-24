@@ -5,15 +5,15 @@ const BARS = Array.from({ length: BAR_COUNT }, (_, i) => ({
   height: 0.35 + (((i * 53) % 10) / 10) * 0.65,
 }));
 
-// Bars move only while someone is talking. Agent turns are ink, resident turns are muted.
+// Bars move only while someone is talking. Agent turns are bright, resident turns are muted.
 export function Waveform({ active, speaker }: { active: boolean; speaker: "agent" | "resident" | null }) {
-  const tone = speaker === "resident" ? "bg-ink-muted" : "bg-ink";
+  const tone = speaker === "resident" ? "bg-on-panel-muted" : "bg-on-panel";
   return (
     <div className="flex h-8 items-center gap-[3px]" aria-hidden>
       {BARS.map((bar, i) => (
         <span
           key={i}
-          className={`w-[3px] origin-center rounded-full ${active ? `animate-wave ${tone}` : "bg-line-strong"}`}
+          className={`w-[3px] origin-center rounded-full ${active ? `animate-wave ${tone}` : "bg-panel-raised"}`}
           style={{
             height: `${bar.height * 100}%`,
             transform: active ? undefined : "scaleY(0.18)",
