@@ -29,6 +29,10 @@ export type Lines = {
   whatToFix: string;
   askNeighbor: string;
   leaveNow: string;
+  // Anyone who needs a ride stays on the line after the questions, so a driver's acceptance can be
+  // said live. holdPrompt is said once; holdAgain answers anything else while holding.
+  holdPrompt: string;
+  holdAgain: string;
   goodbye: string;
   // A language switch plays as a hand-off between two agents: transferOut in the old language and
   // voice, a short pause, then transferIn in the new one before the conversation picks back up.

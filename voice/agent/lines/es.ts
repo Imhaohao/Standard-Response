@@ -24,6 +24,8 @@ export const ES: Lines = {
   whatToFix: "¿Qué debo corregir?",
   askNeighbor: "¿Hay alguien más en su calle que tal vez no pueda salir? Si es así, ¿cuál es su dirección?",
   leaveNow: "Por favor salga ahora, y lleve sus medicinas y el cargador del teléfono.",
+  holdPrompt: "Mientras tanto, me quedo en la línea con usted. Puede colgar cuando quiera.",
+  holdAgain: "Sigo aquí con usted.",
   goodbye: "Gracias. Quédese cerca del teléfono. Adiós.",
   transferOut: "Muy bien, le voy a transferir. Deme dos segundos.",
   transferIn: "Hola, desde aquí le atiendo en español.",

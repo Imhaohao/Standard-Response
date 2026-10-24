@@ -23,6 +23,8 @@ export const VI: Lines = {
   whatToFix: "Tôi cần sửa chỗ nào ạ?",
   askNeighbor: "Trên phố của quý vị còn ai khác có thể không ra ngoài được không ạ? Nếu có, địa chỉ của họ là gì?",
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
+  holdPrompt: "Trong lúc chờ, tôi sẽ giữ máy cùng quý vị. Quý vị có thể cúp máy bất cứ lúc nào.",
+  holdAgain: "Tôi vẫn đang ở đây với quý vị.",
   goodbye: "Cảm ơn quý vị. Xin ở gần điện thoại. Tạm biệt.",
   transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",
   transferIn: "Xin chào, từ đây tôi sẽ giúp quý vị bằng tiếng Việt.",

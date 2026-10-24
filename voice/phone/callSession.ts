@@ -19,6 +19,9 @@ const BACKCHANNEL_AFTER_MS = 300;
 const BARGE_IN_MIN_WORDS = 2;
 // Quiet between the old-language agent's "let me transfer you" and the new one coming on.
 const TRANSFER_PAUSE_MS = 1500;
+// A resident on hold who says nothing for this long has likely left the phone; we say goodbye
+// and hang up, and status changes reach them by callback instead.
+const HOLD_SILENCE_MS = 3 * 60_000;
 
 
 type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
@@ -64,6 +67,7 @@ class CallSession implements LiveCall {
   private heardSoFar = "";
   private lastSpeechAt = 0;
   private turnTimer: NodeJS.Timeout | null = null;
+  private holdTimer: NodeJS.Timeout | null = null;
   private thinking = false;
   private residentSpoke = false;
   private lastBackchannel = "";
@@ -139,6 +143,7 @@ class CallSession implements LiveCall {
 
   private onSpeech(text: string, isFinal: boolean) {
     this.lastSpeechAt = Date.now();
+    this.clearHoldTimer();
     if (this.speech.speaking && (isFinal || wordCount(text) >= BARGE_IN_MIN_WORDS)) this.speech.bargeIn();
     if (isFinal) this.heardSoFar += text;
     if (this.heardSoFar.trim() === "") return;
@@ -195,6 +200,20 @@ class CallSession implements LiveCall {
     });
     if (this.callId) fireAndForget("setStage", convex().mutation(api.calls.setStage, { callId: this.callId, stage: turn.stage }));
     if (turn.done) void this.speech.whenSilent().then(() => this.finish(true));
+    else if (this.conversation?.holding) void this.speech.whenSilent().then(() => this.armHoldTimer());
+  }
+
+  private armHoldTimer() {
+    this.clearHoldTimer();
+    this.holdTimer = setTimeout(() => {
+      if (this.ended || this.thinking || !this.conversation?.holding) return;
+      this.speakTurn(this.conversation.endHold(), null);
+    }, HOLD_SILENCE_MS);
+  }
+
+  private clearHoldTimer() {
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
   }
 
   private logLatency(spokeAt: number, label: string) {
@@ -233,6 +252,7 @@ class CallSession implements LiveCall {
     this.speech.cutIn(turn.sentences, language ?? this.language);
     this.logLine("agent", turn.sentences.join(" "));
     await this.speech.whenSilent();
+    if (this.conversation.holding) this.armHoldTimer();
   }
 
   onMachine() {
@@ -268,6 +288,7 @@ class CallSession implements LiveCall {
     if (this.ended) return;
     this.ended = true;
     if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.clearHoldTimer();
     this.unsubscribe?.();
     this.transcriber?.close();
     this.speech.close();

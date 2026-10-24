@@ -89,7 +89,8 @@ export async function handleTurn(body: TurnRequest) {
     reply: replyText(opening, turn),
     stage: conversation.stage,
     record: conversation.record,
-    done: conversation.done,
+    // The eval scores a finished intake; on a phone call the resident would now be on hold.
+    done: conversation.done || conversation.holding,
     escalations: session.escalations,
     nominations: session.nominations,
     guardBlocked: turn?.guardBlocked ?? false,

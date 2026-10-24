@@ -25,6 +25,7 @@ export type Interpretation = {
   wantsRepeat: boolean;
   // False for background noise, a pet, a TV, or the resident talking to someone else in the room.
   addressedToAgent: boolean;
+  wantsToEnd: boolean;
   neighborAddresses: string[];
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
@@ -60,6 +61,7 @@ const outputSchemaFor = (kind: Hazard) => objectOf({
   asksAboutRide: { type: "boolean" },
   wantsRepeat: { type: "boolean" },
   addressedToAgent: { type: "boolean" },
+  wantsToEnd: { type: "boolean" },
   neighborAddresses: { type: "array", items: { type: "string" } },
   spokenLanguage: enumOf(HEARD_LANGUAGES),
   acknowledgment: { type: "string" },
@@ -113,6 +115,7 @@ Other outputs:
 - asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also true for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
 - wantsRepeat: true if they didn't hear or understand the question.
 - addressedToAgent: false when the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When false, list no changes. True otherwise, including a short "yes", a request to repeat, or a request to switch language.
+- wantsToEnd: true if they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay" or "thanks" is false.
 - neighborAddresses: addresses or locations of other people who might not be able to leave, if they mention any.
 - spokenLanguage: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
 - acknowledgment: at most 6 words in spokenLanguage that show what you understood from this answer, such as "Okay, two people.", "Thanks, a walker." or "Mm, no car." Vary the wording from turn to turn, opening word included: rotate among openers like "Okay", "Thanks", "Mm", "Alright", "Right" or none, never start the same way as the agent's previous turn, and never say "Got it". Empty string when addressedToAgent is false, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never ask a question.`;
@@ -180,6 +183,7 @@ function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpre
     asksAboutRide: raw.asksAboutRide === true,
     wantsRepeat: raw.wantsRepeat === true,
     addressedToAgent: raw.addressedToAgent !== false,
+    wantsToEnd: raw.wantsToEnd === true,
     neighborAddresses: Array.isArray(raw.neighborAddresses) ? (raw.neighborAddresses as string[]) : [],
     spokenLanguage: languageFrom(raw.spokenLanguage, fallbackLanguage),
     acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",

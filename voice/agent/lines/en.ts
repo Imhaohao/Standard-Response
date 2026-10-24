@@ -22,6 +22,8 @@ export const EN: Lines = {
   whatToFix: "What should I change?",
   askNeighbor: "Is there anyone else on your street who might not be able to leave? If so, what's their address?",
   leaveNow: "Please leave now, and take your medications and phone charger.",
+  holdPrompt: "Until then, I'll stay on the line with you. You can hang up any time.",
+  holdAgain: "I'm still here with you.",
   goodbye: "Thank you. Stay by the phone. Goodbye.",
   transferOut: "Okay, let me transfer you. Give me two seconds.",
   transferIn: "Hi, I'll help you in English from here.",

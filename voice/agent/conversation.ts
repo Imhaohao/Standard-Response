@@ -22,6 +22,7 @@ type Step =
   | "readback"
   | "fix"
   | "neighbor"
+  | "hold"
   | "done";
 
 const STAGE_OF: Record<Step, Stage> = {
@@ -35,6 +36,7 @@ const STAGE_OF: Record<Step, Stage> = {
   readback: "readback",
   fix: "readback",
   neighbor: "close",
+  hold: "close",
   done: "close",
 };
 
@@ -98,6 +100,10 @@ export class Conversation {
   private escalated = new Set<Escalation>();
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   private lastAcknowledgment = "";
+  private holdTurns = 0;
+  private reachedHold = false;
+  // "Okay" or "mm-hm" on hold needs no reply; the line just stays open.
+  private quietOnHold = false;
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
@@ -117,6 +123,17 @@ export class Conversation {
     return this.step === "done";
   }
 
+  // The questions are over and the resident is waiting on the line for a driver.
+  get holding() {
+    return this.step === "hold";
+  }
+
+  // The resident went quiet on hold for a long time: say goodbye so the line can close.
+  endHold(): AgentTurn {
+    this.moveTo("done");
+    return this.say("", this.closingLines(), false);
+  }
+
   start(): AgentTurn {
     const lines = LINES[this.language];
     const opening = this.knownAddress
@@ -127,6 +144,7 @@ export class Conversation {
 
   // A status change arrived mid-call: play the template, then pick the conversation back up.
   announce(template: string): AgentTurn {
+    this.quietOnHold = false;
     return this.say("", this.done ? [template] : [template, this.question()], false);
   }
 
@@ -151,21 +169,25 @@ export class Conversation {
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
 
     // Asking us to repeat, or to switch language, isn't a failed answer, so it doesn't use up a try.
+    this.quietOnHold = false;
     if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, [], transfer);
     const transition = this.advance(heard);
     this.moveTo(transition.step);
     return this.reply(heard, urgent, transition.lines ?? [], transfer);
   }
 
-  // After a transfer the new agent opens with transferIn, so there's no acknowledgment to lead with.
+  // After a transfer the new agent opens with transferIn, and a goodbye after hold stands alone,
+  // so neither leads with an acknowledgment.
   private reply(heard: Interpretation, urgent: string[], extra: string[], transfer?: AgentTurn["transfer"]): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const ack = guardAcknowledgment(heard.acknowledgment, status, this.language);
-    const ride = heard.asksAboutRide && !this.done ? [this.rideLine()] : [];
+    const repeatOnHold = this.holding && heard.wantsRepeat;
+    const ride = (heard.asksAboutRide || repeatOnHold) && !this.done ? [this.rideLine()] : [];
     const closing = this.done ? this.closingLines() : [this.question()];
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const sentences = [...greeting, ...urgent, ...extra, ...ride, ...closing].filter((line) => line !== "");
-    const turn = this.say(transfer ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked);
+    const sentences = [...new Set([...greeting, ...urgent, ...extra, ...ride, ...closing])].filter((line) => line !== "");
+    const leavingHold = this.done && this.reachedHold;
+    const turn = this.say(transfer || leavingHold ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked);
     return transfer ? { ...turn, transfer } : turn;
   }
 
@@ -210,7 +232,9 @@ export class Conversation {
     const spoken = heard.spokenLanguage;
     if (spoken !== "other" && !canSpeak(spoken)) return true;
     this.unknownLanguageTurns = spoken === "other" ? this.unknownLanguageTurns + 1 : 0;
-    this.missedTurns = spoken === "other" || heardNothing(heard) ? this.missedTurns + 1 : 0;
+    // On hold, "okay" or "mm-hm" is a fine thing to say and never a reason to hand off.
+    const missed = spoken === "other" || (heardNothing(heard) && !this.holding);
+    this.missedTurns = missed ? this.missedTurns + 1 : 0;
     return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS;
   }
 
@@ -356,8 +380,24 @@ export class Conversation {
     return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
   }
 
+  // Anyone waiting for a ride stays on the line instead of being hung up on.
   neighbor(): Transition {
-    return { step: "done" };
+    if (!needsRide(this.record)) return { step: "done" };
+    this.reachedHold = true;
+    return { step: "hold", lines: [this.rideLine()] };
+  }
+
+  hold(heard: Interpretation): Transition {
+    this.holdTurns += 1;
+    this.quietOnHold = heardNothing(heard) && !this.changedThisTurn;
+    if (heard.wantsToEnd) return { step: "done" };
+    return { step: "hold", lines: this.changedThisTurn ? [LINES[this.language].readbackFixed] : [] };
+  }
+
+  holdQuestion() {
+    const lines = LINES[this.language];
+    if (this.holdTurns === 0) return lines.holdPrompt;
+    return this.quietOnHold ? "" : lines.holdAgain;
   }
 
   question(): string {
@@ -395,8 +435,10 @@ export class Conversation {
     return statusLine({ status: "received", driver: null }, this.language) ?? lines.leaveNow;
   }
 
+  // Someone coming off hold already heard where their ride stands.
   private closingLines() {
-    return [this.rideLine(), LINES[this.language].goodbye];
+    const goodbye = LINES[this.language].goodbye;
+    return this.reachedHold ? [goodbye] : [this.rideLine(), goodbye];
   }
 }
 
@@ -426,6 +468,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
   readback: (c, heard) => c.readback(heard),
   fix: (c) => c.fix(),
   neighbor: (c) => c.neighbor(),
+  hold: (c, heard) => c.hold(heard),
   done: () => ({ step: "done" }),
 };
 
@@ -440,5 +483,6 @@ const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
   readback: (c) => c.readbackQuestion(),
   fix: (c) => LINES[c.language].whatToFix,
   neighbor: (c) => LINES[c.language].askNeighbor,
+  hold: (c) => c.holdQuestion(),
   done: (c) => LINES[c.language].goodbye,
 };

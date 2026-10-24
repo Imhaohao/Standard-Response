@@ -23,6 +23,8 @@ export const TL: Lines = {
   whatToFix: "Ano po ang dapat kong baguhin?",
   askNeighbor: "Mayroon po bang iba sa kalye ninyo na hindi makakaalis? Kung mayroon, ano po ang address nila?",
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
+  holdPrompt: "Habang naghihintay, mananatili po ako sa linya kasama ninyo. Puwede po kayong magbaba anumang oras.",
+  holdAgain: "Nandito pa rin po ako.",
   goodbye: "Salamat po. Manatili po kayo malapit sa telepono. Paalam po.",
   transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",
   transferIn: "Magandang araw po, ako na po ang tutulong sa inyo sa Tagalog.",

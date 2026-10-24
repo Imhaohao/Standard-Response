@@ -23,6 +23,8 @@ export const ZH: Lines = {
   whatToFix: "需要改哪里？",
   askNeighbor: "您的街上还有其他可能无法离开的人吗？如果有，他们的地址是什么？",
   leaveNow: "请现在就离开，带上您的药和手机充电器。",
+  holdPrompt: "在那之前，我会一直在线陪着您。您可以随时挂断。",
+  holdAgain: "我还在线上陪着您。",
   goodbye: "谢谢。请守在电话旁。再见。",
   transferOut: "好的，我帮您转接，请稍等两秒。",
   transferIn: "您好，接下来由我用中文为您服务。",
