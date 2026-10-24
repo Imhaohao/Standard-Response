@@ -17,12 +17,16 @@ type ArcLook = { stroke: string; width: number; opacity: number; dash?: string; 
 // marching while we call, solid with moving ticks once the helper is on the way, and broken in red
 // when it fell through.
 const ARC: Record<PickupStatus, ArcLook> = {
-  arranged: { stroke: INK, width: 1.4, opacity: 0.55, dash: "1 4" },
-  checking: { stroke: INK, width: 1.8, opacity: 0.9, dash: "4 4", className: "animate-dash-flow" },
-  coming: { stroke: INK, width: 2.4, opacity: 1 },
-  done: { stroke: INK, width: 1.2, opacity: 0.22 },
-  fell_through: { stroke: SIGNAL, width: 2.4, opacity: 1, dash: "42 16 42" },
+  arranged: { stroke: INK, width: 2, opacity: 0.85, dash: "2 4" },
+  checking: { stroke: INK, width: 2.2, opacity: 1, dash: "6 6", className: "animate-dash-flow" },
+  coming: { stroke: INK, width: 2.6, opacity: 1 },
+  done: { stroke: INK, width: 1.4, opacity: 0.3 },
+  fell_through: { stroke: SIGNAL, width: 2.6, opacity: 1 },
 };
+
+// The broken promise: the arc with its middle missing, measured along the curve so the gap always
+// sits in the middle however long the arc is.
+const BROKEN = { pathLength: 100, strokeDasharray: "40 20 40" };
 
 const BADGE: Record<PickupStatus, { Icon: Icon; fill: string }> = {
   arranged: { Icon: Handshake, fill: INK },
@@ -60,12 +64,13 @@ function Arc({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point }; empha
   const look = ARC[pickup.status];
   const d = arcPath(from, to);
   const width = look.width + (emphasis > 1 ? 1.5 : 0);
+  const broken = pickup.status === "fell_through" ? BROKEN : {};
   return (
     <g opacity={look.opacity * Math.min(emphasis, 1)} className="transition-opacity duration-200">
-      <path d={d} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" pathLength={100} strokeDasharray={look.dash && pickup.status === "fell_through" ? look.dash : undefined} />
-      <path d={d} fill="none" stroke={look.stroke} strokeWidth={width} strokeLinecap="round" pathLength={100} strokeDasharray={look.dash} className={look.className} />
-      {pickup.status === "coming" && <path d={d} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeLinecap="round" strokeDasharray="1 7" pathLength={100} className="animate-dash-flow" />}
-      {from.visible && <circle cx={from.x} cy={from.y} r={3.5} fill={look.stroke} stroke={PAPER} strokeWidth={1.5} />}
+      <path d={d} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" {...broken} />
+      <path d={d} fill="none" stroke={look.stroke} strokeWidth={width} strokeLinecap="round" strokeDasharray={look.dash} className={look.className} {...broken} />
+      {pickup.status === "coming" && <path d={d} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeLinecap="round" strokeDasharray="2 10" className="animate-dash-flow" />}
+      {from.visible && <circle cx={from.x} cy={from.y} r={4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />}
     </g>
   );
 }

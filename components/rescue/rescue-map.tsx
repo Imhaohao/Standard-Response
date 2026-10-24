@@ -27,6 +27,11 @@ import { Person, useRescueBoard } from "./use-rescue-board";
 import { PlanPanel } from "./plan-panel";
 import { RiderUpload } from "./map-tools";
 import { useDrawingTools } from "./use-drawing-tools";
+import { HouseCard } from "./house-card";
+import { PickupLayer } from "./pickup-layer";
+import { ReadyPanel } from "./ready-panel";
+import { useMapClick, useMapFocus } from "./use-map-focus";
+import { usePickups } from "./use-pickups";
 
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 
@@ -43,11 +48,13 @@ export function RescueMap() {
 
   const board = useRescueBoard(data ?? null, toLocal);
   const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data ?? null, board.people, toLocal);
-  const { focus, flyTarget, focusProps } = usePersonFocus();
+  const mapFocus = useMapFocus(homes, toLocal);
+  const pickups = usePickups(toLocal);
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
   const drawing = useDrawingTools(data ?? null, toLatLng);
   const { tool, setTool, startFrom } = drawing;
+  const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome);
   const [spot, setSpot] = useState<ContextSpot | null>(null);
   const closeMenu = useCallback(() => setSpot(null), []);
   const startFromSpot = useCallback(
@@ -70,13 +77,18 @@ export function RescueMap() {
         minutes={clock.minutes}
         fronts={hazard?.field.fronts}
         highlights={highlights}
-        onPick={drawing.pick}
+        onPick={onPick}
         onHover={drawing.hover}
         onContextPick={(point, screen) => setSpot({ point, screen })}
-        focus={flyTarget}
+        focus={mapFocus.flyTarget}
         interactive={tool !== "look"}
         className="absolute inset-0"
-        controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
+        controls={
+          <>
+            <ZoomControls className="absolute right-[21.75rem] bottom-24" />
+            {mapFocus.card && <HouseCard householdId={mapFocus.card.householdId} at={mapFocus.card.point} onClose={mapFocus.closeCard} />}
+          </>
+        }
         underlay={
           <>
             {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
@@ -84,7 +96,8 @@ export function RescueMap() {
           </>
         }
       >
-        <MapOverlays zone={drawing.zone} street={drawing.street} people={board.people} vans={board.vans} focusId={focus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
+        <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
+        <MapOverlays zone={drawing.zone} street={drawing.street} people={board.people} vans={board.vans} focusId={mapFocus.pinFocus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
       </MapStage>
 
       <PanelDesk storageKey="rescue-map-panels">
@@ -92,8 +105,9 @@ export function RescueMap() {
           <MapTopBar issuedAt={control?.warningIssuedAt} />
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
             <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+              <ReadyPanel homes={homes} pickups={pickups} control={control} focus={mapFocus.homeFocus} />
               <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
-              <NeedPanel people={board.people} focus={focusProps} className="shrink" />
+              <NeedPanel people={board.people} focus={mapFocus.focusProps} className="shrink" />
               <NominationPanel />
             </div>
             <div className="min-w-0 flex-1" />
@@ -132,22 +146,4 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
   const highlights = useBuildingHighlights(data, marks);
   const stillHome = useMemo(() => occupancy.filter((mark) => mark.occupancy === "stillHome").map((mark) => mark.point), [occupancy]);
   return { homes, withOpenRequest, highlights, stillHome };
-}
-
-// A row clicked in the list flies the map to that person and rings their pin; a row hovered rings
-// it without moving the map, so the list and the map point at each other.
-function usePersonFocus() {
-  const [picked, setPicked] = useState<Person | null>(null);
-  const [hovered, setHovered] = useState<Person | null>(null);
-  const focus = hovered?._id ?? picked?._id ?? null;
-  const flyTarget = useMemo(() => (picked ? { point: picked.at, key: picked._id } : null), [picked]);
-  const focusProps = useMemo(
-    () => ({
-      focusId: picked?._id ?? null,
-      onFocus: (person: Person) => setPicked((current) => (current?._id === person._id ? null : person)),
-      onHover: setHovered,
-    }),
-    [picked],
-  );
-  return { focus, flyTarget, focusProps };
 }

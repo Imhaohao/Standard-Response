@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
+import { FunctionReturnType } from "convex/server";
 import { Bed, Car, Check, Handshake, LinkBreak, PhoneCall, UsersThree, Van, Wheelchair, type Icon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
@@ -53,7 +54,7 @@ function NeedFigures({ homes }: { homes: Home[] }) {
 
 const PLAN_SEGMENTS: { key: NonNullable<Home["exitPlan"]>; label: string; Icon: Icon; tone: string }[] = [
   { key: "own_car", label: "Own car", Icon: Car, tone: "bg-line-strong" },
-  { key: "helper", label: "Neighbor or family", Icon: Handshake, tone: "bg-on-panel-muted" },
+  { key: "helper", label: "A helper", Icon: Handshake, tone: "bg-on-panel-muted" },
   { key: "needs_ride", label: "Needs a ride", Icon: Van, tone: "bg-on-panel" },
 ];
 
@@ -85,7 +86,7 @@ function ExitPlans({ homes }: { homes: Home[] }) {
   );
 }
 
-function CampaignButton({ running }: { running: boolean }) {
+function CampaignButton({ running, started }: { running: boolean; started: boolean }) {
   const start = useMutation(api.ready.start);
   const stop = useMutation(api.ready.stop);
   if (running) {
@@ -99,7 +100,7 @@ function CampaignButton({ running }: { running: boolean }) {
   return (
     <Button variant="onPanel" className="!h-8 !px-3" onClick={() => void start()}>
       <PhoneCall weight="bold" className="size-4" />
-      Call every home
+      {started ? "Call the rest" : "Call every home"}
     </Button>
   );
 }
@@ -108,7 +109,7 @@ function CampaignButton({ running }: { running: boolean }) {
 function ReadyCheck({ homes, running }: { homes: Home[]; running: boolean }) {
   const onFile = homes.filter((home) => home.exitPlan).length;
   return (
-    <Panel title="Ready check" aside={<span className="pr-1">{<CampaignButton running={running} />}</span>}>
+    <Panel title="Ready check" aside={<span className="pr-1">{<CampaignButton running={running} started={onFile > 0} />}</span>}>
       <div className="flex flex-col gap-3 px-4 pb-4">
         <p className="flex items-baseline gap-2">
           <span className="type-figure text-3xl tabular-nums">{onFile}</span>
@@ -142,10 +143,13 @@ function minutesUntil(at: number | undefined, now: number) {
   return Math.max(0, Math.round((at - now) / 60_000));
 }
 
+// Past the helper's ETA, the agent is about to ask the resident whether they were picked up.
+const etaWords = (minutes: number | null) => (minutes === null ? "On the way" : minutes === 0 ? "Due now" : `${minutes} min`);
+
 function rowStatus(pickup: Pickup, now: number): ReactNode {
   if (pickup.status === "fell_through" && pickup.reason) return REASON[pickup.reason];
   if (pickup.status === "checking") return pickup.ringing ? `Ringing ${pickup.helperName}` : "Calling";
-  if (pickup.status === "coming") return `${minutesUntil(pickup.helperEtaAt, now) ?? "?"} min`;
+  if (pickup.status === "coming") return etaWords(minutesUntil(pickup.helperEtaAt, now));
   return STATUS[pickup.status].label;
 }
 
@@ -206,11 +210,16 @@ function NeighborPickups({ pickups, focus }: { pickups: Pickup[]; focus: HomeFoc
   );
 }
 
-export function ReadyPanel({ homes, pickups, warned, running, focus }: { homes: Home[]; pickups: Pickup[]; warned: boolean; running: boolean; focus: HomeFocus }) {
-  if (warned) return pickups.length > 0 ? <NeighborPickups pickups={pickups} focus={focus} /> : null;
+type Control = FunctionReturnType<typeof api.control.get> | undefined;
+
+const campaignRunning = (control: Control) => control !== undefined && "readyCheckRunning" in control && control.readyCheckRunning === true;
+
+export function ReadyPanel({ homes, pickups, control, focus }: { homes: Home[]; pickups: Pickup[]; control: Control; focus: HomeFocus }) {
+  const running = campaignRunning(control);
+  if (control?.warningIssuedAt) return pickups.length > 0 ? <NeighborPickups pickups={pickups} focus={focus} /> : null;
   if (homes.length === 0 && !running) {
     return (
-      <Panel title="Ready check" aside={<span className="pr-1"><CampaignButton running={false} /></span>}>
+      <Panel title="Ready check" aside={<span className="pr-1"><CampaignButton running={false} started={false} /></span>}>
         <p className="type-small px-4 pb-4 text-on-panel-muted">Before fire season, the agent calls every home to learn who lives there, what help they need and who will pick them up.</p>
       </Panel>
     );
