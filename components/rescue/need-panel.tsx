@@ -2,14 +2,14 @@
 
 import { useMutation } from "convex/react";
 import { ReactNode, useState } from "react";
-import { CaretDown, Check, Flame, Info } from "@phosphor-icons/react";
+import { CaretDown, Check, Flame, Info, Phone } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { deathsIfUnserved, expectedDeaths } from "@/convex/fatalityRisk";
-import { ESCALATION_LABELS } from "@/lib/labels";
+import { ESCALATION_LABELS, phoneForPeople } from "@/lib/labels";
 import { useNow } from "@/lib/time";
-import { Button } from "../ui/button";
+import { Button, ButtonLink } from "../ui/button";
 import { Panel, PanelEmpty } from "../ui/panel";
-import { byUrgency } from "./marks";
+import { OpenRequest, byUrgency } from "./marks";
 import { ESCALATION_SHORT, RequestBadge, VanChip, needStage } from "./request-badge";
 import { Assignment, Person } from "./use-rescue-board";
 
@@ -95,6 +95,35 @@ function PersonRow({ person, now, focus, trailing }: { person: Person; now: numb
   );
 }
 
+const NO_ADDRESS = "Address not confirmed";
+
+// A caller we couldn't place on the map. No van can be sent until someone learns where they are,
+// so the row's one action is calling them back.
+function UnplacedRow({ request }: { request: OpenRequest }) {
+  const heard = request.address === NO_ADDRESS ? undefined : request.address;
+  const who = request.residentName ?? heard ?? "Caller";
+  const number = request.callbackNumber;
+  return (
+    <li className="flex items-center gap-2.5 px-4 py-1.5">
+      <RequestBadge request={request} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="type-small font-bold text-signal" title={ESCALATION_LABELS.address_unconfirmed}>
+          No address
+        </span>
+        <span className="type-small truncate text-on-panel-muted" title={heard ? `Heard: ${heard}` : undefined}>
+          {heard && who !== heard ? `${who}, maybe ${streetOf(heard)}` : who}
+        </span>
+      </span>
+      {number && (
+        <ButtonLink href={`tel:${number}`} variant="onPanelQuiet" size="sm" aria-label={`Call ${who} back at ${phoneForPeople(number)}`}>
+          <Phone weight="bold" className="size-4" />
+          <span className="tabular-nums">{phoneForPeople(number)}</span>
+        </ButtonLink>
+      )}
+    </li>
+  );
+}
+
 function OfferedVan({ person }: { person: Person }) {
   if (!person.assignment || !person.vehicle) return null;
   return (
@@ -166,9 +195,11 @@ function boardingDone(person: Person) {
   return from + (assignment.etaMinutes + person.boardingMinutes) * 60_000;
 }
 
-function deathEstimates(people: Person[]) {
-  let withPlan = 0;
-  let withoutRides = 0;
+// Nobody can be sent to a caller with no address, so they count as unserved under both numbers.
+function deathEstimates(people: Person[], unplaced: OpenRequest[]) {
+  const unreachable = unplaced.reduce((sum, request) => sum + deathsIfUnserved(request), 0);
+  let withPlan = unreachable;
+  let withoutRides = unreachable;
   for (const person of people) {
     withoutRides += deathsIfUnserved(person);
     if (needStage(person) !== "pickedUp") withPlan += expectedDeaths(person, boardingDone(person));
@@ -176,8 +207,8 @@ function deathEstimates(people: Person[]) {
   return { withPlan, withoutRides };
 }
 
-function DeathEstimate({ people }: { people: Person[] }) {
-  const { withPlan, withoutRides } = deathEstimates(people);
+function DeathEstimate({ people, unplaced }: { people: Person[]; unplaced: OpenRequest[] }) {
+  const { withPlan, withoutRides } = deathEstimates(people, unplaced);
   return (
     <div className="mx-4 mb-1 flex items-end gap-6 rounded-xl bg-surface-sunk px-3 py-2.5">
       <dl className="flex flex-1 items-end justify-between gap-4">
@@ -211,7 +242,9 @@ const committed = (person: Person) => person.assignment?.status === "accepted" |
 
 // Three questions, in the order a dispatcher acts on them: who needs a person to decide something,
 // who is still waiting for a van, and how many are already covered.
-export function NeedPanel({ people, focus, className = "" }: { people: Person[]; focus: FocusProps; className?: string }) {
+type NeedPanelProps = { people: Person[]; unplaced: OpenRequest[]; focus: FocusProps; className?: string };
+
+export function NeedPanel({ people, unplaced, focus, className = "" }: NeedPanelProps) {
   const now = useNow(15_000);
   const sorted = [...people].sort(byUrgency);
   const needYou = sorted.filter((person) => person.escalation && !committed(person));
@@ -221,12 +254,15 @@ export function NeedPanel({ people, focus, className = "" }: { people: Person[];
 
   return (
     <Panel title="Rides" aside={<ApproveAll proposed={proposed} />} className={`min-h-0 ${className}`}>
-      {people.length === 0 ? (
+      {people.length + unplaced.length === 0 ? (
         <PanelEmpty>Nobody has asked for a ride yet.</PanelEmpty>
       ) : (
         <div className="flex min-h-0 flex-col overflow-y-auto pb-1">
-          <DeathEstimate people={people} />
-          <Group title="Need you" count={needYou.length} tone="signal">
+          <DeathEstimate people={people} unplaced={unplaced} />
+          <Group title="Need you" count={unplaced.length + needYou.length} tone="signal">
+            {unplaced.map((request) => (
+              <UnplacedRow key={request._id} request={request} />
+            ))}
             {needYou.map((person) => (
               <PersonRow key={person._id} person={person} now={now} focus={focus} />
             ))}

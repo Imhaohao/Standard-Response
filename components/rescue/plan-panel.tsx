@@ -33,8 +33,8 @@ const STAT_ROWS = [
   { key: "scenarioMinute", label: "Scenario minute" },
   { key: "closuresAdded", label: "Hazard closures, last pass" },
   { key: "doorScored", label: "Door checks re-scored" },
-  { key: "nominationsMatched", label: "Neighbour reports placed" },
-  { key: "nominationsFlagged", label: "Neighbour reports unplaced" },
+  { key: "nominationsMatched", label: "Neighbor reports placed" },
+  { key: "nominationsFlagged", label: "Neighbor reports unplaced" },
   { key: "located", label: "Callers located" },
 ] as const;
 
@@ -68,7 +68,7 @@ function ModelState() {
   return (
     <>
       <div title={hint}>
-        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Neighbour smoothing" />
+        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Neighbor smoothing" />
       </div>
       {state?.stats && <ModelStats stats={state.stats} />}
     </>

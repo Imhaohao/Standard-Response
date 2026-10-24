@@ -38,7 +38,7 @@ export const TECHNOLOGIES: Record<Technology, Entry> = {
     equation: "dX = μ(t) dt + σ dW,  leave when X ≥ 1",
     points: [
       `Two kinds of household, as in UC Berkeley's survey of California wildfire evacuees: ${Math.round(DEFAULT_DEPARTURE.keenShare * 100)}% keen to leave (about ${Math.round(1 / DEFAULT_DEPARTURE.keenDrift)} minutes after the warning), the rest reluctant (about ${Math.round(1 / DEFAULT_DEPARTURE.reluctantDrift)} minutes).`,
-      "The drift μ rises as the fire nears, standing in for seeing smoke or hearing from neighbours.",
+      "The drift μ rises as the fire nears, standing in for seeing smoke or hearing from neighbors.",
       "Households that can't leave without help never leave on their own. They are shown in red, and they are who the dispatch side of the app is for.",
     ],
   },

@@ -90,3 +90,10 @@ export function needsSummary(load: Load, crewNeeded: number) {
 export function capacitySummary(vehicle: Pick<Doc<"vehicles">, "seats" | "wheelchairSpaces" | "stretcherSpaces" | "crewSize">) {
   return `Fits ${needsSummary(vehicle, vehicle.crewSize)}`;
 }
+
+// "+16265550142" as people write it: "(626) 555-0142". Anything else is shown as stored.
+export function phoneForPeople(number: string) {
+  const digits = number.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  if (digits.length !== 10) return number;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}

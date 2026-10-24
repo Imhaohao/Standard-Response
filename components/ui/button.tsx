@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes } from "react";
+import { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 
 const VARIANTS = {
   primary: "bg-ink text-canvas hover:bg-ink/88",
@@ -15,19 +15,24 @@ const SIZES = {
   lg: { box: "h-14 rounded-xl text-base", padding: "px-6", square: "w-14" },
 } as const;
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type Look = {
   variant?: keyof typeof VARIANTS;
   size?: keyof typeof SIZES;
   square?: boolean;
 };
 
-export function Button({ variant = "primary", size = "md", square = false, className = "", ...props }: ButtonProps) {
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & Look;
+
+function buttonClass({ variant = "primary", size = "md", square = false }: Look) {
   const sizing = SIZES[size];
-  return (
-    <button
-      type="button"
-      className={`inline-flex shrink-0 select-none items-center justify-center gap-2 font-bold whitespace-nowrap transition-[background-color,scale,opacity] duration-150 ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:opacity-40 ${sizing.box} ${square ? sizing.square : sizing.padding} ${VARIANTS[variant]} ${className}`}
-      {...props}
-    />
-  );
+  return `inline-flex shrink-0 select-none items-center justify-center gap-2 font-bold whitespace-nowrap transition-[background-color,scale,opacity] duration-150 ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:opacity-40 ${sizing.box} ${square ? sizing.square : sizing.padding} ${VARIANTS[variant]}`;
+}
+
+export function Button({ variant, size, square, className = "", ...props }: ButtonProps) {
+  return <button type="button" className={`${buttonClass({ variant, size, square })} ${className}`} {...props} />;
+}
+
+// A link that looks like a button, for actions that leave the page: a phone call, a download.
+export function ButtonLink({ variant, size, square, className = "", ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & Look) {
+  return <a className={`${buttonClass({ variant, size, square })} ${className}`} {...props} />;
 }

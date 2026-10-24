@@ -41,11 +41,14 @@ function liveEscalation(request: OpenRequest, assigned: boolean) {
   return request.escalation === "unservable" && assigned ? undefined : request.escalation;
 }
 
+// A caller whose address we couldn't confirm has no pin, but they still asked for a ride.
+const located = (request: OpenRequest) => request.lat !== undefined && request.lng !== undefined;
+
 function people(requests: OpenRequest[], assignments: Assignment[], vehicles: Map<Id<"vehicles">, Vehicle>, toLocal: (p: LatLng) => Point): Person[] {
   const byRequest = new Map(assignments.map((assignment) => [assignment.requestId, assignment]));
   return requests
     .filter(awaitingRide)
-    .filter((request) => request.lat !== undefined && request.lng !== undefined)
+    .filter(located)
     .map((request) => {
       const assignment = byRequest.get(request._id);
       return {
@@ -168,7 +171,9 @@ export function useRescueBoard(data: InkMapData | null, toLocal: (p: LatLng) => 
     });
   }, [vehicles, routes, stopsByVan, data, closed, toLocal, memory, now]);
 
-  return { people: persons, vans, loaded: requests !== undefined && vehicles !== undefined };
+  const unplaced = useMemo(() => (requests ?? []).filter(awaitingRide).filter((request) => !located(request)), [requests]);
+
+  return { people: persons, unplaced, vans, loaded: requests !== undefined && vehicles !== undefined };
 }
 
 export type RescueBoard = ReturnType<typeof useRescueBoard>;

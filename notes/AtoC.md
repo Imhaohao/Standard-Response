@@ -53,3 +53,7 @@ New: 911 asks a neighbor who is driving out to pick up a home that needs a ride 
 ## 2026-10-24 15:25
 
 The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back until a checkpoint any more: each track finishes its whole list, add-ons included, and the add-ons lose their one-hour timebox. Each track section now has one list in place of "Before the gate" and "After the gate". Please also run the full Rider Check flow end to end as soon as real calls work, and again after every big change.
+
+## 2026-10-24 15:45
+
+`requests:open` rows now also carry `residentName` and `callbackNumber` from the household. This is additive, and nothing else in the function changed. The rescue map uses them to list callers it has no address for at the top of Rides, with a button to call them back. Until now those callers were dropped from the list entirely.

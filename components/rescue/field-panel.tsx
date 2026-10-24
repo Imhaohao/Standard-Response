@@ -22,6 +22,8 @@ function DoorRow({ address, position }: { address: string; position: number }) {
 // the fire will reach them.
 export function DoorCheckPanel({ className = "" }: { className?: string }) {
   const homes = useQuery(api.doorChecks.queue, { limit: 12 });
+  const control = useQuery(api.control.get);
+  const warned = control?.warningIssuedAt !== undefined;
   const rest = homes?.slice(VISIBLE_DOORS) ?? [];
   return (
     <Panel title="Doors to knock" aside={homes && <span className="type-figure pr-4 text-xl">{homes.length}</span>} className={className}>
@@ -44,7 +46,7 @@ export function DoorCheckPanel({ className = "" }: { className?: string }) {
           )}
         </>
       ) : (
-        <PanelEmpty>Every home reached.</PanelEmpty>
+        <PanelEmpty>{warned ? "No doors to knock right now." : "After the warning, homes nobody reaches by phone show up here, nearest the fire first."}</PanelEmpty>
       )}
     </Panel>
   );

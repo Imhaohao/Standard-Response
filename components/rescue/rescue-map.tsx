@@ -107,7 +107,7 @@ export function RescueMap() {
             <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
               <ReadyPanel homes={homes} pickups={pickups} control={control} focus={mapFocus.homeFocus} />
               <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
-              <NeedPanel people={board.people} focus={mapFocus.focusProps} className="shrink" />
+              <NeedPanel people={board.people} unplaced={board.unplaced} focus={mapFocus.focusProps} className="shrink" />
               <NominationPanel />
             </div>
             <div className="min-w-0 flex-1" />

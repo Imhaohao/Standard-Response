@@ -120,6 +120,8 @@ export const open = query({
           lat: household?.lat,
           lng: household?.lng,
           escalation: household?.escalation,
+          residentName: household?.residentName,
+          callbackNumber: household?.callbackNumber,
         };
       }),
     );
