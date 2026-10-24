@@ -35,6 +35,8 @@ import { usePickups } from "./use-pickups";
 import { useSimulatedFire } from "./use-simulated-fire";
 
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
+// Panels keep their full height and the column scrolls, so no panel is ever cut short.
+const PANEL_COLUMN = "pointer-events-auto flex shrink-0 flex-col gap-3 overflow-y-auto [&>*]:shrink-0";
 
 export function RescueMap() {
   const data = useInkMapData();
@@ -48,7 +50,7 @@ export function RescueMap() {
   const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data, board.people, toLocal);
   const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
   const mapFocus = useMapFocus(homes, toLocal);
-  const pickups = usePickups(toLocal);
+  const pickups = usePickups(data, toLocal, board.closed);
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
   const drawing = useDrawingTools(data, toLatLng);
@@ -104,26 +106,26 @@ export function RescueMap() {
         <div className="pointer-events-none absolute inset-0 flex flex-col">
           <MapTopBar issuedAt={control?.warningIssuedAt} />
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-            <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+            <div className={`${PANEL_COLUMN} w-[25rem] max-w-[40vw] pr-1`}>
               <ReadyPanel homes={homes} pickups={pickups} control={control} focus={mapFocus.homeFocus} />
               <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
-              <NeedPanel people={board.people} unplaced={board.unplaced} focus={mapFocus.focusProps} className="shrink" />
+              <NeedPanel people={board.people} unplaced={board.unplaced} focus={mapFocus.focusProps} />
               <NominationPanel />
             </div>
             <div className="min-w-0 flex-1" />
-            <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
+            <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
               <DoorCheckPanel />
               <RiderUpload />
             </div>
           </div>
-          <div className="flex items-end gap-3 p-3 pt-0">
+          <div className="flex flex-wrap-reverse items-end gap-3 p-3 pt-0">
             <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
               {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={putOutFire} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>
-            <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            <div className="flex min-w-0 grow basis-[36rem] flex-col items-center gap-2">
               <PlaybackBar clock={clock}>
                 {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
               </PlaybackBar>

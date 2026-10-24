@@ -173,7 +173,7 @@ export function useRescueBoard(data: InkMapData | null, toLocal: (p: LatLng) => 
 
   const unplaced = useMemo(() => (requests ?? []).filter(awaitingRide).filter((request) => !located(request)), [requests]);
 
-  return { people: persons, unplaced, vans, loaded: requests !== undefined && vehicles !== undefined };
+  return { people: persons, unplaced, vans, closed, loaded: requests !== undefined && vehicles !== undefined };
 }
 
 export type RescueBoard = ReturnType<typeof useRescueBoard>;

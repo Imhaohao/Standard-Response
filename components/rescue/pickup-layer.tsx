@@ -9,11 +9,11 @@ import { Pickup, PickupStatus } from "./use-pickups";
 const PAPER = "var(--map-paper)";
 const INK = "var(--map-ink)";
 const SIGNAL = "var(--signal)";
-const BULGE = 0.22;
 
 type ArcLook = { stroke: string; width: number; opacity: number; dash?: string; className?: string };
 
-// A promise between neighbors, drawn the way van routes are: dotted while it's only on file,
+// A promise between neighbors, drawn along the streets the helper drives, the way van routes are:
+// dotted while it's only on file,
 // marching while we call, solid with moving ticks once the helper is on the way, and broken in red
 // when it fell through.
 const ARC: Record<PickupStatus, ArcLook> = {
@@ -24,8 +24,8 @@ const ARC: Record<PickupStatus, ArcLook> = {
   fell_through: { stroke: SIGNAL, width: 2.6, opacity: 1 },
 };
 
-// The broken promise: the arc with its middle missing, measured along the curve so the gap always
-// sits in the middle however long the arc is.
+// The broken promise: the drive with its middle missing, measured along the path so the gap always
+// sits in the middle however long the drive is.
 const BROKEN = { pathLength: 100, strokeDasharray: "40 20 40" };
 
 const BADGE: Record<PickupStatus, { Icon: Icon; fill: string }> = {
@@ -36,14 +36,8 @@ const BADGE: Record<PickupStatus, { Icon: Icon; fill: string }> = {
   fell_through: { Icon: LinkBreak, fill: SIGNAL },
 };
 
-// A gentle curve from the helper's door to the resident's, bowed to one side so two arcs between
-// close neighbors don't sit on top of each other.
-function arcPath(from: { x: number; y: number }, to: { x: number; y: number }) {
-  const mx = (from.x + to.x) / 2;
-  const my = (from.y + to.y) / 2;
-  const cx = mx - (to.y - from.y) * BULGE;
-  const cy = my + (to.x - from.x) * BULGE;
-  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+function screenPath(points: { x: number; y: number }[]) {
+  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
 }
 
 function Ringing({ at }: { at: Point }) {
@@ -56,20 +50,20 @@ function Ringing({ at }: { at: Point }) {
   );
 }
 
-function Arc({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point }; emphasis: number }) {
+function Drive({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point; drive: Point[] }; emphasis: number }) {
   const { project } = useMapStage();
-  const from = project(pickup.helperAt);
-  const to = project(pickup.at);
-  if (!from.visible && !to.visible) return null;
+  const points = pickup.drive.map((point) => project(point));
+  const from = points[0];
+  if (!points.some((point) => point.visible)) return null;
   const look = ARC[pickup.status];
-  const d = arcPath(from, to);
+  const d = screenPath(points);
   const width = look.width + (emphasis > 1 ? 1.5 : 0);
   const broken = pickup.status === "fell_through" ? BROKEN : {};
   return (
     <g opacity={look.opacity * Math.min(emphasis, 1)} className="transition-opacity duration-200">
-      <path d={d} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" {...broken} />
-      <path d={d} fill="none" stroke={look.stroke} strokeWidth={width} strokeLinecap="round" strokeDasharray={look.dash} className={look.className} {...broken} />
-      {pickup.status === "coming" && <path d={d} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeLinecap="round" strokeDasharray="2 10" className="animate-dash-flow" />}
+      <path d={d} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" strokeLinejoin="round" {...broken} />
+      <path d={d} fill="none" stroke={look.stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={look.dash} className={look.className} {...broken} />
+      {pickup.status === "coming" && <path d={d} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 10" className="animate-dash-flow" />}
       {from.visible && <circle cx={from.x} cy={from.y} r={4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />}
     </g>
   );
@@ -92,7 +86,7 @@ function Badge({ pickup, emphasis }: { pickup: Pickup; emphasis: number }) {
 const emphasisOf = (pickup: Pickup, focusHouseholdId: string | null) =>
   focusHouseholdId === null ? 1 : pickup.householdId === focusHouseholdId ? 2 : 0.35;
 
-const hasHelperHome = (pickup: Pickup): pickup is Pickup & { helperAt: Point } => pickup.helperAt !== null;
+const hasHelperHome = (pickup: Pickup): pickup is Pickup & { helperAt: Point; drive: Point[] } => pickup.helperAt !== null && pickup.drive !== null;
 
 export function PickupLayer({ pickups, focusHouseholdId }: { pickups: Pickup[]; focusHouseholdId: string | null }) {
   // Broken promises draw last so the red is never under an ink arc.
@@ -100,7 +94,7 @@ export function PickupLayer({ pickups, focusHouseholdId }: { pickups: Pickup[]; 
   return (
     <g>
       {ordered.filter(hasHelperHome).map((pickup) => (
-        <Arc key={pickup._id} pickup={pickup} emphasis={emphasisOf(pickup, focusHouseholdId)} />
+        <Drive key={pickup._id} pickup={pickup} emphasis={emphasisOf(pickup, focusHouseholdId)} />
       ))}
       {ordered
         .filter((pickup) => !hasHelperHome(pickup))
