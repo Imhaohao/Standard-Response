@@ -26,7 +26,7 @@ export function scenarioFronts(geojson: ScenarioGeoJson, toLocal: (p: LatLng) =>
     .sort((a, b) => a.minutes - b.minutes);
 }
 
-function contains(ring: Point[], x: number, y: number) {
+export function contains(ring: Point[], x: number, y: number) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [xi, yi] = ring[i];

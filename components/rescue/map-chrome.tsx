@@ -61,7 +61,7 @@ export function MapToolbar({
   );
 }
 
-const scenarioClock = (minutes: number) => {
+export const scenarioClock = (minutes: number) => {
   const whole = Math.max(0, Math.round(minutes));
   const hours = Math.floor(whole / 60);
   return hours > 0 ? `${hours}h ${whole % 60}m` : `${whole}m`;

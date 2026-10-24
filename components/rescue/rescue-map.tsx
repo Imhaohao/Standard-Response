@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { ZoomControls } from "@/components/map/zoom-controls";
+import { PanelDesk } from "@/components/ui/panel-desk";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
 import { LatLng } from "@/lib/geo";
@@ -16,6 +17,7 @@ import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FleetPanel } from "./fleet-panel";
 import { FireScrubber, MapToolbar, MapTool, MapTopBar } from "./map-chrome";
+import { ContextAction, ContextSpot, MapContextMenu } from "./map-context-menu";
 import { MapOverlays } from "./map-overlays";
 import { homeMarks, requestMarks } from "./marks";
 import { HomesPanel } from "./homes-panel";
@@ -42,7 +44,16 @@ export function RescueMap() {
   const { focus, flyTarget, focusProps } = usePersonFocus();
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
-  const { tool, setTool, draft, status, pick } = useDrawingTools(toLatLng);
+  const { tool, setTool, draft, status, pick, startFrom } = useDrawingTools(toLatLng);
+  const [spot, setSpot] = useState<ContextSpot | null>(null);
+  const closeMenu = useCallback(() => setSpot(null), []);
+  const startFromSpot = useCallback(
+    (action: ContextAction, point: Point) => {
+      startFrom(action, point);
+      setSpot(null);
+    },
+    [startFrom],
+  );
 
   if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
 
@@ -57,6 +68,7 @@ export function RescueMap() {
         fronts={hazard?.field.fronts}
         highlights={highlights}
         onPick={pick}
+        onContextPick={(point, screen) => setSpot({ point, screen })}
         focus={flyTarget}
         interactive={tool !== "look"}
         className="absolute inset-0"
@@ -66,32 +78,35 @@ export function RescueMap() {
         <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
       </MapStage>
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
-        <MapTopBar issuedAt={control?.warningIssuedAt} />
-        <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-          <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
-            <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
-            <NeedPanel people={board.people} focus={focusProps} className="shrink" />
-            <NominationPanel />
+      <PanelDesk storageKey="rescue-map-panels">
+        <div className="pointer-events-none absolute inset-0 flex flex-col">
+          <MapTopBar issuedAt={control?.warningIssuedAt} />
+          <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
+            <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+              <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
+              <NeedPanel people={board.people} focus={focusProps} className="shrink" />
+              <NominationPanel />
+            </div>
+            <div className="min-w-0 flex-1" />
+            <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
+              <PlanPanel />
+              <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
+              <DoorCheckPanel />
+              <RiderUpload />
+            </div>
           </div>
-          <div className="min-w-0 flex-1" />
-          <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
-            <PlanPanel />
-            <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
-            <DoorCheckPanel />
-            <RiderUpload />
+          <div className="flex items-end gap-3 p-3 pt-0">
+            <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
+              {status}
+            </MapToolbar>
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
+              {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
+              <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />
+            </div>
           </div>
         </div>
-        <div className="flex items-end gap-3 p-3 pt-0">
-          <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
-            {status}
-          </MapToolbar>
-          <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
-            <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />
-          </div>
-        </div>
-      </div>
+      </PanelDesk>
+      <MapContextMenu spot={spot} hazard={hazard} danger={danger} minutes={clock.minutes} toLatLng={toLatLng} onAction={startFromSpot} onClose={closeMenu} />
     </div>
   );
 }
@@ -145,7 +160,14 @@ function useDrawingTools(toLatLng: (point: Point) => LatLng) {
     },
     [tool],
   );
-  return { tool, setTool, draft, status, pick };
+
+  // A tool started from the map's right-click menu begins with that spot already placed.
+  const startFrom = useCallback((action: MapTool, point: Point) => {
+    setStatus("");
+    setTool(action);
+    setDraft([point]);
+  }, []);
+  return { tool, setTool, draft, status, pick, startFrom };
 }
 
 // A row clicked in the list flies the map to that person and rings their pin; a row hovered rings

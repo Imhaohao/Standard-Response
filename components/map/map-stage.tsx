@@ -56,6 +56,7 @@ export function MapStage({
   fronts,
   highlights,
   onPick,
+  onContextPick,
   focus,
   interactive = false,
   children,
@@ -70,6 +71,7 @@ export function MapStage({
   fronts?: { minutes: number; ring: Point[] }[];
   highlights?: Map<number, BuildingState>;
   onPick?: (point: Point) => void;
+  onContextPick?: (point: Point, screen: { x: number; y: number }) => void;
   focus?: FlyTarget | null;
   interactive?: boolean;
   children?: ReactNode;
@@ -92,16 +94,35 @@ export function MapStage({
   const dragged = useMapGestures(boxRef, renderer);
   useFlyTo(renderer, focus);
 
-  const click = useCallback(
+  const groundAt = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!onPick || !size || dragged.current) return;
+      if (!size) return null;
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const ground = mode === "paper" ? unframe(frame, size, x, y, PAPER_FIT) : handle?.renderer.pickGround(x, y) ?? null;
-      if (ground) onPick(ground);
+      return ground ? { ground, screen: { x, y } } : null;
     },
-    [onPick, size, mode, frame, handle, dragged],
+    [size, mode, frame, handle],
+  );
+
+  const click = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!onPick || dragged.current) return;
+      const hit = groundAt(event);
+      if (hit) onPick(hit.ground);
+    },
+    [onPick, groundAt, dragged],
+  );
+
+  const contextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!onContextPick) return;
+      event.preventDefault();
+      const hit = groundAt(event);
+      if (hit) onContextPick(hit.ground, hit.screen);
+    },
+    [onContextPick, groundAt],
   );
 
   // Markers are projected from the live camera on the 3D surface, and from the flat frame on the
@@ -115,6 +136,7 @@ export function MapStage({
     <div
       ref={boxRef}
       onClick={onPick ? click : undefined}
+      onContextMenu={onContextPick ? contextMenu : undefined}
       className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
       <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} fronts={fronts} highlights={highlights} onHandle={setHandle} onFail={fail} />

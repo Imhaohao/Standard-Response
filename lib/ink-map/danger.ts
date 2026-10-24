@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LatLng } from "@/lib/geo";
 import { createProjection, Point } from "./data";
+import { contains } from "./fire-field";
 
 type Ring = number[][];
 type ZoneGeometry = { type: "Polygon"; coordinates: Ring[] } | { type: "MultiPolygon"; coordinates: Ring[][] };
@@ -75,4 +76,10 @@ export function zonesAt(danger: DangerZones, minutes: number): DangerZone[] {
     if (!held || zone.minutes > held.minutes) latest.set(zone.probability, zone);
   }
   return [...latest.values()].sort((a, b) => a.probability - b.probability);
+}
+
+// The highest forecast probability whose zone holds the point at this minute, or null outside every zone.
+export function chanceAt(danger: DangerZones, minutes: number, [x, y]: Point): number | null {
+  const holding = zonesAt(danger, minutes).filter((zone) => zone.rings.filter((ring) => contains(ring, x, y)).length % 2 === 1);
+  return holding.length ? Math.max(...holding.map((zone) => zone.probability)) : null;
 }
