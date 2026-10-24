@@ -153,10 +153,13 @@ export const clearTables = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    // One run may read 4,096 rows in total, so the batch is shared across tables, not per table.
+    let budget = DELETE_BATCH;
     for (const table of TABLES) {
-      const rows = await ctx.db.query(table).take(DELETE_BATCH);
+      const rows = await ctx.db.query(table).take(budget);
       for (const row of rows) await ctx.db.delete(table, row._id);
-      if (rows.length === DELETE_BATCH) {
+      budget -= rows.length;
+      if (budget === 0) {
         await ctx.scheduler.runAfter(0, internal.control.clearTables, {});
         return null;
       }
