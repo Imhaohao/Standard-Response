@@ -46,17 +46,17 @@ function VanRow({ van, stop, route }: { van: Vehicle; stop: Assignment; route: R
   const [closed, setClosed] = useState(false);
   const path = closurePath(van, stop, route);
   return (
-    <li className="flex items-center gap-3 border-b border-panel-raised px-3 py-2.5">
+    <li className="flex items-center gap-3 px-4 pb-4">
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="type-small truncate font-bold">{stop.address}</span>
+        <span className="type-heading truncate">{stop.address}</span>
         <span className="type-small text-on-panel-muted">
           {van.driverName}, {van.label}, {stop.status === "accepted" ? "on the way" : "offered"}
         </span>
       </span>
       <Button
         variant={closed ? "onPanelQuiet" : "onPanel"}
-        className="!h-8"
-        disabled={!path || closed}
+        size="lg"
+                disabled={!path || closed}
         onClick={() => path && void addClosures({ closures: [{ path, source: "manual" }] }).then(() => setClosed(true))}
       >
         <RoadHorizon weight="bold" className="size-4" />
@@ -83,7 +83,7 @@ export function CloseRoadPanel() {
   return (
     <Panel title="Close this road">
       {rows.length === 0 ? (
-        <PanelEmpty>When a driver-page van has a pickup, the road into it can be closed from here.</PanelEmpty>
+        <PanelEmpty>No driver-page van has a pickup yet.</PanelEmpty>
       ) : (
         <ul>
           {rows.map(({ van, stop, route }) => (

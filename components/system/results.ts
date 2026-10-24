@@ -26,6 +26,7 @@ export type Honesty = {
   lexical: Rate;
   model: Rate | null;
   byStatus: Record<string, Rate | null>;
+  humanSpotCheck?: unknown;
 };
 
 export type SimComparison = { policies: Record<string, Record<string, Spread>>; difference: Record<string, Spread>; differenceMeaning: string; headline: string };

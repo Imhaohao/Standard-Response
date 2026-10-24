@@ -1,13 +1,15 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { ArrowRight } from "@phosphor-icons/react";
+import { ClockCounterClockwise, PhoneCall, Path } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
 import { REQUEST_STATUS_LABELS, RequestStatus } from "@/lib/labels";
 import { formatClock } from "@/lib/time";
 import { AnimatedNumber } from "../ui/animated-number";
-import { Panel, PanelEmpty } from "../ui/panel";
+import { Panel } from "../ui/panel";
+import { Disclosure } from "./disclosure";
+import { Tag } from "./range";
 
 const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools" } as const;
 
@@ -19,7 +21,7 @@ const CHANGE_KINDS = [
 
 function Stat({ label, value, unit }: { label: string; value: number | undefined; unit?: string }) {
   return (
-    <div className="flex flex-col gap-1 bg-panel p-3">
+    <div className="flex flex-col gap-1">
       <dt className="type-small text-on-panel-muted">{label}</dt>
       <dd className="flex items-baseline gap-1">
         {value === undefined ? <span className="type-figure text-2xl text-on-panel-muted">–</span> : <AnimatedNumber value={value} className="type-figure text-2xl" />}
@@ -29,106 +31,124 @@ function Stat({ label, value, unit }: { label: string; value: number | undefined
   );
 }
 
-// Every re-plan: the problem it solved, how long it took, and what it changed for drivers.
-export function ReplanPanel() {
+export function PlanDisclosure() {
   const plan = useQuery(api.plans.latest);
   const audit = useQuery(api.plans.auditTrail, { limit: 200 });
   const stale = audit?.filter((row) => row.kind === "stale_accept_rejected").length ?? 0;
-  if (!plan) return <Panel title="No plan yet"><PanelEmpty>The first plan lands a few seconds after the warning.</PanelEmpty></Panel>;
+  if (!plan) {
+    return (
+      <Disclosure icon={Path} title="Plan" fact="none yet">
+        <p className="type-small text-on-panel-muted">The first plan lands a few seconds after the warning.</p>
+      </Disclosure>
+    );
+  }
   const count = (kind: string) => plan.changes.filter((change) => change.kind === kind).length;
   return (
-    <Panel title={`Plan v${plan.version}`} aside={<span className="type-small text-on-panel-muted">{SOLVER_LABELS[plan.solver]}</span>}>
-      <dl className="grid grid-cols-3 gap-px bg-panel-raised">
+    <Disclosure icon={Path} title={`Plan v${plan.version}`} fact={`${SOLVER_LABELS[plan.solver]}, solved in ${plan.solveMs} ms`}>
+      <dl className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         <Stat label="Requests" value={plan.requestCount} />
         <Stat label="Vehicles" value={plan.vehicleCount} />
         <Stat label="Solve time" value={plan.solveMs} unit="ms" />
+        <Stat label="Late accepts rejected" value={stale} />
         {CHANGE_KINDS.map(({ kind, label }) => (
           <Stat key={kind} label={label} value={count(kind)} />
         ))}
       </dl>
-      <p className="type-small flex items-baseline justify-between gap-2 border-t border-panel-raised px-3 py-2">
-        <span className="text-on-panel-muted">Late accepts rejected</span>
-        <span className="type-figure text-lg">{stale}</span>
-      </p>
-      {plan.fallbackReason && <p className="type-small border-t border-panel-raised px-3 py-2 text-on-panel-muted">Heuristic ran: {plan.fallbackReason}</p>}
-      <p className="type-small border-t border-panel-raised px-3 py-2 text-on-panel-muted">Vehicle movement is simulated, 4x.</p>
-    </Panel>
+      {plan.fallbackReason && <p className="type-small text-on-panel-muted">Heuristic ran: {plan.fallbackReason}</p>}
+    </Disclosure>
   );
 }
 
-const FLOW: RequestStatus[] = ["received", "approved", "driver_accepted", "en_route", "arrived"];
+const PIPELINE: { status: RequestStatus; label: string; fill: string }[] = [
+  { status: "received", label: "Waiting", fill: "bg-signal-soft text-signal" },
+  { status: "approved", label: "Offer sent", fill: "bg-panel-raised" },
+  { status: "driver_accepted", label: "Accepted", fill: "bg-panel-raised" },
+  { status: "en_route", label: "On the way", fill: "bg-panel-raised" },
+  { status: "arrived", label: "Picked up", fill: "bg-on-panel text-panel" },
+];
 
-// Where every open request sits, left to right in the order a request moves. Reassigning is the
-// detour, so it hangs under the line.
-export function RequestFlow() {
+export function RequestPipeline() {
   const requests = useQuery(api.requests.open) ?? [];
   const count = (status: RequestStatus) => requests.filter((request) => request.status === status).length;
+  const reassigning = count("reassigning");
   return (
-    <Panel title="Requests" aside={<span className="type-small text-on-panel-muted tabular-nums">{requests.length} open</span>}>
-      <ol className="flex items-stretch gap-1 p-3">
-        {FLOW.map((status, index) => (
-          <li key={status} className="flex min-w-0 flex-1 items-center gap-1">
-            <span className="flex min-w-0 flex-1 flex-col gap-1 bg-panel-raised px-2 py-2">
-              <AnimatedNumber value={count(status)} className="type-figure text-2xl" />
-              <span className="type-small text-on-panel-muted">{REQUEST_STATUS_LABELS[status]}</span>
-            </span>
-            {index < FLOW.length - 1 && <ArrowRight weight="bold" className="size-3 shrink-0 text-on-panel-muted" aria-hidden />}
+    <Panel
+      title="Requests"
+      aside={
+        <span className="type-small flex items-center gap-3 tabular-nums">
+          {reassigning > 0 && <span className="font-bold">{reassigning} finding a new driver</span>}
+          <span className="text-on-panel-muted">{requests.length} open</span>
+        </span>
+      }
+    >
+      <ol className="flex gap-1 px-4 pb-4">
+        {PIPELINE.map(({ status, label, fill }) => (
+          <li
+            key={status}
+            title={REQUEST_STATUS_LABELS[status]}
+            className={`flex min-w-16 flex-col gap-1 px-3 py-3 transition-[flex-grow] duration-500 first:rounded-l-xl last:rounded-r-xl ${fill}`}
+            style={{ flexGrow: 2 + Math.sqrt(count(status)) }}
+          >
+            <AnimatedNumber value={count(status)} className="type-figure text-5xl" />
+            <span className="type-small truncate font-semibold">{label}</span>
           </li>
         ))}
       </ol>
-      <p className="type-small flex items-baseline gap-2 border-t border-panel-raised px-3 py-2">
-        <AnimatedNumber value={count("reassigning")} className="type-figure text-lg" />
-        <span className="text-on-panel-muted">{REQUEST_STATUS_LABELS.reassigning}</span>
-      </p>
     </Panel>
   );
 }
 
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+const callbackSeconds = (took: number) => `${(took / 1000).toFixed(1)} s`;
 const CALLBACK_SCALE_MS = 60_000;
 
-// Time from the event (a driver accepting, a pickup revoked) to the rider hearing about it.
-export function CallbackTiming() {
+export type CallbackSpread = { medianMs: number; minMs: number; maxMs: number };
+
+export function useCallbackSpread(): CallbackSpread | null {
   const callbacks = useQuery(api.callbacks.recent, { limit: 30 });
+  const times = (callbacks ?? []).flatMap((callback) => (callback.playedAt ? [callback.playedAt - callback.createdAt] : [])).sort((a, b) => a - b);
+  if (times.length === 0) return null;
+  return { medianMs: times[Math.floor(times.length / 2)], minMs: times[0], maxMs: times[times.length - 1] };
+}
+
+export function CallbacksDisclosure() {
+  const callbacks = useQuery(api.callbacks.recent, { limit: 30 });
+  const spread = useCallbackSpread();
   return (
-    <Panel title="Callbacks" aside={<span className="type-small text-on-panel-muted">event to rider told</span>}>
-      {callbacks?.length ? (
-        <ul>
-          {callbacks.map((callback) => {
-            const took = callback.playedAt ? callback.playedAt - callback.createdAt : null;
-            return (
-              <li key={callback._id} className="grid grid-cols-[minmax(0,1fr)_6rem_3.5rem] items-center gap-3 border-b border-panel-raised px-3 py-2">
-                <span className="flex min-w-0 flex-col">
-                  <span className="type-small truncate font-bold">{callback.address}</span>
-                  <span className="type-small text-on-panel-muted">{callback.announces === "driver_accepted" ? "Driver accepted" : "Driver can't reach them"}</span>
-                </span>
-                <span className="h-1.5 bg-panel-raised" aria-hidden>
-                  {took !== null && <span className="block h-full bg-on-panel" style={{ width: `${Math.min(100, (took / CALLBACK_SCALE_MS) * 100)}%` }} />}
-                </span>
-                <span className="type-small text-right tabular-nums">{took !== null ? seconds(took) : callback.state}</span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <PanelEmpty>No callbacks yet.</PanelEmpty>
-      )}
-    </Panel>
+    <Disclosure icon={PhoneCall} title="Callbacks" fact={spread ? `median ${callbackSeconds(spread.medianMs)}` : "none yet"}>
+      <Tag>Event to rider told</Tag>
+      <ul>
+        {callbacks?.map((callback) => {
+          const took = callback.playedAt ? callback.playedAt - callback.createdAt : null;
+          return (
+            <li key={callback._id} className="grid grid-cols-[minmax(0,1fr)_6rem_3.5rem] items-center gap-3 py-2">
+              <span className="flex min-w-0 flex-col">
+                <span className="type-small truncate font-bold">{callback.address}</span>
+                <span className="type-small text-on-panel-muted">{callback.announces === "driver_accepted" ? "Driver accepted" : "Driver can't reach them"}</span>
+              </span>
+              <span className="h-1.5 bg-panel-raised" aria-hidden>
+                {took !== null && <span className="block h-full bg-on-panel" style={{ width: `${Math.min(100, (took / CALLBACK_SCALE_MS) * 100)}%` }} />}
+              </span>
+              <span className="type-small text-right tabular-nums">{took !== null ? callbackSeconds(took) : callback.state}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </Disclosure>
   );
 }
 
 // The Convex demo beats: a stale accept rejected and a duplicate event ignored.
 const HIGHLIGHT = new Set<Doc<"auditLog">["kind"]>(["stale_accept_rejected", "callback_duplicate", "revoked"]);
 
-export function AuditTrail() {
+export function AuditDisclosure() {
   const rows = useQuery(api.plans.auditTrail, { limit: 80 });
   return (
-    <Panel title="Audit trail" className="min-h-0">
-      <ol className="flex min-h-0 flex-col overflow-y-auto">
+    <Disclosure icon={ClockCounterClockwise} title="Audit trail" fact={`${rows?.length ?? 0} events`}>
+      <ol className="flex max-h-96 flex-col overflow-y-auto">
         {rows?.map((row) => {
           const loud = HIGHLIGHT.has(row.kind);
           return (
-            <li key={row._id} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-panel-raised px-3 py-1.5 ${loud ? "bg-panel-raised shadow-[inset_3px_0_0_var(--on-panel)]" : ""}`}>
+            <li key={row._id} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-1.5 ${loud ? "bg-panel-raised px-2 shadow-[inset_3px_0_0_var(--on-panel)]" : ""}`}>
               <span className={`type-small ${loud ? "font-bold" : ""}`}>
                 {row.planVersion !== undefined && <span className="text-on-panel-muted tabular-nums">v{row.planVersion} </span>}
                 {row.message}
@@ -138,6 +158,6 @@ export function AuditTrail() {
           );
         })}
       </ol>
-    </Panel>
+    </Disclosure>
   );
 }
