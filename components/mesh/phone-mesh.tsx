@@ -16,6 +16,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
 import { PairingCard } from "./pairing";
+import { HowItWorks, TechTags } from "./technology";
 import { MeshPhone, useMeshPhone } from "./use-mesh-phone";
 
 const INK = "var(--map-ink)";
@@ -129,9 +130,13 @@ function NearbyCard({ phone }: { phone: MeshPhone }) {
         <h2 className="type-heading">Phones nearby</h2>
         <span className="type-figure text-lg tabular-nums">{phone.tabPeers + phone.links}</span>
       </div>
+      <TechTags uses={["mesh"]} className="pb-1" />
       <p className="type-small text-on-panel-muted">
         {phone.tabPeers} on this device, {phone.links} paired. {news ?? "Nothing new from them yet."}
       </p>
+      <div className="-mx-4 mt-2">
+        <HowItWorks tech="mesh" inset="px-4">Here: your reports and the ones nearby phones passed to you.</HowItWorks>
+      </div>
     </section>
   );
 }
@@ -150,6 +155,7 @@ function SharingCard({ phone }: { phone: MeshPhone }) {
   const upload = phone.upload;
   return (
     <section className="flex flex-col">
+      <TechTags uses={["federated"]} className="px-4 pt-3" />
       <Switch
         checked={node.participate}
         onChange={phone.setParticipation}
@@ -168,6 +174,7 @@ function SharingCard({ phone }: { phone: MeshPhone }) {
         <Row label="Mixed updates carried" value={`${held.toFixed(1)} phones' worth${held >= UPLOAD_MIN_MASS ? ", ready to upload" : ""}`} />
         {upload && <Row label="Last upload" value={upload.error ? upload.error : `${upload.reports} reports, ${upload.mixes} mixes`} />}
       </dl>
+      <HowItWorks tech="federated" inset="px-4">Here: this phone&apos;s part in training, and what it has given away.</HowItWorks>
     </section>
   );
 }

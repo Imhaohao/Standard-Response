@@ -19,6 +19,7 @@ import { ROUND_MASS } from "@/lib/mesh/rounds";
 import { segmentFireMinutes, streetFeatures } from "@/lib/mesh/street-features";
 import { formatClock, useNow } from "@/lib/time";
 import { Figure, Figures } from "./figures";
+import { HowItWorks, TechTags } from "./technology";
 import { ForecastStreets, TrafficPanel, useTrafficForecast } from "./traffic-forecast";
 
 const INK = "var(--map-ink)";
@@ -103,6 +104,7 @@ function UploadsPanel({ roads }: { roads: Roads | undefined }) {
   const latest = Math.max(0, ...roads.segments.map((s) => s.lastObservedAt));
   return (
     <Panel title="Road reports from phones">
+      <TechTags uses={["mesh"]} />
       <Figures>
         <Figure label="Reports, last six hours" value={roads.reports} />
         <Figure label="Relayed phone to phone before upload" value={roads.reports ? `${Math.round((roads.relayed / roads.reports) * 100)}%` : "—"} />
@@ -113,6 +115,7 @@ function UploadsPanel({ roads }: { roads: Roads | undefined }) {
       <p className="type-small border-t border-panel-raised px-3 py-2 text-on-panel-muted">
         Each report is a street, blocked or open, and the minute. No phone, person or uploader is recorded.
       </p>
+      <HowItWorks tech="mesh">Here: the reports phones carried out of the zone. Heavy broken lines on the map are streets they say are blocked.</HowItWorks>
     </Panel>
   );
 }
@@ -123,6 +126,7 @@ function ModelPanel() {
   const open = rounds?.open;
   return (
     <Panel title="Shared model" className="shrink-0">
+      <TechTags uses={["federated"]} />
       <Figures>
         <Figure label="Version" value={latest?.version ?? 0} />
         <Figure label="Phones' worth of updates in it" value={Math.round(latest?.contributors ?? 0)} />
@@ -143,6 +147,7 @@ function ModelPanel() {
           ))}
         </dl>
       )}
+      <HowItWorks tech="federated">Here: the model the phones trained. Dotted streets on the map are where it expects blockages nobody has reported.</HowItWorks>
     </Panel>
   );
 }
@@ -188,7 +193,7 @@ export function AgencyView() {
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <div className="flex items-center gap-3 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
-            <span className="type-small">Heavy broken line: reported blocked. Thin line: reported open. Dotted: model estimate, nobody has reported it. Wide soft band: forecast slow traffic, darker is slower.</span>
+            <span className="type-small">Heavy broken line: reported blocked (phone mesh). Thin line: reported open. Dotted: estimate, nobody has reported it (federated learning). Wide soft band: forecast slow traffic, darker is slower (Langevin dynamics).</span>
             <Button variant="onPanelQuiet" className="!h-8" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
               {mode === "ink" ? "Flat" : "3D"}
             </Button>

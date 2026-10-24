@@ -10,6 +10,7 @@ import { SIM_MINUTES_PER_SECOND } from "@/lib/ink-map/hazard";
 import { SEGMENTS } from "@/lib/mesh/roads";
 import { useNow } from "@/lib/time";
 import { Figure, Figures, formatRange } from "./figures";
+import { HowItWorks, TechTags } from "./technology";
 
 // The traffic forecast from the Langevin crowd model (lib/crowd/forecast.ts), as the agency sees
 // it: the streets expected to slow down over the next hour, drawn as a wide soft ink band (darker
@@ -179,9 +180,14 @@ export function TrafficPanel({
 }) {
   return (
     <Panel title="Traffic, next hour" className="shrink-0">
+      <TechTags uses={["langevin", "departure"]} />
       {forecast === undefined && <PanelEmpty>Loading…</PanelEmpty>}
       {forecast === null && <PanelEmpty>{warningIssued ? "No forecast yet. Start it with npm run forecast:traffic." : "No warning issued."}</PanelEmpty>}
       {forecast && <ForecastBody forecast={forecast} windowIndex={windowIndex} onWindow={onWindow} />}
+      <HowItWorks tech="langevin">
+        Here: {forecast?.members ?? "Several"} runs of this crowd model follow tonight from the warning. Every 5 minutes each is copied and run an hour ahead, and the
+        ranges are the spread across the runs.
+      </HowItWorks>
     </Panel>
   );
 }

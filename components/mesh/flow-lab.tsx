@@ -20,6 +20,7 @@ import { privacySpent } from "@/lib/mesh/privacy";
 import { seededRandom } from "@/lib/mesh/random";
 import { AgentLayer, BlockedStreetLayer, MeetingLayer } from "./flow-layers";
 import { Figure, Figures, formatRange, Range } from "./figures";
+import { HowItWorks, TechTags } from "./technology";
 
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 // The browser runs a quarter of the synthetic town on a 30 m grid; scripts/mesh/simulate.ts runs more.
@@ -96,6 +97,7 @@ function NightPanel({ world, checkpoint }: { world: FlowWorld; checkpoint: Check
   const stats = world.crowd.stats();
   return (
     <Panel title="Tonight, simulated" aside={<span className="type-small tabular-nums text-on-panel-muted">{world.crowd.count} homes</span>}>
+      <TechTags uses={["langevin", "departure"]} />
       <Figures>
         <Figure label="Out of the zone" value={stats.arrived} />
         <Figure label="On the road" value={stats.moving} />
@@ -135,6 +137,7 @@ function Bottlenecks({ world }: { world: FlowWorld }) {
 function MeshPanel({ world, checkpoint }: { world: FlowWorld; checkpoint: Checkpoint | null }) {
   return (
     <Panel title="Phones near each other">
+      <TechTags uses={["mesh"]} />
       <Figures>
         <Figure label="Meetings so far" value={world.params.mesh ? world.meetings.toLocaleString() : "mesh off"} />
         <Figure label="Phones that know of a blocked street" value={checkpoint?.phonesKnowingABlockage ?? "—"} />
@@ -150,6 +153,7 @@ const PRIVACY = privacySpent(DEFAULT_TRAINING.noiseMultiplier, DEFAULT_TRAINING.
 function ModelPanel({ world, checkpoint }: { world: FlowWorld; checkpoint: Checkpoint | null }) {
   return (
     <Panel title="Shared model, trained on the phones">
+      <TechTags uses={["federated"]} />
       <Figures>
         <Figure label="Version" value={world.agency.model.version} hint={`New version every ${world.params.roundMass} phones' worth of updates`} />
         <Figure label="Updates uploaded" value={`${Math.round(world.massUploaded)} phones' worth`} hint="Always mixed, at least 5 phones per upload" />
@@ -157,6 +161,7 @@ function ModelPanel({ world, checkpoint }: { world: FlowWorld; checkpoint: Check
         <Figure label="Same model with all raw data in one place" value={checkpoint ? checkpoint.auc.pooled.toFixed(2) : "—"} hint="What privacy costs: compare the two" />
         <Figure label="Most any one phone gives away" value={`ε ${PRIVACY.epsilon.toFixed(1)}`} hint={`δ = 1e-5, at most ${DEFAULT_TRAINING.maxContributions} updates each`} />
       </Figures>
+      <HowItWorks tech="federated">Here: the phones in this simulated night train the model, and this panel tracks it.</HowItWorks>
     </Panel>
   );
 }
@@ -173,6 +178,7 @@ function ResultsPanel({ results }: { results: FlowResults | null }) {
   if (!results) return null;
   return (
     <Panel title={`${results.seeds} nights, mesh on and off`} aside={<span className="type-small text-on-panel-muted">{results.label}</span>}>
+      <TechTags uses={["langevin", "mesh", "federated"]} />
       <dl className="flex flex-col gap-2 px-3 py-2">
         {RESULT_ROWS.map((row) => {
           const comparison = results.results[row.key];
@@ -199,6 +205,20 @@ function ResultsPanel({ results }: { results: FlowResults | null }) {
         Median (5th to 95th percentile) over {results.seeds} seeds, {results.householdsPerRun.toLocaleString()} homes each. Without the mesh no phone
         ever holds five phones&apos; worth of updates, so the shared model can&apos;t form at all.
       </p>
+    </Panel>
+  );
+}
+
+// What the night runs on, with the crowd model open: it is what moves every dot on the map.
+function TechnologyPanel() {
+  return (
+    <Panel title="How this night is simulated">
+      <HowItWorks tech="langevin" open>
+        Here: every moving ink dot is a car under these dynamics, and they produce &ldquo;On the road&rdquo; and &ldquo;Slowest busy streets&rdquo;.
+      </HowItWorks>
+      <HowItWorks tech="departure">Here: when a faint dot (a home not left yet) starts moving.</HowItWorks>
+      <HowItWorks tech="mesh">Here: the hairlines between dots are phones meeting, and heavy broken lines are blocked streets the agency has heard about.</HowItWorks>
+      <HowItWorks tech="federated">Here: the shared model panel on the right.</HowItWorks>
     </Panel>
   );
 }
@@ -273,12 +293,13 @@ export function FlowLab() {
           </Link>
         </AppBar>
         <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-          <div className="pointer-events-auto flex w-[20rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+          <div className="pointer-events-auto flex w-[20rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1 *:shrink-0">
+            <TechnologyPanel />
             <NightPanel world={world} checkpoint={checkpoint} />
             <MeshPanel world={world} checkpoint={checkpoint} />
           </div>
           <div className="min-w-0 flex-1" />
-          <div className="pointer-events-auto flex w-[22rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
+          <div className="pointer-events-auto flex w-[22rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1 *:shrink-0">
             <ModelPanel world={world} checkpoint={checkpoint} />
             <ResultsPanel results={inputs?.results ?? null} />
           </div>

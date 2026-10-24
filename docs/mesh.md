@@ -18,7 +18,7 @@ Three features built beside the core Rider Check flow. Nothing in the core flow 
 | `lib/crowd/` | Street grid, route choice, Langevin dynamics, departure model, ensemble traffic forecast |
 | `lib/flow/` | The simulated night that joins the three, and its ground-truth blockages |
 | `convex/mesh.ts` | Anonymous uploads, rounds, the shared model, the traffic forecast, queries for the agency |
-| `components/mesh/` | The three pages |
+| `components/mesh/` | The three pages. Every panel is tagged with the technology it runs on, with a "How it works" note (`technology.tsx`) |
 | `scripts/mesh/` | `simulate.ts` (writes `data/flow-results.json`), `traffic-forecast.ts` (the live forecast runner), `feature-scale.ts` |
 
 ```bash
