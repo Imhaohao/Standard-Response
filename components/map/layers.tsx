@@ -54,3 +54,18 @@ export function GeoLeg({ start, end, ...rest }: { start: LatLng; end: LatLng } &
   const { toLocal } = useMapStage();
   return <Leg start={toLocal(start)} end={toLocal(end)} {...rest} />;
 }
+
+// Several closed rings as one even-odd path, so a hole inside a ring stays open.
+export function MapShape({ rings, ...rest }: { rings: Point[][] } & React.SVGProps<SVGPathElement>) {
+  const { project } = useMapStage();
+  const toScreen = (point: Point): Point => {
+    const { x, y } = project(point);
+    return [x, y];
+  };
+  const d = rings
+    .filter((ring) => ring.length >= 3)
+    .map((ring) => pathData(ring.map(toScreen), true))
+    .join("");
+  if (!d) return null;
+  return <path d={d} fillRule="evenodd" {...rest} />;
+}

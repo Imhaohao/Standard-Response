@@ -9,7 +9,9 @@ import { ZoomControls } from "@/components/map/zoom-controls";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
 import { createProjection, Point } from "@/lib/ink-map/data";
+import { useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
+import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FleetPanel } from "./fleet-panel";
 import { FireScrubber, MapToolbar, MapTool, MapTopBar } from "./map-chrome";
@@ -24,6 +26,8 @@ const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 export function RescueMap() {
   const data = useInkMapData();
   const hazard = useHazard(data?.origin);
+  const danger = useDangerZones(data?.origin);
+  const [forecastShown, setForecastShown] = useState(true);
   const control = useQuery(api.control.get);
   const requests = useQuery(api.requests.open);
   const clock = useFireClock(hazard, control?.warningIssuedAt);
@@ -86,6 +90,7 @@ export function RescueMap() {
         className="absolute inset-0"
         controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
+        {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
         <MapOverlays tool={tool} draft={draft} />
       </MapStage>
 
@@ -108,7 +113,8 @@ export function RescueMap() {
           <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
             {status}
           </MapToolbar>
-          <div className="flex min-w-0 flex-1 justify-center">
+          <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
             <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />
           </div>
         </div>
