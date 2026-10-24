@@ -1,0 +1,17 @@
+# DigitalOcean App Platform spec for the OR-Tools solver service.
+# Create:  dispatch/deploy_digitalocean.sh   (adds SOLVER_TOKEN from dispatch/.solver-token, never committed)
+name: rollcall-solver
+region: sfo
+services:
+  - name: solver
+    git:
+      repo_clone_url: https://github.com/Imhaohao/calhacks.git
+      branch: main
+    source_dir: dispatch
+    dockerfile_path: dispatch/Dockerfile
+    http_port: 8799
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    health_check:
+      http_path: /health
+      timeout_seconds: 5
