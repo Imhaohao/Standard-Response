@@ -284,6 +284,9 @@ function fillRing(pixels: Uint8Array, width: number, height: number, ring: Point
     for (let k = 0; k + 1 < crossings.length; k += 2) {
       const from = Math.max(0, Math.ceil(crossings[k] - 0.5));
       const to = Math.min(width - 1, Math.floor(crossings[k + 1] - 0.5));
+      // A span outside the texture gives to < from; on row 0 that end index would be negative,
+      // which TypedArray.fill counts from the end of the array and floods the whole texture.
+      if (to < from) continue;
       pixels.fill(value, py * width + from, py * width + to + 1);
     }
   }
@@ -297,6 +300,8 @@ export function landuseTexture(data: InkMapData, region: Region, pixelsPerMeter:
   const texture = new THREE.DataTexture(pixels, width, height, THREE.RedFormat, THREE.UnsignedByteType);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
+  // One byte per texel: rows are not 4-byte aligned, and WebGL's default alignment shears them.
+  texture.unpackAlignment = 1;
   texture.needsUpdate = true;
   return { texture, region };
 }

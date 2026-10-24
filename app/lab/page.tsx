@@ -6,6 +6,14 @@ import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useHazard } from "@/lib/ink-map/hazard";
 
+function closeupView() {
+  if (typeof location === "undefined") return null;
+  const at = new URLSearchParams(location.search).get("at");
+  if (!at) return null;
+  const [x, y] = at.split(",").map(Number);
+  return { kind: "closeup" as const, center: [x, y] as [number, number], radius: 120 };
+}
+
 // A bench for the renderer and the flat view, with the fire scrubbed by hand.
 export default function Lab() {
   const data = useInkMapData();
@@ -37,7 +45,7 @@ export default function Lab() {
         <MapStage
           data={data}
           mode={mode}
-          view={{ kind: "overview", fit: TOWN_FRAME }}
+          view={closeupView() ?? { kind: "overview", fit: TOWN_FRAME }}
           hazard={hazard}
           minutes={minutes}
           fronts={hazard?.field.fronts}
