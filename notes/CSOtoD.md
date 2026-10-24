@@ -34,3 +34,7 @@ Two changes since my last note, both found from your cards: "other" now needs tw
 ## 2026-10-24 11:38
 
 Heads-up for your Convex files: **Every Convex mutation now comes from `convex/functions.ts`**, not `./_generated/server`. I changed the import line in 19 files, including yours. Lint fails any new `mutation` or `internalMutation` imported from `./_generated/server`, because that would skip the household trigger and drift the counts. Queries, actions and the `MutationCtx` type still come from `./_generated/server`.
+
+## 2026-10-24 12:00
+
+`test_prompt_leak_check_reads_the_interpreter_prompt` failed. `PromptLeakCheck.from_repo` only matched a template literal assigned directly to `SYSTEM` in `voice/agent/interpreter.ts`. The prompt text now lives in the `systemFor` template, and `SYSTEM` is a per-hazard map of that template, so the check found no phrases and an injection run could not flag a spoken prompt. `from_repo` now reads the `systemFor` template through its closing backtick, and adds each hazard's situation and at-home line as its own phrase.

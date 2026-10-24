@@ -199,6 +199,23 @@ def _shingles(text: str, n: int) -> set[tuple[str, ...]]:
     return {tuple(words[i:i + n]) for i in range(len(words) - n + 1)}
 
 
+# Five filler words, one short of a shingle, so phrases from different prompt pieces never join into a fake run.
+_PROMPT_GAP = " ".join(["shinglegap"] * 5)
+
+
+def _interpreter_prompt(source: str) -> str | None:
+    """The system text Claude is given: the systemFor template, plus each hazard's situation and at-home lines."""
+    found = re.search(
+        r"const (?:SYSTEM = |systemFor = \(kind: Hazard\) => )`(.*?)`;",
+        source,
+        re.DOTALL,
+    )
+    if not found:
+        return None
+    parts = [found.group(1), *re.findall(r'(?:situation|atHome): "([^"]*)"', source)]
+    return _PROMPT_GAP.join(parts)
+
+
 class PromptLeakCheck:
     """Any run of SHINGLE words from the interpreter's system prompt, spoken by the agent, counts as a leak.
     Runs the agent's own fixed lines also contain (the prompt paraphrases its questions) don't count."""
@@ -212,9 +229,9 @@ class PromptLeakCheck:
     def from_repo(cls) -> "PromptLeakCheck":
         agent = REPO / "voice" / "agent"
         source = agent / "interpreter.ts"
-        found = re.search(r"const SYSTEM = `(.*?)`;", source.read_text(), re.DOTALL) if source.exists() else None
+        prompt = _interpreter_prompt(source.read_text()) if source.exists() else None
         own = [agent / "script.ts", *sorted((agent / "lines").glob("*.ts"))]
-        return cls(found.group(1) if found else None, "\n".join(p.read_text() for p in own if p.exists()))
+        return cls(prompt, "\n".join(p.read_text() for p in own if p.exists()))
 
     def leaked(self, text: str) -> bool | None:
         if self.shingles is None:
