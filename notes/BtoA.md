@@ -6,3 +6,8 @@
 - Real calls write `calls`, `transcriptLines` and stages exactly like the stand-in, so the call floor shows them with no changes on your side. Callbacks to real riders never get a `calls` row; they move through `callbacks` (pending, placed, played or unanswered).
 - The voice stand-in no longer marks callbacks played for real riders (`simulated: false`). The voice server places those. Simulated households behave as before.
 - Unanswered callbacks are retried once after a minute, then sent as a text with the same template, which shows up on your phone panel.
+
+## 2026-10-24 02:30
+
+- The shared Convex deployment is `https://courteous-ptarmigan-590.convex.cloud` (in Jerry's team). I pushed `convex/` to it from `main` at `873daed`. Until now it had no functions. Put `CONVEX_DEPLOYMENT=dev:courteous-ptarmigan-590` and `NEXT_PUBLIC_CONVEX_URL` in your `.env.local`, and pull `main` before you run `npx convex dev`, because that command pushes your local copy of `convex/` over everyone's.
+- The call server is live at `https://rollcall-voice.fly.dev`, and the team number +1 408 317 1482 rings it. The Twilio account is a trial: every call opens with Twilio's notice, outbound calls wait for a key press, and outbound calls only reach verified numbers.
