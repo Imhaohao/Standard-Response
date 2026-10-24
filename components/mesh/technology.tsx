@@ -4,6 +4,7 @@ import { DEFAULT_CROWD } from "@/lib/crowd/langevin";
 import { DEFAULT_DEPARTURE } from "@/lib/crowd/departure";
 import { DEFAULT_TRAINING, FEATURE_NAMES, UPLOAD_MIN_MASS } from "@/lib/mesh/federated";
 import { ROUND_MASS } from "@/lib/mesh/rounds";
+import { Tag } from "../ui/tag";
 
 // The technologies behind the mesh add-on's screens, named the same way everywhere they appear:
 // a tag on every panel that uses one, and a "How it works" note that says what it does.
@@ -73,8 +74,8 @@ export function EntryTags({ entries, className = "px-3 pb-1" }: { entries: Entry
   return (
     <ul className={`flex flex-wrap gap-1 ${className}`} aria-label="Technology">
       {entries.map((entry) => (
-        <li key={entry.name} title={entry.summary} className="rounded-full bg-panel-raised px-2 py-0.5 text-[0.75rem] font-semibold leading-tight text-on-panel">
-          {entry.name}
+        <li key={entry.name}>
+          <Tag title={entry.summary}>{entry.name}</Tag>
         </li>
       ))}
     </ul>
@@ -86,7 +87,7 @@ function Explanation({ entry, children }: { entry: Entry; children?: ReactNode }
     <div className="flex flex-col gap-2">
       <p className="type-small">{entry.summary}</p>
       {children && <div className="type-small font-semibold">{children}</div>}
-      {entry.equation && <pre className="whitespace-pre-wrap rounded-lg bg-panel-raised px-2 py-1.5 font-mono text-[0.75rem] leading-snug">{entry.equation}</pre>}
+      {entry.equation && <pre className="whitespace-pre-wrap rounded-lg bg-panel-raised px-2 py-1.5 type-caption font-mono">{entry.equation}</pre>}
       <ul className="flex list-disc flex-col gap-1 pl-4">
         {entry.points.map((point) => (
           <li key={point} className="type-small text-on-panel-muted">

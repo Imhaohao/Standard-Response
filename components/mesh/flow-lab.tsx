@@ -4,7 +4,9 @@ import { Pause, Play } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
+import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,7 @@ const END_MINUTES = 300;
 const CHECKPOINT_MINUTES = 10;
 const FRAME_BUDGET_MS = 24;
 const RENDER_EVERY_MS = 100;
-const SPEEDS = [1, 3, 8] as const;
+const SPEEDS = [1, 3, 8].map((times) => ({ value: String(times), label: `${times}×` }));
 
 type Comparison = { meshOn: Range; meshOff: Range; difference: Range };
 type FlowResults = { label: string; seeds: number; householdsPerRun: number; results: Record<string, Comparison> };
@@ -237,26 +239,20 @@ function Controls(props: {
 }) {
   const { world, playing, speed, mesh, mode } = props;
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center gap-2 border border-panel-raised bg-panel/96 p-1.5 text-on-panel backdrop-blur-md">
-      <Button variant="onPanel" className="!h-9" onClick={() => props.onPlaying(!playing)} aria-label={playing ? "Pause" : "Play"}>
+    <ChromeSurface className="flex flex-wrap items-center gap-2 p-1.5">
+      <Button variant="onPanel" size="sm" square onClick={() => props.onPlaying(!playing)} aria-label={playing ? "Pause" : "Play"}>
         {playing ? <Pause weight="fill" className="size-4" /> : <Play weight="fill" className="size-4" />}
       </Button>
       <span className="type-figure w-28 text-center text-lg tabular-nums">{Math.floor(world.minutes)} min</span>
-      {SPEEDS.map((s) => (
-        <Button key={s} variant={s === speed ? "onPanel" : "onPanelQuiet"} className="!h-9 !px-3" onClick={() => props.onSpeed(s)}>
-          {s}×
-        </Button>
-      ))}
+      <SegmentedControl options={SPEEDS} value={String(speed)} onChange={(next) => props.onSpeed(Number(next))} ariaLabel="Playback speed" />
       <div className="w-52">
         <Switch checked={mesh} onChange={props.onMesh} label="Phones share with each other" />
       </div>
-      <Button variant="onPanelQuiet" className="!h-9" onClick={props.onNewNight}>
+      <Button variant="onPanelQuiet" size="sm" onClick={props.onNewNight}>
         Another night
       </Button>
-      <Button variant="onPanelQuiet" className="!h-9" onClick={() => props.onMode(mode === "ink" ? "paper" : "ink")}>
-        {mode === "ink" ? "Flat" : "3D"}
-      </Button>
-    </div>
+      <MapViewControl mode={mode} onMode={props.onMode} />
+    </ChromeSurface>
   );
 }
 

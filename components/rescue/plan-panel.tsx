@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { formatElapsed, useNow } from "@/lib/time";
 import { Panel } from "../ui/panel";
 import { Switch } from "../ui/switch";
-import { SegmentedControl } from "./segmented-control";
+import { SegmentedControl } from "../ui/segmented-control";
 
 const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools" } as const;
 

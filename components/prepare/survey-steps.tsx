@@ -35,7 +35,7 @@ export function HomeStep({ survey, map, onNext }: { survey: SurveyPhoneState; ma
   return (
     <>
       <h1 className="type-title">Where&apos;s home?</h1>
-      <div className="relative mt-4 h-[44dvh] min-h-64 overflow-hidden rounded-2xl bg-map-paper shadow-[inset_0_0_0_1px_oklch(0_0_0/0.06)]">
+      <div className="relative mt-4 h-[44dvh] min-h-64 overflow-hidden rounded-2xl bg-map-paper shadow-inset-line">
         {map}
         {!survey.home && (
           <span className="type-small pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-on-panel px-3 py-1.5 font-semibold text-panel shadow-float">

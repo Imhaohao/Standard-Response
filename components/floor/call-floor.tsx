@@ -111,7 +111,7 @@ function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
   return (
     <div className="pointer-events-auto flex min-h-0 w-[23rem] max-w-[40vw] shrink-0 flex-col gap-3">
       <ReachPanel />
-      <section className={`flex min-h-0 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float ${open ? "flex-1" : ""}`}>
+      <section className={`flex min-h-0 flex-col overflow-hidden card ${open ? "flex-1" : ""}`}>
         <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
           <TabButton active={tab === "lines"} onClick={() => setTab("lines")}>
             On the phone <span className="tabular-nums text-on-panel-muted">{floor.calls.length}</span>

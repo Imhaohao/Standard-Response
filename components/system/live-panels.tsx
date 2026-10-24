@@ -9,7 +9,7 @@ import { formatClock } from "@/lib/time";
 import { AnimatedNumber } from "../ui/animated-number";
 import { Panel } from "../ui/panel";
 import { Disclosure } from "./disclosure";
-import { Tag } from "./range";
+import { Tag } from "../ui/tag";
 
 const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools" } as const;
 

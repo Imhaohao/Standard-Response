@@ -52,7 +52,7 @@ function ApproveButton({ assignment }: { assignment: Assignment }) {
       variant="onPanel"
       aria-label="Approve this van"
       title="Approve this van"
-      className="!size-7 !rounded-lg !p-0"
+      size="sm" square
       onClick={(event) => {
         event.stopPropagation();
         void approve({ assignmentId: assignment._id });
@@ -201,7 +201,7 @@ function ApproveAll({ proposed }: { proposed: Assignment[] }) {
   const approve = useMutation(api.offers.approve);
   if (proposed.length === 0) return null;
   return (
-    <Button variant="onPanel" className="!h-8 !rounded-lg !px-3 !text-sm" onClick={() => void Promise.all(proposed.map((a) => approve({ assignmentId: a._id })))}>
+    <Button variant="onPanel" size="sm" onClick={() => void Promise.all(proposed.map((a) => approve({ assignmentId: a._id })))}>
       Approve {proposed.length} vans
     </Button>
   );

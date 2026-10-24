@@ -10,6 +10,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { formatClock } from "@/lib/time";
 import { AppBar } from "../ui/app-bar";
 import { PanelEmpty } from "../ui/panel";
+import { Tag } from "../ui/tag";
 import { answerMeaning, placeTexts, threadStatus } from "./thread-model";
 
 type Thread = FunctionReturnType<typeof api.texts.threads>[number];
@@ -179,7 +180,7 @@ function ReplyBar({ thread }: { thread: Thread }) {
 // SMS registration has not cleared; real texts would land on the rider's own phone.
 function Handset({ thread }: { thread: Thread | undefined }) {
   return (
-    <div className="flex h-[min(46rem,calc(100dvh-7rem))] w-[22rem] max-w-full flex-col overflow-hidden rounded-[2.75rem] bg-map-ink p-2.5 shadow-[0_30px_80px_oklch(0_0_0/0.28)]">
+    <div className="flex h-[min(46rem,calc(100dvh-7rem))] w-[22rem] max-w-full flex-col overflow-hidden rounded-[2.75rem] bg-map-ink p-2.5 shadow-handset">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2.25rem] bg-surface">
         <header className="flex flex-col items-center gap-1 border-b border-line px-4 pt-6 pb-3">
           <span className="grid size-10 place-items-center rounded-full bg-ink text-canvas">
@@ -209,10 +210,10 @@ export function PhonePanel() {
   return (
     <div className="flex h-[100dvh] flex-col bg-map-paper">
       <AppBar>
-        <span className="type-small bg-panel-raised px-2 py-1 font-semibold text-on-panel-muted">Simulated: SMS registration hasn&apos;t cleared</span>
+        <Tag>Simulated: SMS registration hasn&apos;t cleared</Tag>
       </AppBar>
       <main className="flex min-h-0 flex-1 gap-6 p-4">
-        <section aria-label="Text threads" className="flex w-80 shrink-0 flex-col bg-panel text-on-panel">
+        <section aria-label="Text threads" className="card flex w-80 shrink-0 flex-col overflow-hidden">
           <h2 className="type-small flex min-h-10 items-center border-b border-panel-raised px-3 font-bold">Texts ({threads.length})</h2>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <ThreadList threads={threads} current={thread?.householdId} onPick={setSelected} />

@@ -28,7 +28,7 @@ export function Switch({
         }`}
       >
         <span
-          className={`size-5 rounded-full bg-panel shadow-[0_1px_2px_oklch(0.3_0.02_60/0.3)] transition-transform duration-150 ease-[var(--ease-standard)] ${
+          className={`size-5 rounded-full bg-panel shadow-knob transition-transform duration-150 ease-[var(--ease-standard)] ${
             checked ? "translate-x-4" : "translate-x-0"
           }`}
         />

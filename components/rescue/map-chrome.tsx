@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowClockwise, ArrowCounterClockwise, Check, Cube, Cursor, Fire, FireExtinguisher, Icon, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowCounterClockwise, Check, Cursor, Fire, FireExtinguisher, Icon, Path, RoadHorizon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
+import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
+import type { SurfaceMode } from "@/components/map/map-stage";
 import { FireClock } from "@/lib/ink-map/hazard";
 import { Crews, FireResponse } from "@/lib/ink-map/ignition";
 import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
-import { SegmentedControl } from "./segmented-control";
+import { SegmentedControl } from "../ui/segmented-control";
 import type { ZoneDraft } from "./use-drawing-tools";
 
 export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
@@ -14,7 +16,6 @@ export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
 }
 
 export type MapTool = "look" | "zone" | "closure" | "ignite";
-type MapMode = "ink" | "paper";
 
 const TOOLS = [
   { value: "look", label: "Look around", Icon: Cursor },
@@ -22,16 +23,6 @@ const TOOLS = [
   { value: "closure", label: "Close a road", Icon: RoadHorizon },
   { value: "ignite", label: "Start a fire", Icon: Fire },
 ] as const;
-
-const MODES = [
-  { value: "ink", label: "3D", Icon: Cube },
-  { value: "paper", label: "Flat", Icon: MapTrifold },
-] as const;
-
-// The surface every bar along the bottom of the map shares.
-export function ChromeSurface({ className = "", children }: { className?: string; children: ReactNode }) {
-  return <div className={`pointer-events-auto rounded-2xl bg-panel/96 text-on-panel shadow-float backdrop-blur-md ${className}`}>{children}</div>;
-}
 
 export function MapToolbar({
   tool,
@@ -41,9 +32,9 @@ export function MapToolbar({
   children,
 }: {
   tool: MapTool;
-  mode: MapMode;
+  mode: SurfaceMode;
   onTool: (tool: MapTool) => void;
-  onMode: (mode: MapMode) => void;
+  onMode: (mode: SurfaceMode) => void;
   children?: ReactNode;
 }) {
   return (
@@ -51,7 +42,7 @@ export function MapToolbar({
       {children}
       <ChromeSurface className="flex items-center gap-2 p-1.5">
         <SegmentedControl options={TOOLS} value={tool} onChange={onTool} ariaLabel="Map tool" />
-        <SegmentedControl options={MODES} value={mode} onChange={onMode} ariaLabel="Map view" />
+        <MapViewControl mode={mode} onMode={onMode} />
       </ChromeSurface>
     </div>
   );
@@ -100,7 +91,7 @@ export function DrawingHint({
   if (tool === "look") return status ? <HintSurface><span className="pr-2">{status}</span></HintSurface> : null;
   return (
     <HintSurface>
-      <span className="pr-2">{zoneInstruction(zone)}</span>
+      <span className="pr-2">{status || zoneInstruction(zone)}</span>
       {zone && zone.corners.length > 0 && <HintAction Icon={ArrowCounterClockwise} label="Undo corner" onClick={onUndo} />}
       {zone && zone.corners.length >= 3 && <HintAction Icon={Check} label="Save zone" onClick={onSave} />}
     </HintSurface>
@@ -189,7 +180,7 @@ export function FireScrubber({ clock, children }: { clock: FireClock; children?:
           +{scenarioClock(clock.minutes)}
         </span>
         {clock.scrubbing && (
-          <Button variant="onPanel" className="!h-8 !rounded-lg !px-2.5 !text-xs" onClick={clock.follow}>
+          <Button variant="onPanel" size="sm" onClick={clock.follow}>
             <ArrowClockwise weight="bold" className="size-3.5" />
             Back to now
           </Button>

@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { RangeTrack, Tag } from "./range";
+import { Tag } from "../ui/tag";
+import { RangeTrack } from "./range";
 import { Results, percent } from "./results";
 import { accuracyOf } from "./call-panels";
 import { signed } from "./dispatch-panels";
@@ -16,7 +17,7 @@ type AnswerTileProps = {
 
 function AnswerTile({ figure, unit, label, rangeText, track, tag }: AnswerTileProps) {
   return (
-    <li className="flex min-w-0 flex-col gap-3 rounded-2xl bg-panel p-5 text-on-panel shadow-float" title={`Range ${rangeText}`}>
+    <li className="flex min-w-0 flex-col gap-3 card p-5" title={`Range ${rangeText}`}>
       <p className="flex items-baseline gap-1.5">
         <span className="type-figure text-6xl">{figure}</span>
         {unit && <span className="type-title text-on-panel-muted">{unit}</span>}

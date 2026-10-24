@@ -6,7 +6,7 @@ import { ChangeCasesDisclosure, CorrectionsDisclosure, FieldAccuracyDisclosure, 
 import { CloseRoadPanel } from "./close-road";
 import { DoorFairnessDisclosure, SimulatorDisclosure } from "./dispatch-panels";
 import { AuditDisclosure, CallbacksDisclosure, PlanDisclosure, RequestPipeline, useCallbackSpread } from "./live-panels";
-import { Tag } from "./range";
+import { Tag } from "../ui/tag";
 import { useResults } from "./results";
 
 // Four answers a judge asks for first, the live demo controls, then everything behind disclosures.

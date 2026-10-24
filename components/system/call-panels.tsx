@@ -4,7 +4,8 @@ import { useQuery } from "convex/react";
 import { CheckCircle, ListChecks, ShieldCheck, Target, Timer, XCircle } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Disclosure } from "./disclosure";
-import { RangeRow, Tag } from "./range";
+import { Tag } from "../ui/tag";
+import { RangeRow } from "./range";
 import { ChangeCases, Evaluation, Honesty, percent, Rate } from "./results";
 
 const PLAN_FIELDS = [

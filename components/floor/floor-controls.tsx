@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Hazard } from "@/convex/hazards";
-import { SegmentedControl } from "../rescue/segmented-control";
+import { SegmentedControl } from "../ui/segmented-control";
 import { AnimatedNumber } from "../ui/animated-number";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -24,7 +24,7 @@ const ICON_SWAP = {
 function DialerToggle({ running }: { running: boolean }) {
   const setDialer = useMutation(api.control.setDialer);
   return (
-    <Button variant="onPanel" onClick={() => void setDialer({ running: !running })} className="!h-8 w-[6.5rem]">
+    <Button variant="onPanel" onClick={() => void setDialer({ running: !running })} size="sm" className="w-[6.5rem]">
       <span className="relative size-4">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.span key={running ? "pause" : "play"} className="absolute inset-0" {...ICON_SWAP}>
@@ -41,14 +41,14 @@ function LineStepper({ value }: { value: number }) {
   const setMax = useMutation(api.control.setMaxConcurrentCalls);
   return (
     <div className="flex items-center" role="group" aria-label="Open phone lines">
-      <Button variant="onPanelQuiet" className="!h-8 w-8 !px-0" aria-label="Close two lines" onClick={() => void setMax({ value: value - 2 })}>
+      <Button variant="onPanelQuiet" size="sm" square aria-label="Close two lines" onClick={() => void setMax({ value: value - 2 })}>
         <Minus weight="bold" className="size-4" />
       </Button>
       <span className="flex w-16 items-baseline justify-center gap-1">
         <AnimatedNumber value={value} className="type-figure text-lg" />
         <span className="type-small text-on-panel-muted">lines</span>
       </span>
-      <Button variant="onPanelQuiet" className="!h-8 w-8 !px-0" aria-label="Open two more lines" onClick={() => void setMax({ value: value + 2 })}>
+      <Button variant="onPanelQuiet" size="sm" square aria-label="Open two more lines" onClick={() => void setMax({ value: value + 2 })}>
         <Plus weight="bold" className="size-4" />
       </Button>
     </div>
@@ -116,12 +116,12 @@ function StandIns({ control }: { control: ControlState }) {
   const real = STAND_INS.filter((entry) => control[entry.key] === false).length;
   return (
     <div ref={ref} className="relative">
-      <Button variant="onPanelQuiet" className="!h-8" aria-label="Stand-ins" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button variant="onPanelQuiet" size="sm" aria-label="Stand-ins" aria-expanded={open} onClick={() => setOpen(!open)}>
         <SlidersHorizontal weight="bold" className="size-4" />
         <span className="tabular-nums">{real}/{STAND_INS.length} real</span>
       </Button>
       {open && (
-        <div className="absolute top-full right-0 z-30 mt-2 flex w-80 flex-col bg-panel text-on-panel shadow-[0_0_0_1px_var(--panel-raised),0_16px_40px_oklch(0_0_0/0.35)]">
+        <div className="absolute top-full right-0 z-30 mt-2 flex w-80 flex-col bg-panel text-on-panel shadow-popover">
           {STAND_INS.map((entry) => (
             <Switch
               key={entry.key}
@@ -168,7 +168,7 @@ export function FloorControls({ control }: { control: ControlState | undefined }
     <>
       <div className="flex items-center gap-2 bg-panel-raised/60 pr-2">
         <LineStepper value={control.maxConcurrentCalls} />
-        <Button variant="onPanelQuiet" className="!h-8" onClick={() => void surge({})}>
+        <Button variant="onPanelQuiet" size="sm" onClick={() => void surge({})}>
           <PhoneIncoming weight="bold" className="size-4" />
           Inbound surge
         </Button>

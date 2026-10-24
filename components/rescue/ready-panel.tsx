@@ -91,14 +91,14 @@ function CampaignButton({ running, started }: { running: boolean; started: boole
   const stop = useMutation(api.ready.stop);
   if (running) {
     return (
-      <Button variant="onPanelQuiet" className="!h-8 !px-3" onClick={() => void stop()}>
+      <Button variant="onPanelQuiet" size="sm" onClick={() => void stop()}>
         <PhoneCall weight="fill" className="size-4 motion-safe:animate-ringing" />
         Pause calls
       </Button>
     );
   }
   return (
-    <Button variant="onPanel" className="!h-8 !px-3" onClick={() => void start()}>
+    <Button variant="onPanel" size="sm" onClick={() => void start()}>
       <PhoneCall weight="bold" className="size-4" />
       {started ? "Call the rest" : "Call every home"}
     </Button>

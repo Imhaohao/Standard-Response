@@ -6,10 +6,10 @@ import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
+import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { Frame, TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
-import { Button } from "@/components/ui/button";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
 import { LatLng } from "@/lib/geo";
 import { createProjection, Point } from "@/lib/ink-map/data";
@@ -147,7 +147,7 @@ function AreaPanel({ counts, area }: { counts: Counts | undefined; area: string 
           <div key={id} className="flex items-center justify-between gap-3">
             <dt className="type-small min-w-0 text-on-panel-muted">
               {label}
-              <span className="block text-[0.75rem]">{Math.round(estimates[id].answered)} answered</span>
+              <span className="type-caption block">{Math.round(estimates[id].answered)} answered</span>
             </dt>
             <dd>
               <Interval estimate={estimates[id]} />
@@ -251,14 +251,12 @@ export function CountyView() {
           </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
-          <div className="flex items-center gap-3 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
+          <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
             <span className="type-small">
               Darker block group: more households say &ldquo;{itemLabel.toLowerCase()}&rdquo;. Empty: fewer than {MIN_ANSWERS} answers.
             </span>
-            <Button variant="onPanelQuiet" className="!h-8" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
-              {mode === "ink" ? "Flat" : "3D"}
-            </Button>
-          </div>
+            <MapViewControl mode={mode} onMode={setMode} />
+          </ChromeSurface>
         </div>
       </div>
     </div>

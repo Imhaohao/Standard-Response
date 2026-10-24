@@ -46,7 +46,7 @@ export function Panel({
   const desk = useDeskPanel(title, sectionRef);
 
   return (
-    <section ref={sectionRef} style={desk?.style} className={`flex min-w-0 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float ${desk?.minimized ? "shrink-0" : ""} ${className}`}>
+    <section ref={sectionRef} style={desk?.style} className={`flex min-w-0 flex-col overflow-hidden card ${desk?.minimized ? "shrink-0" : ""} ${className}`}>
       <header
         onPointerDown={desk?.onHandlePointerDown}
         onDoubleClick={desk?.floating ? desk.dock : undefined}

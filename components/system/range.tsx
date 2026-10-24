@@ -35,7 +35,3 @@ export function RangeRow({
   );
 }
 
-// A teammate-required caveat, kept visible as a chip.
-export function Tag({ children }: { children: ReactNode }) {
-  return <span className="type-small inline-flex w-fit items-center rounded-full bg-panel-raised px-2.5 py-0.5 text-on-panel-muted">{children}</span>;
-}

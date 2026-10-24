@@ -6,10 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoLine } from "@/components/map/layers";
+import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
-import { Button } from "@/components/ui/button";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
 import { ScenarioGeoJson } from "@/lib/ink-map/fire-field";
 import { SIM_MINUTES_PER_SECOND, useFireClock, useHazard } from "@/lib/ink-map/hazard";
@@ -192,12 +192,10 @@ export function AgencyView() {
           </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
-          <div className="flex items-center gap-3 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
+          <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
             <span className="type-small">Heavy broken line: reported blocked (phone mesh). Thin line: reported open. Dotted: estimate, nobody has reported it (federated learning). Wide soft band: forecast slow traffic, darker is slower (Langevin dynamics).</span>
-            <Button variant="onPanelQuiet" className="!h-8" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
-              {mode === "ink" ? "Flat" : "3D"}
-            </Button>
-          </div>
+            <MapViewControl mode={mode} onMode={setMode} />
+          </ChromeSurface>
         </div>
       </div>
     </div>

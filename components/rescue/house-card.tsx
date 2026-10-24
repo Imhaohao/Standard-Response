@@ -136,7 +136,7 @@ export function HouseCard({ householdId, at, onClose }: { householdId: string; a
     <section
       aria-label={`Household at ${card.address}`}
       style={{ left, top, width: CARD_WIDTH }}
-      className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 rounded-2xl bg-panel p-4 text-on-panel shadow-float"
+      className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4"
     >
       <CardBody card={card} onClose={onClose} />
     </section>

@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { ChangeEvent, useState } from "react";
 import { UploadSimple } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
-import { ChromeSurface } from "./map-chrome";
+import { ChromeSurface } from "@/components/map/map-bar";
 
 // A rider list a partner agency hands over as a CSV. Imported riders are real, so the voice
 // stand-in leaves them alone and they wait for the real dialer.

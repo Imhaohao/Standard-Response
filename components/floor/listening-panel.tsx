@@ -122,7 +122,7 @@ export function ListeningPanel({
 }) {
   const detail = useQuery(api.calls.detail, callId ? { callId } : "skip");
   const follow = pinned && (
-    <Button variant="onPanelQuiet" className="!h-7 !px-2.5 !text-xs" onClick={onFollowLive}>
+    <Button variant="onPanelQuiet" size="sm" onClick={onFollowLive}>
       <Headphones weight="bold" className="size-4" />
       Follow live
     </Button>
@@ -132,7 +132,7 @@ export function ListeningPanel({
 
   const { call, household, lines } = detail;
   return (
-    <section aria-label="Listening in" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float">
+    <section aria-label="Listening in" className="flex min-h-0 flex-1 flex-col overflow-hidden card">
       <header className="flex flex-col gap-2.5 border-b border-panel-raised p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col">

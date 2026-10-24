@@ -8,6 +8,7 @@ import { LatLng } from "@/lib/geo";
 import { Button } from "../ui/button";
 import { HomePicker } from "./home-picker";
 import { ASSIST_LABELS, Assistance, Bedroom, BedroomDiagram, bedroomLabel, CARE_OPTIONS, CareNeed, EXIT_OPTIONS, ExitPlan, InsideFacts, Mobility, MOBILITY_OPTIONS } from "./profile";
+import { PhoneScreen } from "@/components/ui/phone-screen";
 
 // A household signs itself up for the Ready check on its own phone: one question a screen, big
 // targets, nothing to type that a tap can answer. The agent calls back to confirm before it counts.
@@ -112,11 +113,11 @@ function PeopleStep({ answers, set }: StepProps) {
       <div className="flex flex-col gap-1.5">
         <span className="type-small font-semibold">People living here</span>
         <div className="flex items-center justify-between rounded-2xl bg-surface-sunk p-2">
-          <Button variant="quiet" className="!size-14 !bg-surface !px-0" aria-label="One fewer" onClick={() => set({ peopleCount: Math.max(1, answers.peopleCount - 1) })}>
+          <Button variant="quiet" size="lg" square className="!bg-surface" aria-label="One fewer" onClick={() => set({ peopleCount: Math.max(1, answers.peopleCount - 1) })}>
             <Minus weight="bold" className="size-6" />
           </Button>
           <span className="type-figure text-5xl tabular-nums">{answers.peopleCount}</span>
-          <Button variant="quiet" className="!size-14 !bg-surface !px-0" aria-label="One more" onClick={() => set({ peopleCount: answers.peopleCount + 1 })}>
+          <Button variant="quiet" size="lg" square className="!bg-surface" aria-label="One more" onClick={() => set({ peopleCount: answers.peopleCount + 1 })}>
             <Plus weight="bold" className="size-6" />
           </Button>
         </div>
@@ -255,7 +256,7 @@ function Done({ answers, onAgain }: { answers: Answers; onAgain: () => void }) {
       <CheckCircle weight="fill" className="size-14" />
       <h1 className="type-display">You&apos;re on the Ready list</h1>
       <p className="type-body text-ink-muted">We&apos;ll call {answers.phone} to confirm. If an evacuation is ever ordered, we call {answers.exitPlan === "helper" ? answers.helperName : "you"} first, and send a van if that falls through.</p>
-      <div className="rounded-2xl bg-panel p-4 shadow-float">
+      <div className="card p-4">
         <InsideFacts ready={{ at: 0, via: "form", verified: false, exitPlan: answers.exitPlan!, bedroom: answers.bedroom, care: answers.care, note: answers.note.trim() || undefined }} />
       </div>
       <Button variant="quiet" className="self-start" onClick={onAgain}>
@@ -297,34 +298,32 @@ export function ReadySignUp() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-map-paper">
-      <main className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-canvas text-ink shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_24px_60px_oklch(0_0_0/0.18)]">
-        {sent ? (
-          <Done answers={answers} onAgain={() => { setAnswers(START); setStep(0); setSent(false); }} />
-        ) : (
-          <>
-            <header className="flex flex-col gap-4 px-5 pt-6 pb-4">
-              <Progress step={step} />
-              <h1 className="type-title text-2xl">{current.title}</h1>
-            </header>
-            <div className="flex-1 px-5 pb-28">
-              <current.Body answers={answers} set={set} />
-            </div>
-            {error && <p role="alert" className="type-small px-5 pb-2 text-signal">{error}</p>}
-            <footer className="sticky bottom-0 flex items-center gap-3 bg-canvas/95 px-5 py-4 backdrop-blur-md">
-              {step > 0 && (
-                <Button variant="quiet" size="lg" aria-label="Back" className="!px-4" onClick={() => setStep(step - 1)}>
-                  <ArrowLeft weight="bold" className="size-5" />
-                </Button>
-              )}
-              <Button size="lg" className="flex-1" disabled={!current.ready(answers)} onClick={() => void next()}>
-                {last ? "Put us on the Ready list" : "Next"}
-                {!last && <ArrowRight weight="bold" className="size-5" />}
+    <PhoneScreen surface="canvas">
+      {sent ? (
+        <Done answers={answers} onAgain={() => { setAnswers(START); setStep(0); setSent(false); }} />
+      ) : (
+        <>
+          <header className="flex flex-col gap-4 px-5 pt-6 pb-4">
+            <Progress step={step} />
+            <h1 className="type-title text-2xl">{current.title}</h1>
+          </header>
+          <div className="flex-1 px-5 pb-28">
+            <current.Body answers={answers} set={set} />
+          </div>
+          {error && <p role="alert" className="type-small px-5 pb-2 text-signal">{error}</p>}
+          <footer className="sticky bottom-0 flex items-center gap-3 bg-canvas/95 px-5 py-4 backdrop-blur-md">
+            {step > 0 && (
+              <Button variant="quiet" size="lg" square aria-label="Back" onClick={() => setStep(step - 1)}>
+                <ArrowLeft weight="bold" className="size-5" />
               </Button>
-            </footer>
-          </>
-        )}
-      </main>
-    </div>
+            )}
+            <Button size="lg" className="flex-1" disabled={!current.ready(answers)} onClick={() => void next()}>
+              {last ? "Put us on the Ready list" : "Next"}
+              {!last && <ArrowRight weight="bold" className="size-5" />}
+            </Button>
+          </footer>
+        </>
+      )}
+    </PhoneScreen>
   );
 }

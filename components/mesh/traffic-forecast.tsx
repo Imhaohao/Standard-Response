@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { GeoLine } from "@/components/map/layers";
-import { SegmentedControl } from "@/components/rescue/segmented-control";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
 import { SIM_MINUTES_PER_SECOND } from "@/lib/ink-map/hazard";
 import { SEGMENTS } from "@/lib/mesh/roads";
@@ -91,10 +91,10 @@ function CarsChart({ forecast, windowIndex }: { forecast: Forecast; windowIndex:
       >
         {span && <rect x={x(span.from)} y={CHART.top} width={x(span.to) - x(span.from)} height={CHART.height - CHART.top - CHART.bottom} fill="var(--panel-raised)" />}
         <line x1={CHART.left} x2={CHART.width - CHART.right} y1={y(0)} y2={y(0)} stroke="var(--on-panel-muted)" strokeOpacity={0.4} />
-        <text x={CHART.left - 4} y={y(top) + 4} textAnchor="end" className="fill-on-panel-muted text-[10px] tabular-nums">{Math.round(top).toLocaleString()}</text>
-        <text x={CHART.left - 4} y={y(0)} textAnchor="end" className="fill-on-panel-muted text-[10px]">0</text>
+        <text x={CHART.left - 4} y={y(top) + 4} textAnchor="end" className="type-caption fill-on-panel-muted tabular-nums">{Math.round(top).toLocaleString()}</text>
+        <text x={CHART.left - 4} y={y(0)} textAnchor="end" className="type-caption fill-on-panel-muted">0</text>
         {[0, 30, 60].map((minute) => (
-          <text key={minute} x={x(minute)} y={CHART.height - 4} textAnchor={minute === 0 ? "start" : minute === 60 ? "end" : "middle"} className="fill-on-panel-muted text-[10px] tabular-nums">
+          <text key={minute} x={x(minute)} y={CHART.height - 4} textAnchor={minute === 0 ? "start" : minute === 60 ? "end" : "middle"} className="type-caption fill-on-panel-muted tabular-nums">
             {minute === 0 ? "now" : `+${minute} min`}
           </text>
         ))}

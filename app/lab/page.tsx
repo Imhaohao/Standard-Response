@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
+import { MapViewControl } from "@/components/map/map-bar";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useHazard } from "@/lib/ink-map/hazard";
@@ -27,9 +28,7 @@ export default function Lab() {
   return (
     <div className="flex h-[100dvh] w-full flex-col">
       <div className="flex items-center gap-4 border-b border-line px-4 py-2">
-        <button className="type-small font-semibold" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
-          {mode === "ink" ? "Flat view" : "3D view"}
-        </button>
+        <MapViewControl mode={mode} onMode={setMode} />
         <input
           type="range"
           min={0}

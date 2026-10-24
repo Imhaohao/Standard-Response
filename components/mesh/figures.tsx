@@ -10,7 +10,7 @@ export function Figure({ label, value, tone, hint }: { label: string; value: Rea
     <div className="flex items-baseline justify-between gap-3">
       <dt className="type-small min-w-0 text-on-panel-muted">
         {label}
-        {hint && <span className="block text-[0.75rem] leading-tight opacity-80">{hint}</span>}
+        {hint && <span className="type-caption block opacity-80">{hint}</span>}
       </dt>
       <dd className={`type-small shrink-0 font-semibold tabular-nums ${tone === "signal" ? "text-signal" : ""}`}>{value}</dd>
     </div>

@@ -18,6 +18,7 @@ import { Switch } from "../ui/switch";
 import { PairingCard } from "./pairing";
 import { HowItWorks, TechTags } from "./technology";
 import { MeshPhone, useMeshPhone } from "./use-mesh-phone";
+import { PhoneScreen } from "@/components/ui/phone-screen";
 
 const INK = "var(--map-ink)";
 const PAPER = "var(--map-paper)";
@@ -234,34 +235,32 @@ export function PhoneMesh() {
   const pick = useCallback((point: Point) => setSelected(nearestSegment(projection.toLatLng(point))?.key ?? null), [projection]);
 
   return (
-    <div className="min-h-[100dvh] bg-map-paper">
-      <main className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-panel text-on-panel shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_24px_60px_oklch(0_0_0/0.18)]">
-        <Header phone={phone} />
-        <div className="relative h-[38dvh] min-h-64 overflow-hidden">
-          {data ? (
-            <MapStage data={data} view={VIEW} mode="paper" onPick={pick} interactive className="absolute inset-0">
-              <StreetLayer phone={phone} selected={selected} />
-            </MapStage>
-          ) : (
-            <p className="type-small grid h-full place-items-center bg-map-paper text-ink-muted">Loading the map…</p>
-          )}
-        </div>
-        <div className="flex flex-col divide-y divide-panel-raised">
-          <StreetCard phone={phone} segment={selected} onDone={() => setSelected(null)} />
-          <NearbyCard phone={phone} />
-          <PairingCard addLink={phone.addLink} links={phone.links} />
-          <SharingCard phone={phone} />
-          <ReportList phone={phone} />
-          <nav className="flex justify-between gap-3 px-4 py-4">
-            <Link href="/flow" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
-              Simulated night
-            </Link>
-            <Link href="/mesh/agency" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
-              What the agency received
-            </Link>
-          </nav>
-        </div>
-      </main>
-    </div>
+    <PhoneScreen>
+      <Header phone={phone} />
+      <div className="relative h-[38dvh] min-h-64 overflow-hidden">
+        {data ? (
+          <MapStage data={data} view={VIEW} mode="paper" onPick={pick} interactive className="absolute inset-0">
+            <StreetLayer phone={phone} selected={selected} />
+          </MapStage>
+        ) : (
+          <p className="type-small grid h-full place-items-center bg-map-paper text-ink-muted">Loading the map…</p>
+        )}
+      </div>
+      <div className="flex flex-col divide-y divide-panel-raised">
+        <StreetCard phone={phone} segment={selected} onDone={() => setSelected(null)} />
+        <NearbyCard phone={phone} />
+        <PairingCard addLink={phone.addLink} links={phone.links} />
+        <SharingCard phone={phone} />
+        <ReportList phone={phone} />
+        <nav className="flex justify-between gap-3 px-4 py-4">
+          <Link href="/flow" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
+            Simulated night
+          </Link>
+          <Link href="/mesh/agency" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
+            What the agency received
+          </Link>
+        </nav>
+      </div>
+    </PhoneScreen>
   );
 }

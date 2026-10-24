@@ -19,6 +19,7 @@ import { Switch } from "../ui/switch";
 import { HomeStep, QuestionStep, ShareStep, Step, surveySteps } from "./survey-steps";
 import { SurveyHowItWorks } from "./technology";
 import { SurveyPhoneState, useSurveyPhone } from "./use-survey-phone";
+import { PhoneScreen } from "@/components/ui/phone-screen";
 
 const INK = "var(--map-ink)";
 const PAPER = "var(--map-paper)";
@@ -92,7 +93,7 @@ function TopicSummary({ survey, topic, onChange }: { survey: SurveyPhoneState; t
           {answered} of {total} answered. {topicStatus(survey, topic)}.
         </span>
       </span>
-      <Button variant="onPanelQuiet" className="!h-9 !rounded-lg !px-3 !text-xs" onClick={onChange}>
+      <Button variant="onPanelQuiet" size="sm" onClick={onChange}>
         Change
       </Button>
     </li>
@@ -218,13 +219,11 @@ export function SurveyPhoneView() {
   const jumpToTopic = useCallback((topic: Topic) => go(STEPS.findIndex((candidate) => candidate.kind === "question" && candidate.topic === topic)), [go]);
 
   return (
-    <div className="min-h-[100dvh] bg-map-paper">
-      <main className="relative mx-auto flex min-h-[100dvh] max-w-md flex-col bg-panel text-on-panel shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_24px_60px_oklch(0_0_0/0.18)]">
-        <Header survey={survey} step={step} onBack={step > 0 ? () => go(step - 1) : null} />
-        <div className="flex flex-1 flex-col px-4 pt-5 pb-6">
-          <StepScreen survey={survey} step={STEPS[step]} onNext={() => go(step + 1)} onJump={jumpToTopic} />
-        </div>
-      </main>
-    </div>
+    <PhoneScreen>
+      <Header survey={survey} step={step} onBack={step > 0 ? () => go(step - 1) : null} />
+      <div className="flex flex-1 flex-col px-4 pt-5 pb-6">
+        <StepScreen survey={survey} step={STEPS[step]} onNext={() => go(step + 1)} onJump={jumpToTopic} />
+      </div>
+    </PhoneScreen>
   );
 }

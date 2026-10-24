@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { DoorOpen, Truck } from "@phosphor-icons/react";
 import { Disclosure } from "./disclosure";
-import { RangeRow, Tag } from "./range";
+import { Tag } from "../ui/tag";
+import { RangeRow } from "./range";
 import { DoorFairness, Simulator, Spread } from "./results";
 
 const COMPARISONS = [

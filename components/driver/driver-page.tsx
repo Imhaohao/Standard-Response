@@ -12,6 +12,7 @@ import { DriverMap } from "./driver-map";
 import { ChangedCard, OfferCard } from "./offer-cards";
 import { RunList } from "./run-list";
 import { pickerOrder, Stop, useDriverBoard, Vehicle, Vehicles } from "./stops";
+import { PhoneScreen } from "@/components/ui/phone-screen";
 
 function useSelectedVehicle(vehicles: Vehicles | undefined) {
   const [selected, setSelected] = useState<Id<"vehicles"> | null>(null);
@@ -151,22 +152,20 @@ export function DriverPage() {
   const [hold, setHold] = useState(false);
 
   return (
-    <div className="min-h-[100dvh] bg-map-paper">
-      <main className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-panel text-on-panel shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_24px_60px_oklch(0_0_0/0.18)]">
-        <div className="z-10 flex flex-col divide-y divide-panel-raised bg-panel/96 backdrop-blur-md">
-          {vehicles && vehicles.length > 0 ? (
-            <div className="flex items-center">
-              <div className="min-w-0 flex-1">
-                <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
-              </div>
-              <DemoSettings hold={hold} onHoldChange={setHold} />
+    <PhoneScreen fitScreen>
+      <div className="z-10 flex flex-col divide-y divide-panel-raised bg-panel/96 backdrop-blur-md">
+        {vehicles && vehicles.length > 0 ? (
+          <div className="flex items-center">
+            <div className="min-w-0 flex-1">
+              <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
             </div>
-          ) : (
-            <Van weight="bold" className="mx-4 my-4 size-6 text-on-panel-muted" aria-label="No vans yet" />
-          )}
-        </div>
-        {selected && <Board key={selected} vehicleId={selected} vehicle={vehicle} hold={hold} />}
-      </main>
-    </div>
+            <DemoSettings hold={hold} onHoldChange={setHold} />
+          </div>
+        ) : (
+          <Van weight="bold" className="mx-4 my-4 size-6 text-on-panel-muted" aria-label="No vans yet" />
+        )}
+      </div>
+      {selected && <Board key={selected} vehicleId={selected} vehicle={vehicle} hold={hold} />}
+    </PhoneScreen>
   );
 }

@@ -14,7 +14,7 @@ function CantMakeIt({ stop }: { stop: Stop }) {
   return (
     <Button
       variant={armed ? "onPanel" : "onPanelQuiet"}
-      className="self-start !h-9 !px-3"
+      size="sm" className="self-start"
       onClick={() => {
         if (!armed) return setArmed(true);
         void cancel({ assignmentId: stop._id });
