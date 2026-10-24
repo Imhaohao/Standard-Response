@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DoorOpen, Truck } from "@phosphor-icons/react";
-import { Disclosure } from "./disclosure";
+import { Disclosure, PendingDisclosure } from "./disclosure";
 import { Tag } from "../ui/tag";
 import { RangeRow } from "./range";
 import { DoorFairness, Simulator, Spread } from "./results";
@@ -18,11 +18,7 @@ const spreadReadout = (spread: Spread) => `${signed(spread.median)} (${signed(sp
 
 export function SimulatorDisclosure({ simulator }: { simulator: Simulator | null }) {
   if (!simulator) {
-    return (
-      <Disclosure icon={Truck} title="Simulator comparisons" fact="–">
-        <p className="type-small text-on-panel-muted">No results file yet.</p>
-      </Disclosure>
-    );
+    return <PendingDisclosure icon={Truck} title="Simulator comparisons" />;
   }
   const whereWeDontHelp = Array.isArray(simulator.whereWeDontHelp) ? simulator.whereWeDontHelp.join(" ") : simulator.whereWeDontHelp;
   return (
@@ -81,11 +77,7 @@ export function DoorFairnessDisclosure({ fairness }: { fairness: DoorFairness | 
   const scenarios = Object.keys(fairness?.results ?? {});
   const [picked, setPicked] = useState<string | null>(null);
   if (!fairness) {
-    return (
-      <Disclosure icon={DoorOpen} title="Door checks" fact="–">
-        <p className="type-small text-on-panel-muted">No results file yet.</p>
-      </Disclosure>
-    );
+    return <PendingDisclosure icon={DoorOpen} title="Door checks" />;
   }
   const scenario = picked ?? scenarios[0];
   const results = fairness.results[scenario];

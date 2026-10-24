@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { CheckCircle, ListChecks, ShieldCheck, Target, Timer, XCircle } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
-import { Disclosure } from "./disclosure";
+import { Disclosure, PendingDisclosure } from "./disclosure";
 import { Tag } from "../ui/tag";
 import { RangeRow } from "./range";
 import { ChangeCases, Evaluation, Honesty, percent, Rate } from "./results";
@@ -28,13 +28,7 @@ function AccuracyRow({ label, rate, emphasis = false }: { label: string; rate: R
   return <RangeRow label={label} value={accuracyOf(rate)} low={rate.ci95[0]} high={rate.ci95[1]} domain={[0.8, 1]} readout={rangeReadout(rate)} emphasis={emphasis} />;
 }
 
-function Pending({ title }: { title: string }) {
-  return (
-    <Disclosure icon={ListChecks} title={title} fact="–">
-      <p className="type-small text-on-panel-muted">No results file yet.</p>
-    </Disclosure>
-  );
-}
+const Pending = ({ title }: { title: string }) => <PendingDisclosure icon={ListChecks} title={title} />;
 
 export function FieldAccuracyDisclosure({ evaluation }: { evaluation: Evaluation | null }) {
   if (!evaluation) return <Pending title="Field by field" />;

@@ -31,11 +31,66 @@ export type Honesty = {
 
 export type SimComparison = { policies: Record<string, Record<string, Spread>>; difference: Record<string, Spread>; differenceMeaning: string; headline: string };
 
+export type SensitivityRow = {
+  factor: string;
+  factorLabel: string;
+  level: number;
+  dispatchOnly: { pickupsOnTimeDifference: Spread };
+  combined: { pickupsOnTimeDifference: Spread };
+};
+
+export type ExplorationScenario = "ownPace" | "withCalls" | "everyoneAtOnce";
+
+export type Exploration = {
+  label: string;
+  question: string;
+  seeds: number;
+  scenarios: Record<ExplorationScenario, Record<string, Spread>>;
+  scenarioMeaning: Record<ExplorationScenario, string>;
+};
+
 export type Simulator = {
   label: string;
   seeds: number;
   results: { dispatchOnly: SimComparison; outreachOnly: SimComparison; combined: SimComparison; todayProcess: { headline: string } };
   whereWeDontHelp?: string | string[];
+  sensitivity?: SensitivityRow[];
+  sensitivitySeeds?: number;
+  exploration?: Exploration;
+};
+
+export type AlignmentEval = {
+  key?: string;
+  name: string;
+  description: string;
+  passed?: number;
+  total?: number;
+  rate?: number;
+  ci95?: Interval;
+  status?: string;
+  byLanguage?: Record<"en" | "es", Record<string, number>>;
+};
+
+export type Alignment = { label: string; grader: string; evals: AlignmentEval[] };
+
+export type VoiceExam = {
+  label: string;
+  verdict: "PASS" | "FAIL";
+  passBar: number;
+  items: number;
+  criticalFailures: number;
+  latencyMs: { p50: number; p95: number; budget: number };
+  modules: { module: string; name: string; measures: string; passed: number; total: number; pass: boolean }[];
+};
+
+export type NeedScores = { auc: MeanSpread; top10Precision: MeanSpread; calibration: MeanSpread };
+
+export type NeedModel = {
+  label: string;
+  censusPriorOnly: NeedScores;
+  chosen: NeedScores & { kernelMeters: number; priorStrength: number };
+  withNominations: NeedScores;
+  readingTheResult: string;
 };
 
 export type DoorFairness = {
@@ -56,6 +111,9 @@ export type Results = {
   honesty: Honesty | null;
   doorFairness: DoorFairness | null;
   changeCases: ChangeCases | null;
+  alignment: Alignment | null;
+  voiceExam: VoiceExam | null;
+  needModel: NeedModel | null;
 };
 
 // The result files Tracks B, C and D write into data/. Re-read every 30 s so a fresh run shows up.

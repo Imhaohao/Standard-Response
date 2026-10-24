@@ -9,6 +9,9 @@ const RESULT_FILES = {
   honesty: "honesty-results.json",
   doorFairness: "door-fairness.json",
   changeCases: "redteam-change-cases.json",
+  alignment: "alignment-results.json",
+  voiceExam: "voice-exam-results.json",
+  needModel: "need-model-results.json",
 } as const;
 
 async function readResult(file: string) {

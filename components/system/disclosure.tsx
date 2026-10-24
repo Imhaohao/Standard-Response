@@ -16,3 +16,12 @@ export function Disclosure({ icon: SummaryIcon, title, fact, children }: { icon:
     </details>
   );
 }
+
+// A panel whose results file hasn't been written yet.
+export function PendingDisclosure({ icon, title }: { icon: Icon; title: string }) {
+  return (
+    <Disclosure icon={icon} title={title} fact="–">
+      <p className="type-small text-on-panel-muted">No results file yet.</p>
+    </Disclosure>
+  );
+}
