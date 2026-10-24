@@ -26,7 +26,7 @@ function useReadyCount() {
   return {
     onFile: homes?.filter((home) => home.exitPlan).length ?? 0,
     total: homes?.length ?? 0,
-    running: control?.readyCheckRunning === true,
+    running: control !== undefined && "readyCheckRunning" in control && control.readyCheckRunning === true,
   };
 }
 
