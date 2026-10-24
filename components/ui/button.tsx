@@ -5,6 +5,7 @@ const VARIANTS = {
   quiet: "bg-surface-sunk text-ink hover:bg-line",
   onPanel: "bg-on-panel text-panel hover:bg-on-panel/88",
   onPanelQuiet: "bg-panel-raised text-on-panel hover:bg-panel-raised/80",
+  onPaper: "bg-map-ink text-map-paper hover:bg-map-ink/88",
 } as const;
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

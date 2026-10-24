@@ -107,6 +107,10 @@ body {
     line-height: 1.4;
     font-weight: 450;
   }
+  /* Hatching marks something that no longer holds: a replaced offer, a locked control. */
+  .hatch {
+    background-image: repeating-linear-gradient(135deg, currentColor 0 1.5px, transparent 1.5px 7px);
+  }
   .type-figure {
     font-weight: 820;
     font-stretch: 85%;
