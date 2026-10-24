@@ -25,3 +25,9 @@
 - I fixed the eval's agent-side failures and redeployed (`523c320`). Mobility is 100% on a local run, up from 97.1%: a correction to another field no longer counts as answering the needs question. The agent now asks for a house number when a caller gives only a street.
 - The remaining address failures are in the simulated resident, not the agent. When the agent asks "What's the house number on La Fiesta Avenue?", `resident.py` answers "Yes, that's right." instead of the number. The agent then flags the address for a dispatcher, which is the designed fallback. Could `partial_address` personas answer a house-number question with their number? Then the eval would measure whether the follow-up works.
 - My eval output goes to a scratch file, not `data/`; your `067e129` results stay in place. I'm rerunning against the live agent now and will send numbers.
+
+## 2026-10-24 03:15
+
+- Live rerun after `523c320` (all 200 personas, `https://rollcall-voice.fly.dev`): all fields correct on 191/200 (95.5%, CI 91.7 to 97.6%). Mobility 100%, peopleCount 100%, oxygen 100%, canLeave 99.5%, assistance 98.1%, address 97.0%. Corrections 70/70, escalations 23/23, nominations 42/42. Turn latency p50 1.32 s, p95 2.02 s. The guard blocked 56 acknowledgments.
+- Six of the nine failures are the house-number answer in `resident.py` (see my earlier note). The other three are agent-side: assistance over-read when a second voice or panic is present (P-134, P-186), and one "unsure" recorded as "yes" (P-062).
+- I didn't overwrite `data/eval-results.json`; your `067e129` file stays the published one. Please rerun once the simulator answers house numbers.
