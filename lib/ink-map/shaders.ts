@@ -268,6 +268,19 @@ float decodeId(vec2 uv) {
   return floor(c.r + 0.5) * 65536.0 + floor(c.g + 0.5) * 256.0 + floor(c.b + 0.5);
 }
 
+// The terrain mesh is a metre across, so its per-pixel normal carries every wrinkle of the source
+// elevation. Read raw, the flats of Altadena look like a hillside and get hatched as one. This
+// averages a few pixels out, which is the scale a hillside is actually steep at.
+vec3 smoothNormal(vec2 uv) {
+  vec2 px = 2.5 / uResolution;
+  vec3 sum = texture(tNormal, uv).xyz;
+  sum += texture(tNormal, uv + vec2(px.x, 0.0)).xyz;
+  sum += texture(tNormal, uv - vec2(px.x, 0.0)).xyz;
+  sum += texture(tNormal, uv + vec2(0.0, px.y)).xyz;
+  sum += texture(tNormal, uv - vec2(0.0, px.y)).xyz;
+  return normalize(sum / 5.0 * 2.0 - 1.0);
+}
+
 float linearDepth(vec2 uv) {
   float d = texture(tDepth, uv).r;
   return d >= 1.0 ? 1e6 : -viewPosition(uv, d).z;
@@ -283,13 +296,24 @@ float idClass(float id) {
   return 5.0;
 }
 
+// How much of the fine drawing survives at this scale. A house is 12 m across, so past a few
+// metres per pixel it is smaller than a pixel and its outline stops being an outline.
+float detailAmount(float metersPerPixel) {
+  return 1.0 - smoothstep(1.4, 4.5, metersPerPixel);
+}
+
 float edgeWeight(float classA, float classB, float metersPerPixel) {
   float hi = max(classA, classB);
   float lo = min(classA, classB);
+  float detail = detailAmount(metersPerPixel);
+  // A house is 12 m across. Once it is under a pixel there is no wall left to draw, and every wall
+  // drawn anyway is a black speck: the town reads as confetti instead of as blocks of housing. So
+  // the shared walls fade out entirely and the built-up area becomes a tone with a soft outline.
+  if (hi == 4.0 && lo == 4.0) return 0.85 * detail;
+  if (hi == 4.0) return mix(0.25, 1.0, detail);
   if (hi == 5.0 && lo == 5.0) return 0.55 * (1.0 - smoothstep(0.25, 0.6, metersPerPixel));
   if (hi == 5.0) return 0.9 * (1.0 - smoothstep(0.5, 1.3, metersPerPixel) * 0.7);
-  if (hi == 4.0) return 1.0 - smoothstep(0.6, 1.6, metersPerPixel) * 0.45;
-  if (hi == 2.0) return 0.85 * (1.0 - smoothstep(0.8, 2.0, metersPerPixel) * 0.55);
+  if (hi == 2.0) return 0.85 * (1.0 - smoothstep(0.8, 2.0, metersPerPixel) * 0.4);
   if (hi == 3.0) return 0.6 * (1.0 - smoothstep(1.2, 3.0, metersPerPixel) * 0.6);
   return 0.9;
 }
@@ -332,14 +356,18 @@ float screentone(float coverage, float cell) {
   return 1.0 - smoothstep(r - aa, r + aa, d);
 }
 
+// A hatch line is thin, so it needs room. With a period close to the width of the antialiasing
+// band every line smears into its neighbour and an 18% hatch comes out as a third of the paper.
 float hatch(float coverage, float spacing, float angle) {
   if (coverage <= 0.001) return 0.0;
+  float period = max(spacing, 3.0 * uPixelRatio);
   float c = cos(angle);
   float s = sin(angle);
   float x = dot(gl_FragCoord.xy, vec2(c, s));
-  float f = abs(fract(x / spacing) - 0.5) * spacing;
-  float halfWidth = coverage * spacing * 0.5;
-  return 1.0 - smoothstep(halfWidth - 0.6, halfWidth + 0.6, f);
+  float f = abs(fract(x / period) - 0.5) * period;
+  float halfWidth = clamp(coverage, 0.0, 0.9) * period * 0.5;
+  float aa = max(0.55, halfWidth * 0.4);
+  return 1.0 - smoothstep(halfWidth - aa, halfWidth + aa, f);
 }
 
 // Three ink levels from the light, like hand-laid tone sheets.
@@ -357,7 +385,7 @@ float stipple(vec2 mapXY, float density) {
 float landuseInk(float kind, float shade, vec2 mapXY, float cell) {
   float shadow = shade < 0.2 ? 0.26 : 0.0;
   if (kind == 1.0 || kind == 2.0 || kind == 7.0) return max(stipple(mapXY, 0.1), screentone(shadow, cell));
-  if (kind == 3.0) return hatch(0.16, 3.2 * uPixelRatio, 0.0);
+  if (kind == 3.0) return hatch(0.16, 6.0 * uPixelRatio, 0.0);
   if (kind == 4.0 || kind == 6.0) return screentone(max(0.1, shadow), cell);
   if (kind == 5.0) return screentone(max(0.04, shadow), cell);
   if (kind == 8.0) return max(screentone(0.07, cell), stipple(mapXY, 0.05));
@@ -367,21 +395,33 @@ float landuseInk(float kind, float shade, vec2 mapXY, float cell) {
 
 float terrainInk(float shade, float up, vec3 w, float metersPerPixel, float cell) {
   float steep = 1.0 - up;
-  float slopeHatch = hatch(clamp((steep - 0.12) * 1.6, 0.0, 0.55) * (1.0 - shade * 0.6), 3.0 * uPixelRatio, 0.35);
+  float slopeHatch = hatch(clamp((steep - 0.12) * 1.6, 0.0, 0.55) * (1.0 - shade * 0.6), 5.5 * uPixelRatio, 0.35);
   float elevation = w.y + uBaseElevation;
   float interval = metersPerPixel > 3.0 ? 100.0 : 25.0;
   float e = elevation / interval;
   float contour = 1.0 - smoothstep(0.0, 1.0, abs(fract(e + 0.5) - 0.5) / max(fwidth(e), 1e-4));
-  float yard = screentone(shade < 0.25 ? 0.26 : 0.045, cell);
+  // The yard tone is a town-scale texture: it says "this is a settled block" when a house is one
+  // pixel wide. Close up it is only dirt on the paper, so it fades out as the detail comes in.
+  float yard = screentone(shade < 0.25 ? 0.26 : 0.045, cell) * smoothstep(0.8, 3.0, metersPerPixel);
   return max(max(yard, slopeHatch), contour * 0.35);
 }
 
-float surfaceInk(float surface, float shade, float up, vec3 w, float metersPerPixel, float cell) {
+// Buildings at town scale are drawn as one flat tone rather than lit face by face, because there is
+// no face left to light. The tone is what makes the built-up area read as a place. It shares the
+// terrain's dot grid: a house is one pixel wide there, so two screens next to each other would read
+// as noise rather than as two surfaces.
+float buildingTone(float shade, float detail, float cell, float lit, float plain) {
+  return mix(screentone(plain, cell), screentone(toneLevel(shade, lit * 0.5, lit, plain * 0.9), cell), detail);
+}
+
+float surfaceInk(float surface, float shade, float up, vec3 w, float metersPerPixel, float cell, float detail) {
   vec2 mapXY = vec2(w.x, -w.z);
-  if (surface == S_WALL) return screentone(toneLevel(shade, 0.0, 0.16, 0.34), cell);
-  if (surface == S_ROOF) return screentone(toneLevel(shade, 0.03, 0.12, 0.3), cell);
-  if (surface == S_ROAD) return screentone(shade < 0.25 ? 0.2 : 0.0, cell);
-  if (surface == S_TREE) return screentone(toneLevel(shade, 0.0, 0.12, 0.34), cell);
+  if (surface == S_WALL) return buildingTone(shade, detail, cell, 0.16, 0.2);
+  if (surface == S_ROOF) return buildingTone(shade, detail, cell, 0.12, 0.16);
+  if (surface == S_ROAD) return screentone(shade < 0.25 ? 0.2 : 0.0, cell) * detail;
+  // A tree is 5 m across, so at town scale it is a fraction of a pixel and its canopy tone aliases
+  // into a random dark speck. Fading the tone keeps the tree cover visible as a stipple.
+  if (surface == S_TREE) return screentone(toneLevel(shade, 0.0, 0.12, 0.34) * mix(0.42, 1.0, detail), cell);
   if (surface > S_LANDUSE) return landuseInk(surface - S_LANDUSE, shade, mapXY, cell);
   return terrainInk(shade, up, w, metersPerPixel, cell);
 }
@@ -411,7 +451,10 @@ void main() {
   float depth = shimmer.z;
   float grain = (hash12(gl_FragCoord.xy) - 0.5) * 0.035;
   vec3 paper = uPaper + grain;
-  float cell = 2.7 * uPixelRatio;
+  // Screen size of the halftone dot. A close-up is read one house at a time, so the dots have to be
+  // big enough to see as dots; at town scale a coarse screen would only block up the texture.
+  float detail0 = detailAmount(depth * 2.0 * uTanHalfFov / uResolution.y);
+  float cell = mix(2.7, 4.4, detail0) * uPixelRatio;
 
   if (depth >= 1.0) {
     fragColor = vec4(paper, 1.0);
@@ -420,21 +463,30 @@ void main() {
 
   vec4 g = texture(tShade, uv);
   if (uDebug > 0.5) {
-    fragColor = vec4(uDebug < 1.5 ? vec3(g.r) : texture(tNormal, uv).xyz, 1.0);
+    if (uDebug < 1.5) fragColor = vec4(vec3(g.r), 1.0);
+    else if (uDebug < 2.5) fragColor = vec4(texture(tNormal, uv).xyz, 1.0);
+    else if (uDebug < 3.5) fragColor = vec4(vec3(g.g * 255.0 / 20.0), 1.0);
+    else if (uDebug < 4.5) {
+      float mpp = depth * 2.0 * uTanHalfFov / uResolution.y;
+      fragColor = vec4(vec3(surfaceInk(floor(g.g * 255.0 + 0.5), g.r, g.b * 2.0 - 1.0, worldPosition(uv, depth), mpp, 2.7 * uPixelRatio, detailAmount(mpp))), 1.0);
+    }
+    else if (uDebug < 5.5) fragColor = vec4(vec3(inkLines(uv, decodeId(uv), linearDepth(uv), texture(tNormal, uv).xyz * 2.0 - 1.0, depth * 2.0 * uTanHalfFov / uResolution.y)), 1.0);
+    else fragColor = vec4(vec3(buildingState(decodeId(uv)).r), 1.0);
     return;
   }
   float shade = g.r;
   float surface = floor(g.g * 255.0 + 0.5);
-  float up = g.b * 2.0 - 1.0;
   vec3 normalC = texture(tNormal, uv).xyz * 2.0 - 1.0;
+  float up = surface == S_TERRAIN ? smoothNormal(uv).y : g.b * 2.0 - 1.0;
   float idC = decodeId(uv);
   float depthC = linearDepth(uv);
   float metersPerPixel = depthC * 2.0 * uTanHalfFov / uResolution.y;
   vec3 w = worldPosition(uv, depth);
   vec2 mapXY = vec2(w.x, -w.z);
 
-  float lod = 1.0 - 0.7 * smoothstep(0.45, 1.5, metersPerPixel);
-  float tone = surfaceInk(surface, shade, up, w, metersPerPixel, cell) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
+  float detail = detail0;
+  float lod = 1.0 - 0.55 * smoothstep(0.45, 1.5, metersPerPixel);
+  float tone = surfaceInk(surface, shade, up, w, metersPerPixel, cell, detail) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
   float ink = max(tone * 0.92, lines);
   vec3 color = mix(paper, uInk, ink);
@@ -450,8 +502,12 @@ void main() {
   float minutes = arrivalMinutes(mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn;
   if (burned > 0.0) {
-    float scorch = hatch(0.18, 4.0 * uPixelRatio, -0.75) * burned;
-    float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned;
+    // Minutes since the fire passed. Scorch and embers belong to the band just behind the front;
+    // stamping them on the whole scar turns the town into wallpaper and hides the street grid.
+    float age = uFireNow - minutes;
+    float fresh = 1.0 - smoothstep(2.0, 75.0, age);
+    float scorch = hatch(0.16, 8.0 * uPixelRatio, -0.75) * burned * mix(0.3, 1.0, fresh);
+    float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
     color = mix(color, uInk, scorch * 0.45);
     color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));
   }
