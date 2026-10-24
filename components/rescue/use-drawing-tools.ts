@@ -107,7 +107,7 @@ function useZoneDrawing(data: InkMapData | null, toLatLng: (point: Point) => Lat
   const hover = useCallback((point: Point | null) => setHoverNode(point && network ? nearestCorner(network, point, CORNER_REACH_METERS) : null), [network]);
   const undo = useCallback(() => setCorners((current) => current.slice(0, -1)), []);
   const clear = useCallback(() => setCorners([]), []);
-  return { draft, place, hover, undo, clear, save };
+  return { draft, place, hover, undo, clear, save, propose: setCorners };
 }
 
 function useStreetClosing(data: InkMapData | null, toLatLng: (point: Point) => LatLng, onClosed: (status: string) => void) {
@@ -209,6 +209,18 @@ export function useDrawingTools(data: InkMapData | null, toLatLng: (point: Point
     [setTool, zone, streets],
   );
 
+  // A lit fire picks up the zone tool with its zone already drawn and unsaved, or with none when
+  // the streets around it never close into a loop.
+  const { propose } = zone;
+  const proposeZone = useCallback(
+    (corners: number[] | null) => {
+      setTool("zone");
+      if (corners) propose(corners);
+      setStatus(corners ? "Zone drawn around the fire. Check it, then save" : "No streets close around this fire. Draw its zone by hand");
+    },
+    [setTool, propose],
+  );
+
   const cancel = useCallback(() => setTool("look"), [setTool]);
   const saveZone = useCallback(() => void zone.save(), [zone]);
   useDrawingKeys(tool !== "look", { onEnter: saveZone, onBackspace: zone.undo, onEscape: cancel });
@@ -220,6 +232,7 @@ export function useDrawingTools(data: InkMapData | null, toLatLng: (point: Point
     pick,
     hover: tool === "look" ? undefined : hover,
     startFrom,
+    proposeZone,
     zone: zone.draft,
     undoCorner: zone.undo,
     saveZone,

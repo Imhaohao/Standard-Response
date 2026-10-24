@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
@@ -54,6 +54,7 @@ export function RescueMap() {
   const drawing = useDrawingTools(data, toLatLng);
   const { tool, setTool, startFrom } = drawing;
   const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome, ignite);
+  const putOutFire = useZoneAroundFire(simulated, drawing);
   const [spot, setSpot] = useState<ContextSpot | null>(null);
   const closeMenu = useCallback(() => setSpot(null), []);
   const startFromSpot = useCallback(
@@ -119,7 +120,7 @@ export function RescueMap() {
           </div>
           <div className="flex items-end gap-3 p-3 pt-0">
             <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
-              {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={simulated.putOut} />}
+              {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={putOutFire} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>
             <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
@@ -150,12 +151,10 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
 
 // The scenario's fire, or the one the dispatcher lit at a house to rehearse, which replaces it here
 // until it is put out. The forecast is for the scenario's fire, so it is hidden while a lit one burns.
-const NO_BUILDINGS: InkMapData["buildings"] = [];
-
 function useFireOnScreen(data: InkMapData | null, warningIssuedAt: number | undefined, homes: Home[], toLocal: (point: LatLng) => Point) {
   const scenario = useHazard(data?.origin);
   const forecast = useDangerZones(data?.origin);
-  const simulated = useSimulatedFire(scenario, data?.buildings ?? NO_BUILDINGS, homes, toLocal);
+  const simulated = useSimulatedFire(scenario, data, homes, toLocal);
   const hazard = simulated.hazard ?? scenario;
   const clock = useFireClock(hazard, simulated.startedAt ?? warningIssuedAt);
   const { follow } = clock;
@@ -172,12 +171,28 @@ function useFireOnScreen(data: InkMapData | null, warningIssuedAt: number | unde
     follow();
   }, [clearFire, follow]);
   const fire = simulated.hazard;
-  const summary = fire ? { burned: fire.burned, outAt: fire.outAt, homesReached: simulated.homesReached } : null;
+  const summary = fire ? { burned: fire.burnedAt.length, outAt: fire.outAt, homesReached: simulated.homesToWarn } : null;
   return {
     hazard,
     danger: fire ? null : forecast,
     clock,
-    simulated: { summary, response: simulated.response, setResponse: simulated.setResponse, putOut },
+    simulated: { summary, lit: fire !== null, zoneCorners: simulated.zoneCorners, response: simulated.response, setResponse: simulated.setResponse, putOut },
     ignite,
   };
+}
+
+// A lit fire comes with a warning zone drawn around the buildings it burns, redrawn whenever the fire
+// is re-run. Putting the fire out puts the zone tool down too, which drops the zone if it was never saved.
+function useZoneAroundFire(
+  { lit, zoneCorners, putOut }: { lit: boolean; zoneCorners: number[] | null; putOut: () => void },
+  drawing: ReturnType<typeof useDrawingTools>,
+) {
+  const { proposeZone, setTool } = drawing;
+  useEffect(() => {
+    if (lit) proposeZone(zoneCorners);
+  }, [lit, zoneCorners, proposeZone]);
+  return useCallback(() => {
+    putOut();
+    setTool("look");
+  }, [putOut, setTool]);
 }

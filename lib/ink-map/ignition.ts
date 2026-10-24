@@ -45,8 +45,8 @@ const HARDENED = { resistance: 1.7, emberReach: 0.5 };
 export type Crews = 0 | 1 | 3;
 export type FireResponse = { construction: Construction; engines: Crews };
 
-// How many buildings burn, and the minute the last one is out, or null if it still spreads at the end of the run.
-export type SimulatedFire = Hazard & { burned: number; outAt: number | null };
+// Where each burned building stands, and the minute the last one is out, or null if it still spreads at the end of the run.
+export type SimulatedFire = Hazard & { burnedAt: Point[]; outAt: number | null };
 
 function centroid(ring: Point[]): Point {
   const sum = ring.reduce<Point>((total, [x, y]) => [total[0] + x, total[1] + y], [0, 0]);
@@ -219,7 +219,7 @@ export function ignitionHazard(buildings: Building[], ignition: Point, wind: Poi
     field: buildFireField(fronts),
     label: "Simulated fire, not a forecast",
     basis: `Building to building, ${response.construction === "hardened" ? "wildfire-code" : "older"} homes, ${ENGINE_WORDS[response.engines]}`,
-    burned: ignited.length,
+    burnedAt: ignited.map(({ building }) => building.center),
     outAt,
   };
 }
