@@ -177,7 +177,7 @@ const RESULT_ROWS = [
 function ResultsPanel({ results }: { results: FlowResults | null }) {
   if (!results) return null;
   return (
-    <Panel title={`${results.seeds} nights, mesh on and off`} aside={<span className="type-small text-on-panel-muted">{results.label}</span>}>
+    <Panel title={`${results.seeds} nights, mesh on and off`}>
       <TechTags uses={["langevin", "mesh", "federated"]} />
       <dl className="flex flex-col gap-2 px-3 py-2">
         {RESULT_ROWS.map((row) => {

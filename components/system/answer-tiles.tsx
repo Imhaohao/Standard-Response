@@ -81,7 +81,6 @@ function simulatorTile(simulator: Results["simulator"]) {
       label="More riders picked up on time"
       rangeText={gain ? `${signed(gain.p5)} to ${signed(gain.p95)}` : EM_DASH}
       track={gain && { value: gain.median, low: gain.p5, high: gain.p95, domain: [-15, 70], zero: 0 }}
-      tag={simulator && <Tag>{simulator.label}</Tag>}
     />
   );
 }

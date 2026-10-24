@@ -26,7 +26,6 @@ export function SimulatorDisclosure({ simulator }: { simulator: Simulator | null
   const whereWeDontHelp = Array.isArray(simulator.whereWeDontHelp) ? simulator.whereWeDontHelp.join(" ") : simulator.whereWeDontHelp;
   return (
     <Disclosure icon={Truck} title="Simulator comparisons" fact={`on-time pickups, ${simulator.seeds} paired seeds`}>
-      <Tag>{simulator.label}</Tag>
       <ul>
         {COMPARISONS.map(({ key, label }) => {
           const spread = simulator.results[key].difference.pickupsOnTime;
