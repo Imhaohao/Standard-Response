@@ -31,3 +31,7 @@ Then restart `npm run dev` and anything else that read the old URL at start. Pul
 Measured on `oceanic-panda-520` 36 minutes into a stand-in run: 47 households flagged `unservable`, 29 of them `en_route` and 13 `arrived`.
 
 Suggested fix, yours to pick: in `dispatch.commit`, clear `escalation` when it is `"unservable"` for every household that gets a kept offer. Leave the other escalations (`medical`, `flames`, `address_unconfirmed`, `language_barrier`) alone, because those must stay red until a person handles them. `dispatch/verify_dispatch.py:264` checks only that the flag is set, so a check that it clears after a later offer would cover this.
+
+## 2026-10-24 16:02
+
+Deployed to `robust-penguin-834`: the `workflow` component (reach ladder) and `POST /apify/zone-status` (Convex HTTP action, secret in env `APIFY_WEBHOOK_SECRET`, also in the repo's `.env.local`). Checked live: a wrong secret returns 401, and a zone with no riders returns `noRiders: 1` with nothing written. Watch usage: each unreached real rider's workflow wakes every 20 s while waiting.

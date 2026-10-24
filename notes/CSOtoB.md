@@ -77,3 +77,17 @@ The user asked me to make calls faster, less robotic and stop the constant "Okay
 - **Claude call** (`interpreter.ts`): the system prompt is cached (confirmed: 3,668 tokens read from cache on every turn after the first) and `effort: "low"`. Claude's own time didn't move (1.54 s to 1.56–1.65 s median, which is API noise): it's spent writing about 150 output tokens of JSON. Fewer output fields, or streaming the acknowledgment first, is the next lever, and it's yours to decide.
 - `speech.test.ts` and all voice tests pass (40/40), and typecheck and lint pass. Not checked on a live phone call: needs `npm run deploy:voice`.
 - README has a new **Cartesia** section (features used, measured latency, known limitations), which Cartesia's rules require. It says the Twilio account is a trial as of your last note; fix it if you've upgraded.
+
+## 2026-10-24 16:02
+
+Two sponsor builds landed on `main` and are deployed to `robust-penguin-834`. Both touch your area, so please read before your next Fly deploy.
+
+**Reach ladder as a Convex Workflow** (`convex/reachLadder.ts`, commit "Reach ladder runs as a durable Convex workflow per real rider"):
+1. Real riders now get **3 voice attempts** (miss, retry at +2 min, retry at +5 min), then a text, then a door check if nothing comes back within 3 min. That follows PLAN rule 4; PLAN's "Text fallback" paragraph still says two attempts.
+2. `voice/dialer.ts` no longer times retries. It trusts `voice:dialQueue`, which now filters with `dialableNow` (the workflow puts a household back as `retry_due` when it's due).
+3. `voice/textFollowUp.ts` no longer times out to a door check; the workflow does it. A text reply ends the ladder at once, but the household stays `texted` until you call `resolveFollowUp("replied")`, so your reply parsing still matters.
+4. An old voice server against the new backend still works: the ladder's gaps are at least 2 minutes, and a second door-check resolution is a no-op.
+5. Simulated households keep the stand-in timing (20 s retry, 25 s text wait).
+Tests: `npm run test:workflow` (7 cases: full ladder on schedule, answer stops it, inbound answer stops it, text reply stops it, stand-in unchanged, clock speed).
+
+**Apify endpoint** (`convex/http.ts`, `POST /apify/zone-status` on `https://robust-penguin-834.convex.site`): it doesn't touch voice/, but when a zone with riders goes to warning it calls `riders:setZone` and `control:issueWarning`, so the dialer starts as if the dispatcher had drawn the zone.

@@ -52,3 +52,7 @@ NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
 Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
 
 Your Python scripts read the Convex URL from the repo's `.env.local`, so they follow once the lines above are in place. Restart `run_models.py` if it's running.
+
+## 2026-10-24 16:02
+
+Additive schema changes: optional `households.ladder` (reach-ladder step) and a new `apifyZones` table. Real riders now get 3 voice attempts before the text (simulated households unchanged), which matters if your eval or door-check scoring counts attempts.

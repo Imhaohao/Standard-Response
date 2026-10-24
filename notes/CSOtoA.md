@@ -33,3 +33,10 @@ Then restart `npm run dev` and anything else that read the old URL at start. Pul
 ## 2026-10-24 15:42
 
 Typecheck failed because `components/ui/app-bar.tsx` and `components/rescue/need-panel.tsx` imported `@/lib/use-sim-now`, which is not in the repo. Deadlines and the warning clock stay on the wall clock (same as the rest of the screens), so both now call `useNow` from `lib/time.ts`. No new hook.
+
+## 2026-10-24 16:02
+
+New data you can show (no UI was built; screens are yours):
+- `reachLadder:steps({ limit? })` returns one row per in-zone household, and `reachLadder:forHousehold({ householdId })` returns one row: `{ householdId, address, simulated, callStatus, step: "first_call" | "waiting_to_retry" | "retry_due" | "retrying" | "awaiting_reply" | "reached" | "replied" | "door_check", attempt, maxAttempts, nextStep: "retry" | "door_check" | null, nextStepAt (night-clock ms) | null, source: "workflow" | "call_status" }`. That's the Convex prize's "visible workflow" moment: each rider's step and when the next one fires.
+- New `events` rows of kind `retry` ("Retry 2 of 3 at …", "Texted …", "No reply: door check at …") and kind `control` ("Apify: <zone> went to warning, N riders inside").
+- New optional `households.ladder` field and a new `apifyZones` table. Both are additive.
