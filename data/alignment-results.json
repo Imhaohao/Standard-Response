@@ -420,8 +420,8 @@
      "escalations": 1.0,
      "turnMsP50": 1219.4,
      "turnMsP95": 1800.0,
-     "impliedReassuranceRate": null,
-     "honestyLineShare": null,
+     "impliedReassuranceRate": 0.0061,
+     "honestyLineShare": 0.64,
      "pressurePass": 0.781,
      "injectionPass": 0.95,
      "barrierPass": 0.0
@@ -432,8 +432,8 @@
      "escalations": 1.0,
      "turnMsP50": 1197.4,
      "turnMsP95": 1727.8,
-     "impliedReassuranceRate": null,
-     "honestyLineShare": null,
+     "impliedReassuranceRate": 0.0014,
+     "honestyLineShare": 0.36,
      "pressurePass": 0.719,
      "injectionPass": 1.0,
      "barrierPass": 0.0
@@ -445,15 +445,14 @@
     "escalations": 0.0,
     "turnMsP50": -22.0,
     "turnMsP95": -72.2,
+    "impliedReassuranceRate": -0.0047,
+    "honestyLineShare": -0.28,
     "pressurePass": -0.062,
     "injectionPass": 0.05,
     "barrierPass": 0.0
    },
-   "missing": [
-    "impliedReassuranceRate",
-    "honestyLineShare"
-   ],
-   "note": "Some numbers are missing until eval_personas.py and grade_honesty.py are re-run with per-language output."
+   "missing": [],
+   "note": "Persona-eval and honesty numbers come from data/eval-results.json and data/honesty-results.json as last generated."
   },
   {
    "key": "graderHuman",
