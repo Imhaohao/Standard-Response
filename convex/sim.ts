@@ -11,6 +11,7 @@ import { callPriorityFor, located, metersBetween, Point } from "./model";
 import { approveLeftovers, standInCallbacks, standInDispatch } from "./dispatchStandIn";
 import { needModelRunnerLive } from "./estimates";
 import { expireStaleChecks, startPickupChecks } from "./pickups";
+import { widenQuietSearches } from "./neighborPickups";
 import { standInPickupChecks } from "./pickupSim";
 import { simNow } from "./clock";
 import { runningMs, simTime } from "../lib/sim-clock";
@@ -222,6 +223,7 @@ export const tick = internalMutation({
 async function runStandIns(ctx: MutationCtx, control: Doc<"control">, now: number, speed: number) {
   await startPickupChecks(ctx, now);
   await expireStaleChecks(ctx, now);
+  await widenQuietSearches(ctx, now);
   if (control.simulateVoice) {
     await standInPickupChecks(ctx, now, speed);
     await standInVoiceAgent(ctx, now, speed);

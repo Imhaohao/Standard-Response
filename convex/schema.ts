@@ -259,6 +259,9 @@ export default defineSchema({
     ready: v.optional(readyProfile),
     // Track A: Ready check calls nobody answered.
     readyMisses: v.optional(v.number()),
+    // Track A: how far 911 is looking for a neighbor to drive this home out, and since when (night
+    // clock) nobody in that circle is being asked. Three quiet minutes widen the circle.
+    neighborSearch: v.optional(v.object({ reachMeters: v.number(), idleSince: v.optional(v.number()) })),
     // Track B: the reach ladder workflow for a real rider nobody has reached yet.
     ladder: v.optional(reachLadder),
     simulated: v.boolean(),

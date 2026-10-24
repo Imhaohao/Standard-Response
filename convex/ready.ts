@@ -11,6 +11,7 @@ import { Helper, saveProfile } from "./readyProfile";
 import { helperFor, profileFromPersona } from "./readySim";
 import { seededRandom } from "./roll";
 import { simNow } from "./clock";
+import { syncRequest } from "./requests";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
@@ -87,16 +88,56 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
   });
 }
 
+const signUpArgs = { phone: v.string(), address: v.string(), lat: v.number(), lng: v.number(), language: v.string(), ...profileArgs };
+type SignUp = ObjectType<typeof signUpArgs>;
+
+async function signUp(ctx: MutationCtx, { phone, address, lat, lng, language, ...profile }: SignUp) {
+  if (phone.trim() === "" || address.trim() === "") throw new Error("A phone number and an address are needed");
+  const householdId = await findOrCreateHome(ctx, { phone: phone.trim(), address: address.trim(), lat, lng, language });
+  await saveProfile(ctx, householdId, profileFrom(profile, "form", await simNow(ctx)));
+  await ctx.db.insert("events", { kind: "record", message: `${address.trim()} signed up for the Ready check`, householdId, at: await simNow(ctx) });
+  return householdId;
+}
+
 // /ready: a household signs itself up. It stays unverified until the agent confirms it by phone.
 export const submit = mutation({
-  args: { phone: v.string(), address: v.string(), lat: v.number(), lng: v.number(), language: v.string(), ...profileArgs },
+  args: signUpArgs,
   returns: v.id("households"),
-  handler: async (ctx, { phone, address, lat, lng, language, ...profile }) => {
-    if (phone.trim() === "" || address.trim() === "") throw new Error("A phone number and an address are needed");
-    const householdId = await findOrCreateHome(ctx, { phone: phone.trim(), address: address.trim(), lat, lng, language });
-    await saveProfile(ctx, householdId, profileFrom(profile, "form", await simNow(ctx)));
-    await ctx.db.insert("events", { kind: "record", message: `${address.trim()} signed up for the Ready check`, householdId, at: await simNow(ctx) });
-    return householdId;
+  handler: async (ctx, args) => await signUp(ctx, args),
+});
+
+// Everything earlier calls learned about a home, so a test phone can start the night over.
+const CALL_ANSWERS_CLEARED = {
+  canLeave: undefined,
+  peopleCount: undefined,
+  mobility: undefined,
+  assistanceRequired: undefined,
+  medical: undefined,
+  pets: undefined,
+  hasCar: undefined,
+  confidence: undefined,
+  corrections: undefined,
+  escalation: undefined,
+  ready: undefined,
+  neighborSearch: undefined,
+  outcome: "unknown" as const,
+  callStatus: "not_called" as const,
+  attempts: 0,
+  lastAttemptAt: undefined,
+};
+
+// Demo setup (npx convex run ready:reregister '{...}'): a test phone signs up again from scratch, with
+// the answers from earlier test calls cleared and any ride request they opened closed.
+export const reregister = internalMutation({
+  args: signUpArgs,
+  returns: v.id("households"),
+  handler: async (ctx, args) => {
+    const existing = await householdByPhone(ctx, args.phone.trim());
+    if (existing) {
+      await ctx.db.patch("households", existing._id, CALL_ANSWERS_CLEARED);
+      await syncRequest(ctx, existing._id);
+    }
+    return await signUp(ctx, args);
   },
 });
 

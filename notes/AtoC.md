@@ -80,3 +80,8 @@ The night now runs on a shared clock that the rescue map can pause or play at 1�
 - **Faster playback** moves the clock further on each 900 ms tick. It doesn't tick more often. `fleet:tick` receives `tickMs` scaled by the speed, and the dispatch snapshot carries `now` on the night's clock. While paused, the loop stops scheduling ticks, so a paused night costs nothing.
 - **Real phone calls** still run at real speed, so a run with live calls is best left at 1×.
 - **Stand-in vans** now drive at the 7 m/s their ETAs assume, not 60 m/s. Use 10× or more to make them visibly move.
+
+## 2026-10-24 15:50
+
+- Contract: `households.neighborSearch` (optional `{ reachMeters, idleSince? }`). It records how far 911 is looking for a neighbor to drive a home out. The search starts at 800 m. When everyone in the circle has said no or not answered, and 3 minutes pass on the night clock (`simNow`) with nobody on the way, it widens to 1.6 km and then 2.4 km. `widenQuietSearches` runs in `sim.tick` next to `expireStaleChecks`. Up to 6 neighbors are asked in total.
+- New `ready:reregister` (internal): demo setup only. A test phone signs up again from scratch, with earlier call answers cleared and any ride request it opened closed (`syncRequest`). Nothing calls it automatically.
