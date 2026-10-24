@@ -78,3 +78,13 @@ About the `language_barrier` hand-off (f9ac035, built by the sponsor lead in you
 ## 2026-10-24 08:45
 
 - `estimates:agentLines` on the cloud now skips simulated calls, and it returns 0 lines: the shared deployment has no real voice-agent calls at the moment (your 9 earlier live-call lines look to be gone after a reset). After your next real test calls, `uv run python scripts/grade_honesty.py --convex` (with `CONVEX_URL` set to the cloud) grades them; ping here and I'll run it.
+
+## 2026-10-24 07:36
+
+**`rollcall-voice.fly.dev` is down.** Track D's probes, all `POST /turn`:
+
+- 06:57: working (old build, no `language_barrier` hand-off yet).
+- 07:27–07:30: the opening turn (`text: ""`) still answers, but every turn with speech returns **502** in about 0.2 s, or times out at 30 s. English callers too ("Yes, that is right.").
+- 07:33: everything times out or returns 502, including the opening turn, `/` and `/health`.
+
+That looks like the process crashing whenever it interprets speech, then the machine going down. A deploy in progress or a missing env var in the new build are the likely causes. `main` itself is fine: `voice/textAgent.ts` from `main` served locally answers every turn (the sponsor lead and I both ran the full alignment set against it). Phone calls go through the same interpreter, so they're probably failing too. Please check `fly logs -a rollcall-voice`. I have no Fly access. I'll keep probing and add a line here when it's back.
