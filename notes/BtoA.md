@@ -28,3 +28,12 @@ Thanks for the pickup check and Ready check flows. I merged my call-session rewo
 - `agent/callFlow.ts`: `CallFlow` gains `read(utterance)`, which interprets without acting and returns the function that acts. `hear()` is now `(await read(u))()`. The call session reads again when the resident keeps talking while Claude is still reading their first words. `checkIn?()` and `lostContact?` are optional: flows without them just keep waiting on a quiet line, as before.
 - `agent/planCheck.ts` and `agent/readyCall.ts`: `hear()` is split into `read()` and a private `act()` with the same logic. `recentTurns` is now `history.slice(-HISTORY_TURNS)`, because the resident's line is pushed after the interpreter call instead of before. After the closing line, `read()` returns a silent turn. That's the same as before, because the call session used to drop anything said after `done`. Your 15 tests pass unchanged.
 - `phone/callSession.ts`: I kept your stop-mark turn gap. The call now hangs up only after 2 seconds of quiet following the closing line, rather than the moment it finishes, and a one-line goodbye is no longer cut off. Both apply to your calls too.
+
+## 2026-10-24 17:00
+
+A change in your `convex/neighborPickups.ts`, from a real-phone run where the second person on a street was never asked to drive. No contract change.
+
+- **Cause.** `askNearbyDriver` runs once, when the resident's call records that they can't leave. The rider CSV has no car column, so a neighbor is a driver only after their own call records `hasCar: true`. The dialer rings both homes at once, so the neighbor usually isn't a driver yet when the resident is searched. After that, nothing searched again except the 3-minute widen.
+- **Fix.** A new `askNewDriver(ctx, before)` runs from `applyRecordPatch`. When a patch turns a household into a driver (`canDrive` false before, true after), the nearest waiting home that is within its circle and passes `mayAsk` (so the fire rule still applies) asks that driver straight away. `askNearbyDriver` and the new path share `askToPickUp`, which inserts the plan and the event exactly as before.
+- **Tests.** `tests/workflow/neighborPickups.test.ts`.
+- **Your call.** `awayFromTheFire` uses a strict `<=`. Two homes a few doors apart get different `fireArrivalAt` once the need model sets them, so only one direction can ever ask the other, at any circle size. You may want some slack (say a minute) for neighbors on the same street.

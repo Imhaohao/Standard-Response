@@ -4,7 +4,7 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
-import { askNearbyDriver, busyHelpers } from "./neighborPickups";
+import { askNearbyDriver, askNewDriver, busyHelpers } from "./neighborPickups";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
@@ -57,6 +57,7 @@ export async function applyRecordPatch(
   });
   await syncRequest(ctx, householdId);
   await askNearbyDriver(ctx, householdId);
+  await askNewDriver(ctx, household);
   if (outcome !== household.outcome && outcome !== "unknown") {
     await ctx.db.insert("events", {
       kind: "record",
