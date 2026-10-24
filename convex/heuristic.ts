@@ -7,7 +7,9 @@ import { Load, UNLOAD_SECONDS } from "./vehicleRun";
 //
 // A vehicle carries riders in trips: pickups, then the nearest shelter. A rider joins the open trip
 // when they fit and every rider's ride time stays legal; otherwise the vehicle drops off first.
-// Each rider goes to the compatible vehicle that reaches them soonest.
+// Each rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle can reach
+// before their deadline wait until everyone reachable in time is placed, like a dispatcher's triage.
+// A rider with no road from home to any shelter can't be served and is dropped.
 
 const LOAD_FIELDS = ["seats", "wheelchairSpaces", "stretcherSpaces"] as const;
 
@@ -57,6 +59,7 @@ function afterDropOff(problem: Problem, state: VehicleState) {
 function startNewTrip(problem: Problem, state: VehicleState, request: ProblemRequest) {
   const ready = afterDropOff(problem, state);
   if (!ready || !fitsEmpty(state.vehicle, request.load)) return null;
+  if (!nearestShelter(problem, request.location)) return null;
   const seconds = problem.matrix[ready.location][request.location];
   return seconds === null ? null : ready.time + seconds;
 }
@@ -90,6 +93,13 @@ function assign(problem: Problem, state: VehicleState, request: ProblemRequest, 
   state.time = option.arrival + request.boardingSeconds;
 }
 
+function bestOption(problem: Problem, states: VehicleState[], request: ProblemRequest) {
+  const options = request.allowedVehicles
+    .map((k) => optionFor(problem, states, k, request))
+    .filter((option): option is Option => option !== null && option.arrival <= states[option.vehicle].vehicle.endBy);
+  return options.sort((a, b) => a.arrival - b.arrival)[0];
+}
+
 export function solveHeuristic(problem: Problem): Solution {
   const started = Date.now();
   const states: VehicleState[] = problem.vehicles.map((vehicle) => ({
@@ -100,16 +110,17 @@ export function solveHeuristic(problem: Problem): Solution {
     stops: [],
   }));
   const dropped: string[] = [];
+  const late: ProblemRequest[] = [];
   for (const request of [...problem.requests].sort((a, b) => a.deadline - b.deadline)) {
-    const options = request.allowedVehicles
-      .map((k) => optionFor(problem, states, k, request))
-      .filter((option): option is Option => option !== null && option.arrival <= states[option.vehicle].vehicle.endBy);
-    const best = options.sort((a, b) => a.arrival - b.arrival)[0];
-    if (!best) {
-      dropped.push(request.id);
-      continue;
-    }
-    assign(problem, states[best.vehicle], request, best);
+    const best = bestOption(problem, states, request);
+    if (!best) dropped.push(request.id);
+    else if (best.arrival > request.deadline) late.push(request);
+    else assign(problem, states[best.vehicle], request, best);
+  }
+  for (const request of late) {
+    const best = bestOption(problem, states, request);
+    if (best) assign(problem, states[best.vehicle], request, best);
+    else dropped.push(request.id);
   }
   for (const state of states) dropOff(problem, state);
   return {

@@ -4,7 +4,9 @@ fallback dispatcher in convex/heuristic.ts. Keep the two in step.
 
 Each vehicle carries riders in trips (pickups, then the nearest shelter). A rider joins the open
 trip when it fits and keeps everyone's ride time legal; otherwise the vehicle drops off first.
-The rider goes to the compatible vehicle that reaches them soonest.
+The rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle can reach
+before their deadline wait until everyone reachable in time is placed, like a dispatcher's triage.
+A rider with no road from home to any shelter can't be served and is dropped.
 """
 
 from __future__ import annotations
@@ -73,6 +75,8 @@ def _option(problem, state, request):
     seconds = matrix[location][request["location"]]
     if seconds is None or not _fits_empty(state.vehicle, request):
         return None
+    if _nearest_shelter(problem, request["location"]) is None:
+        return None
     return ready + seconds, False
 
 
@@ -102,22 +106,35 @@ def _assign(problem, state, request, arrival, joins_trip):
     state.time = arrival + request["boardingSeconds"]
 
 
+def _best_option(problem, states, request):
+    best = None
+    for k in request["allowedVehicles"]:
+        option = _option(problem, states[k], request)
+        if option is None or option[0] > states[k].vehicle["endBy"]:
+            continue
+        if best is None or option[0] < best[1]:
+            best = (k, option[0], option[1])
+    return best
+
+
 def solve(problem: dict) -> dict:
     started = time.perf_counter()
     states = [VehicleState(v) for v in problem["vehicles"]]
-    dropped = []
+    dropped, late = [], []
     for request in sorted(problem["requests"], key=lambda r: r["deadline"]):
-        best = None
-        for k in request["allowedVehicles"]:
-            option = _option(problem, states[k], request)
-            if option is None or option[0] > states[k].vehicle["endBy"]:
-                continue
-            if best is None or option[0] < best[1]:
-                best = (k, option[0], option[1])
+        best = _best_option(problem, states, request)
         if best is None:
             dropped.append(request["id"])
-            continue
-        _assign(problem, states[best[0]], request, best[1], best[2])
+        elif best[1] > request["deadline"]:
+            late.append(request)
+        else:
+            _assign(problem, states[best[0]], request, best[1], best[2])
+    for request in late:
+        best = _best_option(problem, states, request)
+        if best is None:
+            dropped.append(request["id"])
+        else:
+            _assign(problem, states[best[0]], request, best[1], best[2])
     for state in states:
         _drop_off(problem, state)
     return {

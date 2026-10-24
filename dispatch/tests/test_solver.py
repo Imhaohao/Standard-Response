@@ -115,3 +115,18 @@ def test_riders_are_spread_across_idle_vans_instead_of_one_bus_tour():
     result = solver.solve(p)
     used = [vehicle_id for vehicle_id, riders in pickups(result).items() if riders]
     assert len(used) == 2
+
+
+def test_rider_with_no_road_to_a_shelter_is_dropped_without_crashing():
+    p = problem([vehicle("a", 0)], [request("cut_off", 2, [0]), request("ok", 3, [0])])
+    p["matrix"] = [row[:] for row in MATRIX]
+    p["matrix"][2][4] = None
+    result = heuristic.solve(p)
+    assert result["dropped"] == ["cut_off"]
+
+
+def test_heuristic_serves_reachable_riders_before_hopeless_ones():
+    hopeless = request("hopeless", 3, [0], deadline=10)
+    reachable = request("reachable", 2, [0], deadline=400)
+    result = heuristic.solve(problem([vehicle("a", 0)], [hopeless, reachable]))
+    assert pickups(result)["a"] == ["reachable", "hopeless"]
