@@ -268,7 +268,10 @@ export class InkMapRenderer {
     u.uCamUp.value.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
   }
 
+  private lastViewDraw = 0;
+
   private redrawView() {
+    this.lastViewDraw = performance.now();
     this.applyNavigation();
     this.renderer.setRenderTarget(this.gbuffer);
     this.renderer.setClearColor(0x000000, 0);
@@ -398,7 +401,8 @@ export class InkMapRenderer {
     let last = 0;
     const tick = (time: number) => {
       if (!this.running) return;
-      if (time - last > 33) {
+      // A pan or zoom already drew this frame; drawing the fire again on top only costs time.
+      if (time - last > 33 && time - this.lastViewDraw > 33) {
         last = time;
         this.renderFrame();
       }

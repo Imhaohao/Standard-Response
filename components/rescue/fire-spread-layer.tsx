@@ -32,19 +32,46 @@ function nearest<T>(items: T[], at: (item: T) => ScreenPoint, x: number, y: numb
   return best;
 }
 
+type Overlay = { svg: SVGSVGElement; stage: HTMLElement; rect: DOMRect };
+
 // The pointer in overlay pixels while it is over the map itself, not a panel floating above it.
+// It updates at most once a frame and not at all while a button is held, so a drag across the map
+// costs nothing here; the box's position is read only when it changes size.
 function usePointerOverMap(anchor: React.RefObject<SVGGElement | null>) {
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
-    const onMove = (event: PointerEvent) => {
+    let overlay: Overlay | null = null;
+    let frame = 0;
+    let latest: PointerEvent | null = null;
+    const measure = () => {
       const svg = anchor.current?.ownerSVGElement;
       const stage = svg?.parentElement;
-      if (!svg || !stage || !(event.target instanceof Node) || !stage.contains(event.target)) return setPointer(null);
-      const rect = svg.getBoundingClientRect();
-      setPointer({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+      overlay = svg && stage ? { svg, stage, rect: svg.getBoundingClientRect() } : null;
+    };
+    const resized = new ResizeObserver(measure);
+    const firstMeasure = () => {
+      measure();
+      if (overlay) resized.observe(overlay.svg);
+    };
+    const update = () => {
+      frame = 0;
+      const event = latest;
+      if (!overlay) firstMeasure();
+      if (!event || !overlay || event.buttons !== 0 || !(event.target instanceof Node) || !overlay.stage.contains(event.target)) return setPointer(null);
+      setPointer({ x: event.clientX - overlay.rect.left, y: event.clientY - overlay.rect.top });
+    };
+    const onMove = (event: PointerEvent) => {
+      latest = event;
+      frame ||= requestAnimationFrame(update);
     };
     window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
+    window.addEventListener("scroll", measure, { passive: true, capture: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      resized.disconnect();
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("scroll", measure, { capture: true });
+    };
   }, [anchor]);
   return pointer;
 }
@@ -91,8 +118,10 @@ function SpreadArrows({ field, minutes }: { field: FireField; minutes: number })
   const burned = useMemo(() => burnedPoints(field, minute), [field, minute]);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- version changes whenever the camera moves
   const arrows = useMemo(() => vectors.map((vector) => toArrow(project, vector)), [vectors, project, version]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- version changes whenever the camera moves
+  const burnedOnScreen = useMemo(() => burned.map((point) => project(point)), [burned, project, version]);
 
-  const overFire = pointer !== null && (nearest(burned, project, pointer.x, pointer.y)?.distance ?? Infinity) <= HOVER_RADIUS_PX;
+  const overFire = pointer !== null && (nearest(burnedOnScreen, (point) => point, pointer.x, pointer.y)?.distance ?? Infinity) <= HOVER_RADIUS_PX;
   const focused = overFire ? nearest(arrows, (arrow) => arrow.tail, pointer.x, pointer.y)?.item : undefined;
 
   return (
