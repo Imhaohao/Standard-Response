@@ -20,6 +20,9 @@
   --accessible: var(--signal);
   --unreachable: oklch(0.55 0.012 30);
   --unknown: oklch(0.8 0.006 30);
+  /* The map is drawn on paper in both schemes, so it keeps the ink renderer's own paper and ink. */
+  --map-paper: oklch(0.963 0.012 85);
+  --map-ink: oklch(0.235 0.012 60);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -59,6 +62,8 @@
   --color-accessible: var(--accessible);
   --color-unreachable: var(--unreachable);
   --color-unknown: var(--unknown);
+  --color-map-paper: var(--map-paper);
+  --color-map-ink: var(--map-ink);
   --font-sans: var(--font-archivo);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
