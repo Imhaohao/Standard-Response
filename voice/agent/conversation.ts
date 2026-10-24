@@ -132,6 +132,10 @@ export class Conversation {
   step: Step;
   private readonly effects: ConversationEffects;
   private readonly knownAddress?: string;
+  private readonly onFile: AgentRecord;
+  // The resident said they aren't at the address on file, so it isn't theirs to flag.
+  private knownAddressDenied = false;
+  private lastFeeling = "";
   private readonly residentName?: string;
   private triesOnStep = 0;
   private heldTurns = 0;
@@ -156,6 +160,7 @@ export class Conversation {
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
+    this.onFile = options.onFile;
     this.record = { ...options.onFile };
     this.knownAddress = options.knownAddress;
     this.residentName = options.residentName;
@@ -251,8 +256,9 @@ export class Conversation {
     return this.reply(heard, urgent, transition.lines ?? [], { transfer, stalled });
   }
 
+  // At the neighbor question "let me go check" ends the question rather than holding the line open.
   private holdsQuestion(heard: Interpretation) {
-    if (this.holding || !keepsQuestion(heard) || this.heldTurns >= MAX_HELD_TURNS) return false;
+    if (this.holding || this.step === "neighbor" || !keepsQuestion(heard) || this.heldTurns >= MAX_HELD_TURNS) return false;
     this.heldTurns += 1;
     return true;
   }
@@ -285,13 +291,22 @@ export class Conversation {
     // On hold the question is about the ride, so a dropped answer is replaced by the status line,
     // which says the true version, rather than leaving the caller with silence.
     const answer = guardAcknowledgment(heard.reply, status, this.language);
-    const givesTime = stalled && heard.wantsTime && !this.done && !this.holding;
+    const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const said = answer.blocked ? (this.holding ? [this.rideLine()] : []) : [answer.text];
-    const lines = [...greeting, ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
+    const lines = [...greeting, ...this.feelingLines(heard, status), ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
+  }
+
+  // A frightened caller hears their feeling named before the facts, once, not every turn.
+  private feelingLines(heard: Interpretation, status: RequestStatus | "none") {
+    const feeling = guardAcknowledgment(heard.feeling, status, this.language);
+    const normalized = normalizeAck(feeling.text);
+    if (feeling.blocked || normalized === "" || normalized === this.lastFeeling) return [];
+    this.lastFeeling = normalized;
+    return [feeling.text];
   }
 
   // Facts the resident just gave are said back from templates, so "two people, with pets" is heard
@@ -315,7 +330,7 @@ export class Conversation {
   private nextLines(stalled: boolean, givesTime: boolean) {
     if (this.done) return this.closingLines();
     if (givesTime) return [LINES[this.language].takeYourTime];
-    return [stalled ? this.questionAgain() : this.question()];
+    return [stalled ? this.askAgain() : this.question()];
   }
 
   // The line went quiet after a question: check in and ask it again in other words. After
@@ -329,13 +344,26 @@ export class Conversation {
       return this.say("", [...(transition.lines ?? []), ...this.nextLines(false, false)], false);
     }
     this.quietCheckIns += 1;
-    if (this.quietCheckIns > MAX_QUIET_CHECK_INS) {
-      this.lostContact = true;
-      this.moveTo("done");
-      return this.say("", [withSafety(lines.lostYou, this.language)], false);
-    }
+    if (this.quietCheckIns > MAX_QUIET_CHECK_INS) return this.loseContact();
     const stillThere = lines.stillThere[(this.quietCheckIns - 1) % lines.stillThere.length];
-    return this.say("", [stillThere, this.questionAgain()], false);
+    return this.say("", [stillThere, this.askAgain()], false);
+  }
+
+  // The line went dead. With no address, nothing else puts this caller in front of a dispatcher,
+  // so they are flagged before the reach ladder calls back.
+  private loseContact(): AgentTurn {
+    this.lostContact = true;
+    if (!this.record.address && !this.knownAddress) this.escalateOnce("address_unconfirmed");
+    this.moveTo("done");
+    return this.say("", [withSafety(LINES[this.language].lostYou, this.language)], false);
+  }
+
+  // The same rephrasing twice in a row sounds like a recording, so a second miss asks the question
+  // as first put.
+  private askAgain() {
+    const again = this.questionAgain();
+    const lastSaid = this.history.findLast((line) => line.speaker === "agent")?.text ?? "";
+    return lastSaid.includes(again) ? this.question() : again;
   }
 
   // The same acknowledgment twice in a row, or "got it", sounds like a machine not listening.
@@ -450,6 +478,7 @@ export class Conversation {
       if (!this.record.address && this.knownAddress) this.applyUpdates({ address: this.knownAddress }, { address: 0.95 });
       return { step: "can_leave" };
     }
+    if (heard.answer === "no") this.knownAddressDenied = true;
     if (heard.updates.address) return { step: hasHouseNumber(this.record.address) ? "confirm_address" : "ask_address" };
     if (heard.answer === "no") return { step: "ask_address" };
     return this.addressRetry();
@@ -462,7 +491,7 @@ export class Conversation {
 
   private addressRetry(): Transition {
     if (this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: this.step };
-    const heardAnAddress = Boolean(this.record.address ?? this.knownAddress);
+    const heardAnAddress = Boolean(this.record.address ?? (this.knownAddressDenied ? undefined : this.knownAddress));
     const line = heardAnAddress ? LINES[this.language].addressEscalated : LINES[this.language].addressMissing;
     const lines = this.escalateOnce("address_unconfirmed") ? [line] : [];
     return { step: "can_leave", lines };
@@ -539,8 +568,10 @@ export class Conversation {
   }
 
   // "Yes, there's someone" with no address yet gets asked for it once.
+  // "Yes, the house across the street" is asked once for the house number, so a field team can find it.
   neighbor(heard: Interpretation): Transition {
-    const owesAddress = heard.answer === "yes" && heard.neighborAddresses.length === 0;
+    const named = heard.answer === "yes" || heard.neighborAddresses.length > 0;
+    const owesAddress = named && !heard.neighborAddresses.some((place) => /^\s*\d/.test(place));
     if (owesAddress && this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: "neighbor" };
     return this.afterNeighbor();
   }
@@ -557,11 +588,17 @@ export class Conversation {
   // "I'm still here" in its place was the line real callers heard over and over instead of an answer.
   hold(heard: Interpretation): Transition {
     this.holdTurns += 1;
-    if (heard.wantsToEnd) return { step: "done" };
+    if (heard.wantsToEnd && !this.stillListening()) return { step: "done" };
     if (this.changedThisTurn) return { step: "hold", lines: [LINES[this.language].readbackFixed] };
     const answered = heard.reply !== "" || heard.asksAboutRide;
     const brief = heardNothing(heard) && wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
     return { step: "hold", lines: answered || brief ? [] : [this.rideLine()] };
+  }
+
+  // "Okay" on hold means they are still there; a waiting caller is never hung up on without a goodbye.
+  private stillListening() {
+    const said = this.lastResidentLine();
+    return wordCount(said) <= BRIEF_ACKNOWLEDGMENT_WORDS && !GOODBYE.test(said);
   }
 
   private lastResidentLine() {
@@ -603,10 +640,13 @@ export class Conversation {
     return address ? LINES[this.language].askAgain.confirmAddress(address) : LINES[this.language].askAgain.address;
   }
 
+  // "Our records say" quotes only what came from the file. Mobility already heard on this call
+  // needs no confirming, so only oxygen is left to ask.
   needsQuestion() {
     const lines = LINES[this.language];
-    if (!this.record.mobility) return lines.askNeeds;
-    return lines.askNeedsOnFile(lines.mobility[this.record.mobility]);
+    const { mobility } = this.record;
+    if (!mobility) return lines.askNeeds;
+    return mobility === this.onFile.mobility ? lines.askNeedsOnFile(lines.mobility[mobility]) : lines.askOxygen;
   }
 
   readbackQuestion() {
@@ -631,6 +671,7 @@ export class Conversation {
 }
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
+const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
@@ -680,7 +721,7 @@ const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
   confirm_address: (c) => c.addressQuestion(),
   can_leave: (c) => LINES[c.language].askCanLeave,
   has_car: (c) => LINES[c.language].askHasCar,
-  household: (c) => LINES[c.language].askHousehold,
+  household: (c) => (c.record.pets === undefined ? LINES[c.language].askHousehold : LINES[c.language].askPeople),
   needs: (c) => c.needsQuestion(),
   assistance: (c) => LINES[c.language].askAssistance,
   readback: (c) => c.readbackQuestion(),

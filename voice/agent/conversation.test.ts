@@ -24,6 +24,7 @@ function heard(overrides: Partial<Interpretation> = {}): Interpretation {
     neighborAddresses: [],
     spokenLanguage: "en",
     acknowledgment: "",
+    feeling: "",
     reply: "",
     ...overrides,
   };
@@ -87,9 +88,10 @@ describe("answers that don't answer", () => {
   it("answers the resident's own question, then asks again, without using up a try", () => {
     const { conversation, escalations } = atCanLeave();
     const reply = "It helps us match the right vehicle to your needs.";
-    for (let turn = 0; turn < 2; turn += 1) {
+    // The rephrasing and the question as first put take turns, so neither is said twice in a row.
+    for (const question of [EN.askAgain.canLeave, EN.askCanLeave]) {
       const said = conversation.respond("why do you need to know?", heard({ reply }));
-      assert.deepEqual(said.sentences, [reply, EN.askAgain.canLeave]);
+      assert.deepEqual(said.sentences, [reply, question]);
       assert.equal(conversation.step, "can_leave");
     }
     assert.deepEqual(escalations, []);
@@ -114,6 +116,14 @@ describe("answers that don't answer", () => {
     assert.deepEqual(quiet.sentences, []);
     const blocked = conversation.respond("are they coming?", heard({ reply: "They'll be there soon." }));
     assert.deepEqual(blocked.sentences, [conversation.rideLine()]);
+  });
+
+  it("stays on the line for a plain \"okay\" on hold, and ends only on a goodbye", () => {
+    const { conversation } = atHold();
+    conversation.respond("Okay.", heard({ wantsToEnd: true }));
+    assert.equal(conversation.step, "hold");
+    conversation.respond("Okay, bye.", heard({ wantsToEnd: true }));
+    assert.ok(conversation.done);
   });
 
   it("waits when the resident asks for a moment", () => {
@@ -142,11 +152,18 @@ describe("a quiet line", () => {
   it("checks in twice with the question in other words, then ends without counting as answered", () => {
     const { conversation } = atCanLeave();
     assert.deepEqual(conversation.checkIn().sentences, [EN.stillThere[0], EN.askAgain.canLeave]);
-    assert.deepEqual(conversation.checkIn().sentences, [EN.stillThere[1], EN.askAgain.canLeave]);
+    assert.deepEqual(conversation.checkIn().sentences, [EN.stillThere[1], EN.askCanLeave]);
     const last = conversation.checkIn();
     assert.ok(last.sentences[0].startsWith(EN.lostYou));
     assert.ok(last.done);
     assert.equal(conversation.lostContact, true);
+  });
+
+  it("flags a lost caller who never gave an address for a dispatcher", () => {
+    const { conversation, escalations } = call(null);
+    for (let check = 0; check <= 2; check += 1) conversation.checkIn();
+    assert.equal(conversation.lostContact, true);
+    assert.deepEqual(escalations, ["address_unconfirmed"]);
   });
 
   it("starts the count again once the resident speaks", () => {

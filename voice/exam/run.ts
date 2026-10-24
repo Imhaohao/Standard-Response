@@ -82,11 +82,14 @@ function report(graded: Graded[], options: Options) {
   const critical = failures.filter((failure) => failure.critical);
   const sorted = latencies(graded);
   const passed = options.judged && critical.length === 0 && modules.every((module) => module.pass);
+  // Every module weighs the same, so many speed checks can't drown out a few decision checks.
+  const overall = modules.reduce((sum, scored) => sum + (scored.score ?? 0), 0) / modules.length;
   return {
     label: "Voice exam after the CritiCall dispatcher test. Scripted callers adapted from released 911 calls, not real riders.",
     generatedAt: new Date().toISOString(),
     agentModel: process.env.VOICE_MODEL || "claude-haiku-5-5",
     passBar: PASS_BAR,
+    overallScore: Number(overall.toFixed(3)),
     verdict: passed ? "PASS" : "FAIL",
     certified: passed && options.runs >= 3,
     runs: options.runs,
@@ -120,7 +123,7 @@ function report(graded: Graded[], options: Options) {
 const percent = (score: number | null) => (score === null ? "  -  " : `${(score * 100).toFixed(0).padStart(3)}%`);
 
 function print(result: ReturnType<typeof report>) {
-  console.log(`\nVoice exam: ${result.verdict}${result.certified ? " (certified)" : ""}  ${result.items} items, ${result.callCount} calls, pass bar ${result.passBar * 100}% per module`);
+  console.log(`\nVoice exam: ${result.verdict}${result.certified ? " (certified)" : ""}  overall ${percent(result.overallScore).trim()}  ${result.items} items, ${result.callCount} calls, pass bar ${result.passBar * 100}% per module`);
   for (const scored of result.modules) {
     const mark = scored.score === null ? "no checks" : scored.pass ? "pass" : "FAIL";
     console.log(`  ${percent(scored.score)}  ${scored.name.padEnd(20)} ${`${scored.passed}/${scored.total}`.padStart(7)}  ${mark}`);

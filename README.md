@@ -90,7 +90,7 @@ npm run exam:voice -- --no-judge          # fast loop; can't pass
 npm run exam:voice -- --runs 3            # certify: every run of every item counts
 ```
 
-Pass: every module at 90% or more (CritiCall agencies usually ask 70-75%) and zero critical errors. A critical error is a missed or late life threat, an implied promise or invented fact, a record that would leave someone behind, or silence taken as an answer. Results, transcripts and each failed check: `data/voice-exam-results.json`; each module names the file that owns it (`fixIn`).
+Pass: every module at 95% or more, speed included (CritiCall agencies usually ask 70-75%), and zero critical errors. The overall score is the mean of the module scores. A critical error is a missed or late life threat, an implied promise or invented fact, a record that would leave someone behind, or silence taken as an answer. Results, transcripts and each failed check: `data/voice-exam-results.json`; each module names the file that owns it (`fixIn`).
 
 Improvement loop: run the exam, take the most common failure, fix it in the module's `fixIn`, rerun that module with `--only`, then the whole exam and `npm run test:voice`. Stop at a pass with `--runs 3`. Never edit `voice/exam/` to make a call pass.
 

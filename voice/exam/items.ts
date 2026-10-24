@@ -18,7 +18,8 @@ import {
 // doesn't give. The Spanish items translate English calls: no Spanish wildfire call with captions
 // turned up.
 
-const BEEPING = "(smoke alarm beeping) Beep. Beep. Beep.";
+// As speech-to-text writes an alarm, with no note saying what it is.
+const BEEPING = "Beep. Beep. Beep.";
 
 export const ITEMS: ExamItem[] = [
   {
@@ -472,7 +473,7 @@ export const ITEMS: ExamItem[] = [
       needs: ["Yes, the wheelchair."],
       readback: ["Yes."],
       neighbor: ["No."],
-      hold: ["Okay, thank you.", { say: "Is the driver still coming?", asksRide: true }],
+      hold: ["Okay.", { say: "Is the driver still coming?", asksRide: true }],
     },
     expect: [fields({ canLeave: "no", peopleCount: 1, mobility: "manual_wheelchair" }), onlyEscalations()],
   },

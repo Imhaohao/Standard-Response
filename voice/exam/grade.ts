@@ -155,13 +155,12 @@ export const readsBack: Expectation = (call) => {
   return checks;
 };
 
-// What is on file is confirmed ("Our records say ..."), not asked cold.
+// What is on file is never asked cold: with needs on file, the open needs question is a miss.
 export const confirmsOnFile: Expectation = (call) => {
-  const onFile = call.item.onFile?.mobility;
-  if (!onFile) return [];
-  const prefix = LINES[call.item.language].askNeedsOnFile("").trim().split(" ").slice(0, 3).join(" ");
-  const confirmed = agentLines(call).some((line) => line.text.includes(prefix));
-  return [{ module: "cross_reference", name: "on-file needs confirmed, not asked cold", pass: confirmed, detail: confirmed ? undefined : `never said "${prefix} ..."` }];
+  if (!call.item.onFile?.mobility) return [];
+  const cold = LINES[call.item.language].askNeeds;
+  const askedCold = agentLines(call).some((line) => line.text.includes(cold));
+  return [{ module: "cross_reference", name: "on-file needs not asked cold", pass: !askedCold, detail: askedCold ? `asked "${cold}"` : undefined }];
 };
 
 export const endsAs =

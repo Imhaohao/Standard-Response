@@ -21,7 +21,11 @@ export type Lines = {
   askCanLeave: string;
   askHasCar: string;
   askHousehold: string;
+  // The household question once pets are already known.
+  askPeople: string;
   askNeeds: string;
+  // The needs question once mobility was already heard on this call: only oxygen is left to ask.
+  askOxygen: string;
   askNeedsOnFile: (onFile: string) => string;
   askAssistance: string;
   readbackIntro: string;

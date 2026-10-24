@@ -3,8 +3,9 @@ import type { PrincipleId } from "../agent/interpreter";
 // The voice exam's scoring rules, after the CritiCall dispatcher test (SOURCES.criticall): each
 // module is scored as the share of its checks passed, the way CritiCall scores section percentages.
 // The video gives 70-75% as the usual cut-off and says competitive agencies set it higher. This exam
-// sets 90% for every module, and one critical error fails the whole exam whatever the scores.
-export const PASS_BAR = 0.9;
+// sets 95% for every module, speed included so slow answers can't buy accuracy, and one critical
+// error fails the whole exam whatever the scores.
+export const PASS_BAR = 0.95;
 
 // PLAN.md "Model and latency": the whole turn has 1 second, so the interpreter alone must fit in it.
 export const TURN_BUDGET_MS = 1000;

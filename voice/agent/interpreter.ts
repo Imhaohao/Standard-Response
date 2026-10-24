@@ -31,6 +31,8 @@ export type Interpretation = {
   neighborAddresses: string[];
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
+  // A few words naming what a frightened or upset resident feels, said before the facts.
+  feeling: string;
   // A short answer to something the resident asked or said that isn't an answer to the question.
   reply: string;
 };
@@ -55,23 +57,25 @@ const objectOf = (properties: Record<string, object>) => ({
   additionalProperties: false,
 });
 
-// Changes come back as a short list rather than an object of nullable fields: fewer output tokens
-// per turn, which is most of the latency.
+// Output tokens cost about 3 ms each on Haiku, a third of a turn, so the wire format is terse: each
+// change as one "field=value" string, short keys, and the rare conditions as a list of the ones that
+// hold. The answer and the emergency stay single choices: as flags, "flames blowing in" came back
+// as both medical and flames, and the wrong escalation won.
+const CONDITIONS = ["asks_ride", "repeat", "not_to_agent", "ends", "wants_time"] as const;
+type Condition = (typeof CONDITIONS)[number];
+const GUESSED_CONFIDENCE = 0.5;
+const HEARD_CONFIDENCE = 0.9;
+
 const outputSchemaFor = (kind: Hazard) => objectOf({
-  changes: {
-    type: "array",
-    items: objectOf({ field: enumOf(FIELDS), value: { type: "string" }, confidence: { type: "number" } }),
-  },
+  set: { type: "array", items: { type: "string" } },
+  guessed: { type: "array", items: enumOf(FIELDS) },
   answer: enumOf(["yes", "no", "unclear", "none"]),
   emergency: enumOf(["none", "medical", hazardEscalation(kind)]),
-  asksAboutRide: { type: "boolean" },
-  wantsRepeat: { type: "boolean" },
-  addressedToAgent: { type: "boolean" },
-  wantsToEnd: { type: "boolean" },
-  wantsTime: { type: "boolean" },
-  neighborAddresses: { type: "array", items: { type: "string" } },
-  spokenLanguage: enumOf(HEARD_LANGUAGES),
-  acknowledgment: { type: "string" },
+  flags: { type: "array", items: enumOf(CONDITIONS) },
+  neighbors: { type: "array", items: { type: "string" } },
+  language: enumOf(HEARD_LANGUAGES),
+  feeling: { type: "string" },
+  ack: { type: "string" },
   reply: { type: "string" },
 });
 
@@ -130,27 +134,32 @@ The household record has these fields and allowed values:
 - assistanceRequired: help needed getting out of the home: none, one_person_assist, two_person_lift
 
 Rules for changes:
-- List a field only when this utterance gives or changes it. List nothing else.
+- set lists each field this utterance gives or changes as field=value, such as peopleCount=2, mobility=walker or address=1182 Mariposa St. List a field only when this utterance gives or changes it. List nothing else.
 - Corrections matter most. If the resident changes or takes back something already in the record, list the new value. "My husband uses a wheelchair, but he isn't here" means the wheelchair user is not in the home: lower peopleCount and set mobility to what the people present need. "It's just me... no wait, my son is here, he can't get out of bed" raises peopleCount and sets mobility to bedbound.
 - A wheelchair is manual_wheelchair unless they say it is electric or powered.
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
-- Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure.
+- Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure; respect it and don't argue.
+- Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
+- mobility is the most limited of anyone in the home now. Mentioning someone less limited never lowers it: after "my son can't get out of bed", "I'm in the wheelchair" keeps bedbound.
+- An emergency in the same answer doesn't replace the answer: set the fields it gives as well.
 - assistanceRequired is about physical help getting out of the home. Set it only when they describe needing a person to help them move or lift them. "I can't get out on my own" or "I have no car" alone says nothing about it.
-- For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address. If the record has a street with no house number and they give the number, list the full address with both (for example "2585 Catherine Road").
-- confidence is 0 to 1. Use below 0.6 when you are guessing.
+- For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address. Digits said one at a time make one number: "four five East Mariposa" is 45 East Mariposa, "two six zero nine" is 2609. If the record has a street with no house number and they give the number, list the full address with both (for example "2585 Catherine Road").
+- guessed: the fields in set that you are guessing at. Usually empty.
 
 Other outputs:
 - answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise. When the agent read something back and asked "Is that right?" (or confirmed an address), agreement without the word yes is yes: "thank you", "okay", "mm-hm", "that's it", "correct", "감사합니다", "谢谢", "gracias". Only a correction or a no is no.
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none.
-- asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also true for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
-- wantsRepeat: true if they didn't hear or understand the question.
-- addressedToAgent: false when the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When false, list no changes. True otherwise, including a short "yes", a request to repeat, or a request to switch language.
-- wantsToEnd: true if they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay" or "thanks" is false.
-- wantsTime: true if they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
-- neighborAddresses: addresses or locations of other people who might not be able to leave, if they mention any.
-- spokenLanguage: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
-- acknowledgment: at most 6 words in spokenLanguage that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." When a record field changed, the code speaks its own fixed echo of that field instead, so this matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when addressedToAgent is false, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never ask a question.
-- reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused), one short, calm sentence of at most 20 words in spokenLanguage that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads or shelters. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, or when addressedToAgent is false. The acknowledgment's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.`;
+- flags: each of these that holds for this utterance, else an empty list.
+  - asks_ride: they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also any plea for help ("please, help us", "please hurry", "get them here now", "send someone"), asking whether anyone knows they are there, or whether to wait. Not asking whether the agent will stay on the line: reply answers that ("Yes, I'm staying on the line with you."). Also for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
+  - repeat: they didn't hear or understand the question.
+  - not_to_agent: the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When listed, list no changes. Never for a short "yes", a request to repeat, or a request to switch language.
+  - ends: they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay", "thanks" or "okay, thank you" is not ends.
+  - wants_time: they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
+- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
+- language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
+- feeling: when the resident sounds frightened, panicked, desperate or upset, at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
+- ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists peopleCount, mobility, medical, assistanceRequired, pets or hasCar=false, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("No, you can't get out.", "You're leaving now."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
+- reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused, that they won't leave without someone, whether the agent will stay on the line), one short, calm sentence of at most 20 words in the resident's language that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads, shelters, routes or orders. Never mention help, crews, vehicles, sending, plans or what dispatchers are doing: the code's status line is the only thing said about those. If you don't know, say so ("I don't know that."). Name people only as the resident did ("he", "my son"); never guess who someone is. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, or when not_to_agent is listed. The ack's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.`;
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
@@ -170,6 +179,8 @@ const MEDICAL = new Set(["oxygen", "dialysis", "other"]);
 const BOOLEAN_FIELDS = new Set<Field>(["hasCar", "pets"]);
 
 const BOOLEAN_VALUES: Record<string, boolean> = { true: true, false: false };
+// What Claude writes for an address it didn't hear. Spoken back, it became "the house number on none".
+const PLACEHOLDERS = new Set(["none", "unknown", "n/a", "null", "not given"]);
 
 const countFrom = (value: string) => {
   const count = Number.parseInt(value, 10);
@@ -186,20 +197,25 @@ function valueFor(field: Field, raw: string): unknown {
   if (BOOLEAN_FIELDS.has(field)) return BOOLEAN_VALUES[value];
   if (field === "peopleCount") return countFrom(value);
   if (field === "medical") return medicalFrom(value);
-  return value === "" ? undefined : value;
+  return value === "" || PLACEHOLDERS.has(value.toLowerCase()) ? undefined : value;
 }
 
-type RawChange = { field: Field; value: string; confidence: number };
+// "peopleCount=2" to a field and its typed value, or undefined when either isn't allowed.
+function changeFrom(raw: unknown): [Field, unknown] | undefined {
+  if (typeof raw !== "string") return undefined;
+  const split = raw.indexOf("=");
+  const field = raw.slice(0, split).trim() as Field;
+  if (split < 0 || !FIELDS.includes(field)) return undefined;
+  const value = valueFor(field, raw.slice(split + 1));
+  return value === undefined ? undefined : [field, value];
+}
 
-function recordFrom(changes: RawChange[]) {
+function recordFrom(set: unknown[], guessed: unknown[]) {
   const updates: Record<string, unknown> = {};
   const confidence: Confidence = {};
-  for (const change of changes) {
-    if (!FIELDS.includes(change.field)) continue;
-    const value = valueFor(change.field, String(change.value));
-    if (value === undefined) continue;
-    updates[change.field] = value;
-    confidence[change.field] = Math.min(Math.max(Number(change.confidence) || 0.5, 0), 1);
+  for (const [field, value] of set.map(changeFrom).filter((change) => change !== undefined)) {
+    updates[field] = value;
+    confidence[field] = guessed.includes(field) ? GUESSED_CONFIDENCE : HEARD_CONFIDENCE;
   }
   return { updates: updates as AgentRecord, confidence };
 }
@@ -212,23 +228,28 @@ const languageFrom = (raw: unknown, fallback: Language): HeardLanguage =>
 
 export const canSpeak = (language: HeardLanguage): language is Language => isSpokenLanguage(language);
 
+const listOf = (raw: unknown): unknown[] => (Array.isArray(raw) ? raw : []);
+const textOf = (raw: unknown) => (typeof raw === "string" ? raw : "");
+
 function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpretation {
   const raw = JSON.parse(text) as Record<string, unknown>;
-  const { updates, confidence } = recordFrom(Array.isArray(raw.changes) ? (raw.changes as RawChange[]) : []);
+  const { updates, confidence } = recordFrom(listOf(raw.set), listOf(raw.guessed));
+  const flags = new Set(listOf(raw.flags) as Condition[]);
   return {
     updates,
     confidence,
     answer: answerFrom(raw.answer),
     emergency: emergencyFrom(raw.emergency, kind),
-    asksAboutRide: raw.asksAboutRide === true,
-    wantsRepeat: raw.wantsRepeat === true,
-    addressedToAgent: raw.addressedToAgent !== false,
-    wantsToEnd: raw.wantsToEnd === true,
-    wantsTime: raw.wantsTime === true,
-    neighborAddresses: Array.isArray(raw.neighborAddresses) ? (raw.neighborAddresses as string[]) : [],
-    spokenLanguage: languageFrom(raw.spokenLanguage, fallbackLanguage),
-    acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",
-    reply: typeof raw.reply === "string" ? raw.reply : "",
+    asksAboutRide: flags.has("asks_ride"),
+    wantsRepeat: flags.has("repeat"),
+    addressedToAgent: !flags.has("not_to_agent"),
+    wantsToEnd: flags.has("ends"),
+    wantsTime: flags.has("wants_time"),
+    neighborAddresses: listOf(raw.neighbors) as string[],
+    spokenLanguage: languageFrom(raw.language, fallbackLanguage),
+    acknowledgment: textOf(raw.ack),
+    feeling: textOf(raw.feeling),
+    reply: textOf(raw.reply),
   };
 }
 
@@ -246,20 +267,37 @@ function promptFor(turn: TurnContext) {
     .join("\n\n");
 }
 
+// Identical requests to Haiku vary from 0.6 to 1.5 s before the first token, so each turn sends
+// two and takes whichever answers first (a hedged request), cancelling the other. At Haiku's price
+// with a cached prompt the second request costs a fraction of a cent; it cut p90 from 1.6 to 1.1 s.
+const HEDGED_REQUESTS = 2;
+
+function request(turn: TurnContext, kind: Hazard, signal: AbortSignal) {
+  return anthropic().messages.create(
+    {
+      model: env.anthropicModel,
+      max_tokens: 1024,
+      // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
+      system: [{ type: "text", text: SYSTEM[kind], cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: promptFor(turn) }],
+      output_config: { effort: "low", format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
+      ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
+    },
+    { signal },
+  );
+}
+
 export async function interpret(turn: TurnContext): Promise<Interpretation> {
   const kind = currentHazard();
-  const response = await anthropic().messages.create({
-    model: env.anthropicModel,
-    max_tokens: 1024,
-    // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
-    system: [{ type: "text", text: SYSTEM[kind], cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: promptFor(turn) }],
-    output_config: { effort: "low", format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
-    ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
-  });
-  const text = response.content.find((block) => block.type === "text");
-  if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-    throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
+  const controllers = Array.from({ length: HEDGED_REQUESTS }, () => new AbortController());
+  try {
+    const response = await Promise.any(controllers.map((controller) => request(turn, kind, controller.signal)));
+    const text = response.content.find((block) => block.type === "text");
+    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
+      throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
+    }
+    return parse(text.text, turn.language, kind);
+  } finally {
+    for (const controller of controllers) controller.abort();
   }
-  return parse(text.text, turn.language, kind);
 }
