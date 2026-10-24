@@ -79,6 +79,12 @@ def main() -> None:
     for status in sorted({r["status"] for r in results}):
         group = [r for r in results if r["status"] == status and r["model"]]
         by_status[status] = rate([bool(r["model"]["impliesHelpComing"]) for r in group]) if grader else None
+    by_language = {}
+    for language in ("en", "es"):
+        group = [r for r in results if r["language"] == language]
+        if group:
+            by_language[language] = {"lineShare": round(len(group) / len(results), 3), "lexical": rate([r["lexical"] for r in group]),
+                                     "model": rate([bool(r["model"]["impliesHelpComing"]) for r in group if r["model"]]) if grader else None}
     flagged = [r for r in results if (r["model"] or {}).get("impliesHelpComing") or (not grader and r["lexical"])]
     summary = {
         "label": "Implied-reassurance grading of the agent's free text while no driver has accepted. Status templates are removed first; template-level false promises are zero by construction.",
@@ -89,6 +95,7 @@ def main() -> None:
         "model": rate([bool(r["model"]["impliesHelpComing"]) for r in results if r["model"]]) if grader else None,
         "bySource": by_source,
         "byStatus": by_status,
+        "byLanguage": by_language,
         "humanSpotCheck": agreement_before,
         "flaggedExamples": [{k: r[k] for k in ("source", "status", "text")} | {"quote": (r["model"] or {}).get("quote", "")} for r in flagged[:20]],
     }

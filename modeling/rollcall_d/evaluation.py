@@ -47,9 +47,9 @@ class CardRun:
     error: str | None = None
 
 
-def run_card(agent, card: dict, seed: int = 0, request_status: str | None = None) -> CardRun:
+def run_card(agent, card: dict, seed: int = 0, request_status: str | None = None, resident_factory=Resident) -> CardRun:
     run = CardRun(card)
-    resident = Resident(card, seed)
+    resident = resident_factory(card, seed)
     body = {"sessionId": f"{card['id']}-{uuid.uuid4().hex[:8]}", "language": card["language"], "text": ""}
     if card["direction"] == "outbound":
         body["address"] = card["address"]
@@ -132,6 +132,34 @@ def _percentile(values: list[float], q: float) -> float | None:
     return round(ordered[min(len(ordered) - 1, int(q * len(ordered)))], 1)
 
 
+def _correction_landed(run: CardRun) -> bool:
+    name = run.card["correction"]["field"]
+    return field_correct(run, "oxygen" if name == "medical" else name)
+
+
+EMERGENCY_TRAITS = {"flames", "medical"}
+
+
+def _language_outcomes(runs: list[CardRun]) -> dict:
+    """Spanish parity beyond field accuracy: all-fields, corrections, escalations and turn latency per language."""
+    outcomes = {}
+    for language in ("en", "es"):
+        group = [r for r in runs if r.card["language"] == language]
+        if not group:
+            continue
+        corrections = [r for r in group if r.card.get("correction") and r.correction_said]
+        expected = [r for r in group if EMERGENCY_TRAITS & set(r.card.get("traits", []))]
+        turn_ms = [ms for r in group for ms in r.turn_ms[1:]]
+        outcomes[language] = {
+            "cards": len(group),
+            "allFieldsCorrect": _rate(sum(all(field_correct(r, n) for n in GRADED_FIELDS) for r in group), len(group)),
+            "corrections": _rate(sum(_correction_landed(r) for r in corrections), len(corrections)),
+            "escalations": _rate(sum(bool(EMERGENCY_TRAITS & set(r.escalations)) for r in expected), len(expected)),
+            "latency": {"turnMsP50": _percentile(turn_ms, 0.5), "turnMsP95": _percentile(turn_ms, 0.95)},
+        }
+    return outcomes
+
+
 def summarize(runs: list[CardRun], agent_label: str) -> dict:
     finished = [r for r in runs if r.error is None]
     fields = {}
@@ -150,13 +178,13 @@ def summarize(runs: list[CardRun], agent_label: str) -> dict:
         all_right = sum(all(field_correct(r, n) for n in GRADED_FIELDS) for r in group)
         by_trait[trait] = {"cards": len(group), "allFieldsCorrect": round(all_right / len(group), 3)}
     corrections = [r for r in finished if r.card.get("correction") and r.correction_said]
-    corrected = sum(field_correct(r, "oxygen" if r.card["correction"]["field"] == "medical" else r.card["correction"]["field"]) for r in corrections)
+    corrected = sum(_correction_landed(r) for r in corrections)
     by_when = {}
     for when in ("next_turn", "readback", "second_voice"):
         group = [r for r in corrections if r.card["correction"]["when"] == when]
-        by_when[when] = _rate(sum(field_correct(r, "oxygen" if r.card["correction"]["field"] == "medical" else r.card["correction"]["field"]) for r in group), len(group))
-    expected = [r for r in finished if {"flames", "medical"} & set(r.card.get("traits", []))]
-    raised = sum(bool({"flames", "medical"} & set(r.escalations)) for r in expected)
+        by_when[when] = _rate(sum(_correction_landed(r) for r in group), len(group))
+    expected = [r for r in finished if EMERGENCY_TRAITS & set(r.card.get("traits", []))]
+    raised = sum(bool(EMERGENCY_TRAITS & set(r.escalations)) for r in expected)
     nominators = [r for r in finished if r.card.get("neighborAddress")]
     all_turn_ms = [ms for r in finished for ms in r.turn_ms[1:]]
     failures = [
@@ -174,6 +202,7 @@ def summarize(runs: list[CardRun], agent_label: str) -> dict:
         "fields": fields,
         "allFieldsCorrect": _rate(sum(all(field_correct(r, n) for n in GRADED_FIELDS) for r in finished), len(finished)),
         "byLanguage": by_language,
+        "byLanguageOutcomes": _language_outcomes(finished),
         "byTrait": by_trait,
         "corrections": {**_rate(corrected, len(corrections)), "byWhen": by_when},
         "escalations": {"expected": len(expected), "raised": raised},

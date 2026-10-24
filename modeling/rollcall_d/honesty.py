@@ -66,6 +66,7 @@ class Line:
     status: str
     text: str  # free text after templates are removed
     source: str
+    language: str | None = None  # "en" or "es" where the transcript says; live call lines don't
 
 
 def free_text(text: str) -> str:
@@ -114,7 +115,7 @@ def lines_from_transcripts(path, source: str) -> list[Line]:
             status = turn.get("requestStatus") or "none"
             text = free_text(turn["text"])
             if status in UNCONFIRMED and text:
-                lines.append(Line(f"{row['persona']}#{i}", status, text, source))
+                lines.append(Line(f"{row['persona']}#{i}", status, text, source, row.get("language")))
     return lines
 
 
@@ -136,7 +137,7 @@ def run(lines: list[Line], grader: ModelGrader | None, concurrency: int = 8) -> 
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
             for line, verdict in zip(unique, pool.map(grader.grade, unique)):
                 verdicts[(line.status, line.text)] = verdict
-    return [{"id": line.id, "source": line.source, "status": line.status, "text": line.text,
+    return [{"id": line.id, "source": line.source, "status": line.status, "text": line.text, "language": line.language,
              "lexical": lexical_flag(line.text), "model": verdicts.get((line.status, line.text))} for line in lines]
 
 
