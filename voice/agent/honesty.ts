@@ -8,8 +8,8 @@ import { Language, LINES, RequestStatus } from "./script";
 // Besides direct promises, these catch echoes of a caller's demand ("Entendido, una hora.",
 // "Understood, checking on the driver.", "we'll work that out"): any time word, driver or "we will".
 const PROMISES = [
-  /\b(on (the|their|its) way|coming (for|to)|be there|help is|someone (is|will)|they('ll| will)|we('ll| will)|don'?t worry|you'?re safe|you will be safe|rescued|soon|minutes?|hours?|away|arriv|assigned|dispatch(ed)? (a|someone)|pick (you )?up|driver|work (that|it) out|be ready)\b/i,
-  /(en camino|ya (viene|va)|vienen?|van a (llegar|ir)|llegar[áa]n?|no se preocupe|est[áa] a salvo|pronto|minutos?|horas?|asignad|recoger|rescat|conductor|chofer|ayudamos|vamos a|confirmad|atent)/i,
+  /\b(on (the|their|its) way|coming (for|to)|be there|help is|someone (is|will)|they('ll| will)|we('ll| will)|don'?t worry|you'?re safe|you will be safe|rescued|soon|minutes?|hours?|away|arriv|assigned|dispatch(ed)? (a|someone)|pick (you )?up|driver|work (that|it) out|be ready|wait(ing)? for you|see you)\b/i,
+  /(en camino|ya (viene|va)|vienen?|van a (llegar|ir)|llegar[áa]n?|no se preocupe|est[áa] a salvo|pronto|minutos?|horas?|asignad|recoger|rescat|conductor|chofer|ayudamos|vamos a|confirmad|atent|esper[oa]|la puerta)/i,
 ];
 
 const UNCONFIRMED = new Set<RequestStatus | "none">(["none", "received", "approved", "reassigning"]);

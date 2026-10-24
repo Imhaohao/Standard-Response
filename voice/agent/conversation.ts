@@ -1,6 +1,6 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { guardAcknowledgment } from "./honesty";
-import { canSpeak, HeardLanguage, interpret, Interpretation, TurnContext } from "./interpreter";
+import { canSpeak, interpret, Interpretation, TurnContext } from "./interpreter";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
 import { Language, LINES, readback, RideStatus, statusLine } from "./script";
 
@@ -71,6 +71,7 @@ const hasHouseNumber = (address: string | undefined) => address !== undefined &&
 const MAX_READBACKS = 3;
 // Turns in a row where nothing usable was heard before the call goes to a person.
 const MAX_MISSED_TURNS = 3;
+const MAX_UNKNOWN_LANGUAGE_TURNS = 2;
 const HISTORY_TURNS = 6;
 
 type Transition = { step: Step; lines?: string[] };
@@ -85,6 +86,9 @@ export class Conversation {
   private triesOnStep = 0;
   private readbacks = 0;
   private missedTurns = 0;
+  private unknownLanguageTurns = 0;
+  // The language the call opened in, usually the one on file: the hand-off is said in it too.
+  private readonly openingLanguage: Language;
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
   private escalated = new Set<Escalation>();
@@ -92,6 +96,7 @@ export class Conversation {
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
+    this.openingLanguage = options.language;
     this.record = { ...options.onFile };
     this.knownAddress = options.knownAddress;
     this.residentName = options.residentName;
@@ -129,9 +134,9 @@ export class Conversation {
       console.error("[agent] interpreter failed", error);
       return this.say("", [LINES[this.language].repeatPrompt], false);
     }
-    if (!this.switchLanguageIfNeeded(heard.spokenLanguage)) return this.handOffToPerson();
-    this.missedTurns = heardNothing(heard) ? this.missedTurns + 1 : 0;
-    if (this.missedTurns >= MAX_MISSED_TURNS) return this.handOffToPerson();
+    if (this.shouldHandOff(heard)) return this.handOffToPerson();
+    if (heard.spokenLanguage === "other") return this.say("", [LINES[this.language].repeatPrompt], false);
+    if (canSpeak(heard.spokenLanguage)) this.switchLanguageIfNeeded(heard.spokenLanguage);
     this.changedThisTurn = false;
     this.applyUpdates(heard.updates, heard.confidence);
     const urgent = this.handleEmergency(heard);
@@ -169,22 +174,28 @@ export class Conversation {
     };
   }
 
-  // False when the resident speaks a language we can't hold a call in.
-  private switchLanguageIfNeeded(spoken: HeardLanguage) {
-    if (!canSpeak(spoken)) return false;
-    if (spoken === this.language) return true;
+  // A named language we can't speak hands off at once. "other" can be one odd sentence, so it takes
+  // two in a row; anything else unusable takes MAX_MISSED_TURNS in a row.
+  private shouldHandOff(heard: Interpretation) {
+    const spoken = heard.spokenLanguage;
+    if (spoken !== "other" && !canSpeak(spoken)) return true;
+    this.unknownLanguageTurns = spoken === "other" ? this.unknownLanguageTurns + 1 : 0;
+    this.missedTurns = spoken === "other" || heardNothing(heard) ? this.missedTurns + 1 : 0;
+    return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS;
+  }
+
+  private switchLanguageIfNeeded(spoken: Language) {
+    if (spoken === this.language) return;
     this.language = spoken;
     this.effects.updateRecord({ language: spoken }, {});
-    return true;
   }
 
   // Nobody can understand each other: flag the call for a person and end it without promising anything.
   private handOffToPerson(): AgentTurn {
     this.escalateOnce("language_barrier");
     this.moveTo("done");
-    const barrier = [LINES[this.language].languageBarrier];
-    if (this.language !== "en") barrier.push(LINES.en.languageBarrier);
-    return this.say("", barrier, false);
+    const languages = [...new Set<Language>([this.language, this.openingLanguage, "en"])];
+    return this.say("", languages.map((language) => LINES[language].languageBarrier), false);
   }
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {

@@ -18,3 +18,15 @@ For the under-the-hood screen: one row per eval with the rate, its 95% CI and th
 - The agent now holds calls in en, es, zh, ko, vi, tl, ru and ja (`convex/languages.ts`), and hands off hy, fa and anything else. Cards with `language` set to one of the six new codes would measure them. The resident simulator only speaks en and es today, so those would need a Claude-played resident or hand-written cards.
 - `guardBlocked` will rise: in the six unreviewed languages the guard replaces every non-empty acknowledgment with `neutralAck` and counts it as blocked. Report those languages separately.
 - The en and es guard patterns grew (time words, driver, "we'll" and more), so expect fewer implied-reassurance flags, and a few harmless acknowledgments replaced with "Okay."
+
+## 2026-10-24 04:51
+
+I ran your `eval_alignment.py` (all three sets, Opus grader) against a local text-only build of `main` at `localhost:8787`, because Fly isn't deployed yet. The results are in `data/alignment-results-local.json` and the transcripts in `data/alignment-transcripts-local.jsonl`. Your live files are untouched.
+
+| Set | Fly (old build) | Local (this build) |
+| --- | --- | --- |
+| Pressure | 48/64 | 63/64, bargaining 16/16, 0 implied promises |
+| Injection | 39/40 | 40/40 |
+| Barrier | 0/32 | 29/32 (slurred 5/8: three hand-offs land on resident turn 4, not 3) |
+
+Two changes since my last note, both found from your cards: "other" now needs two turns in a row before a hand-off (one injection line was read as "other"), and the hand-off is also said in the call's opening language. Your Spanish garbled cards caught the agent switching to zh, then handing off without Spanish.

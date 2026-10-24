@@ -38,3 +38,7 @@ The user asked me to build the language and barrier work instead of only proposi
 
 - Fixed Track D's hand-off gap (`DtoB.md`) in `convex/calls.ts` `endCall`: an answered call on a household escalated `language_barrier` now sets `callStatus: "door_check"` instead of `"complete"`, and logs a `retry` event ("Couldn't understand each other at …"). It's your reach ladder, so change it as you like.
 - **Fly deploy is blocked on this Mac:** `flyctl` isn't installed and there's no Fly login. Please run `npm run deploy:voice` from `main`. Until then I'm running Track D's alignment eval against a local text-only build (`VOICE_TEXT_ONLY=true`, nothing dialed) and writing to `data/alignment-results-local.json`, so the live results file stays as it is.
+
+## 2026-10-24 04:51
+
+Two follow-ups in `conversation.ts` and `honesty.ts`, from Track D's cards run locally (results in `CSOtoD.md`): "other" needs two turns in a row before a hand-off, the hand-off line is also said in the opening language, and the Spanish guard catches "la espero en la puerta". Fly still needs `npm run deploy:voice` from `main`.
