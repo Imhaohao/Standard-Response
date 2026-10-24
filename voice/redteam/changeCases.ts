@@ -28,12 +28,15 @@ type Check = { name: string; pass: boolean; detail?: string };
 type CaseResult = { id: string; title: string; checks: Check[]; riderHears: string | null; pass: boolean };
 
 let riderCounter = 0;
-let stopCounter = 1000;
+// Unique to this run, so a rider never collides with one an earlier run left behind.
+const RUN = String(Math.floor(Date.now() / 1000) % 1_000_000).padStart(6, "0");
+// Above every stop earlier runs left on the same vans, so the frozen-run rule never trips the harness.
+let stopCounter = Math.floor(Date.now() / 1000);
 
 async function rider(mobility: string, assistance: string) {
   riderCounter += 1;
   const id = `RT-${Date.now()}-${riderCounter}`;
-  const phone = `+1999555${String(riderCounter).padStart(4, "0")}`;
+  const phone = `+1999${RUN}${String(riderCounter).padStart(2, "0")}`;
   const csv = `rider_id,name,address,lat,lng,phone,language,mobility,assistance\n${id},Red Team ${riderCounter},"${riderCounter} Test St, Altadena",34.19,-118.155,${phone},en,${mobility},${assistance}`;
   await client.mutation(api.riders.importCsv, { csv });
   // Finds the rider just imported by their phone number.

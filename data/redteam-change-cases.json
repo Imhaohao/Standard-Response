@@ -1,7 +1,7 @@
 {
- "generatedAt": "2026-10-24T09:41:15.709Z",
- "passed": 9,
- "total": 9,
+ "generatedAt": "2026-10-24T09:56:47.929Z",
+ "passed": 10,
+ "total": 10,
  "results": [
   {
    "id": "driver_cancels",
@@ -205,6 +205,24 @@
      "name": "the stale queued sentences are dropped",
      "pass": true,
      "detail": "Let me read that back. | Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911. | Is that right?"
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "expiry_is_silent",
+   "title": "An offer expires after 2 minutes",
+   "riderHears": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "request returns to received",
+     "pass": true,
+     "detail": "received"
+    },
+    {
+     "name": "no callback",
+     "pass": true,
+     "detail": ""
     }
    ],
    "pass": true
