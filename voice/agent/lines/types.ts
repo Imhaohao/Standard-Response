@@ -63,7 +63,8 @@ export type Lines = {
   transferIn: string;
   repeatPrompt: string;
   emergency: string;
-  // Said once when nobody can understand each other; the call then ends and a person follows up.
+  // Said once when nobody can understand each other; the call then ends with the household flagged.
+  // It says only that a person was told, never that the call is being transferred.
   // languageBarrier, waiting, reassigning and lostYou are always followed by the current hazard's safety line.
   languageBarrier: string;
   voicemail: string;

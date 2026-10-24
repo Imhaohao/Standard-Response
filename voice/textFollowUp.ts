@@ -30,6 +30,7 @@ export function startTextFollowUp() {
     const heard = await interpret({
       language,
       stage: "text",
+      outline: { stage: "action and needs", goal: "read what the household needs from their text reply" },
       question: LINES[language].textPrompt,
       record: {},
       recentTurns: [],

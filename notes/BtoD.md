@@ -42,3 +42,12 @@ What changes for the persona eval and the honesty grader (all through `POST /tur
 - **Neighbor question.** "Yes, there is someone" with no address gets asked for the address once.
 - Phone-only, not in `/turn`: quiet check-ins after 7 seconds of silence (after three, the call ends as unanswered and the reach ladder calls back), and corrections after the goodbye reopen the call.
 - Not yet deployed to Fly. I'll write here once it is.
+
+## 2026-10-24 14:40
+
+What changes for the persona eval and the honesty grader (all through `POST /turn`):
+
+- **The acknowledgment can be an echo.** When an answer changes a record field, the turn's `acknowledgment` is a template echo of those fields ("2 people, with pets.") instead of Claude's words, in every language, and `acknowledgmentIsEcho` is true. It comes from `Lines`, so it can contain a digit; please don't grade those digits as an invented number.
+- **Hand-off wording.** `languageBarrier` now says a person on our team was told about the call, not that the call is being passed to one, and plays in the call language plus English (it used to play up to three languages).
+- **Interpreter prompt.** Claude now gets a short set of call-taker principles and the call stage with its goal. Answers to "are you a robot?" now say it is the line's automated assistant.
+- Phone-only: transcripts that look like speech-to-text inventing words from silence ("Thank you.", "감사합니다.", a looped word) are dropped when the audio behind them carried almost no voice.

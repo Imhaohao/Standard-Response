@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { randomUUID } from "node:crypto";
 import { env } from "../env";
 import type { Language } from "../agent/script";
+import { isPhantom, VoiceActivity } from "./phantomSpeech";
 
 // Cartesia carries both directions of the call. Twilio sends and expects 8 kHz μ-law, and Cartesia
 // accepts and produces it directly, so audio passes through without transcoding.
@@ -24,6 +25,7 @@ export type TranscriberEvents = {
 export class Transcriber {
   private socket: WebSocket;
   private pending: Buffer[] = [];
+  private readonly voice = new VoiceActivity();
 
   constructor(language: Language, private readonly events: TranscriberEvents) {
     const params = new URLSearchParams({
@@ -52,7 +54,10 @@ export class Transcriber {
     if (message.type === "transcript") {
       const transcript = message as TranscriptMessage;
       const speech = transcript.text.replace(SOUND_TAGS, " ").replace(/\s+/g, " ");
-      if (speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final);
+      const phantom = isPhantom(speech, this.voice.voicedMs);
+      if (phantom) console.log(`[stt] dropped "${speech.trim()}": ${this.voice.voicedMs}ms of voice behind it`);
+      if (transcript.is_final) this.voice.reset();
+      if (!phantom && speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final);
     } else if (message.type === "error") {
       const error = message as ErrorMessage;
       this.events.onError(`stt: ${error.title ?? ""} ${error.message ?? ""}`);
@@ -60,6 +65,7 @@ export class Transcriber {
   }
 
   send(mulaw: Buffer) {
+    this.voice.hear(mulaw);
     if (this.socket.readyState === WebSocket.OPEN) this.socket.send(mulaw);
     else if (this.socket.readyState === WebSocket.CONNECTING) this.pending.push(mulaw);
   }

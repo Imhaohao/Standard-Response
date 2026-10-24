@@ -43,6 +43,25 @@ function readbackParts(record: AgentRecord, lines: Lines) {
   ].filter((part): part is string => part !== undefined);
 }
 
+// The facts one answer just gave, said back from templates: "2 people, with pets." It can't
+// overstate anything, so it is spoken in every language, unlike Claude's own acknowledgment.
+const ECHO_PARTS: ((changed: AgentRecord, lines: Lines) => string | undefined)[] = [
+  (changed, lines) => (changed.peopleCount !== undefined ? lines.people(changed.peopleCount) : undefined),
+  (changed, lines) => (changed.mobility ? lines.mobility[changed.mobility] : undefined),
+  (changed, lines) => (changed.medical?.includes("oxygen") ? lines.oxygen : undefined),
+  (changed, lines) => (changed.assistanceRequired ? lines.assistance[changed.assistanceRequired] : undefined),
+  (changed, lines) => (changed.pets ? lines.pets : undefined),
+  (changed, lines) => (changed.hasCar === false ? lines.noCar : undefined),
+];
+
+export function echo(changed: AgentRecord, language: Language) {
+  const lines = LINES[language];
+  const parts = ECHO_PARTS.map((part) => part(changed, lines)).filter((part): part is string => part !== undefined);
+  if (parts.length === 0) return "";
+  const summary = parts.join(lines.listSeparator);
+  return `${summary.charAt(0).toUpperCase()}${summary.slice(1)}${lines.sentenceEnd ?? "."}`;
+}
+
 export function readback(record: AgentRecord, language: Language) {
   const lines = LINES[language];
   const summary = readbackParts(record, lines).join(lines.listSeparator);

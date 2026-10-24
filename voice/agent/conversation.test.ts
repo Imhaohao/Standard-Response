@@ -195,3 +195,38 @@ describe("an address that never gets confirmed", () => {
     assert.deepEqual(escalations, ["address_unconfirmed"]);
   });
 });
+
+describe("what the agent says it heard", () => {
+  it("echoes the facts an answer gave instead of Claude's acknowledgment", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no, I can't", heard({ answer: "no", updates: { canLeave: "no" } }));
+    const turn = conversation.respond("two of us and a dog", heard({ updates: { peopleCount: 2, pets: true }, acknowledgment: "Okay." }));
+    assert.equal(turn.acknowledgment, `${EN.people(2)}, ${EN.pets}.`.replace(/^./, (first) => first.toUpperCase()));
+    assert.equal(turn.acknowledgmentIsEcho, true);
+  });
+
+  it("falls back to Claude's acknowledgment when no fact changed", () => {
+    const { conversation } = call();
+    const turn = conversation.respond("yes", heard({ answer: "yes", acknowledgment: "Alright, that's the address." }));
+    assert.equal(turn.acknowledgment, "Alright, that's the address.");
+    assert.ok(!turn.acknowledgmentIsEcho);
+  });
+});
+
+describe("nobody can understand each other", () => {
+  it("says a person was told, once in the call language and once in English, and never promises a transfer", () => {
+    const conversation = new Conversation({
+      language: "es",
+      onFile: {},
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    const turn = conversation.respond("Բարեւ", heard({ spokenLanguage: "hy" }));
+    assert.ok(turn.done);
+    assert.equal(turn.sentences.length, 2);
+    assert.ok(turn.sentences[0].startsWith(LINES.es.languageBarrier));
+    assert.ok(turn.sentences[1].startsWith(EN.languageBarrier));
+    assert.ok(!/passing|transfer/i.test(turn.sentences.join(" ")));
+  });
+});

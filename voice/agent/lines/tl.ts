@@ -47,7 +47,7 @@ export const TL: Lines = {
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",
   emergency: "Kung kaya po, tumawag na kayo sa 911 ngayon. Minarkahan ko po kayong urgent para sa dispatcher.",
   languageBarrier:
-    "Ipapasa ko po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
+    "Naipaalam ko na po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   voicemail:
     "Ito po ang evacuation line ng Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
   people: (count) => (count === 1 ? "isang tao" : `${count} katao`),

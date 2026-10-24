@@ -2,7 +2,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { guardAcknowledgment } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
-import { Language, LINES, readback, RideStatus, statusLine, withSafety } from "./script";
+import { echo, Language, LINES, readback, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
 
 // The deterministic half of the agent. It decides what to ask next and what may be said about a
 // ride. Claude (interpreter.ts) only reads the resident's words and writes a short acknowledgment.
@@ -40,6 +40,39 @@ const STAGE_OF: Record<Step, Stage> = {
   done: "close",
 };
 
+// The call outline: each step belongs to a stage with a goal, and Claude's words serve that goal
+// rather than a fixed line. The greeting covers opening, trust and the core message, so steps start
+// at confirming the place. Emergencies jump out of any stage (handleEmergency); a resident's own
+// question is answered first and the stage then resumes (reply); a callback skips straight to news.
+type OutlineStage = { stage: string; goal: string };
+const OPEN: OutlineStage = {
+  stage: "open",
+  goal: "they know this is the evacuation line, that a warning covers them, and where they are right now",
+};
+const NEEDS: OutlineStage = {
+  stage: "action and needs",
+  goal: "find out only what dispatch needs to send the right help, and why it is asked",
+};
+const CHECK: OutlineStage = { stage: "check", goal: "the resident confirms the facts in their own words" };
+const CLOSE: OutlineStage = {
+  stage: "close",
+  goal: "they know what happens next, when to call 911, and that they can call back",
+};
+const OUTLINE: Record<Step, OutlineStage> = {
+  ask_address: OPEN,
+  confirm_address: OPEN,
+  can_leave: NEEDS,
+  has_car: NEEDS,
+  household: NEEDS,
+  needs: NEEDS,
+  assistance: NEEDS,
+  readback: CHECK,
+  fix: CHECK,
+  neighbor: CLOSE,
+  hold: CLOSE,
+  done: CLOSE,
+};
+
 // What the conversation does to the world. The phone call writes to Convex; the eval endpoint doesn't.
 export interface ConversationEffects {
   updateRecord(patch: AgentRecord & { language?: string }, confidence: Confidence): void;
@@ -49,9 +82,11 @@ export interface ConversationEffects {
 }
 
 export type AgentTurn = {
-  // Claude's short acknowledgment, already through the honesty guard. The phone call drops it
-  // when a backchannel already covered the wait.
+  // What the agent heard, said first: a template echo of the facts the answer gave, or else Claude's
+  // short acknowledgment through the honesty guard. The phone call drops Claude's after a
+  // backchannel already covered the wait, but keeps an echo, since it carries the facts.
   acknowledgment: string;
+  acknowledgmentIsEcho?: boolean;
   sentences: string[];
   stage: Stage;
   done: boolean;
@@ -99,10 +134,9 @@ export class Conversation {
   private readbacks = 0;
   private missedTurns = 0;
   private unknownLanguageTurns = 0;
-  // The language the call opened in, usually the one on file: the hand-off is said in it too.
-  private readonly openingLanguage: Language;
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
+  private changesThisTurn: AgentRecord = {};
   private escalated = new Set<Escalation>();
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   private lastAcknowledgment = "";
@@ -120,7 +154,6 @@ export class Conversation {
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
-    this.openingLanguage = options.language;
     this.record = { ...options.onFile };
     this.knownAddress = options.knownAddress;
     this.residentName = options.residentName;
@@ -199,6 +232,7 @@ export class Conversation {
     if (!switched && this.shouldHandOff(heard)) return this.handOffToPerson();
     if (heard.spokenLanguage === "other") return this.say("", [LINES[this.language].repeatPrompt], false);
     this.changedThisTurn = false;
+    this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     const urgent = this.handleEmergency(heard);
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
@@ -222,6 +256,7 @@ export class Conversation {
   // bye" says nothing and lets the line close.
   private afterGoodbye(heard: Interpretation): AgentTurn {
     this.changedThisTurn = false;
+    this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     const urgent = this.handleEmergency(heard);
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
@@ -238,7 +273,8 @@ export class Conversation {
   // so neither leads with an acknowledgment.
   private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
-    const ack = guardAcknowledgment(heard.acknowledgment, status, this.language);
+    const leavingHold = this.done && this.reachedHold;
+    const ack = this.acknowledgmentFor(heard, status, Boolean(transfer) || leavingHold);
     // Claude's answer to the resident's own question passes the same guard, and is dropped if blocked.
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding;
@@ -246,9 +282,19 @@ export class Conversation {
     const said = answer.blocked ? [] : [answer.text];
     const lines = [...greeting, ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
-    const leavingHold = this.done && this.reachedHold;
-    const turn = this.say(transfer || leavingHold ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked || answer.blocked);
-    return { ...turn, transfer, givesTime };
+    const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
+    return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
+  }
+
+  // Facts the resident just gave are said back from templates, so "two people, with pets" is heard
+  // in every language and can't overstate anything. Otherwise Claude's acknowledgment, guarded.
+  // silent: a transfer opens with transferIn and a goodbye after hold stands alone.
+  private acknowledgmentFor(heard: Interpretation, status: RequestStatus | "none", silent: boolean) {
+    const guarded = guardAcknowledgment(heard.acknowledgment, status, this.language);
+    if (silent) return { text: "", blocked: guarded.blocked, isEcho: false };
+    const heardBack = echo(this.changesThisTurn, this.language);
+    if (heardBack !== "") return { text: heardBack, blocked: false, isEcho: true };
+    return { text: this.freshAcknowledgment(guarded.text), blocked: guarded.blocked, isEcho: false };
   }
 
   private rideLines(heard: Interpretation) {
@@ -312,6 +358,7 @@ export class Conversation {
     return {
       language: this.language,
       stage: this.step,
+      outline: OUTLINE[this.step],
       question: this.question(),
       record: this.record,
       recentTurns: this.history.slice(-HISTORY_TURNS),
@@ -343,11 +390,12 @@ export class Conversation {
   }
 
   // Nobody can understand each other: flag the call for a person and end it without promising anything.
+  // One language and English, not a run of three that a confused resident has to sit through.
   private handOffToPerson(): AgentTurn {
     this.escalateOnce("language_barrier");
     this.handedOff = true;
     this.moveTo("done");
-    const languages = [...new Set<Language>([this.language, this.openingLanguage, "en"])];
+    const languages = [...new Set<Language>([this.language, "en"])];
     return this.say("", languages.map((language) => withSafety(LINES[language].languageBarrier, language)), false);
   }
 
@@ -355,6 +403,7 @@ export class Conversation {
     const changed = changedFields(this.record, updates);
     if (isEmpty(changed)) return;
     this.record = { ...this.record, ...changed };
+    this.changesThisTurn = { ...this.changesThisTurn, ...changed };
     this.changedThisTurn = true;
     this.effects.updateRecord(changed, confidence);
   }

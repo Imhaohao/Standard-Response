@@ -47,7 +47,7 @@ export const VI: Lines = {
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
   emergency: "Nếu có thể, xin quý vị gọi 911 ngay bây giờ. Tôi đã đánh dấu quý vị là khẩn cấp cho nhân viên điều phối.",
   languageBarrier:
-    "Tôi sẽ chuyển cuộc gọi của quý vị cho một người trong nhóm của chúng tôi. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
+    "Tôi đã báo cho một người trong nhóm của chúng tôi về cuộc gọi của quý vị. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   voicemail:
     "Đây là đường dây sơ tán của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
   people: (count) => (count === 1 ? "một người" : `${count} người`),

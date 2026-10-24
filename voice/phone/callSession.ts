@@ -250,8 +250,10 @@ class CallSession implements LiveCall {
   }
 
   // A reply can finish after the caller hung up; there is no one left to say it to.
-  private speakTurn(turn: AgentTurn, timing: TurnTiming | null, dropAcknowledgment = false) {
+  // After a backchannel, Claude's "Okay" would say it twice; an echo of the facts still plays.
+  private speakTurn(turn: AgentTurn, timing: TurnTiming | null, backchanneled = false) {
     if (this.ended) return;
+    const dropAcknowledgment = backchanneled && !turn.acknowledgmentIsEcho;
     const sentences = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
     const text = sentences.join(" ");
     this.speech.say(sentences, this.language, () => {

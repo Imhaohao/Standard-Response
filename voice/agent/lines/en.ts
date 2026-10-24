@@ -46,7 +46,7 @@ export const EN: Lines = {
   repeatPrompt: "Sorry, could you say that again?",
   emergency: "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
   languageBarrier:
-    "I'm passing your call to a person on our team. If you can leave safely, leave now.",
+    "I've flagged your call for a person on our team. If you can leave safely, leave now.",
   voicemail:
     "This is the Altadena evacuation line. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
   people: (count) => (count === 1 ? "one person" : `${count} people`),
