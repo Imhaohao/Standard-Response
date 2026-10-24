@@ -16,6 +16,8 @@ export type Lines = {
   askHouseNumber: (street: string) => string;
   confirmAddress: (address: string) => string;
   addressEscalated: string;
+  // The same hand-off to a dispatcher when no address was heard at all, so we never claim one.
+  addressMissing: string;
   askCanLeave: string;
   askHasCar: string;
   askHousehold: string;

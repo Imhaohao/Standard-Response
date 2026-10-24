@@ -249,7 +249,9 @@ class CallSession implements LiveCall {
     if (!this.ended) this.speakTurn(turn, null);
   }
 
+  // A reply can finish after the caller hung up; there is no one left to say it to.
   private speakTurn(turn: AgentTurn, timing: TurnTiming | null, dropAcknowledgment = false) {
+    if (this.ended) return;
     const sentences = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
     const text = sentences.join(" ");
     this.speech.say(sentences, this.language, () => {

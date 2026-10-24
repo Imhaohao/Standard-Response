@@ -10,6 +10,7 @@ export const JA: Lines = {
   askHouseNumber: (street) => `${street}の家の番号は何番ですか。`,
   confirmAddress: (address) => `住所は${address}ですね。合っていますか。`,
   addressEscalated: "ご住所に印をつけました。担当者が確認します。可能でしたら、911にも電話してください。",
+  addressMissing: "ご住所を聞き取れなかったため、担当者からご連絡するよう依頼しました。可能でしたら、911にも電話してください。",
   askCanLeave: "ご自宅の皆さんは、今、ご自分で避難できますか。",
   askHasCar: "お車か、運転してくれる方はいますか。",
   askHousehold: "今、何人でいらっしゃいますか。ペットはいますか。",

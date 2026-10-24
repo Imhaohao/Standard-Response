@@ -29,12 +29,13 @@ function heard(overrides: Partial<Interpretation> = {}): Interpretation {
   };
 }
 
-function call() {
+// null: an inbound call from a number we have no address for.
+function call(knownAddress: string | null = ADDRESS) {
   const escalations: Escalation[] = [];
   const conversation = new Conversation({
     language: "en",
     onFile: {},
-    knownAddress: ADDRESS,
+    knownAddress: knownAddress ?? undefined,
     effects: { updateRecord: () => {}, escalate: (kind) => escalations.push(kind), nominate: () => {}, rideStatus: () => null },
   });
   conversation.start();
@@ -165,5 +166,32 @@ describe("the end of the call", () => {
     const turn = conversation.respond("okay bye", heard({ wantsToEnd: true }));
     assert.deepEqual(turn.sentences, []);
     assert.ok(turn.done);
+  });
+});
+
+describe("an address that never gets confirmed", () => {
+  // Answers that aren't an address, until the agent gives up and moves on to the next question.
+  function untilGivenUp(conversation: Conversation, answer: Interpretation) {
+    const said: string[] = [];
+    while (conversation.step === "ask_address" || conversation.step === "confirm_address") {
+      said.push(...conversation.respond("thanks", answer).sentences);
+    }
+    return said;
+  }
+
+  it("says the address is flagged when one is on file", () => {
+    const { conversation, escalations } = call();
+    const said = untilGivenUp(conversation, heard());
+    assert.ok(said.includes(EN.addressEscalated));
+    assert.ok(!said.includes(EN.addressMissing));
+    assert.deepEqual(escalations, ["address_unconfirmed"]);
+  });
+
+  it("never claims an address when none was heard", () => {
+    const { conversation, escalations } = call(null);
+    const said = untilGivenUp(conversation, heard());
+    assert.ok(said.includes(EN.addressMissing));
+    assert.ok(!said.includes(EN.addressEscalated));
+    assert.deepEqual(escalations, ["address_unconfirmed"]);
   });
 });

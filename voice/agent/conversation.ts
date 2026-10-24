@@ -404,7 +404,9 @@ export class Conversation {
 
   private addressRetry(): Transition {
     if (this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: this.step };
-    const lines = this.escalateOnce("address_unconfirmed") ? [LINES[this.language].addressEscalated] : [];
+    const heardAnAddress = Boolean(this.record.address ?? this.knownAddress);
+    const line = heardAnAddress ? LINES[this.language].addressEscalated : LINES[this.language].addressMissing;
+    const lines = this.escalateOnce("address_unconfirmed") ? [line] : [];
     return { step: "can_leave", lines };
   }
 

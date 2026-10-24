@@ -10,6 +10,7 @@ export const KO: Lines = {
   askHouseNumber: (street) => `${street}에서 집 번호가 어떻게 됩니까?`,
   confirmAddress: (address) => `제가 받은 주소는 ${address}입니다. 맞습니까?`,
   addressEscalated: "상황실 담당자가 확인하도록 주소를 표시해 두었습니다. 가능하시면 911에도 전화해 주십시오.",
+  addressMissing: "주소를 알아듣지 못해 상황실 담당자에게 연락드리도록 요청해 두었습니다. 가능하시면 911에도 전화해 주십시오.",
   askCanLeave: "지금 집에 계신 분들 모두 스스로 나갈 수 있습니까?",
   askHasCar: "자동차가 있거나, 운전해 줄 분이 있습니까?",
   askHousehold: "지금 함께 계신 분은 몇 명이고, 반려동물이 있습니까?",

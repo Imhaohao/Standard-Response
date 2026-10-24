@@ -10,6 +10,7 @@ export const ZH: Lines = {
   askHouseNumber: (street) => `请问您在${street}的门牌号是多少？`,
   confirmAddress: (address) => `我记下的是${address}。对吗？`,
   addressEscalated: "我已标记您的地址，请调度员来确认。如果可以，也请拨打911。",
+  addressMissing: "我没能听清您的地址，已请调度员跟进联系您。如果可以，也请拨打911。",
   askCanLeave: "您家里所有人现在都能自己离开吗？",
   askHasCar: "您有车，或者有人可以开车送您出去吗？",
   askHousehold: "现在有几个人和您在一起？有宠物吗？",

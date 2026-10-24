@@ -9,6 +9,7 @@ export const EN: Lines = {
   askHouseNumber: (street) => `What's the house number on ${street}?`,
   confirmAddress: (address) => `I have ${address}. Is that right?`,
   addressEscalated: "I've flagged your address for a dispatcher to confirm. If you can, also call 911.",
+  addressMissing: "I couldn't catch your address, so I've asked a dispatcher to follow up with you. If you can, also call 911.",
   askCanLeave: "Can everyone in your home leave on their own right now?",
   askHasCar: "Do you have a car or someone who can drive you out?",
   askHousehold: "How many people are with you right now, and are there any pets?",

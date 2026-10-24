@@ -84,11 +84,14 @@ export const setPhase = mutation({
   },
 });
 
-// Voice server: the conversation state machine moved to a new step.
+// Voice server: the conversation state machine moved to a new step. A step that lands after the
+// call ended (the reply was still being worked out at hang-up) must not reopen it.
 export const setStage = mutation({
   args: { callId: v.id("calls"), stage: callStage },
   returns: v.null(),
   handler: async (ctx, { callId, stage }) => {
+    const call = await ctx.db.get("calls", callId);
+    if (!call || call.endedAt !== undefined) return null;
     await ctx.db.patch("calls", callId, { stage, phase: "live" });
     return null;
   },

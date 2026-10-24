@@ -10,6 +10,7 @@ export const VI: Lines = {
   askHouseNumber: (street) => `Số nhà của quý vị trên ${street} là số mấy ạ?`,
   confirmAddress: (address) => `Tôi ghi là ${address}. Có đúng không ạ?`,
   addressEscalated: "Tôi đã đánh dấu địa chỉ của quý vị để nhân viên điều phối xác nhận. Nếu có thể, quý vị cũng hãy gọi 911.",
+  addressMissing: "Tôi chưa nghe rõ địa chỉ của quý vị, nên đã nhờ nhân viên điều phối liên lạc lại với quý vị. Nếu có thể, quý vị cũng hãy gọi 911.",
   askCanLeave: "Mọi người trong nhà có thể tự ra ngoài ngay bây giờ không ạ?",
   askHasCar: "Quý vị có xe, hoặc có ai lái xe đưa quý vị đi không ạ?",
   askHousehold: "Hiện có mấy người ở cùng quý vị, và có thú cưng không ạ?",

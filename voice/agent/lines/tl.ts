@@ -10,6 +10,7 @@ export const TL: Lines = {
   askHouseNumber: (street) => `Anong house number po sa ${street}?`,
   confirmAddress: (address) => `${address} po ang nakuha ko. Tama po ba?`,
   addressEscalated: "Minarkahan ko po ang address ninyo para makumpirma ng dispatcher. Kung kaya po, tumawag din kayo sa 911.",
+  addressMissing: "Hindi ko po nakuha ang address ninyo, kaya hiniling ko po sa dispatcher na kontakin kayo. Kung kaya po, tumawag din kayo sa 911.",
   askCanLeave: "Makakaalis po ba ang lahat sa bahay ninyo nang kusa ngayon?",
   askHasCar: "Mayroon po ba kayong kotse o kasamang puwedeng magmaneho para sa inyo?",
   askHousehold: "Ilan po kayong magkakasama ngayon, at mayroon po bang alagang hayop?",

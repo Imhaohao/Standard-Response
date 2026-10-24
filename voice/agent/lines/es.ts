@@ -11,6 +11,7 @@ export const ES: Lines = {
   askHouseNumber: (street) => `¿Cuál es el número de la casa en ${street}?`,
   confirmAddress: (address) => `Tengo ${address}. ¿Es correcto?`,
   addressEscalated: "Marqué su dirección para que un despachador la confirme. Si puede, llame también al 911.",
+  addressMissing: "No pude entender su dirección, así que le pedí a un despachador que se comunique con usted. Si puede, llame también al 911.",
   askCanLeave: "¿Pueden todos en su casa salir por su cuenta ahora mismo?",
   askHasCar: "¿Tiene carro o alguien que le pueda llevar?",
   askHousehold: "¿Cuántas personas están con usted ahora, y tienen mascotas?",
