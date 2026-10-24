@@ -69,6 +69,8 @@ export type Lines = {
   transferOut: string;
   transferIn: string;
   repeatPrompt: string;
+  // Said once when a life threat is raised and Claude named no feeling of its own.
+  frightening: string;
   emergency: string;
   // Said once when nobody can understand each other; the call then ends with the household flagged.
   // It says only that a person was told, never that the call is being transferred.

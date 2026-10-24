@@ -48,6 +48,7 @@ export const KO: Lines = {
   transferOut: "네, 연결해 드리겠습니다. 잠시만 기다려 주세요.",
   transferIn: "안녕하세요, 지금부터 한국어로 도와드리겠습니다.",
   repeatPrompt: "죄송합니다, 다시 한번 말씀해 주시겠습니까?",
+  frightening: "정말 무서우시겠습니다.",
   emergency: "긴급으로 표시해 두었고, 상황실 담당자가 지금 이 전화를 받고 있습니다.",
   languageBarrier:
     "우리 팀 담당자에게 이 전화에 대해 알려 두었습니다. 안전하게 나갈 수 있으면 지금 나가십시오.",

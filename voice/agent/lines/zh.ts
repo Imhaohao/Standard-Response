@@ -48,6 +48,7 @@ export const ZH: Lines = {
   transferOut: "好的，我帮您转接，请稍等两秒。",
   transferIn: "您好，接下来由我用中文为您服务。",
   repeatPrompt: "抱歉，您能再说一遍吗？",
+  frightening: "这听起来很可怕。",
   emergency: "我已把您标记为紧急，调度员现在已接手您的来电。",
   languageBarrier:
     "我已经把您的来电告诉了我们团队的一位工作人员。如果您能安全离开，请现在就离开。",

@@ -47,6 +47,7 @@ export const EN: Lines = {
   transferOut: "Okay, let me transfer you. Give me two seconds.",
   transferIn: "Hi, I'll help you in English from here.",
   repeatPrompt: "Sorry, could you say that again?",
+  frightening: "That sounds frightening.",
   emergency: "I've marked you urgent, and a dispatcher has your call now.",
   languageBarrier:
     "I've flagged your call for a person on our team. If you can leave safely, leave now.",

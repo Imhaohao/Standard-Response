@@ -10,7 +10,7 @@ import { Language, RequestStatus } from "./script";
 // HELP_ON_THE_WAY holds what the voice exam caught Claude saying instead ("we're working on getting
 // help to you", "the crew knows to bring", "Estamos trabajando para ayudarle", "Seguimos con usted").
 const HELP_ON_THE_WAY = [
-  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by|here with you|your agent|i'?m marking|i'?m noting|i'?ve noted|when (help|someone|they)|plan (a|the|your) (ride|pickup)|the code|the system|yes,? (it'?s|that'?s) (fine|okay|ok)|to send|for the vehicle|the vehicle (will|is|that)|noted|i can (hear|see) (the|that) (fire|flames|smoke))\b/i,
+  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by|here with you|your agent|i'?m marking|i'?m noting|i'?ve noted|when (help|someone|they)|plan (a|the|your) (ride|pickup)|the code|the system|yes,? (it'?s|that'?s) (fine|okay|ok)|to send|for the vehicle|the vehicle (will|is|that)|i can help with that|bring (the|a) (right )?vehicle|noted|i can (hear|see) (the|that) (fire|flames|smoke))\b/i,
   /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|estamos con usted|estoy aqu[ií] con usted|cu[aá]ndo (lleg|vien)|lleg(a|ue) (la )?ayuda|el c[oó]digo|el sistema|^s[ií],? est[aá] bien|despachadores? (ya )?(tienen|saben|ven))/i,
 ];
 
@@ -27,6 +27,9 @@ const FALSE_COMFORT = [
   /\b(it'?s (going to be |gonna be )?(okay|ok|alright|fine)|everything (will|is going to) be|you'?ll be (okay|ok|fine|alright)|no need to worry)\b/i,
   /(no pasa nada|todo (va a )?(estar|salir) bien|tranquil)/i,
 ];
+
+// Scripted sympathy after the feeling is named: principle 5 names it once and moves on.
+const SYMPATHY = [/\bi'?m (so |very |really )?sorry\b/i, /\blo siento\b/i];
 
 // A caller near the fire is never told to slow down.
 const DELAY = [/\btake your time\b/i, /t[oó]mese (su|el) tiempo/i];
@@ -48,7 +51,7 @@ export function guardAcknowledgment(text: string, status: RequestStatus | "none"
   if (trimmed === "") return { text: "", blocked: false };
   // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
   if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
-  const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE].some((pattern) => pattern.test(trimmed));
+  const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY].some((pattern) => pattern.test(trimmed));
   if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
   // Even after acceptance, ETAs and names come only from templates.
   if (/\d/.test(trimmed)) return blocked;

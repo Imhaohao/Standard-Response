@@ -48,6 +48,7 @@ export const JA: Lines = {
   transferOut: "かしこまりました。おつなぎしますので、少々お待ちください。",
   transferIn: "お電話代わりました。ここからは日本語でご案内します。",
   repeatPrompt: "すみません、もう一度お願いします。",
+  frightening: "それは怖いですね。",
   emergency: "緊急として扱っており、担当者がすでにこの通話を受けています。",
   languageBarrier:
     "お電話のことを、チームの担当者に伝えました。安全に避難できる場合は、今すぐ避難してください。",

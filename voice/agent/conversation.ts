@@ -302,7 +302,7 @@ export class Conversation {
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const said = answer.blocked ? (this.holding ? [this.rideLine()] : []) : this.freshReply(answer.text);
-    const lines = [...greeting, ...this.feelingLines(heard, status), ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
+    const lines = [...greeting, ...this.feelingLines(heard, status, urgent), ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
@@ -318,8 +318,10 @@ export class Conversation {
   }
 
   // A frightened caller hears their feeling named before the facts, once, not every turn.
-  private feelingLines(heard: Interpretation, status: RequestStatus | "none") {
-    const feeling = guardAcknowledgment(heard.feeling, status, this.language);
+  private feelingLines(heard: Interpretation, status: RequestStatus | "none", urgent: string[]) {
+    const lifeThreat = urgent.includes(LINES[this.language].emergency);
+    const written = heard.feeling === "" && lifeThreat ? LINES[this.language].frightening : heard.feeling;
+    const feeling = guardAcknowledgment(written, status, this.language);
     const normalized = normalizeAck(feeling.text);
     if (feeling.blocked || normalized === "" || normalized === this.lastFeeling) return [];
     this.lastFeeling = normalized;

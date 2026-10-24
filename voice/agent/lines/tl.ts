@@ -48,6 +48,7 @@ export const TL: Lines = {
   transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",
   transferIn: "Magandang araw po, ako na po ang tutulong sa inyo sa Tagalog.",
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",
+  frightening: "Nakakatakot po iyan.",
   emergency: "Minarkahan ko po kayong urgent, at hawak na po ng dispatcher ang tawag ninyo.",
   languageBarrier:
     "Naipaalam ko na po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",

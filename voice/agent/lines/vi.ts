@@ -48,6 +48,7 @@ export const VI: Lines = {
   transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",
   transferIn: "Xin chào, từ đây tôi sẽ giúp quý vị bằng tiếng Việt.",
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
+  frightening: "Nghe thật đáng sợ.",
   emergency: "Tôi đã đánh dấu quý vị là khẩn cấp, và nhân viên điều phối đang nhận cuộc gọi của quý vị.",
   languageBarrier:
     "Tôi đã báo cho một người trong nhóm của chúng tôi về cuộc gọi của quý vị. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
