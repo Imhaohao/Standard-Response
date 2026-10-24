@@ -693,7 +693,7 @@ export class Conversation {
   private afterNeighbor(): Transition {
     if (!needsRide(this.record)) return { step: "done" };
     this.reachedHold = true;
-    return { step: "hold", lines: [this.rideLine()] };
+    return { step: "hold", lines: [this.rideUpdate()] };
   }
 
   // "Okay", "mm-hm" or "thank you" on hold needs no reply. Anything longer that nothing in the turn
@@ -711,8 +711,7 @@ export class Conversation {
 
   // "Oh," or "okay" with nothing in it. A reply Claude wrote for it that was already said doesn't count.
   private brief(heard: Interpretation) {
-    const short = wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
-    return short && (heard.wantsRepeat || (answeredNothing(heard) && !heard.wantsTime));
+    return isBrief(this.lastResidentLine()) && (heard.wantsRepeat || (answeredNothing(heard) && !heard.wantsTime));
   }
 
   // Where the ride stands, unless the caller just heard it; then something to do meanwhile.
@@ -726,10 +725,11 @@ export class Conversation {
     return this.rideJustSaid() ? LINES[this.language].statusUnchanged : this.rideLine();
   }
 
+  // Only the full line counts, so asked every few turns the caller still hears it in full now and then.
   private rideJustSaid() {
-    const said = [this.rideLine(), LINES[this.language].statusUnchanged];
+    const ride = this.rideLine();
     const recent = this.history.filter((line) => line.speaker === "agent").slice(-RECENT_AGENT_TURNS);
-    return recent.some((line) => said.some((ride) => line.text.includes(ride)));
+    return recent.some((line) => line.text.includes(ride));
   }
 
   // Agent turns since the resident last spoke that asked the current question, in either wording.
@@ -831,12 +831,23 @@ export class Conversation {
 }
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
-// How far back a status line still counts as just heard.
-const RECENT_AGENT_TURNS = 2;
+// How far back a status line still counts as just heard. Reaching hold three turns after a
+// status change replayed the whole reassigning line twenty seconds after the first.
+const RECENT_AGENT_TURNS = 3;
 const MAX_ASKS_WITHOUT_ANSWER = 2;
 const UNSURE = /^\s*(i don'?t know|i'?m not sure|not sure|no s[eé]\b|no estoy segur)/i;
 const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+// Chinese and Japanese have no spaces, so "我会死吗" counted as one word and a caller asking
+// whether they would die got silence on hold. There, brief is "嗯", "好的" or "谢谢".
+const UNSPACED = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+const BRIEF_UNSPACED_CHARACTERS = 2;
+function isBrief(text: string) {
+  const bare = text.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+  if (bare.includes(" ") || !UNSPACED.test(bare)) return wordCount(bare) <= BRIEF_ACKNOWLEDGMENT_WORDS;
+  return [...bare].length <= BRIEF_UNSPACED_CHARACTERS;
+}
 
 const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
 const firstWord = (normalized: string) => normalized.split(" ")[0];

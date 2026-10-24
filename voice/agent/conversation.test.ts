@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Conversation, Escalation } from "./conversation";
 import type { Interpretation } from "./interpreter";
-import { LINES } from "./script";
+import { Language, LINES } from "./script";
 
 // The state machine on its own: each turn hands respond() what Claude would have read, so these
 // run offline. Lines are compared against the English templates.
@@ -32,10 +32,10 @@ function heard(overrides: Partial<Interpretation> = {}): Interpretation {
 }
 
 // null: an inbound call from a number we have no address for.
-function call(knownAddress: string | null = ADDRESS) {
+function call(knownAddress: string | null = ADDRESS, language: Language = "en") {
   const escalations: Escalation[] = [];
   const conversation = new Conversation({
-    language: "en",
+    language,
     onFile: {},
     knownAddress: knownAddress ?? undefined,
     effects: { updateRecord: () => {}, escalate: (kind) => escalations.push(kind), nominate: () => {}, rideStatus: () => null },
@@ -45,23 +45,24 @@ function call(knownAddress: string | null = ADDRESS) {
 }
 
 // An outbound call that reaches the can-leave question.
-function atCanLeave() {
-  const started = call();
-  started.conversation.respond("yes", heard({ answer: "yes" }));
+function atCanLeave(language: Language = "en") {
+  const started = call(ADDRESS, language);
+  started.conversation.respond("yes", heard({ answer: "yes", spokenLanguage: language }));
   assert.equal(started.conversation.step, "can_leave");
   return started;
 }
 
 // A resident who can't leave, through the questions to waiting on hold for a driver.
-function atHold() {
-  const started = atCanLeave();
+function atHold(language: Language = "en") {
+  const started = atCanLeave(language);
   const { conversation } = started;
-  conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
-  conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
-  conversation.respond("I use a walker", heard({ updates: { mobility: "walker" } }));
-  conversation.respond("no help needed", heard({ answer: "no", updates: { assistanceRequired: "none" } }));
-  conversation.respond("yes", heard({ answer: "yes" }));
-  conversation.respond("no", heard({ answer: "no" }));
+  const said = (overrides: Partial<Interpretation>) => heard({ spokenLanguage: language, ...overrides });
+  conversation.respond("no", said({ answer: "no", updates: { canLeave: "no" } }));
+  conversation.respond("just me", said({ updates: { peopleCount: 1 } }));
+  conversation.respond("I use a walker", said({ updates: { mobility: "walker" } }));
+  conversation.respond("no help needed", said({ answer: "no", updates: { assistanceRequired: "none" } }));
+  conversation.respond("yes", said({ answer: "yes" }));
+  conversation.respond("no", said({ answer: "no" }));
   assert.equal(conversation.step, "hold");
   return started;
 }
@@ -450,5 +451,28 @@ describe("lines the caller just heard", () => {
     assert.deepEqual(oh.sentences, []);
     const other = conversation.respond("Who is Howard?", heard({ reply: "I don't know who Howard is." }));
     assert.ok(other.sentences.includes("I don't know who Howard is."));
+  });
+
+  it("answers a Chinese caller on hold who says more than 嗯 or 好的", () => {
+    const { conversation } = atHold("zh");
+    const zh = (overrides: Partial<Interpretation> = {}) => heard({ spokenLanguage: "zh", ...overrides });
+    assert.deepEqual(conversation.respond("嗯", zh()).sentences, []);
+    assert.ok(conversation.respond("我会死吗", zh()).sentences.length > 0);
+    assert.ok(conversation.respond("说话呀", zh()).sentences.length > 0);
+  });
+
+  it("says no change on reaching hold when a status change played three turns earlier", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
+    conversation.respond("I use a walker", heard({ updates: { mobility: "walker" } }));
+    conversation.respond("no help needed", heard({ answer: "no", updates: { assistanceRequired: "none" } }));
+    conversation.announce(conversation.rideLine());
+    conversation.respond("hold on", heard({ wantsTime: true }));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    const hold = conversation.respond("no", heard({ answer: "no" }));
+    assert.equal(conversation.step, "hold");
+    assert.ok(hold.sentences.includes(EN.statusUnchanged));
+    assert.ok(!hold.sentences.includes(conversation.rideLine()));
   });
 });
