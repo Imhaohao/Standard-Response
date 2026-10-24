@@ -9,7 +9,7 @@ import type { Language } from "./script";
 // written from the answer space and checked against Track D's persona phrasings
 // (modeling/rollcall_d/resident.py), not from the voice exam's calls.
 
-export type Parsed = { updates: AgentRecord; answer?: Answer };
+export type Parsed = { updates: AgentRecord; answer?: Answer; saysChairKind?: boolean };
 type Pattern = { match: RegExp; read: (groups: Record<string, string | undefined>) => Parsed };
 
 const COUNTS: Record<string, number> = {
@@ -40,9 +40,10 @@ const mobilityFrom = (aid: string): AgentRecord["mobility"] => {
 };
 
 const needs = (groups: Record<string, string | undefined>): Parsed => {
-  const updates: AgentRecord = { mobility: mobilityFrom(groups.aid ?? "") };
+  const aid = groups.aid ?? "";
+  const updates: AgentRecord = { mobility: mobilityFrom(aid) };
   if (groups.oxygen) updates.medical = /^(no|sin)/.test(groups.oxygen) ? [] : ["oxygen"];
-  return { updates };
+  return { updates, saysChairKind: /manual|power|electric|motorized|eléctrica|electrica/.test(aid) };
 };
 
 const set = (updates: AgentRecord, answer?: Answer) => () => ({ updates, answer });

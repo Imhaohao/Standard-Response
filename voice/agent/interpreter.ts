@@ -32,6 +32,8 @@ export type Interpretation = {
   wantsTime: boolean;
   // "What should I bring?", "Do I wait outside?": the code's fixed steps answer it.
   asksWhatToDo: boolean;
+  // They said which kind of wheelchair: one that's pushed, or one with a motor.
+  saysChairKind?: boolean;
   neighborAddresses: string[];
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
@@ -67,7 +69,7 @@ const objectOf = (properties: Record<string, object>) => ({
 // as both medical and flames, and the wrong escalation won.
 // Names say what the resident does: a bare "repeat" was read as "the resident is repeating
 // themselves" and held a question for eleven turns, and "ends" hung up on "I won't leave without my son".
-const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do"] as const;
+const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind"] as const;
 type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
@@ -148,7 +150,7 @@ Rules for changes:
 - set lists each field this utterance gives or changes as field=value, such as peopleCount=2, mobility=walker or address=1182 Mariposa St. List a field only when this utterance gives or changes it. List nothing else.
 - Corrections matter most. If the resident changes or takes back something already in the record, list the new value. "My husband uses a wheelchair, but he isn't here" means the wheelchair user is not in the home: lower peopleCount and set mobility to what the people present need. "It's just me... no wait, my son is here, he can't get out of bed" raises peopleCount and sets mobility to bedbound.
 - peopleCount only when they give the number or list who is home now. Someone mentioned in passing ("my son can't get out of bed") doesn't give it.
-- A wheelchair is manual_wheelchair unless they say it is electric or powered.
+- A wheelchair is manual_wheelchair unless they say it is electric or powered. When they say which kind it is, also list the says_chair_kind flag.
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
 - Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure when the record has no canLeave yet; it never replaces a recorded no. Respect it and don't argue.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure, and so is "I don't know" to the can-leave question, even with more said after it. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
@@ -167,6 +169,7 @@ Other outputs:
   - not_to_agent: the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When listed, list no changes. Never for a short "yes", a request to repeat, or a request to switch language.
   - goodbye: they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay", "thanks" or "okay, thank you" is not goodbye, and neither is refusing to leave ("I'm not leaving without my son").
   - wants_time: they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
+  - says_chair_kind: they say which kind of wheelchair it is: manual, one they or someone else pushes, or electric, powered, motorized or battery.
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
 - neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
@@ -259,6 +262,7 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     wantsToEnd: flags.has("goodbye"),
     wantsTime: flags.has("wants_time"),
     asksWhatToDo: flags.has("asks_what_to_do"),
+    saysChairKind: flags.has("says_chair_kind"),
     neighborAddresses: listOf(raw.neighbors) as string[],
     spokenLanguage: languageFrom(raw.language, fallbackLanguage),
     acknowledgment: textOf(raw.ack),

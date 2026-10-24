@@ -37,6 +37,7 @@ const YES_NO_STEPS: Record<string, YesNo[]> = {
   readback: ["yes", "no"],
   neighbor: ["yes", "no"],
   assistance: ["no"],
+  chair_kind: ["yes", "no"],
 };
 
 const normalized = (utterance: string) =>
@@ -82,7 +83,7 @@ function patternReading(said: string, step: string, language: Language) {
   const parsed = plainAnswer(said, step, language);
   if (!parsed) return null;
   const confidence = Object.fromEntries(Object.keys(parsed.updates).map((field) => [field, 0.9]));
-  return reading(language, { updates: parsed.updates, confidence, answer: parsed.answer ?? null });
+  return reading(language, { updates: parsed.updates, confidence, answer: parsed.answer ?? null, saysChairKind: parsed.saysChairKind });
 }
 
 export function quickReading(utterance: string, step: string, language: Language): Interpretation | null {

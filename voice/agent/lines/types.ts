@@ -28,6 +28,9 @@ export type Lines = {
   askOxygen: string;
   askNeedsOnFile: (onFile: string) => string;
   askAssistance: string;
+  // Asked when someone said "wheelchair" without saying which kind. A yes means a power chair: a
+  // battery chair can weigh 400 pounds and won't fit in a neighbor's car.
+  askChairKind: string;
   readbackIntro: string;
   readbackQuestion: string;
   readbackFixed: string;
@@ -44,6 +47,7 @@ export type Lines = {
     household: string;
     needs: string;
     assistance: string;
+    chairKind: string;
     readback: string;
     fix: string;
     neighbor: string;

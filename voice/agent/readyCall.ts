@@ -154,6 +154,7 @@ type Step =
   | "ask_address"
   | "people"
   | "needs"
+  | "chair_kind"
   | "assistance"
   | "bedroom"
   | "care"
@@ -194,6 +195,9 @@ export class ReadyCall implements CallFlow {
   private phoneRejections = 0;
   private changedThisTurn = false;
   private declined = false;
+  // Whether we've asked if a wheelchair has a motor: "wheelchair" alone doesn't tell a crew or a
+  // neighbor whether it's a 400-pound battery chair.
+  chairKindAsked = false;
   private saved = false;
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
 
@@ -332,6 +336,7 @@ export class ReadyCall implements CallFlow {
   }
 
   afterNeeds(): Step {
+    if (this.answers.mobility === "manual_wheelchair" && !this.chairKindAsked) return "chair_kind";
     const limited = this.answers.mobility !== undefined && LIMITED_MOBILITY.has(this.answers.mobility);
     if (limited && this.answers.assistanceRequired === undefined) return "assistance";
     return this.needsHelpInside() ? "bedroom" : "care";
@@ -494,6 +499,17 @@ const needs: Handler = (call, heard) => {
   return answered ? { step: call.afterNeeds() } : call.retryOr("care");
 };
 
+// "Is it a power wheelchair?" A yes makes it one and a no keeps it manual. Asked once per call.
+const chairKind: Handler = (call, heard) => {
+  if (heard.answer === "yes" && call.answers.mobility === "manual_wheelchair") {
+    call.answers = { ...call.answers, mobility: "power_wheelchair" };
+  }
+  const settled = heard.answer === "yes" || heard.answer === "no" || call.answers.mobility !== "manual_wheelchair";
+  if (!settled && call.triesOnStepLeft()) return { step: "chair_kind", lines: [call.readyLines.sorry] };
+  call.chairKindAsked = true;
+  return { step: call.afterNeeds() };
+};
+
 const assistance: Handler = (call, heard) => {
   if (heard.answer === "no" && call.answers.assistanceRequired === undefined) {
     call.answers = { ...call.answers, assistanceRequired: "none" };
@@ -544,6 +560,7 @@ const STEP_HANDLERS: Record<Step, Handler> = {
   ask_address: askAddress,
   people,
   needs,
+  chair_kind: chairKind,
   assistance,
   bedroom,
   care,
@@ -562,6 +579,7 @@ const QUESTIONS: Record<Step, (call: ReadyCall) => string> = {
   ask_address: (call) => call.readyLines.askAddress,
   people: (call) => call.readyLines.askPeople,
   needs: (call) => call.readyLines.askNeeds,
+  chair_kind: (call) => LINES[call.language].askChairKind,
   assistance: (call) => call.readyLines.askAssistance,
   bedroom: (call) => call.readyLines.askBedroom,
   care: (call) => call.readyLines.askCare,

@@ -28,7 +28,7 @@ export const CARE_OPTIONS: Option<CareNeed>[] = [
 export const MOBILITY_OPTIONS: Option<Mobility>[] = [
   { key: "walks", label: "Walks", Icon: PersonSimpleWalk },
   { key: "walker", label: "Walker", Icon: Person },
-  { key: "manual_wheelchair", label: "Wheelchair", Icon: Wheelchair },
+  { key: "manual_wheelchair", label: "Manual chair", Icon: Wheelchair },
   { key: "power_wheelchair", label: "Power chair", Icon: WheelchairMotion },
   { key: "bedbound", label: "In bed", Icon: Bed },
 ];

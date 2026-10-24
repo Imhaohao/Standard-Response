@@ -49,3 +49,11 @@ describe("plain answers read without Claude", () => {
     it(`leaves "${said}" to Claude`, () => assert.equal(quickReading(said, step, language), null));
   }
 });
+
+describe("which kind of wheelchair, read by code", () => {
+  it("knows the kind was said for a power or manual chair, and not for a bare wheelchair", () => {
+    assert.equal(quickReading("I use a power wheelchair.", "needs", "en")?.saysChairKind, true);
+    assert.equal(quickReading("My son uses a manual wheelchair.", "needs", "en")?.saysChairKind, true);
+    assert.equal(quickReading("My son uses a wheelchair.", "needs", "en")?.saysChairKind, false);
+  });
+});

@@ -19,6 +19,7 @@ type Step =
   | "has_car"
   | "household"
   | "needs"
+  | "chair_kind"
   | "assistance"
   | "readback"
   | "fix"
@@ -33,6 +34,7 @@ const STAGE_OF: Record<Step, Stage> = {
   has_car: "can_leave",
   household: "household",
   needs: "needs",
+  chair_kind: "needs",
   assistance: "needs",
   readback: "readback",
   fix: "readback",
@@ -66,6 +68,7 @@ const OUTLINE: Record<Step, OutlineStage> = {
   has_car: NEEDS,
   household: NEEDS,
   needs: NEEDS,
+  chair_kind: NEEDS,
   assistance: NEEDS,
   readback: CHECK,
   fix: CHECK,
@@ -141,6 +144,9 @@ export class Conversation {
   private lastFeeling = "";
   // The resident spoke about mobility on this call, so the file's version needs no confirming.
   private mobilityHeard = false;
+  // Firefighters told us "wheelchair" alone isn't enough: a battery chair can weigh 400 pounds.
+  // Settled once the resident says which kind, or answers the power-chair question.
+  private chairKindKnown = false;
   // Claude's answers already given, with what each answered. The same answer to something new is
   // dropped ("I don't know where the fire is" three turns running); asked again, it is said again.
   private readonly repliesSaid = new Map<string, string>();
@@ -255,6 +261,7 @@ export class Conversation {
     this.changedThisTurn = false;
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
+    this.noteChairKind(heard);
     const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
@@ -284,6 +291,7 @@ export class Conversation {
     this.changedThisTurn = false;
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
+    this.noteChairKind(heard);
     const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
     if (this.changedThisTurn || heard.wantsTime || heard.answer === "no") {
       const fixed = this.changedThisTurn ? [LINES[this.language].readbackFixed] : [];
@@ -497,6 +505,16 @@ export class Conversation {
     this.effects.updateRecord(changed, confidence);
   }
 
+  private noteChairKind(heard: Interpretation) {
+    if (heard.saysChairKind && heard.updates.mobility !== undefined) this.chairKindKnown = true;
+  }
+
+  // A wheelchair heard on this call with no kind said. The agency's file already says which kind.
+  private needsChairKind() {
+    const { mobility } = this.record;
+    return mobility === "manual_wheelchair" && mobility !== this.onFile.mobility && !this.chairKindKnown;
+  }
+
   private escalateOnce(kind: Escalation) {
     if (this.escalated.has(kind)) return false;
     this.escalated.add(kind);
@@ -591,6 +609,7 @@ export class Conversation {
     if (!needsRide(this.record)) return "readback";
     if (this.record.peopleCount === undefined) return "household";
     if (this.record.mobility === undefined) return "needs";
+    if (this.needsChairKind()) return "chair_kind";
     if (hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined) return "assistance";
     return "readback";
   }
@@ -608,8 +627,25 @@ export class Conversation {
     // A correction to something else (say, the head count) doesn't answer this question.
     const answered = confirmedOnFile || this.record.mobility !== undefined;
     if (!answered) return this.retryOr("readback");
+    return { step: this.afterMobility() };
+  }
+
+  private afterMobility(): Step {
+    if (this.needsChairKind()) return "chair_kind";
     const needsAssistanceQuestion = hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined;
-    return { step: needsAssistanceQuestion ? "assistance" : "readback" };
+    return needsAssistanceQuestion ? "assistance" : "readback";
+  }
+
+  // "Is it a power wheelchair?" A yes makes it one. A no, or naming either kind, settles it. After two
+  // unclear tries it stays a manual chair rather than holding the call on one question.
+  chairKind(heard: Interpretation): Transition {
+    if (heard.answer === "yes" && this.record.mobility === "manual_wheelchair") {
+      this.applyUpdates({ mobility: "power_wheelchair" }, { mobility: 0.8 });
+    }
+    const settled = heard.answer === "yes" || heard.answer === "no" || this.record.mobility !== "manual_wheelchair";
+    if (!settled && !this.chairKindKnown && this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: "chair_kind" };
+    this.chairKindKnown = true;
+    return { step: this.afterMobility() };
   }
 
   assistance(heard: Interpretation): Transition {
@@ -807,6 +843,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
   has_car: (c, heard) => c.hasCar(heard),
   household: (c) => c.household(),
   needs: (c, heard) => c.needs(heard),
+  chair_kind: (c, heard) => c.chairKind(heard),
   assistance: (c, heard) => c.assistance(heard),
   readback: (c, heard) => c.readback(heard),
   fix: (c, heard) => c.fix(heard),
@@ -822,6 +859,7 @@ const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
   has_car: (c) => LINES[c.language].askHasCar,
   household: (c) => (c.record.pets === undefined ? LINES[c.language].askHousehold : LINES[c.language].askPeople),
   needs: (c) => c.needsQuestion(),
+  chair_kind: (c) => LINES[c.language].askChairKind,
   assistance: (c) => LINES[c.language].askAssistance,
   readback: (c) => c.readbackQuestion(),
   fix: (c) => LINES[c.language].whatToFix,
@@ -837,6 +875,7 @@ const QUESTIONS_AGAIN: Record<Step, (conversation: Conversation) => string> = {
   has_car: (c) => LINES[c.language].askAgain.hasCar,
   household: (c) => LINES[c.language].askAgain.household,
   needs: (c) => LINES[c.language].askAgain.needs,
+  chair_kind: (c) => LINES[c.language].askAgain.chairKind,
   assistance: (c) => LINES[c.language].askAgain.assistance,
   readback: (c) => LINES[c.language].askAgain.readback,
   fix: (c) => LINES[c.language].askAgain.fix,

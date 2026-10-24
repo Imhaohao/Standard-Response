@@ -281,8 +281,8 @@ describe("the end of the call", () => {
       heard({ updates: { peopleCount: 2, mobility: "manual_wheelchair" } }),
     );
     assert.ok(!conversation.done);
-    assert.equal(conversation.step, "assistance");
-    assert.deepEqual(turn.sentences, [EN.readbackFixed, EN.askAssistance]);
+    assert.equal(conversation.step, "chair_kind");
+    assert.deepEqual(turn.sentences, [EN.readbackFixed, EN.askChairKind]);
   });
 
   it("reopens at the read-back on \"hold on\" after the goodbye", () => {
@@ -358,5 +358,55 @@ describe("nobody can understand each other", () => {
     assert.ok(turn.sentences[0].startsWith(LINES.es.languageBarrier));
     assert.ok(turn.sentences[1].startsWith(EN.languageBarrier));
     assert.ok(!/passing|transfer/i.test(turn.sentences.join(" ")));
+  });
+});
+
+// From the Palo Alto Fire visit: "you said wheelchair, I thought wheelchair. And then you get there,
+// and it's a battery-operated wheelchair, and they're 400 pounds."
+describe("which kind of wheelchair", () => {
+  function atNeeds() {
+    const started = atCanLeave();
+    started.conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    started.conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
+    assert.equal(started.conversation.step, "needs");
+    return started;
+  }
+
+  it("asks whether a wheelchair has a motor when the resident didn't say", () => {
+    const { conversation } = atNeeds();
+    const turn = conversation.respond("I use a wheelchair", heard({ updates: { mobility: "manual_wheelchair" } }));
+    assert.equal(conversation.step, "chair_kind");
+    assert.equal(turn.sentences.at(-1), EN.askChairKind);
+  });
+
+  it("records a power chair on a yes, then asks how much help", () => {
+    const { conversation } = atNeeds();
+    conversation.respond("I use a wheelchair", heard({ updates: { mobility: "manual_wheelchair" } }));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    assert.equal(conversation.record.mobility, "power_wheelchair");
+    assert.equal(conversation.step, "assistance");
+  });
+
+  it("keeps a manual chair on a no", () => {
+    const { conversation } = atNeeds();
+    conversation.respond("I use a wheelchair", heard({ updates: { mobility: "manual_wheelchair" } }));
+    conversation.respond("no", heard({ answer: "no" }));
+    assert.equal(conversation.record.mobility, "manual_wheelchair");
+    assert.equal(conversation.step, "assistance");
+  });
+
+  it("doesn't ask when the resident already said which kind", () => {
+    const { conversation } = atNeeds();
+    conversation.respond("my wife pushes my wheelchair", heard({ updates: { mobility: "manual_wheelchair" }, saysChairKind: true }));
+    assert.equal(conversation.step, "assistance");
+  });
+
+  it("moves on after two unclear answers instead of holding the call", () => {
+    const { conversation } = atNeeds();
+    conversation.respond("I use a wheelchair", heard({ updates: { mobility: "manual_wheelchair" } }));
+    conversation.respond("what?", heard({ answer: "unclear" }));
+    assert.equal(conversation.step, "chair_kind");
+    conversation.respond("hmm", heard({ answer: "unclear" }));
+    assert.equal(conversation.step, "assistance");
   });
 });
