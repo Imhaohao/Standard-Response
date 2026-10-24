@@ -411,6 +411,18 @@ export default defineSchema({
     drawnAt: v.number(),
   }),
 
+  // Evacuation zones the Apify Actor reported, one row per external zone. The row makes a repeated post a no-op.
+  // warningIssuedAt is control.warningIssuedAt after the zone was applied, so a reset (which clears it) lets the zone apply again.
+  apifyZones: defineTable({
+    key: v.string(),
+    name: v.string(),
+    status: v.union(v.literal("warning"), v.literal("order")),
+    rings: v.array(v.array(point)),
+    ridersInside: v.number(),
+    warningIssuedAt: v.optional(v.number()),
+    receivedAt: v.number(),
+  }).index("by_key", ["key"]),
+
   auditLog: defineTable({
     kind: auditKind,
     message: v.string(),

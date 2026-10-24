@@ -1,0 +1,97 @@
+{
+  "title": "California evacuation status",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "sources": {
+      "title": "Sources",
+      "type": "array",
+      "description": "Which public sources to read. calOesZones: Cal OES statewide active evacuation zones. calFireZones: CAL FIRE statewide evacuation status zones. calFireIncidents: CAL FIRE active incidents. caltransClosures: Caltrans lane and road closures.",
+      "editor": "select",
+      "items": {
+        "type": "string",
+        "enum": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"],
+        "enumTitles": ["Cal OES active evacuation zones", "CAL FIRE evacuation status zones", "CAL FIRE active incidents", "Caltrans road closures"]
+      },
+      "default": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"],
+      "prefill": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"]
+    },
+    "counties": {
+      "title": "Counties",
+      "type": "array",
+      "description": "Only keep records in these California counties (for example Los Angeles). Leave empty for the whole state.",
+      "editor": "stringList",
+      "default": [],
+      "prefill": ["Los Angeles"]
+    },
+    "boundingBox": {
+      "title": "Bounding box",
+      "type": "object",
+      "description": "Only keep records whose geometry touches this box. Degrees in WGS84: west, south, east, north.",
+      "editor": "json",
+      "properties": {
+        "west": { "type": "number", "minimum": -180, "maximum": 180 },
+        "south": { "type": "number", "minimum": -90, "maximum": 90 },
+        "east": { "type": "number", "minimum": -180, "maximum": 180 },
+        "north": { "type": "number", "minimum": -90, "maximum": 90 }
+      },
+      "required": ["west", "south", "east", "north"]
+    },
+    "closureDetail": {
+      "title": "Road closures to include",
+      "type": "string",
+      "description": "full: only roads, ramps and connectors that are fully closed right now. all: also single-lane closures, reported with status open.",
+      "editor": "select",
+      "enum": ["full", "all"],
+      "enumTitles": ["Full closures only", "Full and lane closures"],
+      "default": "full"
+    },
+    "staleAfterHours": {
+      "title": "Treat zones as stale after (hours)",
+      "type": "integer",
+      "description": "A zone whose source record has not been edited for this long is marked stale: true and is never sent to the webhook. Counties sometimes leave old orders in the statewide layer.",
+      "minimum": 1,
+      "default": 72
+    },
+    "webhookUrl": {
+      "title": "Webhook URL",
+      "type": "string",
+      "description": "If set, the Actor POSTs { zones: [...] } here for zones in warning or order that are new or changed since the last run.",
+      "editor": "textfield"
+    },
+    "webhookSecret": {
+      "title": "Webhook secret",
+      "type": "string",
+      "description": "Sent as Authorization: Bearer <secret>.",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "drill": {
+      "title": "Drill mode",
+      "type": "boolean",
+      "description": "Adds one synthetic evacuation zone in warning status built from the drill polygon below. Every drill record has drill: true. Off by default; real records are never altered.",
+      "default": false
+    },
+    "drillPolygon": {
+      "title": "Drill polygon",
+      "type": "array",
+      "description": "Ring of [longitude, latitude] pairs for the drill zone, at least three. Required when drill is on.",
+      "editor": "json"
+    },
+    "drillZoneName": {
+      "title": "Drill zone name",
+      "type": "string",
+      "description": "Name shown for the drill zone.",
+      "default": "Drill zone",
+      "editor": "textfield"
+    },
+    "requestTimeoutSecs": {
+      "title": "Request timeout (seconds)",
+      "type": "integer",
+      "description": "Per request timeout for each source.",
+      "minimum": 5,
+      "maximum": 120,
+      "default": 45
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "actorSpecification": 1,
+  "name": "california-evacuation-status",
+  "title": "California evacuation status",
+  "description": "Active California evacuation orders and warnings, Caltrans road closures and CAL FIRE incidents in one normalized dataset, with an optional webhook when a zone goes to warning or order.",
+  "version": "0.1",
+  "buildTag": "latest",
+  "dockerfile": "../Dockerfile",
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "readme": "../README.md"
+}

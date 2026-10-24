@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as apify from "../apify.js";
+import type * as apifyPayload from "../apifyPayload.js";
 import type * as callbacks from "../callbacks.js";
 import type * as calls from "../calls.js";
 import type * as control from "../control.js";
@@ -27,6 +29,7 @@ import type * as hazards from "../hazards.js";
 import type * as heuristic from "../heuristic.js";
 import type * as householdCounts from "../householdCounts.js";
 import type * as households from "../households.js";
+import type * as http from "../http.js";
 import type * as languages from "../languages.js";
 import type * as mesh from "../mesh.js";
 import type * as model from "../model.js";
@@ -61,6 +64,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apify: typeof apify;
+  apifyPayload: typeof apifyPayload;
   callbacks: typeof callbacks;
   calls: typeof calls;
   control: typeof control;
@@ -80,6 +85,7 @@ declare const fullApi: ApiFromModules<{
   heuristic: typeof heuristic;
   householdCounts: typeof householdCounts;
   households: typeof households;
+  http: typeof http;
   languages: typeof languages;
   mesh: typeof mesh;
   model: typeof model;

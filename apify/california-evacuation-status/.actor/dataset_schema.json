@@ -1,0 +1,25 @@
+{
+  "actorSpecification": 1,
+  "fields": {},
+  "views": {
+    "records": {
+      "title": "Records",
+      "transformation": {
+        "fields": ["kind", "status", "name", "county", "source", "id", "updatedAt", "stale", "drill", "sourceUrl"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "kind": { "label": "Kind", "format": "text" },
+          "status": { "label": "Status", "format": "text" },
+          "name": { "label": "Name", "format": "text" },
+          "county": { "label": "County", "format": "text" },
+          "source": { "label": "Source", "format": "text" },
+          "updatedAt": { "label": "Updated", "format": "date" },
+          "stale": { "label": "Stale", "format": "boolean" },
+          "sourceUrl": { "label": "Source URL", "format": "link" }
+        }
+      }
+    }
+  }
+}

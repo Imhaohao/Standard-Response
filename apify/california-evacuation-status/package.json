@@ -1,0 +1,25 @@
+{
+  "name": "california-evacuation-status",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Normalized California evacuation zones, road closures and wildfire incidents from public sources.",
+  "scripts": {
+    "start": "node dist/main.js",
+    "build": "tsc",
+    "dev": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "apify": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
