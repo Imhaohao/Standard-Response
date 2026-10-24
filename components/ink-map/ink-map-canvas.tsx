@@ -19,23 +19,39 @@ export function useInkMapData() {
   return data;
 }
 
+// A machine without WebGL gets null, and the stage falls back to the flat map.
+function createRenderer(canvas: HTMLCanvasElement, data: InkMapData, view: InkMapView) {
+  try {
+    return new InkMapRenderer(canvas, data, view, {
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      detailRoads: view.kind === "closeup",
+    });
+  } catch {
+    return null;
+  }
+}
+
 // Owns the WebGL canvas. Every resize re-renders the static ink pass and bumps `version`,
 // which tells overlays to re-project their markers.
 export function InkMapCanvas({
   data,
   view,
   onReady,
+  onFail,
   className = "",
 }: {
   data: InkMapData;
   view: InkMapView;
   onReady: (handle: InkMapHandle | null) => void;
+  onFail?: () => void;
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onReadyRef = useRef(onReady);
+  const onFailRef = useRef(onFail);
   useEffect(() => {
     onReadyRef.current = onReady;
+    onFailRef.current = onFail;
   });
   const viewKey = JSON.stringify(view);
 
@@ -43,10 +59,11 @@ export function InkMapCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const parsedView = JSON.parse(viewKey) as InkMapView;
-    const renderer = new InkMapRenderer(canvas, data, parsedView, {
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      detailRoads: parsedView.kind === "closeup",
-    });
+    const renderer = createRenderer(canvas, data, parsedView);
+    if (!renderer) {
+      onFailRef.current?.();
+      return;
+    }
     let version = 0;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;

@@ -45,7 +45,7 @@ const HIDDEN: ScreenPoint = { x: 0, y: 0, visible: false };
 export function MapStage({
   data,
   view,
-  mode = "ink",
+  mode: requestedMode = "ink",
   hazard,
   minutes,
   fronts,
@@ -70,6 +70,9 @@ export function MapStage({
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size | null>(null);
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
+  const [inkFailed, setInkFailed] = useState(false);
+  const fail = useCallback(() => setInkFailed(true), []);
+  const mode: SurfaceMode = inkFailed ? "paper" : requestedMode;
   const [x0, y0, x1, y1] = frameEdges(view);
   const frame = useMemo<Frame>(() => ({ x0, y0, x1, y1 }), [x0, y0, x1, y1]);
   const projection = useMemo(() => createProjection(data.origin), [data.origin]);
@@ -114,7 +117,7 @@ export function MapStage({
       className={`relative isolate size-full overflow-hidden bg-canvas ${interactive ? "cursor-crosshair" : ""} ${className}`}
     >
       {mode === "ink" ? (
-        <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes ?? 0} highlights={highlights ?? EMPTY} onHandle={setHandle} />
+        <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes ?? 0} highlights={highlights ?? EMPTY} onHandle={setHandle} onFail={fail} />
       ) : (
         size && (
           <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">

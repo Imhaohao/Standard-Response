@@ -16,6 +16,7 @@ export function InkSurface({
   minutes,
   highlights,
   onHandle,
+  onFail,
 }: {
   data: InkMapData;
   view: InkMapView;
@@ -23,6 +24,7 @@ export function InkSurface({
   minutes: number;
   highlights: Map<number, BuildingState>;
   onHandle: (handle: InkMapHandle | null) => void;
+  onFail: () => void;
 }) {
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
 
@@ -49,5 +51,5 @@ export function InkSurface({
     handle?.renderer.setFireMinutes(minutes);
   }, [handle, minutes]);
 
-  return <InkMapCanvas data={data} view={view} onReady={accept} />;
+  return <InkMapCanvas data={data} view={view} onReady={accept} onFail={onFail} />;
 }
