@@ -61,6 +61,8 @@ export const ZH: Lines = {
     "这里是911，来电是关于阿尔塔迪纳的撤离。您所在的街道已发布撤离警告。我们两分钟后会再打电话。如果您需要车辆出去，请回拨这个号码。",
   people: (count) => (count === 1 ? "一个人" : `${count}个人`),
   pets: "带着宠物",
+  leaveEcho: { yes: "您可以自行离开", no: "您无法自行离开", unsure: "您不确定能否离开" },
+  hasCarEcho: "您有车",
   noCar: "没有车",
   leavingOnOwn: "您自己离开",
   byCar: "开车",

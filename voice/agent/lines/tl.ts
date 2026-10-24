@@ -61,6 +61,8 @@ export const TL: Lines = {
     "Ito po ang 911, tumatawag tungkol sa evacuation sa Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
   people: (count) => (count === 1 ? "isang tao" : `${count} katao`),
   pets: "may alagang hayop",
+  leaveEcho: { yes: "kaya ninyong umalis nang mag-isa", no: "hindi kayo makakaalis nang mag-isa", unsure: "hindi kayo sigurado kung makakaalis kayo" },
+  hasCarEcho: "may sasakyan kayo",
   noCar: "walang kotse",
   leavingOnOwn: "aalis kayo nang kusa",
   byCar: "sakay ng kotse",

@@ -46,6 +46,8 @@ function readbackParts(record: AgentRecord, lines: Lines) {
 // The facts one answer just gave, said back from templates: "2 people, with pets." It can't
 // overstate anything, so it is spoken in every language, unlike Claude's own acknowledgment.
 const ECHO_PARTS: ((changed: AgentRecord, lines: Lines) => string | undefined)[] = [
+  (changed, lines) => (changed.canLeave ? lines.leaveEcho[changed.canLeave] : undefined),
+  (changed, lines) => (changed.hasCar === true ? lines.hasCarEcho : undefined),
   (changed, lines) => (changed.peopleCount !== undefined ? lines.people(changed.peopleCount) : undefined),
   (changed, lines) => (changed.mobility ? lines.mobility[changed.mobility] : undefined),
   (changed, lines) => (changed.medical?.includes("oxygen") ? lines.oxygen : undefined),

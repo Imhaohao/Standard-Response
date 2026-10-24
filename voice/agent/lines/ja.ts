@@ -61,6 +61,8 @@ export const JA: Lines = {
     "こちらは911です。Altadenaの避難についてお電話しました。お住まいの通りに避難警報が出ています。2分後にまたお電話します。避難のための車が必要な場合は、この番号にお電話ください。",
   people: (count) => `${count}人`,
   pets: "ペットと一緒",
+  leaveEcho: { yes: "ご自身で避難できます", no: "ご自身では避難できません", unsure: "避難できるか分からない" },
+  hasCarEcho: "車があります",
   noCar: "車なし",
   leavingOnOwn: "ご自分で避難する",
   byCar: "車で",

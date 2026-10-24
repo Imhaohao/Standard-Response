@@ -62,6 +62,8 @@ export const ES: Lines = {
     "Le llama el 911 por la evacuación en Altadena. Hay una advertencia de evacuación en su calle. Volveremos a llamar en dos minutos. Si necesita transporte, devuelva la llamada a este número.",
   people: (count) => (count === 1 ? "una persona" : `${count} personas`),
   pets: "con mascotas",
+  leaveEcho: { yes: "puede salir por su cuenta", no: "no puede salir por su cuenta", unsure: "no está seguro de poder salir" },
+  hasCarEcho: "tiene carro",
   noCar: "sin carro",
   leavingOnOwn: "usted sale por su cuenta",
   byCar: "en carro",

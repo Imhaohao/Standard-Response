@@ -61,6 +61,8 @@ export const VI: Lines = {
     "Đây là 911, gọi về việc sơ tán ở Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
   people: (count) => (count === 1 ? "một người" : `${count} người`),
   pets: "có thú cưng",
+  leaveEcho: { yes: "quý vị có thể tự rời đi", no: "quý vị không thể tự rời đi", unsure: "quý vị không chắc có thể rời đi" },
+  hasCarEcho: "quý vị có xe",
   noCar: "không có xe",
   leavingOnOwn: "quý vị tự rời đi",
   byCar: "bằng xe hơi",

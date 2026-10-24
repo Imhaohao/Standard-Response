@@ -24,9 +24,17 @@ export const env = {
   convexUrl: () => process.env.CONVEX_URL || required("NEXT_PUBLIC_CONVEX_URL"),
   // Public https base of this server, e.g. https://rollcall-voice.fly.dev. Twilio calls back here.
   publicUrl: () => required("VOICE_PUBLIC_URL").replace(/\/$/, ""),
-  anthropicModel: optional("VOICE_MODEL", "claude-haiku-5-5"),
+  // Opus 5.5 in fast mode: faster than Haiku on the voice exam's turns and better at its conduct.
+  anthropicModel: optional("VOICE_MODEL", "claude-opus-5-5"),
   // Extraction is a lookup, not reasoning; thinking only adds latency on a phone turn.
   anthropicThinkingOff: optional("VOICE_THINKING", "off") === "off",
+  // Moss semantic search over the principles and the 911 dialog bank (voice/knowledge). Without keys,
+  // or with VOICE_KNOWLEDGE=off, Claude reads each turn without it.
+  moss: {
+    projectId: process.env.MOSS_PROJECT_ID ?? "",
+    projectKey: process.env.MOSS_PROJECT_KEY ?? "",
+    enabled: optional("VOICE_KNOWLEDGE", "on") === "on",
+  },
   twilio: {
     accountSid: () => required("TWILIO_ACCOUNT_SID"),
     // REST calls authenticate with an API key; the auth token only checks webhook signatures.

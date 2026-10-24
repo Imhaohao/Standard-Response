@@ -1,6 +1,7 @@
 import type { Interpretation } from "./interpreter";
 import type { AgentRecord } from "./record";
 import type { Language } from "./script";
+import { plainAnswer } from "./answerPatterns";
 
 // Answers that need no interpreter: a bare "yes" or "no" to a yes-or-no question, "just me" to the
 // head count, "okay" while waiting on hold, "hello?" checking the line. Read here, they answer at
@@ -76,9 +77,21 @@ function phraseReading(said: string, step: string, words: Words, language: Langu
   return null;
 }
 
+// A plain answer to the question (answerPatterns.ts), with each field it gives heard clearly.
+function patternReading(said: string, step: string, language: Language) {
+  const parsed = plainAnswer(said, step, language);
+  if (!parsed) return null;
+  const confidence = Object.fromEntries(Object.keys(parsed.updates).map((field) => [field, 0.9]));
+  return reading(language, { updates: parsed.updates, confidence, answer: parsed.answer ?? null });
+}
+
 export function quickReading(utterance: string, step: string, language: Language): Interpretation | null {
   const words = WORDS[language];
+  // A question of their own ("Just me?") or an exclamation ("No! I can't get out!") goes to Claude,
+  // which can answer it and name the feeling; "hello?" is checked first.
   if (!words || step === "done") return null;
   const said = normalized(utterance);
-  return yesNoReading(said, step, words, language) ?? phraseReading(said, step, words, language);
+  if (words.hello.includes(said)) return reading(language, { wantsRepeat: true });
+  if (/[?!¡¿]/.test(utterance)) return null;
+  return yesNoReading(said, step, words, language) ?? phraseReading(said, step, words, language) ?? patternReading(said, step, language);
 }

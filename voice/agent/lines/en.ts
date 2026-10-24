@@ -60,6 +60,8 @@ export const EN: Lines = {
     "This is 911 calling about the evacuation in Altadena. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
   people: (count) => (count === 1 ? "one person" : `${count} people`),
   pets: "with pets",
+  leaveEcho: { yes: "you can leave on your own", no: "you can't leave on your own", unsure: "you're not sure you can leave" },
+  hasCarEcho: "you have a car",
   noCar: "no car",
   leavingOnOwn: "you're leaving on your own",
   byCar: "by car",

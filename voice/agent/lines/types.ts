@@ -82,6 +82,9 @@ export type Lines = {
   voicemail: string;
   people: (count: number) => string;
   pets: string;
+  // Said back when an answer gives can-leave or a car, like the other fact echoes.
+  leaveEcho: Record<"yes" | "no" | "unsure", string>;
+  hasCarEcho: string;
   noCar: string;
   leavingOnOwn: string;
   byCar: string;

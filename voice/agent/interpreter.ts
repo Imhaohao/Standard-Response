@@ -5,6 +5,8 @@ import { FIELDS } from "./record";
 import { HEARD_ONLY_LANGUAGES, isSpokenLanguage, Language, SPOKEN_LANGUAGES } from "../../convex/languages";
 import { Hazard, HAZARDS, hazardEscalation, HazardEscalation } from "../../convex/hazards";
 import { currentHazard } from "../hazard";
+import { Guidance, guidanceText } from "../knowledge/bank";
+import { recall } from "../knowledge/moss";
 
 // Claude's whole job on a call: turn one messy utterance into structured changes plus a short
 // acknowledgment. It never decides what to ask next or what may be promised; the state machine does.
@@ -70,17 +72,22 @@ type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
 
-const outputSchemaFor = (kind: Hazard) => objectOf({
-  set: { type: "array", items: { type: "string" } },
-  guessed: { type: "array", items: enumOf(FIELDS) },
-  answer: enumOf(["yes", "no", "unclear", "none"]),
-  emergency: enumOf(["none", "medical", hazardEscalation(kind)]),
-  flags: { type: "array", items: enumOf(CONDITIONS) },
-  neighbors: { type: "array", items: { type: "string" } },
-  language: enumOf(HEARD_LANGUAGES),
-  feeling: { type: "string" },
-  ack: { type: "string" },
-  reply: { type: "string" },
+// Only set is required. Every other key is written when it has something to say, so a plain answer
+// comes back as {"set":["peopleCount=2"]}, 16 tokens instead of 55 with every empty key spelled out.
+const outputSchemaFor = (kind: Hazard) => ({
+  ...objectOf({
+    set: { type: "array", items: { type: "string" } },
+    guessed: { type: "array", items: enumOf(FIELDS) },
+    answer: enumOf(["yes", "no", "unclear"]),
+    emergency: enumOf(["medical", hazardEscalation(kind)]),
+    flags: { type: "array", items: enumOf(CONDITIONS) },
+    neighbors: { type: "array", items: { type: "string" } },
+    language: enumOf(HEARD_LANGUAGES),
+    feeling: { type: "string" },
+    ack: { type: "string" },
+    reply: { type: "string" },
+  }),
+  required: ["set"],
 });
 
 // What the resident is facing, and what counts as the hazard being at the home right now.
@@ -122,7 +129,7 @@ export type PrincipleId = (typeof CALL_TAKER_PRINCIPLES)[number]["id"];
 
 const numberedPrinciples = CALL_TAKER_PRINCIPLES.map((principle, index) => `${index + 1}. ${principle.text}`).join("\n");
 
-const systemFor = (kind: Hazard) => `You interpret one thing a resident just said on an evacuation phone call run by a paratransit agency. ${HAZARD_CONTEXT[kind].situation} You return structured data only.
+const systemFor = (kind: Hazard) => `You interpret one thing a resident just said on an evacuation phone call run by a paratransit agency. ${HAZARD_CONTEXT[kind].situation} You return structured data only: set always, and every other key only when it has something to say (leave it out rather than write none, an empty list or an empty string; language only when it isn't the call language).
 
 How the agent talks. The code picks the next question; you write only the acknowledgment and the reply, and they follow these principles, which come from 911 call-taker, crisis-line and evacuation-warning practice:
 ${numberedPrinciples}
@@ -143,7 +150,7 @@ Rules for changes:
 - peopleCount only when they give the number or list who is home now. Someone mentioned in passing ("my son can't get out of bed") doesn't give it.
 - A wheelchair is manual_wheelchair unless they say it is electric or powered.
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
-- Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure; respect it and don't argue.
+- Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure when the record has no canLeave yet; it never replaces a recorded no. Respect it and don't argue.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure, and so is "I don't know" to the can-leave question, even with more said after it. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
 - mobility is the most limited of anyone in the home now. Mentioning someone less limited never lowers it: after "my son can't get out of bed", "I'm in the wheelchair" keeps bedbound.
 - An emergency in the same answer doesn't replace the answer: set the fields it gives as well.
@@ -161,11 +168,11 @@ Other outputs:
   - goodbye: they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay", "thanks" or "okay, thank you" is not goodbye, and neither is refusing to leave ("I'm not leaving without my son").
   - wants_time: they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
-- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
+- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
 - feeling: when the resident sounds frightened, panicked, desperate or upset (pleading, asking anxiously whether anyone knows they are there, saying not to risk anyone for them), at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
-- ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists peopleCount, mobility, medical, assistanceRequired, pets or hasCar=false, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("No, you can't get out.", "You're leaving now."). On hold, or when they plead or ask about the ride, reflect their words in a few words without any promise ("You need help fast.", "You want to know they know you're here."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
-- reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused, that they won't leave without someone, whether the agent will stay on the line), one short, calm sentence of at most 20 words in the resident's language that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads, shelters, routes or orders. Never mention help, crews, vehicles, sending, plans or what dispatchers are doing: the code's status line is the only thing said about those. If you don't know, say so ("I don't know that."). Never give safety advice or directions of your own; the code's lines give the only advice. Never say you are marking, noting or recording anything. "Are we supposed to evacuate?" gets "An evacuation warning covers your street. If you can leave safely, leave now." Never repeat sympathy the feeling already named. Name people only as the resident did ("he", "my son"); never guess who someone is. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, asked what to do or bring (asks_what_to_do), or when not_to_agent is listed. The ack's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.`;
+- ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists canLeave, hasCar, peopleCount, mobility, medical, assistanceRequired or pets, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("Alright, that's the address."). On hold, or when they plead or ask about the ride, reflect their words in a few words without any promise ("You need help fast.", "You want to know they know you're here."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
+- reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused, that they won't leave without someone, whether the agent will stay on the line), one short, calm sentence of at most 20 words in the resident's language that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads, shelters, routes or orders. Never mention help, crews, vehicles, sending, plans or what dispatchers are doing: the code's status line is the only thing said about those. If you don't know, say so ("I don't know that."). Never give safety advice or directions of your own; the code's lines give the only advice. Never say you are marking, noting or recording anything. "Are we supposed to evacuate?" gets "If you can leave safely, leave now." (say a warning covers their street only if the agent's greeting said so). Never repeat sympathy the feeling already named. Name people only as the resident did ("he", "my son"); never guess who someone is. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, asked what to do or bring (asks_what_to_do), or when not_to_agent is listed. The ack's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.`;
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
@@ -237,7 +244,7 @@ export const canSpeak = (language: HeardLanguage): language is Language => isSpo
 const listOf = (raw: unknown): unknown[] => (Array.isArray(raw) ? raw : []);
 const textOf = (raw: unknown) => (typeof raw === "string" ? raw : "");
 
-function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpretation {
+export function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpretation {
   const raw = JSON.parse(text) as Record<string, unknown>;
   const { updates, confidence } = recordFrom(listOf(raw.set), listOf(raw.guessed));
   const flags = new Set(listOf(raw.flags) as Condition[]);
@@ -260,11 +267,12 @@ function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpre
   };
 }
 
-function promptFor(turn: TurnContext) {
+function promptFor(turn: TurnContext, guidance: Guidance | null) {
   const history = turn.recentTurns.map((line) => `${line.speaker}: ${line.text}`).join("\n");
   return [
     `Call language: ${turn.language}. Current step: ${turn.stage}.`,
     `Call stage: ${turn.outline.stage}. Goal of this stage: ${turn.outline.goal}`,
+    guidanceText(guidance),
     `Record so far: ${JSON.stringify(turn.record)}`,
     history ? `Recent turns:\n${history}` : "",
     `Agent's last question: ${turn.question}`,
@@ -274,37 +282,44 @@ function promptFor(turn: TurnContext) {
     .join("\n\n");
 }
 
-// Identical requests to Haiku vary from 0.6 to 1.5 s before the first token, so each turn sends
-// two and takes whichever answers first (a hedged request), cancelling the other. At Haiku's price
-// with a cached prompt the second request costs a fraction of a cent; it cut p90 from 1.6 to 1.1 s.
-const HEDGED_REQUESTS = 2;
+// Identical requests vary from 0.6 to 1.5 s before the first token, so each turn sends three and
+// takes whichever answers first (a hedged request). The others are left to finish, not cancelled:
+// cancelling closes their connections, and the next turns paid a new handshake. Measured on Haiku,
+// first of three uncancelled: p50 0.59 s, p90 0.81 s; first of two cancelled: p50 0.70 s, p90 1.05 s.
+const HEDGED_REQUESTS = Number(process.env.VOICE_HEDGED_REQUESTS ?? 3);
 
-function request(turn: TurnContext, kind: Hazard, signal: AbortSignal) {
-  return anthropic().messages.create(
-    {
-      model: env.anthropicModel,
-      max_tokens: 1024,
-      // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
-      system: [{ type: "text", text: SYSTEM[kind], cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: promptFor(turn) }],
-      output_config: { effort: "low", format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
-      ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
-    },
-    { signal },
-  );
+// Opus runs in fast mode (a research preview, up to 2.5x the output speed): measured on the real
+// prompt it answered in 1.1 s with a tight tail while Haiku took 1.5 s. Opus 5.5 can't turn thinking
+// off, so low effort keeps it short. Fast mode has its own rate limit; when it is hit the turn runs
+// at standard speed rather than failing.
+const FAST_MODELS = new Set(["claude-opus-5-5", "claude-opus-5"]);
+
+function request(turn: TurnContext, kind: Hazard, guidance: Guidance | null) {
+  const params = {
+    model: env.anthropicModel,
+    max_tokens: 1024,
+    // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
+    system: [{ type: "text" as const, text: SYSTEM[kind], cache_control: { type: "ephemeral" as const } }],
+    messages: [{ role: "user" as const, content: promptFor(turn, guidance) }],
+    output_config: { effort: "low" as const, format: { type: "json_schema" as const, schema: OUTPUT_SCHEMA[kind] } },
+  };
+  const standard = () =>
+    anthropic().messages.create(
+      { ...params, ...(env.anthropicThinkingOff && !FAST_MODELS.has(params.model) ? { thinking: { type: "disabled" as const } } : {}) },
+    );
+  if (!FAST_MODELS.has(params.model)) return standard();
+  return anthropic()
+    .beta.messages.create({ ...params, betas: ["fast-mode-2026-02-01"], speed: "fast" })
+    .catch((error: unknown) => (error instanceof Anthropic.RateLimitError ? standard() : Promise.reject(error)));
 }
 
 export async function interpret(turn: TurnContext): Promise<Interpretation> {
   const kind = currentHazard();
-  const controllers = Array.from({ length: HEDGED_REQUESTS }, () => new AbortController());
-  try {
-    const response = await Promise.any(controllers.map((controller) => request(turn, kind, controller.signal)));
-    const text = response.content.find((block) => block.type === "text");
-    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-      throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
-    }
-    return parse(text.text, turn.language, kind);
-  } finally {
-    for (const controller of controllers) controller.abort();
+  const guidance = await recall(turn.question, turn.utterance, kind, turn.language);
+  const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(turn, kind, guidance)));
+  const text = response.content.find((block) => block.type === "text");
+  if (response.stop_reason === "refusal" || !text || text.type !== "text") {
+    throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
   }
+  return parse(text.text, turn.language, kind);
 }
