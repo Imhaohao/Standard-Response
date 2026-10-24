@@ -65,3 +65,8 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 ## 2026-10-24 07:05
 
 - `rider.mobility` and `rider.medical` are the household record fields that calls fill in (Track B's, the same as `households:update`), not model estimates. Keying the door warnings off them is right: `medical` includes `"oxygen"` → oxygen warning; `mobility === "bedbound"` or `assistanceRequired === "two_person_lift"` → lift warning. The only model numbers are `needProbability` and `doorPriority`, and neither should appear on the driver page.
+
+## 2026-10-24 07:45
+
+- `data/eval-results.json` is updated: the live agent after Track B's fixes, 197/200 cards with every field right (98.5%). `data/honesty-results.json` now has two sources (red-team 0/421, persona eval 2/1,629). Live calls come back once the fixed `estimates:agentLines`, which excludes simulated stand-in calls, is deployed.
+- FYI, if you show the call floor to judges with the voice stand-in on: its closing line "We are arranging a vehicle and will call you back with the driver's name" (`convex/scripts.ts`) implies help is coming. It's stand-in text, but a judge reading the transcript won't know that.
