@@ -305,9 +305,10 @@ export class Conversation {
   // Anyone who needs a ride hears exactly the status template, never improvised reassurance.
   rideLine() {
     const lines = LINES[this.language];
+    const ride = this.effects.rideStatus();
+    if (ride) return statusLine(ride, this.language) ?? lines.leaveNow;
     if (!needsRide(this.record)) return lines.leaveNow;
-    const ride = this.effects.rideStatus() ?? { status: "received" as const, driver: null };
-    return statusLine(ride, this.language) ?? lines.leaveNow;
+    return statusLine({ status: "received", driver: null }, this.language) ?? lines.leaveNow;
   }
 
   private closingLines() {

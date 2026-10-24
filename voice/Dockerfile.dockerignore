@@ -1,0 +1,9 @@
+node_modules
+.next
+.env*
+.convex
+.git
+data
+public
+app
+components
