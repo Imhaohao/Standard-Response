@@ -8,8 +8,15 @@ import { isPhantom, VoiceActivity } from "./phantomSpeech";
 // accepts and produces it directly, so audio passes through without transcoding.
 
 const PHONE_AUDIO = { encoding: "pcm_mulaw", sample_rate: 8000 } as const;
-// Seconds of silence before Cartesia finalizes what the resident said.
+// Seconds of silence before ink-whisper finalizes what the resident said.
 const END_OF_SPEECH_SILENCE_SECS = 0.5;
+
+// Ink-2 hears far more of a noisy phone line than ink-whisper and doesn't invent "Thank you." out
+// of hiss, but it only covers these of our languages; the rest stay on ink-whisper.
+const INK_2_LANGUAGES = new Set<Language>(["en", "es", "ja"]);
+// Rare words residents say that a bad line blurs ("bed bound", "air"). Common words stay out:
+// "wheelchair" here turned "needs assistance" into "needs a wheelchair".
+const KEYTERMS = ["Altadena", "evacuation", "oxygen", "bedbound", "bedridden"];
 
 // Whisper-style models write non-speech as tags: "[cat meowing]", "(music)", "*coughs*".
 const SOUND_TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*|♪/g;
@@ -19,8 +26,44 @@ const STATE_LOOKALIKE_ID = /\bI\.D\.|\bID\b/g;
 
 export const spokenForm = (text: string) => text.replace(STATE_LOOKALIKE_ID, "I-D");
 
-type TranscriptMessage = { type: "transcript"; is_final: boolean; text: string };
 type ErrorMessage = { type: "error"; message?: string; title?: string };
+type SttMessage = { type: string; text?: string; transcript?: string; is_final?: boolean; message?: string; title?: string };
+type Heard = { text: string; isFinal: boolean };
+
+// ink-whisper (/stt/websocket) finalizes after a fixed silence and sends each stretch as its own
+// transcript. Ink-2 (/stt/turns/websocket) decides when the resident is done and sends the whole
+// turn so far on every update, then once more on turn.end.
+type SttProtocol = { url: string; closeMessage: string; read: (message: SttMessage) => Heard | null };
+
+function protocolFor(language: Language): SttProtocol {
+  const common = {
+    encoding: PHONE_AUDIO.encoding,
+    sample_rate: String(PHONE_AUDIO.sample_rate),
+    cartesia_version: env.cartesia.version,
+  };
+  if (env.cartesia.sttModel === "ink-2" && INK_2_LANGUAGES.has(language)) {
+    const params = new URLSearchParams({ model: "ink-2", ...common });
+    for (const term of KEYTERMS) params.append("keyterm", term);
+    return { url: `wss://api.cartesia.ai/stt/turns/websocket?${params}`, closeMessage: JSON.stringify({ type: "close" }), read: readTurn };
+  }
+  const params = new URLSearchParams({
+    model: "ink-whisper",
+    ...common,
+    language,
+    max_silence_duration_secs: String(END_OF_SPEECH_SILENCE_SECS),
+  });
+  return { url: `wss://api.cartesia.ai/stt/websocket?${params}`, closeMessage: "close", read: readTranscript };
+}
+
+function readTranscript(message: SttMessage): Heard | null {
+  return message.type === "transcript" ? { text: message.text ?? "", isFinal: message.is_final === true } : null;
+}
+
+function readTurn(message: SttMessage): Heard | null {
+  if (message.type === "turn.update") return { text: message.transcript ?? "", isFinal: false };
+  if (message.type === "turn.end") return { text: message.transcript ?? "", isFinal: true };
+  return null;
+}
 
 export type TranscriberEvents = {
   // voicedMs: how much of the audio behind this transcript was someone speaking.
@@ -32,17 +75,11 @@ export class Transcriber {
   private socket: WebSocket;
   private pending: Buffer[] = [];
   private readonly voice = new VoiceActivity();
+  private readonly protocol: SttProtocol;
 
   constructor(language: Language, private readonly events: TranscriberEvents) {
-    const params = new URLSearchParams({
-      model: env.cartesia.sttModel,
-      encoding: PHONE_AUDIO.encoding,
-      sample_rate: String(PHONE_AUDIO.sample_rate),
-      cartesia_version: env.cartesia.version,
-      language,
-      max_silence_duration_secs: String(END_OF_SPEECH_SILENCE_SECS),
-    });
-    this.socket = new WebSocket(`wss://api.cartesia.ai/stt/websocket?${params}`, {
+    this.protocol = protocolFor(language);
+    this.socket = new WebSocket(this.protocol.url, {
       headers: { "X-API-Key": env.cartesia.apiKey() },
     });
     this.socket.on("open", () => {
@@ -56,19 +93,19 @@ export class Transcriber {
   }
 
   private handle(raw: string) {
-    const message = JSON.parse(raw) as TranscriptMessage | ErrorMessage | { type: string };
-    if (message.type === "transcript") {
-      const transcript = message as TranscriptMessage;
-      const speech = transcript.text.replace(SOUND_TAGS, " ").replace(/\s+/g, " ");
-      const { voicedMs } = this.voice;
-      const phantom = isPhantom(speech, voicedMs);
-      if (phantom) console.log(`[stt] dropped "${speech.trim()}": ${voicedMs}ms of voice behind it`);
-      if (transcript.is_final) this.voice.reset();
-      if (!phantom && speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final, voicedMs);
-    } else if (message.type === "error") {
-      const error = message as ErrorMessage;
-      this.events.onError(`stt: ${error.title ?? ""} ${error.message ?? ""}`);
-    }
+    const message = JSON.parse(raw) as SttMessage;
+    if (message.type === "error") return this.events.onError(`stt: ${message.title ?? ""} ${message.message ?? ""}`);
+    const heard = this.protocol.read(message);
+    if (heard) this.hear(heard);
+  }
+
+  private hear({ text, isFinal }: Heard) {
+    const speech = text.replace(SOUND_TAGS, " ").replace(/\s+/g, " ");
+    const { voicedMs } = this.voice;
+    const phantom = isPhantom(speech, voicedMs);
+    if (phantom) console.log(`[stt] dropped "${speech.trim()}": ${voicedMs}ms of voice behind it`);
+    if (isFinal) this.voice.reset();
+    if (!phantom && speech.trim() !== "") this.events.onSpeech(speech, isFinal, voicedMs);
   }
 
   send(mulaw: Buffer) {
@@ -78,7 +115,7 @@ export class Transcriber {
   }
 
   close() {
-    if (this.socket.readyState === WebSocket.OPEN) this.socket.send("close");
+    if (this.socket.readyState === WebSocket.OPEN) this.socket.send(this.protocol.closeMessage);
     setTimeout(() => this.socket.terminate(), 1000);
   }
 }

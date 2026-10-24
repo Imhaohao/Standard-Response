@@ -47,7 +47,8 @@ export const env = {
   cartesia: {
     apiKey: () => required("CARTESIA_API_KEY"),
     version: optional("CARTESIA_VERSION", "2026-08-14"),
-    sttModel: optional("CARTESIA_STT_MODEL", "ink-whisper"),
+    // "ink-whisper" puts every language back on the older model.
+    sttModel: optional("CARTESIA_STT_MODEL", "ink-2"),
     ttsModel: optional("CARTESIA_TTS_MODEL", "sonic-latest"),
     voiceEn: () => required("CARTESIA_VOICE_EN"),
     voiceEs: () => required("CARTESIA_VOICE_ES"),
