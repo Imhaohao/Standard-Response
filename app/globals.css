@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* Palette: Red Cross-style white page, ink type, one red signal.
+   Red means "needs an accessible vehicle / urgent" and the brand mark. Nothing else. */
+:root {
+  --canvas: oklch(0.982 0.002 30);
+  --surface: oklch(0.995 0.001 30);
+  --surface-sunk: oklch(0.952 0.003 30);
+  --line: oklch(0.885 0.004 30);
+  --line-strong: oklch(0.78 0.006 30);
+  --ink: oklch(0.215 0.008 30);
+  --ink-muted: oklch(0.45 0.01 30);
+  --panel: oklch(0.255 0.006 30);
+  --panel-raised: oklch(0.32 0.007 30);
+  --on-panel: oklch(0.97 0.003 30);
+  --on-panel-muted: oklch(0.8 0.006 30);
+  --signal: oklch(0.585 0.215 27);
+  --leaving: oklch(0.58 0.13 155);
+  --ride: oklch(0.7 0.16 58);
+  --accessible: var(--signal);
+  --unreachable: oklch(0.55 0.012 30);
+  --unknown: oklch(0.8 0.006 30);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: oklch(0.165 0.005 30);
+    --surface: oklch(0.2 0.006 30);
+    --surface-sunk: oklch(0.245 0.006 30);
+    --line: oklch(0.31 0.007 30);
+    --line-strong: oklch(0.42 0.008 30);
+    --ink: oklch(0.955 0.003 30);
+    --ink-muted: oklch(0.74 0.008 30);
+    --panel: oklch(0.235 0.007 30);
+    --panel-raised: oklch(0.3 0.008 30);
+    --signal: oklch(0.66 0.2 27);
+    --leaving: oklch(0.7 0.14 155);
+    --ride: oklch(0.76 0.15 58);
+    --unreachable: oklch(0.62 0.012 30);
+    --unknown: oklch(0.45 0.008 30);
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-on-panel: var(--on-panel);
+  --color-on-panel-muted: var(--on-panel-muted);
+  --color-signal: var(--signal);
+  --color-leaving: var(--leaving);
+  --color-ride: var(--ride);
+  --color-accessible: var(--accessible);
+  --color-unreachable: var(--unreachable);
+  --color-unknown: var(--unknown);
+  --font-sans: var(--font-archivo);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Type scale. Heavy, slightly condensed display in the Red Cross manner. */
+@layer components {
+  .type-display {
+    font-size: clamp(2.25rem, 4vw, 3.75rem);
+    line-height: 1;
+    font-weight: 860;
+    font-stretch: 88%;
+    text-wrap: balance;
+  }
+  .type-title {
+    font-size: 1.375rem;
+    line-height: 1.15;
+    font-weight: 800;
+    font-stretch: 90%;
+  }
+  .type-heading {
+    font-size: 1rem;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .type-body {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    font-weight: 400;
+    text-wrap: pretty;
+  }
+  .type-small {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 450;
+  }
+  .type-figure {
+    font-weight: 820;
+    font-stretch: 85%;
+    line-height: 1;
+  }
+}
+
+/* Live-call motion. Every animation is off for reduced motion; state stays readable from color and labels. */
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes ring-out {
+  0% { transform: scale(1); opacity: 0.75; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+
+@keyframes ringing {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-14deg); }
+  30% { transform: rotate(14deg); }
+  45% { transform: rotate(-8deg); }
+  60% { transform: rotate(8deg); }
+  75% { transform: rotate(0deg); }
+}
+
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -24; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-wave { animation: wave var(--wave-duration, 900ms) var(--ease-standard) infinite; animation-delay: var(--wave-delay, 0ms); }
+  .animate-ring-out { animation: ring-out 1.8s var(--ease-out-quint) infinite; transform-box: fill-box; transform-origin: center; }
+  .animate-ringing { animation: ringing 1.2s ease-in-out infinite; }
+  .animate-sweep { animation: sweep 1.6s var(--ease-standard) infinite; }
+  .animate-dash-flow { animation: dash-flow 1.4s linear infinite; }
+}
