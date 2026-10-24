@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+import fatality
 import solver
 
 REPO = Path(__file__).resolve().parents[2]
@@ -76,9 +77,12 @@ def assumptions_table(config: Config) -> list[dict]:
         ("Optimizer time limit per re-plan", f"{config.solver_time_limit_s} s", "keeps 100 seeds under about 15 minutes; the production service uses 3 s, so the optimizer here is slightly weaker than deployed"),
         ("Re-plan cadence", f"on arrival (debounced {config.debounce_s:.0f} s), when a vehicle frees up, and at least every {config.replan_every_s / 60:.0f} min", "mirrors the plan's debounced event-driven loop"),
         ("Solver objective weights (imported from solver.py)",
-         f"WAIT_COST_PER_WEIGHT_SECOND={solver.WAIT_COST_PER_WEIGHT_SECOND}, LATENESS_COST_PER_SECOND={solver.LATENESS_COST_PER_SECOND}, "
-         f"CHANGED_OFFER_COST={solver.CHANGED_OFFER_COST}, DROP_COST_SCALE={solver.DROP_COST_SCALE}",
+         f"WAIT_COST_PER_WEIGHT_SECOND={solver.WAIT_COST_PER_WEIGHT_SECOND}, DEATH_COST={solver.DEATH_COST}, "
+         f"UNSERVED_SURCHARGE={solver.UNSERVED_SURCHARGE}, CHANGED_OFFER_COST={solver.CHANGED_OFFER_COST}",
          "read from the solver module at run time, so this list always matches the objective that produced the numbers"),
+        ("Fatality risk (dispatch/fatality.py)",
+         f"{fatality.DEATH_SHARE_PER_WEIGHT:.0%} per need weight per person, capped at {fatality.MAX_DEATH_SHARE:.0%}; zero when boarded by the deadline, rising linearly to the cap at fire arrival {fatality.RAMP_SECONDS / 60:.0f} min later",
+         "assumption, not data: it ranks plans by who is left in harm's way and is never shown per person"),
         ("Planning window", f"the {config.plan_window} pending requests with the earliest deadlines go to each dispatcher", "both dispatchers get the same window; only the first trip of each route is committed, and a short solver budget cannot handle 100+ requests"),
         ("Frozen runs", "each idle vehicle commits to the first trip of its returned route", "an accepted run is never moved or extended; later trips are re-planned from the run's end"),
         ("Driver cancellation", f"{DRIVER_CANCEL_PROB:.0%} per committed pickup", "small stand-in rate; the request goes back to the open pool"),

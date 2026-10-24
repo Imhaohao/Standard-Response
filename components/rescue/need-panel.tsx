@@ -2,9 +2,10 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { FunctionReturnType } from "convex/server";
-import { Check } from "@phosphor-icons/react";
+import { Check, Info } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { deathsIfUnserved, expectedDeaths } from "@/convex/fatalityRisk";
 import { ASSIGNMENT_STATUS_LABELS, ESCALATION_LABELS } from "@/lib/labels";
 import { formatCountdown, useNow } from "@/lib/time";
 import { Button } from "../ui/button";
@@ -40,6 +41,46 @@ function StageSummary({ counts }: { counts: Record<NeedStage, number> }) {
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+const RISK_MODEL_NOTE =
+  "Assumed risk model, not a prediction: each rider's risk grows with their need, is zero when a vehicle reaches them by their deadline, and reaches its maximum at fire arrival. The solver plans to make the first number as small as it can.";
+
+function boardingTime(assignment: Assignment) {
+  const from = assignment.etaUpdatedAt ?? assignment.offeredAt ?? assignment.proposedAt;
+  return from + assignment.etaMinutes * 60_000;
+}
+
+function deathEstimates(requests: OpenRequest[], assignments: Assignment[]) {
+  const boardsAt = new Map(assignments.map((assignment) => [assignment.requestId, boardingTime(assignment)]));
+  let withPlan = 0;
+  let withoutRides = 0;
+  for (const request of requests) {
+    withoutRides += deathsIfUnserved(request);
+    if (needStage(request) !== "pickedUp") withPlan += expectedDeaths(request, boardsAt.get(request._id) ?? null);
+  }
+  return { withPlan, withoutRides };
+}
+
+function DeathEstimate({ requests, assignments }: { requests: OpenRequest[]; assignments: Assignment[] }) {
+  const { withPlan, withoutRides } = deathEstimates(requests, assignments);
+  return (
+    <div className="mx-4 mb-3 flex items-end gap-6 rounded-xl bg-surface-sunk px-3 py-2.5">
+      <dl className="flex flex-1 items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <dd className="type-figure text-3xl tabular-nums text-signal">{withPlan.toFixed(1)}</dd>
+          <dt className="type-small text-on-panel-muted">Expected deaths, this plan</dt>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <dd className="type-figure text-2xl tabular-nums text-ink-muted">{withoutRides.toFixed(1)}</dd>
+          <dt className="type-small text-on-panel-muted">If no vehicle came</dt>
+        </div>
+      </dl>
+      <span className="mb-0.5 text-on-panel-muted" title={RISK_MODEL_NOTE} aria-label={RISK_MODEL_NOTE} role="img">
+        <Info className="size-4" />
+      </span>
     </div>
   );
 }
@@ -111,6 +152,7 @@ export function NeedPanel({ className = "" }: { className?: string }) {
   return (
     <Panel title="Who needs a ride" aside={<ApproveAll proposed={proposed} />} className={className}>
       <StageSummary counts={countStages(all)} />
+      <DeathEstimate requests={all} assignments={assignments} />
       {open.length === 0 ? (
         <PanelEmpty>Nobody is waiting.</PanelEmpty>
       ) : (

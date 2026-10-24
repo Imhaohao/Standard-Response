@@ -27,14 +27,18 @@ from dataclasses import dataclass
 
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
-# Cost units are seconds of vehicle time. Each weight below is "worth this many seconds of driving".
+from fatality import RAMP_SECONDS, deaths_if_unserved, party_size
+
+# Cost units are seconds of vehicle time. The objective is expected deaths (dispatch/fatality.py),
+# priced so one expected death outweighs any amount of driving, with vehicle time as the tie-break.
 # mu: every second a rider waits costs their weight in seconds of driving. Without it, the cheapest
 # plan in vehicle time loads one bus with every rider while the vans sit idle.
 WAIT_COST_PER_WEIGHT_SECOND = 1
-LATENESS_COST_PER_SECOND = 10  # lambda: a minute late costs as much as 10 minutes of driving
+DEATH_COST = 10_000_000
+# Boarding after fire arrival costs as much as an unserved rider; this keeps the solver sending a
+# vehicle when the two tie, and the late pickup is escalated to a human either way.
+UNSERVED_SURCHARGE = 2 * 3600
 CHANGED_OFFER_COST = 600  # nu: moving an open offer must save 10 vehicle-minutes
-DROP_COST_SCALE = 1_000_000  # w_r = weight / max(slack minutes, 2), scaled to integer cost
-MIN_SLACK_MINUTES = 2
 UNLOAD_SECONDS = 120
 NO_ROUTE = 10**7
 CAPACITY_FIELDS = ("seats", "wheelchairSpaces", "stretcherSpaces")
@@ -49,9 +53,17 @@ class Node:
     shelter: int | None = None
 
 
-def drop_penalty(request: dict, earliest_arrival: float) -> int:
-    slack_minutes = (request["deadline"] - earliest_arrival) / 60
-    return int(DROP_COST_SCALE * request["weight"] / max(slack_minutes, MIN_SLACK_MINUTES))
+def worst_case_cost(request: dict) -> float:
+    return DEATH_COST * deaths_if_unserved(request["weight"], party_size(request["load"]))
+
+
+def drop_penalty(request: dict) -> int:
+    return int(worst_case_cost(request)) + UNSERVED_SURCHARGE
+
+
+def lateness_cost_per_second(request: dict) -> int:
+    """Expected deaths rise linearly from the deadline to fire arrival, so lateness is linear too."""
+    return max(1, round(worst_case_cost(request) / RAMP_SECONDS))
 
 
 class Model:
@@ -84,15 +96,6 @@ class Model:
             return 0
         seconds = self.matrix[a.location][b.location]
         return NO_ROUTE if seconds is None else int(seconds)
-
-    def earliest_arrival(self, r: int) -> float:
-        location = self.requests[r]["location"]
-        best = float("inf")
-        for k in self.requests[r]["allowedVehicles"]:
-            seconds = self.matrix[self.vehicles[k]["location"]][location]
-            if seconds is not None:
-                best = min(best, self.vehicles[k]["availableAt"] + seconds)
-        return best
 
 
 def _register_costs(routing, manager, model: Model):
@@ -137,7 +140,7 @@ def _add_time(routing, manager, model: Model, transit_index):
     for r, request in enumerate(model.requests):
         pickup = manager.NodeToIndex(model.pickup_of[r])
         time_dim.SetCumulVarSoftUpperBound(pickup, 0, max(1, round(WAIT_COST_PER_WEIGHT_SECOND * request["weight"])))
-        lateness_dim.SetCumulVarSoftUpperBound(pickup, max(0, int(request["deadline"])), LATENESS_COST_PER_SECOND)
+        lateness_dim.SetCumulVarSoftUpperBound(pickup, max(0, int(request["deadline"])), lateness_cost_per_second(request))
     return time_dim
 
 
@@ -165,7 +168,7 @@ def _add_requests(routing, manager, model: Model, time_dim):
         allowed = [-1, *request["allowedVehicles"]]
         for index in [pickup, *dropoffs]:
             routing.VehicleVar(index).SetValues(allowed)
-        pickup_set = routing.AddDisjunction([pickup], drop_penalty(request, model.earliest_arrival(r)))
+        pickup_set = routing.AddDisjunction([pickup], drop_penalty(request))
         dropoff_set = routing.AddDisjunction(dropoffs, 0)
         routing.AddPickupAndDeliverySets(pickup_set, dropoff_set)
         for dropoff in dropoffs:

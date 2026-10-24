@@ -9,7 +9,7 @@ import numpy as np
 from .metrics import LOWER_IS_BETTER
 
 REPORTED_METRICS = [
-    "pickupsOnTime", "pickupsLate", "ridersNeverPickedUp", "requests",
+    "expectedDeaths", "pickupsOnTime", "pickupsLate", "ridersNeverPickedUp", "requests",
     "worstWaitMinutes", "accessibleWaitMinutes", "vehicleMinutes", "needers",
 ]
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 
+import fatality
+
 from .constants import MINUTE
 from .fleetstate import Night, Request
 from .population import vehicle_can_serve
@@ -17,8 +19,9 @@ METRIC_DEFINITIONS = {
     "accessibleWaitMinutes": "Mean wait for wheelchair and bedbound riders who were picked up (missing when none were). Lower is better.",
     "vehicleMinutes": "Total minutes vehicles spent on committed runs. Lower is better for the same pickups.",
     "needers": "Households in the night that truly needed a ride.",
+    "expectedDeaths": "Deaths the assumed risk model in dispatch/fatality.py expects among riders who needed a ride, from how late each boarded or whether anyone came. An assumption, not a prediction. Lower is better.",
 }
-LOWER_IS_BETTER = {"ridersNeverPickedUp", "worstWaitMinutes", "accessibleWaitMinutes", "vehicleMinutes"}
+LOWER_IS_BETTER = {"expectedDeaths", "ridersNeverPickedUp", "worstWaitMinutes", "accessibleWaitMinutes", "vehicleMinutes"}
 
 
 def waits(night: Night, picked: list[Request]) -> list[tuple[Request, float]]:
@@ -27,6 +30,18 @@ def waits(night: Night, picked: list[Request]) -> list[tuple[Request, float]]:
 
 def mean_or_nan(values: list[float]) -> float:
     return sum(values) / len(values) if values else math.nan
+
+
+def expected_deaths(night: Night) -> float:
+    picked = {r.household.index: r for r in night.requests.values() if r.status == "picked"}
+    total = 0.0
+    for household in night.world.needers:
+        need = household.need
+        people = need.seats + need.wheelchair_spaces + need.stretcher_spaces
+        request = picked.get(household.index)
+        late = None if request is None else request.picked_at - household.deadline_s
+        total += fatality.expected_deaths(need.weight, people, late)
+    return total
 
 
 def run_metrics(night: Night) -> dict:
@@ -44,6 +59,7 @@ def run_metrics(night: Night) -> dict:
         "worstWaitMinutes": max((w for _, w in wait_list), default=0.0),
         "accessibleWaitMinutes": mean_or_nan(accessible),
         "vehicleMinutes": sum(v.busy_seconds for v in night.vehicles) / MINUTE,
+        "expectedDeaths": expected_deaths(night),
     }
 
 

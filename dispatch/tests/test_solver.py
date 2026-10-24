@@ -146,3 +146,12 @@ def test_no_shelter_room_means_the_rider_is_not_promised_a_ride():
     p["shelters"] = [{"id": "s", "location": 4, "capacity": 0}]
     for result in run_both(p):
         assert result["dropped"] == ["r1"]
+
+
+def test_solver_reaches_the_rider_more_likely_to_die_first():
+    # One van, two riders with the same deadline. The near one can walk; the far one is on oxygen
+    # and needs a lift. Fewer expected deaths come from the farther, more vulnerable rider first.
+    near = request("walks", 2, [0], deadline=650)
+    far = request("oxygen_lift", 3, [0], deadline=650, weight=4)
+    result = solver.solve(problem([vehicle("a", 0)], [near, far]))
+    assert pickups(result)["a"][0] == "oxygen_lift"
