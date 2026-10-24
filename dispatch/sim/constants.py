@@ -100,7 +100,7 @@ def assumptions_table(config: Config) -> list[dict]:
         ("Hazard closures", "a road closes when the fire front reaches its midpoint", "the same front timing that sets household deadlines; recomputed every 10 min"),
         ("Travel times", "free-flow edge seconds from OpenStreetMap; a leg's time is fixed when it starts", "closures affect legs that start after them; riders already aboard are never stranded"),
         ("Unload time", f"{UNLOAD_S:.0f} s per arrival at the shelter", "same constant as the solver"),
-        ("Shelter", f"{SHELTER['name']}, capacity treated as unlimited", "1200 is far above the number of riders"),
+        ("Shelter", f"{SHELTER['name']}, capacity {SHELTER['capacity']} people, enforced but never binding", "1200 is far above the number of riders"),
         ("Fleet", f"{config.fleet_size} vehicles (base fleet from convex/seed.ts)", "vans, one bus, one ambulance; shift length 8 h"),
         ("Population", f"{config.households} households sampled per seed from data/population.json when it exists (about 10% need a ride), otherwise 200 stand-in households from convex/seed.ts (about half need a ride)", "demo-scale zone: eight vehicles cannot serve the 11,855-household file in full, so each night uses a sampled zone"),
         ("Seeds", "each seed redraws the sampled population, vehicle start points, calls and cancellations", "ranges therefore reflect population and behavior variation"),

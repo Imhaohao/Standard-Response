@@ -19,8 +19,9 @@ const CURB_SPEED_MPS = 8;
 const VEHICLE_POSITION_EVERY_MS = 2_500;
 
 type Target = Doc<"vehicleRoutes">["target"];
-// Where the run says to go next. "shelter" becomes a specific shelter once the nearest is found.
-type Wish = { kind: "pickup"; assignmentId: Id<"assignments"> } | { kind: "shelter" };
+// Where the run says to go next. A shelter wish names the riders' assigned shelter when the plan
+// gave one; otherwise the nearest reachable shelter is used.
+type Wish = { kind: "pickup"; assignmentId: Id<"assignments"> } | { kind: "shelter"; shelterId?: Id<"shelters"> };
 
 type Fleet = {
   now: number;
@@ -34,15 +35,18 @@ async function runOf(ctx: MutationCtx, vehicleId: Id<"vehicles">) {
   const rows = await ctx.db.query("assignments").withIndex("by_vehicleId", (q) => q.eq("vehicleId", vehicleId)).take(200);
   const accepted = rows.filter((a) => a.status === "accepted").sort((a, b) => a.stopOrder - b.stopOrder);
   const onboard: Doc<"requests">[] = [];
+  let assignedShelter: Id<"shelters"> | undefined;
   for (const assignment of rows.filter((a) => a.status === "completed")) {
     const request = await ctx.db.get("requests", assignment.requestId);
-    if (request?.status === "arrived") onboard.push(request);
+    if (request?.status !== "arrived") continue;
+    onboard.push(request);
+    assignedShelter ??= assignment.shelterId;
   }
-  return { accepted, onboard };
+  return { accepted, onboard, assignedShelter };
 }
 
 async function nextWish(ctx: MutationCtx, vehicle: Doc<"vehicles">): Promise<{ wish: Wish | null; onboard: Doc<"requests">[] }> {
-  const { accepted, onboard } = await runOf(ctx, vehicle._id);
+  const { accepted, onboard, assignedShelter } = await runOf(ctx, vehicle._id);
   const pickups = [];
   for (const assignment of accepted) {
     const request = await ctx.db.get("requests", assignment.requestId);
@@ -51,7 +55,8 @@ async function nextWish(ctx: MutationCtx, vehicle: Doc<"vehicles">): Promise<{ w
   const state: RunState<Id<"assignments">> = { node: 0, onboard: onboard.map((r) => r.load), pickups, capacity: vehicle };
   const stop = nextStop(state);
   if (!stop) return { wish: null, onboard };
-  const wish: Wish = stop.kind === "pickup" ? { kind: "pickup", assignmentId: stop.pickup.id } : { kind: "shelter" };
+  const wish: Wish =
+    stop.kind === "pickup" ? { kind: "pickup", assignmentId: stop.pickup.id } : { kind: "shelter", shelterId: assignedShelter };
   return { wish, onboard };
 }
 
@@ -102,6 +107,7 @@ function nearestShelter(fleet: Fleet, from: Point) {
 
 function resolveWish(fleet: Fleet, vehicle: Doc<"vehicles">, wish: Wish): Target | null {
   if (wish.kind === "pickup") return wish;
+  if (wish.shelterId) return { kind: "shelter", shelterId: wish.shelterId };
   const shelter = nearestShelter(fleet, vehicle);
   return shelter ? { kind: "shelter", shelterId: shelter._id } : null;
 }

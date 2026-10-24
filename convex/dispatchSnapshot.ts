@@ -42,6 +42,19 @@ async function onboardRiders(ctx: QueryCtx) {
   return riders;
 }
 
+// People already dropped at, or promised to, each shelter. Their requests carry the party size.
+async function shelterOccupancy(ctx: QueryCtx) {
+  const occupied: Record<string, number> = {};
+  for (const assignment of await assignmentsWith(ctx, ["accepted", "completed"])) {
+    if (!assignment.shelterId) continue;
+    const request = await ctx.db.get("requests", assignment.requestId);
+    if (!request) continue;
+    const party = request.load.seats + request.load.wheelchairSpaces + request.load.stretcherSpaces;
+    occupied[assignment.shelterId] = (occupied[assignment.shelterId] ?? 0) + party;
+  }
+  return occupied;
+}
+
 export async function readSnapshot(ctx: QueryCtx) {
   const control = await ctx.db.query("control").first();
   return {
@@ -54,6 +67,7 @@ export async function readSnapshot(ctx: QueryCtx) {
     shelters: await ctx.db.query("shelters").take(50),
     closures: await ctx.db.query("roadClosures").take(1000),
     routes: await ctx.db.query("vehicleRoutes").take(200),
+    shelterOccupancy: await shelterOccupancy(ctx),
     autoApprove: control?.autoApprove ?? false,
   };
 }

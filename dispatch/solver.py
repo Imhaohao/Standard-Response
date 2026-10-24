@@ -10,7 +10,7 @@ Input is the problem the Convex dispatcher builds (convex/dispatchProblem.ts has
       "requests": [{"id", "location", "load": {"seats", "wheelchairSpaces", "stretcherSpaces"},
                     "boardingSeconds", "deadline", "weight", "allowedVehicles": [vehicle index],
                     "openOfferVehicle": vehicle index | null, "maxRideSeconds": seconds | null}],
-      "shelters": [{"id", "location", "capacity"}],
+      "shelters": [{"id", "location", "capacity"}],  # capacity = people the shelter can still take
       "timeLimitSeconds": 3
     }
 
@@ -172,6 +172,18 @@ def _add_requests(routing, manager, model: Model, time_dim):
             _same_vehicle_after(solver, routing, time_dim, pickup, dropoff, request.get("maxRideSeconds"))
 
 
+def _add_shelter_capacity(routing, manager, model: Model):
+    """People dropped at each shelter fit the room it has left (capacity is passed as room left)."""
+    solver = routing.solver()
+    for s, shelter in enumerate(model.shelters):
+        arrivals = []
+        for r, request in enumerate(model.requests):
+            party = sum(int(request["load"][f]) for f in CAPACITY_FIELDS)
+            arrivals.append(routing.ActiveVar(manager.NodeToIndex(model.dropoffs_of[r][s])) * party)
+        if arrivals:
+            solver.Add(solver.Sum(arrivals) <= int(shelter["capacity"]))
+
+
 def _same_vehicle_after(solver, routing, time_dim, pickup, dropoff, max_ride):
     active = routing.ActiveVar(dropoff)
     solver.Add(active * (routing.VehicleVar(pickup) - routing.VehicleVar(dropoff)) == 0)
@@ -242,6 +254,7 @@ def solve(problem: dict) -> dict:
     time_dim = _add_time(routing, manager, model, transit_index)
     _add_capacities(routing, manager, model)
     _add_requests(routing, manager, model, time_dim)
+    _add_shelter_capacity(routing, manager, model)
 
     params = _search_parameters(problem.get("timeLimitSeconds", 3))
     solution = None

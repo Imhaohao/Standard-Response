@@ -5,25 +5,48 @@ import { Load, UNLOAD_SECONDS } from "./vehicleRun";
 // each vehicle's accepted run. The baseline OR-Tools must beat and the fallback dispatcher when the
 // solver service is down. dispatch/heuristic.py is the simulator's copy; keep the two in step.
 //
-// A vehicle carries riders in trips: pickups, then the nearest shelter. A rider joins the open trip
-// when they fit and every rider's ride time stays legal; otherwise the vehicle drops off first.
-// Each rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle can reach
-// before their deadline wait until everyone reachable in time is placed, like a dispatcher's triage.
-// A rider with no road from home to any shelter can't be served and is dropped.
+// Each vehicle carries riders in trips: pickups, then one shelter. A rider reserves space for their
+// whole party at the nearest shelter with room, and joins the open trip only when it fits, the
+// trip's shelter still has room, and everyone's ride time stays legal; otherwise the vehicle drops
+// off first. The rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle
+// can reach before their deadline wait until everyone reachable in time is placed, like a
+// dispatcher's triage. A rider with no road to a shelter that has room can't be served.
 
 const LOAD_FIELDS = ["seats", "wheelchairSpaces", "stretcherSpaces"] as const;
 
+const partySize = (load: Load) => LOAD_FIELDS.reduce((sum, field) => sum + load[field], 0);
+
 type Trip = { request: ProblemRequest; pickedUpAt: number }[];
 
-type VehicleState = { vehicle: ProblemVehicle; location: number; time: number; trip: Trip; stops: PlannedStop[] };
+type VehicleState = {
+  vehicle: ProblemVehicle;
+  location: number;
+  time: number;
+  trip: Trip;
+  tripShelter: number | null;
+  stops: PlannedStop[];
+};
 
-function nearestShelter(problem: Problem, location: number) {
-  let best: { index: number; seconds: number } | null = null;
-  for (const [index, shelter] of problem.shelters.entries()) {
-    const seconds = problem.matrix[location][shelter.location];
-    if (seconds !== null && (best === null || seconds < best.seconds)) best = { index, seconds };
+// Room left at each shelter, reserved as riders are assigned.
+class Shelters {
+  room: number[];
+
+  constructor(readonly problem: Problem) {
+    this.room = problem.shelters.map((shelter) => shelter.capacity);
   }
-  return best;
+
+  seconds(location: number, s: number) {
+    return this.problem.matrix[location][this.problem.shelters[s].location];
+  }
+
+  nearestWithRoom(location: number, party: number) {
+    let best: { index: number; seconds: number } | null = null;
+    for (const [index, room] of this.room.entries()) {
+      const seconds = this.seconds(location, index);
+      if (seconds !== null && room >= party && (best === null || seconds < best.seconds)) best = { index, seconds };
+    }
+    return best;
+  }
 }
 
 const fitsEmpty = (vehicle: ProblemVehicle, load: Load) => LOAD_FIELDS.every((field) => load[field] <= vehicle[field]);
@@ -34,98 +57,103 @@ function fitsTrip(state: VehicleState, load: Load) {
   );
 }
 
-function rideTimesLegal(problem: Problem, state: VehicleState, request: ProblemRequest, arrival: number) {
-  const shelter = nearestShelter(problem, request.location);
-  if (!shelter) return false;
-  const dropAt = arrival + request.boardingSeconds + shelter.seconds;
+function rideTimesLegal(shelters: Shelters, state: VehicleState, request: ProblemRequest, arrival: number, s: number) {
+  const toShelter = shelters.seconds(request.location, s);
+  if (toShelter === null) return false;
+  const dropAt = arrival + request.boardingSeconds + toShelter;
   const riders = [...state.trip, { request, pickedUpAt: arrival }];
   return riders.every(({ request: r, pickedUpAt }) => r.maxRideSeconds === null || dropAt - pickedUpAt <= r.maxRideSeconds);
 }
 
-function joinOpenTrip(problem: Problem, state: VehicleState, request: ProblemRequest) {
-  if (state.trip.length === 0 || !fitsTrip(state, request.load)) return null;
+type Option = { vehicle: number; arrival: number; joinsTrip: boolean; shelter: number };
+
+function joinOpenTrip(problem: Problem, shelters: Shelters, state: VehicleState, k: number, request: ProblemRequest): Option | null {
+  const s = state.tripShelter;
+  if (state.trip.length === 0 || s === null || !fitsTrip(state, request.load)) return null;
+  if (shelters.room[s] < partySize(request.load)) return null;
   const seconds = problem.matrix[state.location][request.location];
-  if (seconds === null || !rideTimesLegal(problem, state, request, state.time + seconds)) return null;
-  return state.time + seconds;
+  if (seconds === null || !rideTimesLegal(shelters, state, request, state.time + seconds, s)) return null;
+  return { vehicle: k, arrival: state.time + seconds, joinsTrip: true, shelter: s };
 }
 
-function afterDropOff(problem: Problem, state: VehicleState) {
-  if (state.trip.length === 0) return { location: state.location, time: state.time };
-  const shelter = nearestShelter(problem, state.location);
-  if (!shelter) return null;
-  return { location: problem.shelters[shelter.index].location, time: state.time + shelter.seconds + UNLOAD_SECONDS };
+// Where and when the vehicle is free after delivering its open trip.
+function afterDropOff(shelters: Shelters, state: VehicleState) {
+  if (state.trip.length === 0 || state.tripShelter === null) return { location: state.location, time: state.time };
+  const seconds = shelters.seconds(state.location, state.tripShelter);
+  if (seconds === null) return null;
+  return { location: shelters.problem.shelters[state.tripShelter].location, time: state.time + seconds + UNLOAD_SECONDS };
 }
 
-function startNewTrip(problem: Problem, state: VehicleState, request: ProblemRequest) {
-  const ready = afterDropOff(problem, state);
-  if (!ready || !fitsEmpty(state.vehicle, request.load)) return null;
-  if (!nearestShelter(problem, request.location)) return null;
+function startNewTrip(problem: Problem, shelters: Shelters, state: VehicleState, k: number, request: ProblemRequest): Option | null {
+  const ready = afterDropOff(shelters, state);
+  const shelter = shelters.nearestWithRoom(request.location, partySize(request.load));
+  if (!ready || !shelter || !fitsEmpty(state.vehicle, request.load)) return null;
   const seconds = problem.matrix[ready.location][request.location];
-  return seconds === null ? null : ready.time + seconds;
+  return seconds === null ? null : { vehicle: k, arrival: ready.time + seconds, joinsTrip: false, shelter: shelter.index };
 }
 
-type Option = { vehicle: number; arrival: number; joinsTrip: boolean };
-
-function optionFor(problem: Problem, states: VehicleState[], k: number, request: ProblemRequest): Option | null {
-  const joined = joinOpenTrip(problem, states[k], request);
-  if (joined !== null) return { vehicle: k, arrival: joined, joinsTrip: true };
-  const fresh = startNewTrip(problem, states[k], request);
-  return fresh === null ? null : { vehicle: k, arrival: fresh, joinsTrip: false };
-}
-
-function dropOff(problem: Problem, state: VehicleState) {
-  if (state.trip.length === 0) return;
-  const shelter = nearestShelter(problem, state.location)!;
-  state.time += shelter.seconds;
+function dropOff(shelters: Shelters, state: VehicleState) {
+  if (state.trip.length === 0 || state.tripShelter === null) return;
+  const s = state.tripShelter;
+  state.time += shelters.seconds(state.location, s) ?? 0;
   for (const { request } of state.trip) {
-    state.stops.push({ request: request.id, kind: "dropoff", shelter: problem.shelters[shelter.index].id, arrival: state.time });
+    state.stops.push({ request: request.id, kind: "dropoff", shelter: shelters.problem.shelters[s].id, arrival: state.time });
   }
   state.time += UNLOAD_SECONDS;
-  state.location = problem.shelters[shelter.index].location;
+  state.location = shelters.problem.shelters[s].location;
   state.trip = [];
+  state.tripShelter = null;
 }
 
-function assign(problem: Problem, state: VehicleState, request: ProblemRequest, option: Option) {
-  if (!option.joinsTrip) dropOff(problem, state);
+function assign(shelters: Shelters, state: VehicleState, request: ProblemRequest, option: Option) {
+  if (!option.joinsTrip) {
+    dropOff(shelters, state);
+    state.tripShelter = option.shelter;
+  }
+  shelters.room[option.shelter] -= partySize(request.load);
   state.stops.push({ request: request.id, kind: "pickup", shelter: null, arrival: option.arrival });
   state.trip.push({ request, pickedUpAt: option.arrival });
   state.location = request.location;
   state.time = option.arrival + request.boardingSeconds;
 }
 
-function bestOption(problem: Problem, states: VehicleState[], request: ProblemRequest) {
+function bestOption(problem: Problem, shelters: Shelters, states: VehicleState[], request: ProblemRequest) {
   const options = request.allowedVehicles
-    .map((k) => optionFor(problem, states, k, request))
+    .map((k) => joinOpenTrip(problem, shelters, states[k], k, request) ?? startNewTrip(problem, shelters, states[k], k, request))
     .filter((option): option is Option => option !== null && option.arrival <= states[option.vehicle].vehicle.endBy);
   return options.sort((a, b) => a.arrival - b.arrival)[0];
 }
 
+type Placing = { problem: Problem; shelters: Shelters; states: VehicleState[]; dropped: string[] };
+
+function place(placing: Placing, requests: ProblemRequest[], late?: ProblemRequest[]) {
+  for (const request of requests) {
+    const best = bestOption(placing.problem, placing.shelters, placing.states, request);
+    if (!best) placing.dropped.push(request.id);
+    else if (late && best.arrival > request.deadline) late.push(request);
+    else assign(placing.shelters, placing.states[best.vehicle], request, best);
+  }
+}
+
 export function solveHeuristic(problem: Problem): Solution {
   const started = Date.now();
+  const shelters = new Shelters(problem);
   const states: VehicleState[] = problem.vehicles.map((vehicle) => ({
     vehicle,
     location: vehicle.location,
     time: vehicle.availableAt,
     trip: [],
+    tripShelter: null,
     stops: [],
   }));
-  const dropped: string[] = [];
+  const placing: Placing = { problem, shelters, states, dropped: [] };
   const late: ProblemRequest[] = [];
-  for (const request of [...problem.requests].sort((a, b) => a.deadline - b.deadline)) {
-    const best = bestOption(problem, states, request);
-    if (!best) dropped.push(request.id);
-    else if (best.arrival > request.deadline) late.push(request);
-    else assign(problem, states[best.vehicle], request, best);
-  }
-  for (const request of late) {
-    const best = bestOption(problem, states, request);
-    if (best) assign(problem, states[best.vehicle], request, best);
-    else dropped.push(request.id);
-  }
-  for (const state of states) dropOff(problem, state);
+  place(placing, [...problem.requests].sort((a, b) => a.deadline - b.deadline), late);
+  place(placing, late);
+  for (const state of states) dropOff(shelters, state);
   return {
     routes: states.map((state) => ({ vehicle: state.vehicle.id, stops: state.stops })),
-    dropped,
+    dropped: placing.dropped,
     solver: "heuristic",
     solveMs: Date.now() - started,
   };

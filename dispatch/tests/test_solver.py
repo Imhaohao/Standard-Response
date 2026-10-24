@@ -130,3 +130,19 @@ def test_heuristic_serves_reachable_riders_before_hopeless_ones():
     reachable = request("reachable", 2, [0], deadline=400)
     result = heuristic.solve(problem([vehicle("a", 0)], [hopeless, reachable]))
     assert pickups(result)["a"] == ["reachable", "hopeless"]
+
+
+def test_full_shelter_sends_riders_to_the_one_with_room():
+    p = problem([vehicle("a", 0, seats=8)], [request("r1", 2, [0]), request("r2", 3, [0])])
+    p["matrix"] = [row + [700] for row in MATRIX] + [[700, 700, 700, 700, 700, None, 0]]
+    p["shelters"] = [{"id": "near", "location": 4, "capacity": 1}, {"id": "far", "location": 6, "capacity": 10}]
+    for result in run_both(p):
+        drops = [s["shelter"] for s in result["routes"][0]["stops"] if s["kind"] == "dropoff"]
+        assert sorted(drops).count("near") <= 1 and len(drops) == 2
+
+
+def test_no_shelter_room_means_the_rider_is_not_promised_a_ride():
+    p = problem([vehicle("a", 0)], [request("r1", 2, [0])])
+    p["shelters"] = [{"id": "s", "location": 4, "capacity": 0}]
+    for result in run_both(p):
+        assert result["dropped"] == ["r1"]

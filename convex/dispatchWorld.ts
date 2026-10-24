@@ -239,7 +239,12 @@ export function buildWorld(snap: Snapshot, now: number) {
     const openVehicle = open && !open.stale ? vehicles.findIndex((vehicle) => vehicle._id === open.assignment.vehicleId) : -1;
     return problemRequest(context, entry, locations, allowed, openVehicle >= 0 ? openVehicle : null);
   });
-  const shelters = shelterNodes.map(({ shelter, node }) => ({ id: shelter._id, location: locations.of(node), capacity: shelter.capacity }));
+  const shelters = shelterNodes.map(({ shelter, node }) => ({
+    id: shelter._id,
+    location: locations.of(node),
+    // Room left: the solver and heuristic must not promise a shelter more people than it can still take.
+    capacity: Math.max(0, shelter.capacity - (snap.shelterOccupancy[shelter._id] ?? 0)),
+  }));
   const matrix = locations.nodes.map((from) => locations.nodes.map((to) => context.travel.seconds(from, to)));
 
   const problem: Problem = {
