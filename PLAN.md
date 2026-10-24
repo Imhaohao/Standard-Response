@@ -7,7 +7,6 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 | Submissions close | Sun Oct 25, 8:50am Pacific |
 | Judging at our table | Sun Oct 25, 10:30am |
 | Closing ceremony | Sun Oct 25, 2pm |
-| Core-flow gate | Sat Oct 24, 6pm |
 | Product name | Open |
 
 ## Summary
@@ -251,9 +250,7 @@ Every screen, built against the stand-ins. No setup.
 
 **Call floor.** Already built. Keep it working as the contract grows.
 
-**Before the gate:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, and the phone panel.
-
-**After the gate:** the full under-the-hood screen and the Auth0 add-on (dispatcher login, role-based access to the at-risk list, step-up authentication once per session so approval stays one click).
+**Track A's list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, the full under-the-hood screen, and the Auth0 add-on (dispatcher login, role-based access to the at-risk list, step-up authentication once per session so approval stays one click).
 
 ## Track B: voice and calls (Brendan)
 
@@ -293,9 +290,7 @@ Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; 
 
 **Test without the other tracks.** Turn off the voice stand-in. The seeded households give you a queue, and the dispatch stand-in produces `callbacks`. To drive a status change mid-call, call `offers:accept` or `offers:cancelByDriver` from `npx convex run`.
 
-**Before the gate:** real calls fill household records on the call floor, corrections reach the record, English and Spanish work, honesty templates (including `reassigning`) play by status, status changes interrupt live calls, callbacks play, and latency is logged.
-
-**After the gate:** the full red-team set (with Track D's grader) and the audio eval.
+**Track B's list:** real calls fill household records on the call floor, corrections reach the record, English and Spanish work, honesty templates (including `reassigning`) play by status, status changes interrupt live calls, callbacks play, latency is logged, the full red-team set runs (with Track D's grader), and the audio eval is done.
 
 ## Track C: dispatch and simulator
 
@@ -344,9 +339,7 @@ Hands off to: rescue map (plans, offers, vehicles), Track B (status changes, cal
 
 **Test without the other tracks.** The voice stand-in fills households and requests; the radial stand-in fire gives deadlines; add closures yourself with `roads:addClosures`.
 
-**Before the gate:** the solver writing compatible offers through `plans:propose`, re-routing around closures, revocation when a pickup becomes unreachable, the heuristic running as fallback, and vehicle movement.
-
-**After the gate:** simulator results with the three-way split and the sensitivity panel. Then congestion and departure timing as labeled exploration ("What happens if everyone leaves at once?"):
+**Track C's list:** the solver writing compatible offers through `plans:propose`, re-routing around closures, revocation when a pickup becomes unreachable, the heuristic running as fallback, vehicle movement, and simulator results with the three-way split and the sensitivity panel. Congestion and departure timing come as labeled exploration ("What happens if everyone leaves at once?"):
 
 - Edge travel time from the BPR curve, t = t₀ (1 + 0.15 (v/c)⁴), with residents who drive loaded onto the network by departure time.
 - Departures from a drift-diffusion model, dX = μ(t) dt + σ dW, leaving when X crosses a threshold. Two classes (evacuation-keen and evacuation-reluctant, per Berkeley's survey of California evacuees), with shape fit to published departure curves.
@@ -383,12 +376,10 @@ priority_h = (p_h · u_h) / τ_h + α · wait_h
 
 **Implied-reassurance grader.** A separate grader model reads agent lines with their `requestStatus` and flags implied promises, with a human spot check.
 
-**Before the gate:** the sample rider list, the hazard runner writing deadlines and closures, the door-check score with the smoothing toggle, address matching, and persona cards with corrections.
-
-**After the gate**, in order:
+**Track D's list:** the sample rider list, the hazard runner writing deadlines and closures, the door-check score with the smoothing toggle, address matching, persona cards with corrections, and:
 
 1. Door-check fairness tests in your own door-team simulation: 30% of nominations wrong, one neighborhood answering at half the rate, and isolated homes with no answering neighbors. Report worst-case time to check, not only the average, against random and nearest-first orderings.
-2. A simple spread model as a scenario generator: wind-driven elliptical spread with fast marching (scikit-fmm) on a uniform fuel grid, so closures emerge from simulated spread instead of a script. Claim "conservative within our assumptions," never "validated against satellite data": MODIS and VIIRS detections are about 1 km and 375 m, intermittent, and blocked by smoke. Film the video before starting this.
+2. A simple spread model as a scenario generator: wind-driven elliptical spread with fast marching (scikit-fmm) on a uniform fuel grid, so closures emerge from simulated spread instead of a script. Claim "conservative within our assumptions," never "validated against satellite data": MODIS and VIIRS detections are about 1 km and 375 m, intermittent, and blocked by smoke.
 
 ## Team work outside the tracks
 
@@ -402,27 +393,14 @@ These need an owner each at the next sync.
 
 ## Timeline
 
-The core flow must work end to end by Saturday 6pm. Everything after that is extras, evidence and polish.
+Every track finishes its whole list. Run the full Rider Check flow end to end (CSV, call, correction, compatible offer, approval, driver acceptance on a second phone, callback, closure, revocation, `reassigning` call, stale offer rejected, new acceptance) as soon as real calls work, and again after every big change, so anything that breaks shows up while there's time to fix it.
 
 | When | What |
 | --- | --- |
-| Sat now to 12pm | Tracks B and C finish their setup and share the env file. Every track builds its "before the gate" list against the stand-ins. Usability calls with older relatives once the voice loop answers. Chase one practitioner conversation and ask mentors with public-safety backgrounds for 10 minutes. |
-| Sat 12pm to 6pm | Flip stand-ins to Real one at a time and run Rider Check end to end: CSV, call, correction, compatible offer, approval, driver acceptance on a second phone, callback, closure, revocation, `reassigning` call, stale offer rejected, new acceptance. |
-| **Sat 6pm** | **Gate: the core flow works end to end** |
-| Sat 6pm to Sun 2am | Extras in order (below), add-ons in parallel. Film the video before the spread model. Add-ons get one owner and a one-hour timebox each. |
-| Sun 2am to 8:30am | Feature freeze at 4am. Edit the video, write Devpost and READMEs, rehearse both pitch versions and the Q&A, opt into every track. |
+| Now to Sun early morning | Build every track's list and the add-ons, film the video, and keep running the full flow. |
+| Sun to 8:30am | Edit the video, write Devpost and READMEs, rehearse both pitch versions and the Q&A, opt into every track. |
 | Sun 8:50am | Submitted on Devpost |
 | Sun 10:30am | Judging at our table |
-
-**The 6pm gate includes:** the full Rider Check flow, honesty states including `reassigning`, corrections reaching open offers, frozen accepted runs, stale-acceptance rejection, the competent heuristic running as fallback, and measured latency. If the core isn't working at 6pm, drop every extra and spend the night on reliability and backups.
-
-**Extras after the gate, in order:**
-
-1. Simulator results with the dispatch, outreach and combined split, and the sensitivity panel (C, shown by A)
-2. Audio eval and the full red-team set, including the 10 change cases and the implied-reassurance grader (B, D)
-3. Door-check fairness tests (D)
-4. Simple spread model as a scenario generator (D), after the video is filmed
-5. Congestion and departure timing exploration (C)
 
 ## Evaluation
 
@@ -521,7 +499,7 @@ The goal is one sentence: "We asked X. A dispatcher told us Y. We changed Z."
 
 ## Prize tracks
 
-Each track gets work a judge can see, and every sponsor tool gets a README line saying where it runs. Nothing below Core is touched before the 6pm gate. Each add-on has one owner and a one-hour timebox, and whatever isn't working by then stays out of the demo.
+Each track gets work a judge can see, and every sponsor tool gets a README line saying where it runs. Each add-on has one owner.
 
 | Track | Prize | What the judge must see | Tier |
 | --- | --- | --- | --- |
@@ -530,9 +508,9 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 | Convex | $5,000 | Correctness under conflicting events: version-checked acceptance, idempotent callbacks, revocation, the reach ladder and the audit log. Show the stale acceptance rejected live, the v4 to v5 audit trail, and a duplicate event producing no second call. | Core |
 | Anthropic | Not posted yet | A named community (paratransit riders in LA County wildfire zones) and a real problem (what a practitioner told us). One flow done well. Claude interprets messy, corrected speech in two languages, code controls every commitment, and we show where Claude could go wrong (implied reassurance, measured). | Core |
 | Microsoft: Built for the Real World, Customer Impact | Surface each | The forward-deployed Q&A table, the three-phase path, the dispatch-only result, responsible design and the full flow end to end. Strongest if a practitioner conversation happened. | Core |
-| Apify: Best Actor | $400 | A public "California evacuation status" Actor that normalizes county and state evacuation zones and road closures and triggers Rider Check when a zone with riders goes to warning. It should be useful to others on its own. | After gate |
-| MLH: Auth0 | Headphones each | Dispatcher login, role-based access to the at-risk list, and step-up authentication once per session. | After gate |
-| Notability | 1 year Pro | Notes kept as we go: sketches, mentor feedback as audio, decisions as they happened. Notes added after the fact score zero. | After gate |
+| Apify: Best Actor | $400 | A public "California evacuation status" Actor that normalizes county and state evacuation zones and road closures and triggers Rider Check when a zone with riders goes to warning. It should be useful to others on its own. | Add-on |
+| MLH: Auth0 | Headphones each | Dispatcher login, role-based access to the at-risk list, and step-up authentication once per session. | Add-on |
+| Notability | 1 year Pro | Notes kept as we go: sketches, mentor feedback as audio, decisions as they happened. Notes added after the fact score zero. | Add-on |
 | Figma | Verify at the event | Keep the stage log only if it's already running. | Opt-in |
 | Planet-First, Hacker's Choice, MLH opt-ins (domain, Gen AI, hosting, Commit Fellowship) | Assorted | Opt in on Devpost; no extra build work. | Opt-in |
 
@@ -540,7 +518,6 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 
 | Risk | Backup |
 | --- | --- |
-| Scope creep | The gate decides. Extras only after 6pm, in the stated order. |
 | Tracks drift apart | One contract in Convex, notes files between tracks, everyone on `main` |
 | The agent promises help that isn't coming | Statuses in code, ETAs only by template, the implied-reassurance grader, and the red-team set run before the demo |
 | A promise becomes false after acceptance | Re-route first, then `reassigning` status, revocation and measured time to notify |

@@ -32,3 +32,8 @@ Boris asked for a Ready check (a census of households ahead of time) and a picku
 - **A household with a Ready check profile sets `needPrior`** from what it told us: 0.9 for limited mobility, oxygen, a two-person lift, no car or "I need a ride"; 0.1 for "own car, everyone walks". Your need model and door-check score can treat these as known need, like the rider list.
 - **The Ready check stand-in reads personas** to fill profiles before the warning, the same way the voice stand-in does. Real agents still never read them.
 - New fields: `households.ready` and the `pickupPlans` table (shapes in `convex/schema.ts`).
+
+
+## 2026-10-24 15:25
+
+The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back until a checkpoint any more: each track finishes its whole list, add-ons included, and the add-ons lose their one-hour timebox. Each track section now has one list in place of "Before the gate" and "After the gate". Please also run the full Rider Check flow end to end as soon as real calls work, and again after every big change.

@@ -48,3 +48,8 @@ New: 911 asks a neighbor who is driving out to pick up a home that needs a ride 
 - When the resident confirms a pickup (`markDone`), `syncRequest` now runs and closes the open request. For arranged helpers nothing changes, because they had no request.
 - Simulated households get recruited plans too, and `pickupSim.ts` plays them like any other plan.
 - Not deployed to the shared deployment.
+
+
+## 2026-10-24 15:25
+
+The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back until a checkpoint any more: each track finishes its whole list, add-ons included, and the add-ons lose their one-hour timebox. Each track section now has one list in place of "Before the gate" and "After the gate". Please also run the full Rider Check flow end to end as soon as real calls work, and again after every big change.

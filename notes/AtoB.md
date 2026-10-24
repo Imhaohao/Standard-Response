@@ -51,3 +51,8 @@ The resident now hears as soon as their helper says yes, instead of only at the 
 - `phone/twilio.ts`: `StreamParameters.notify`. It comes back as the string "true" in `customParameters`, and `outboundFlows.ts` reads it that way.
 - `planCheck.ts`: a `notify` option says the intro, `helperOnTheWay`, then goodbye, and hangs up. Lines are in English and Spanish: "Ana says they can pick you up in about 10 minutes. Please get ready by the door... Your ride request stays open in case they can't make it." This is the helper's word, never our promise.
 - Not dialed for real yet. `npm run test:voice` passes (46).
+
+
+## 2026-10-24 15:25
+
+The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back until a checkpoint any more: each track finishes its whole list, add-ons included, and the add-ons lose their one-hour timebox. Each track section now has one list in place of "Before the gate" and "After the gate". Please also run the full Rider Check flow end to end as soon as real calls work, and again after every big change.
