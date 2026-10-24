@@ -34,6 +34,9 @@ const callbackUrl = (path: string, query: Record<string, string>) => `${env.publ
 
 export async function placeCall(to: string, parameters: StreamParameters) {
   const query = { mode: parameters.mode, callId: parameters.callId ?? "", callbackId: parameters.callbackId ?? "" };
+  const machineDetection = env.twilioTrial
+    ? {}
+    : { machineDetection: "DetectMessageEnd", asyncAmd: "true", asyncAmdStatusCallback: callbackUrl("/twilio/amd", query) };
   const call = await rest().calls.create({
     to,
     from: env.twilio.fromNumber(),
@@ -41,9 +44,7 @@ export async function placeCall(to: string, parameters: StreamParameters) {
     timeout: 25,
     statusCallback: callbackUrl("/twilio/status", query),
     statusCallbackEvent: ["completed"],
-    machineDetection: "DetectMessageEnd",
-    asyncAmd: "true",
-    asyncAmdStatusCallback: callbackUrl("/twilio/amd", query),
+    ...machineDetection,
   });
   return call.sid;
 }

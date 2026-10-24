@@ -71,6 +71,7 @@ npm run dev:voice    # http://localhost:8080, reads .env.local
 | `TWILIO_AUTH_TOKEN` | Checks the signature on every Twilio webhook |
 | `VOICE_PUBLIC_URL` | Public https URL of this server; Twilio calls back here |
 | `DIAL_ALLOWLIST` | Comma-separated numbers the dialer may ring. Every other number is skipped, so a fictional rider list never rings a stranger |
+| `TWILIO_TRIAL` | `true` on a trial account. Twilio then plays its notice and waits for a key press before our agent speaks, so answering-machine detection is turned off |
 | `VOICE_MODEL` | Defaults to `claude-haiku-5-5` |
 
 Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST /twilio/inbound`, `/twilio/status`, `/twilio/amd`, and the `/media` WebSocket. `POST /turn` takes `{ sessionId, language, text, address?, requestStatus? }` and returns `{ reply, stage, record, done, escalations, nominations, guardBlocked }`. Send an empty `text` first to hear the opening.

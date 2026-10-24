@@ -49,6 +49,9 @@ export const env = {
   callsPerSecond: numberFrom("DIAL_CALLS_PER_SECOND", 1),
   maxLiveCalls: numberFrom("DIAL_MAX_LIVE_CALLS", 6),
   validateTwilioSignature: optional("TWILIO_VALIDATE_SIGNATURE", "true") === "true",
+  // Trial accounts play a notice and wait for a key press before our TwiML runs. Machine detection
+  // would hear that notice as voicemail, so it stays off on a trial.
+  twilioTrial: optional("TWILIO_TRIAL", "false") === "true",
 };
 
 export function mayDial(phone: string) {
