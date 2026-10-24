@@ -1,27 +1,27 @@
 {
  "label": "Text persona eval. Simulated residents from persona cards, not real riders.",
- "generatedAt": "2026-10-24T03:17:19-0700",
+ "generatedAt": "2026-10-24T04:06:00-0700",
  "agent": "Track B text agent at https://rollcall-voice.fly.dev",
  "personas": 200,
  "completed": 200,
  "errors": [],
  "fields": {
   "address": {
-   "correct": 199,
+   "correct": 200,
    "total": 200,
-   "accuracy": 0.995,
+   "accuracy": 1.0,
    "ci95": [
-    0.972,
-    0.999
+    0.981,
+    1.0
    ]
   },
   "peopleCount": {
-   "correct": 103,
+   "correct": 102,
    "total": 103,
-   "accuracy": 1.0,
+   "accuracy": 0.99,
    "ci95": [
-    0.964,
-    1.0
+    0.947,
+    0.998
    ]
   },
   "mobility": {
@@ -43,12 +43,12 @@
    ]
   },
   "canLeave": {
-   "correct": 199,
+   "correct": 200,
    "total": 200,
-   "accuracy": 0.995,
+   "accuracy": 1.0,
    "ci95": [
-    0.972,
-    0.999
+    0.981,
+    1.0
    ]
   },
   "oxygen": {
@@ -62,21 +62,21 @@
   }
  },
  "allFieldsCorrect": {
-  "correct": 197,
+  "correct": 198,
   "total": 200,
-  "accuracy": 0.985,
+  "accuracy": 0.99,
   "ci95": [
-   0.957,
-   0.995
+   0.964,
+   0.997
   ]
  },
  "byLanguage": {
   "en": {
-   "address": 0.992,
-   "peopleCount": 1.0,
+   "address": 1.0,
+   "peopleCount": 0.992,
    "mobility": 1.0,
    "assistanceRequired": 1.0,
-   "canLeave": 0.992,
+   "canLeave": 1.0,
    "oxygen": 1.0
   },
   "es": {
@@ -88,10 +88,80 @@
    "oxygen": 1.0
   }
  },
+ "byLanguageOutcomes": {
+  "en": {
+   "cards": 131,
+   "allFieldsCorrect": {
+    "correct": 130,
+    "total": 131,
+    "accuracy": 0.992,
+    "ci95": [
+     0.958,
+     0.999
+    ]
+   },
+   "corrections": {
+    "correct": 44,
+    "total": 44,
+    "accuracy": 1.0,
+    "ci95": [
+     0.92,
+     1.0
+    ]
+   },
+   "escalations": {
+    "correct": 15,
+    "total": 15,
+    "accuracy": 1.0,
+    "ci95": [
+     0.796,
+     1.0
+    ]
+   },
+   "latency": {
+    "turnMsP50": 1219.4,
+    "turnMsP95": 1800.0
+   }
+  },
+  "es": {
+   "cards": 69,
+   "allFieldsCorrect": {
+    "correct": 68,
+    "total": 69,
+    "accuracy": 0.986,
+    "ci95": [
+     0.922,
+     0.997
+    ]
+   },
+   "corrections": {
+    "correct": 26,
+    "total": 26,
+    "accuracy": 1.0,
+    "ci95": [
+     0.871,
+     1.0
+    ]
+   },
+   "escalations": {
+    "correct": 8,
+    "total": 8,
+    "accuracy": 1.0,
+    "ci95": [
+     0.676,
+     1.0
+    ]
+   },
+   "latency": {
+    "turnMsP50": 1197.4,
+    "turnMsP95": 1727.8
+   }
+  }
+ },
  "byTrait": {
   "asks_reassurance": {
    "cards": 34,
-   "allFieldsCorrect": 0.971
+   "allFieldsCorrect": 0.941
   },
   "flames": {
    "cards": 15,
@@ -119,11 +189,11 @@
   },
   "second_voice": {
    "cards": 18,
-   "allFieldsCorrect": 1.0
+   "allFieldsCorrect": 0.944
   },
   "tangents": {
    "cards": 28,
-   "allFieldsCorrect": 0.964
+   "allFieldsCorrect": 0.929
   }
  },
  "corrections": {
@@ -175,22 +245,15 @@
  "completion": {
   "turnsMedian": 7.0,
   "turnsP95": 10,
-  "secondsMedian": 9.71,
-  "secondsP95": 13.7
+  "secondsMedian": 9.26,
+  "secondsP95": 13.3
  },
  "latency": {
-  "turnMsP50": 1310.0,
-  "turnMsP95": 1984.2
+  "turnMsP50": 1214.8,
+  "turnMsP95": 1782.8
  },
  "guardBlocked": 57,
  "failures": [
-  {
-   "persona": "P-062",
-   "field": "canLeave",
-   "expected": "unsure",
-   "got": "yes",
-   "traits": []
-  },
   {
    "persona": "P-071",
    "field": "assistanceRequired",
@@ -202,11 +265,15 @@
    ]
   },
   {
-   "persona": "P-161",
-   "field": "address",
-   "expected": "29 North Fair Oaks Avenue, Altadena",
-   "got": "2900 North Fair Oaks Avenue",
-   "traits": []
+   "persona": "P-073",
+   "field": "peopleCount",
+   "expected": 2,
+   "got": 3,
+   "traits": [
+    "tangents",
+    "second_voice",
+    "asks_reassurance"
+   ]
   }
  ]
 }

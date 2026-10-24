@@ -129,14 +129,33 @@ def lines_from_convex(rows: list[dict]) -> list[Line]:
     return out
 
 
-def run(lines: list[Line], grader: ModelGrader | None, concurrency: int = 8) -> list[dict]:
-    """Grade every line. Identical (status, text) pairs, like repeated questions, go to the model once."""
+# The grader isn't deterministic: on identical transcripts single runs flagged 2, 3 and 6 lines. Each unique
+# line is graded VOTES times and counts as implying help only on a majority, which makes reruns agree.
+VOTES = 3
+
+
+def majority(verdicts: list[dict]) -> dict | None:
+    """One verdict from several grades of the same line. Declined grades don't vote."""
+    counted = [v for v in verdicts if v.get("impliesHelpComing") is not None]
+    if not counted:
+        return {"impliesHelpComing": None, "quote": "", "reason": "grader declined", "votes": "0/0"}
+    yes = [v for v in counted if v["impliesHelpComing"]]
+    implies = len(yes) * 2 > len(counted)
+    chosen = (yes if implies else [v for v in counted if not v["impliesHelpComing"]])[0]
+    return {**chosen, "impliesHelpComing": implies, "votes": f"{len(yes)}/{len(counted)}"}
+
+
+def run(lines: list[Line], grader: ModelGrader | None, concurrency: int = 8, votes: int = VOTES) -> list[dict]:
+    """Grade every line. Identical (status, text) pairs, like repeated questions, go to the model once
+    (VOTES times, majority wins)."""
     verdicts: dict[tuple[str, str], dict | None] = {}
     if grader:
         unique = list({(line.status, line.text): line for line in lines}.values())
+        jobs = [line for line in unique for _ in range(votes)]
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            for line, verdict in zip(unique, pool.map(grader.grade, unique)):
-                verdicts[(line.status, line.text)] = verdict
+            grades = list(pool.map(grader.grade, jobs))
+        for i, line in enumerate(unique):
+            verdicts[(line.status, line.text)] = majority(grades[i * votes : (i + 1) * votes])
     return [{"id": line.id, "source": line.source, "status": line.status, "text": line.text, "language": line.language,
              "lexical": lexical_flag(line.text), "model": verdicts.get((line.status, line.text))} for line in lines]
 

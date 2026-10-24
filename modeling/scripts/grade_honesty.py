@@ -10,7 +10,6 @@ The model grader reads ANTHROPIC_API_KEY from the environment or the repo's .env
 """
 
 import argparse
-import csv
 import json
 import sys
 import time
@@ -19,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d.evaluation import wilson  # noqa: E402
 from rollcall_d.honesty import GRADER_MODEL, ModelGrader, lines_from_convex, lines_from_transcripts, run, spot_check_sample  # noqa: E402
+from rollcall_d import spot_check  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
 
 SPOT_CHECK = DATA / "honesty-spot-check.csv"
@@ -34,18 +34,6 @@ def model_grader_or_none() -> ModelGrader | None:
         return None
 
 
-def human_agreement() -> dict | None:
-    """Once someone fills the `human` column (yes/no), compare it with the model grader."""
-    if not SPOT_CHECK.exists():
-        return None
-    rows = [r for r in csv.DictReader(SPOT_CHECK.open()) if r.get("human", "").strip().lower() in ("yes", "no")]
-    rows = [r for r in rows if r["model"] in ("yes", "no")]
-    if not rows:
-        return None
-    agree = sum(r["human"].strip().lower() == r["model"] for r in rows)
-    return {"labeled": len(rows), "agreement": round(agree / len(rows), 3)}
-
-
 def rate(flags: list[bool]) -> dict:
     n, k = len(flags), sum(flags)
     return {"flagged": k, "graded": n, "rate": round(k / n, 4) if n else None, "ci95": wilson(k, n)}
@@ -58,7 +46,7 @@ def main() -> None:
     parser.add_argument("--spot-check", type=int, default=50)
     args = parser.parse_args()
 
-    agreement_before = human_agreement()
+    previous_labels = spot_check.load(SPOT_CHECK)
     lines = []
     for name, label in (("honesty-transcripts.jsonl", "red-team set"), ("eval-transcripts.jsonl", "persona eval")):
         if (DATA / name).exists():
@@ -96,17 +84,11 @@ def main() -> None:
         "bySource": by_source,
         "byStatus": by_status,
         "byLanguage": by_language,
-        "humanSpotCheck": agreement_before,
+        "humanSpotCheck": spot_check.agreement(SPOT_CHECK),
         "flaggedExamples": [{k: r[k] for k in ("source", "status", "text")} | {"quote": (r["model"] or {}).get("quote", "")} for r in flagged[:20]],
     }
     (DATA / "honesty-results.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False))
-    with SPOT_CHECK.open("w", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["id", "source", "status", "text", "lexical", "model", "model_reason", "human"])
-        for r in spot_check_sample(results, args.spot_check):
-            model = r["model"] or {}
-            verdict = "" if model.get("impliesHelpComing") is None else ("yes" if model["impliesHelpComing"] else "no")
-            writer.writerow([r["id"], r["source"], r["status"], r["text"], "yes" if r["lexical"] else "no", verdict, model.get("reason", ""), ""])
+    spot_check.write(SPOT_CHECK, spot_check_sample(results, args.spot_check), previous_labels)
     print(f"graded {len(results)} lines; lexical {summary['lexical']}; model {summary['model']}")
 
 
