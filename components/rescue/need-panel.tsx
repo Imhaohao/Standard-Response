@@ -156,7 +156,7 @@ function OnTheirWay({ people, focus }: { people: Person[]; focus: FocusProps }) 
 }
 
 const RISK_MODEL_NOTE =
-  "Assumed risk model, not a prediction: each rider's risk grows with their need, is zero when they are aboard a vehicle by their deadline, and reaches its maximum at fire arrival. The solver plans to make the first number as small as it can.";
+  "Assumed risk model, not a prediction: each rider's risk grows with their need, is zero when they are aboard a vehicle by their deadline, and reaches its maximum at fire arrival. The solver plans to make the first number as small as it can. Standard response counts these riders with no dispatched ride, which is how the 911-only process ended for most riders in our simulation (a median 54 of 65 never picked up).";
 
 // When the van is expected to have the rider aboard: its arrival plus the time it takes to board.
 function boardingDone(person: Person) {
@@ -187,7 +187,7 @@ function DeathEstimate({ people }: { people: Person[] }) {
         </div>
         <div className="flex flex-col items-end gap-1">
           <dd className="type-figure text-2xl tabular-nums text-ink-muted">{withoutRides.toFixed(1)}</dd>
-          <dt className="type-small text-on-panel-muted">If no vehicle came</dt>
+          <dt className="type-small text-on-panel-muted">Standard response</dt>
         </div>
       </dl>
       <span className="mb-0.5 text-on-panel-muted" title={RISK_MODEL_NOTE} aria-label={RISK_MODEL_NOTE} role="img">
