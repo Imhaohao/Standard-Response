@@ -14,6 +14,11 @@ const END_OF_SPEECH_SILENCE_SECS = 0.5;
 // Whisper-style models write non-speech as tags: "[cat meowing]", "(music)", "*coughs*".
 const SOUND_TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*|♪/g;
 
+// Sonic expands "ID" and "I.D." to "Idaho" as a state abbreviation; "I-D" is read as letters.
+const STATE_LOOKALIKE_ID = /\bI\.D\.|\bID\b/g;
+
+export const spokenForm = (text: string) => text.replace(STATE_LOOKALIKE_ID, "I-D");
+
 type TranscriptMessage = { type: "transcript"; is_final: boolean; text: string };
 type ErrorMessage = { type: "error"; message?: string; title?: string };
 
@@ -127,7 +132,7 @@ export class Speaker {
     this.socket.send(
       JSON.stringify({
         model_id: env.cartesia.ttsModel,
-        transcript: text,
+        transcript: spokenForm(text),
         voice: { id: env.cartesia.voiceFor(language) },
         language,
         context_id: contextId,
