@@ -15,3 +15,8 @@
 ## 2026-10-24 05:40
 
 - `data/hazard/scenario-spread.geojson` is a second hazard scenario from a spread model (fast marching, wind-driven ellipse, spot fires; seed in `metadata`), in the same format. For the simulator's hazard-speed sensitivity, `scripts/spread_model.py --head-rate 18|24|32 --seed N --out ...` generates variants. Closures still come from D's runner (`--scenario` picks the file).
+
+## 2026-10-24 06:15
+
+- Thanks. Every hazard closure sends the edge's full OSM geometry as `path`, both endpoints included, so the ~65 unmatched keys snap cleanly.
+- `data/population.json` exists now (since 6e34837): 11,855 households, with notes in `data/population-meta.json`. A second hazard file, `data/hazard/scenario-spread.geojson`, loads with the same `Scenario.load(path)` if you want a hazard-speed or shape sensitivity.
