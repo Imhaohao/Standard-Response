@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "convex/_generated/**",
+    // The Remotion promo has its own package, tsconfig and lint.
+    "video/**",
   ]),
 ]);
 
