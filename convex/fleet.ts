@@ -31,33 +31,41 @@ type Fleet = {
   shelters: Doc<"shelters">[];
 };
 
-async function runOf(ctx: MutationCtx, vehicleId: Id<"vehicles">) {
-  const rows = await ctx.db.query("assignments").withIndex("by_vehicleId", (q) => q.eq("vehicleId", vehicleId)).take(200);
-  const accepted = rows.filter((a) => a.status === "accepted").sort((a, b) => a.stopOrder - b.stopOrder);
-  const onboard: Doc<"requests">[] = [];
-  let assignedShelter: Id<"shelters"> | undefined;
-  for (const assignment of rows.filter((a) => a.status === "completed")) {
+type Rider = Doc<"vehicleLoads">["riders"][number];
+
+// Riders already picked up. Read once from history the first time a vehicle is seen (say, after the
+// stand-in dispatcher picked them up), then kept up to date at each pickup and drop-off.
+async function loadOf(ctx: MutationCtx, vehicleId: Id<"vehicles">) {
+  const row = await ctx.db.query("vehicleLoads").withIndex("by_vehicleId", (q) => q.eq("vehicleId", vehicleId)).unique();
+  if (row) return row;
+  const completed = await ctx.db
+    .query("assignments")
+    .withIndex("by_vehicleId_and_status_and_stopOrder", (q) => q.eq("vehicleId", vehicleId).eq("status", "completed"))
+    .take(500);
+  const riders: Rider[] = [];
+  for (const assignment of completed) {
     const request = await ctx.db.get("requests", assignment.requestId);
-    if (request?.status !== "arrived") continue;
-    onboard.push(request);
-    assignedShelter ??= assignment.shelterId;
+    if (request?.status === "arrived") riders.push({ requestId: request._id, shelterId: assignment.shelterId, load: request.load });
   }
-  return { accepted, onboard, assignedShelter };
+  const id = await ctx.db.insert("vehicleLoads", { vehicleId, riders });
+  return (await ctx.db.get("vehicleLoads", id))!;
 }
 
-async function nextWish(ctx: MutationCtx, vehicle: Doc<"vehicles">): Promise<{ wish: Wish | null; onboard: Doc<"requests">[] }> {
-  const { accepted, onboard, assignedShelter } = await runOf(ctx, vehicle._id);
-  const pickups = [];
-  for (const assignment of accepted) {
-    const request = await ctx.db.get("requests", assignment.requestId);
-    if (request) pickups.push({ id: assignment._id, node: 0, load: request.load, boardingSeconds: request.boardingMinutes * 60 });
-  }
-  const state: RunState<Id<"assignments">> = { node: 0, onboard: onboard.map((r) => r.load), pickups, capacity: vehicle };
+async function nextWish(ctx: MutationCtx, vehicle: Doc<"vehicles">) {
+  const load = await loadOf(ctx, vehicle._id);
+  // nextStop only looks at the first accepted pickup, so that's the only one read.
+  const first = await ctx.db
+    .query("assignments")
+    .withIndex("by_vehicleId_and_status_and_stopOrder", (q) => q.eq("vehicleId", vehicle._id).eq("status", "accepted"))
+    .first();
+  const request = first && (await ctx.db.get("requests", first.requestId));
+  const pickups = first && request ? [{ id: first._id, node: 0, load: request.load, boardingSeconds: request.boardingMinutes * 60 }] : [];
+  const state: RunState<Id<"assignments">> = { node: 0, onboard: load.riders.map((r) => r.load), pickups, capacity: vehicle };
   const stop = nextStop(state);
-  if (!stop) return { wish: null, onboard };
+  if (!stop) return { wish: null, load };
   const wish: Wish =
-    stop.kind === "pickup" ? { kind: "pickup", assignmentId: stop.pickup.id } : { kind: "shelter", shelterId: assignedShelter };
-  return { wish, onboard };
+    stop.kind === "pickup" ? { kind: "pickup", assignmentId: stop.pickup.id } : { kind: "shelter", shelterId: load.riders[0]?.shelterId };
+  return { wish, load };
 }
 
 function routeServes(route: Doc<"vehicleRoutes">, wish: Wish) {
@@ -136,22 +144,38 @@ async function event(ctx: MutationCtx, message: string, householdId?: Id<"househ
   await ctx.db.insert("events", { kind: "dispatch", message, householdId, at: Date.now() });
 }
 
-async function arriveAtPickup(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, route: Doc<"vehicleRoutes">, assignmentId: Id<"assignments">) {
+type Visit = { fleet: Fleet; vehicle: Doc<"vehicles">; route: Doc<"vehicleRoutes">; load: Doc<"vehicleLoads"> };
+
+async function arriveAtPickup(ctx: MutationCtx, { fleet, vehicle, route, load }: Visit, assignmentId: Id<"assignments">) {
   const assignment = await ctx.db.get("assignments", assignmentId);
   if (assignment?.status !== "accepted") return;
   const request = await ctx.db.get("requests", assignment.requestId);
   await completeAssignment(ctx, assignmentId);
+  if (request) {
+    const rider = { requestId: request._id, shelterId: assignment.shelterId, load: request.load };
+    await ctx.db.patch("vehicleLoads", load._id, { riders: [...load.riders, rider] });
+  }
   const boardingMs = ((request?.boardingMinutes ?? 2) * 60_000) / SIMULATED_TIME_LAPSE;
   await ctx.db.patch("vehicleRoutes", route._id, { dwellUntil: fleet.now + boardingMs, updatedAt: fleet.now });
   const household = await ctx.db.get("households", assignment.householdId);
   await event(ctx, `${vehicle.label} reached ${household?.address ?? "the rider"}. Boarding`, assignment.householdId);
 }
 
-async function arriveAtShelter(ctx: MutationCtx, vehicle: Doc<"vehicles">, route: Doc<"vehicleRoutes">, onboard: Doc<"requests">[], shelterId: Id<"shelters">) {
-  for (const request of onboard) await transitionRequest(ctx, request._id, "closed");
+const partySize = (rider: Rider) => rider.load.seats + rider.load.wheelchairSpaces + rider.load.stretcherSpaces;
+
+async function arriveAtShelter(ctx: MutationCtx, { vehicle, route, load }: Visit, shelterId: Id<"shelters">) {
+  for (const rider of load.riders) {
+    const request = await ctx.db.get("requests", rider.requestId);
+    if (request?.status === "arrived") await transitionRequest(ctx, request._id, "closed");
+  }
+  await ctx.db.patch("vehicleLoads", load._id, { riders: [] });
   await ctx.db.delete("vehicleRoutes", route._id);
   const shelter = await ctx.db.get("shelters", shelterId);
-  const riders = onboard.length === 1 ? "1 rider" : `${onboard.length} riders`;
+  if (shelter) {
+    const people = load.riders.reduce((sum, rider) => sum + partySize(rider), 0);
+    await ctx.db.patch("shelters", shelterId, { occupied: (shelter.occupied ?? 0) + people });
+  }
+  const riders = load.riders.length === 1 ? "1 rider" : `${load.riders.length} riders`;
   await event(ctx, `${vehicle.label} dropped off ${riders} at ${shelter?.name ?? "the shelter"}`);
 }
 
@@ -167,7 +191,8 @@ function needsNewPath(route: Doc<"vehicleRoutes"> | null, wish: Wish, fleet: Fle
   return route.closuresSeen !== fleet.closuresSeen || !routeServes(route, wish);
 }
 
-async function drive(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, route: Doc<"vehicleRoutes">, onboard: Doc<"requests">[]) {
+async function drive(ctx: MutationCtx, visit: Visit) {
+  const { fleet, vehicle, route } = visit;
   if (route.legSeconds.length === 0) return;
   const total = route.legSeconds.reduce((sum, s) => sum + s, 0);
   const progressSeconds = Math.min(total, route.progressSeconds + fleet.tickSeconds * SIMULATED_TIME_LAPSE);
@@ -181,14 +206,14 @@ async function drive(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, r
   await ctx.db.patch("vehicleRoutes", route._id, { progressSeconds, positionWrittenAt, updatedAt: fleet.now });
   await markEnRoute(ctx, route.target);
   if (progressSeconds < total) return;
-  if (route.target.kind === "pickup") await arriveAtPickup(ctx, fleet, vehicle, route, route.target.assignmentId);
-  else await arriveAtShelter(ctx, vehicle, route, onboard, route.target.shelterId);
+  if (route.target.kind === "pickup") await arriveAtPickup(ctx, visit, route.target.assignmentId);
+  else await arriveAtShelter(ctx, visit, route.target.shelterId);
 }
 
 async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">) {
   const existing = await ctx.db.query("vehicleRoutes").withIndex("by_vehicleId", (q) => q.eq("vehicleId", vehicle._id)).unique();
   if (existing?.dwellUntil !== undefined && existing.dwellUntil > fleet.now) return;
-  const { wish, onboard } = await nextWish(ctx, vehicle);
+  const { wish, load } = await nextWish(ctx, vehicle);
   if (!wish) {
     if (existing) await ctx.db.delete("vehicleRoutes", existing._id);
     return;
@@ -199,7 +224,7 @@ async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicle
     if (!target) return;
     route = await freshRoute(ctx, fleet, vehicle, target, existing);
   }
-  if (route) await drive(ctx, fleet, vehicle, route, onboard);
+  if (route) await drive(ctx, { fleet, vehicle, route, load });
 }
 
 export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {

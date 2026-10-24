@@ -202,6 +202,17 @@ function problemRequest(context: Context, entry: Located, locations: Locations, 
   };
 }
 
+const party = (load: { seats: number; wheelchairSpaces: number; stretcherSpaces: number }) =>
+  load.seats + load.wheelchairSpaces + load.stretcherSpaces;
+
+// People on board or with an accepted pickup headed to this shelter.
+function promisedTo(context: Context, shelterId: Id<"shelters">) {
+  const onboard = context.snap.onboard.filter((rider) => rider.shelterId === shelterId);
+  const accepted = context.snap.live.filter((a) => a.status === "accepted" && a.shelterId === shelterId);
+  const acceptedPeople = accepted.reduce((sum, a) => sum + party(context.requests.get(a.requestId)?.request.load ?? { seats: 0, wheelchairSpaces: 0, stretcherSpaces: 0 }), 0);
+  return onboard.reduce((sum, rider) => sum + party(rider.load), 0) + acceptedPeople;
+}
+
 export type World = ReturnType<typeof buildWorld>;
 
 export function buildWorld(snap: Snapshot, now: number) {
@@ -243,7 +254,7 @@ export function buildWorld(snap: Snapshot, now: number) {
     id: shelter._id,
     location: locations.of(node),
     // Room left: the solver and heuristic must not promise a shelter more people than it can still take.
-    capacity: Math.max(0, shelter.capacity - (snap.shelterOccupancy[shelter._id] ?? 0)),
+    capacity: Math.max(0, shelter.capacity - (shelter.occupied ?? 0) - promisedTo(context, shelter._id)),
   }));
   const matrix = locations.nodes.map((from) => locations.nodes.map((to) => context.travel.seconds(from, to)));
 

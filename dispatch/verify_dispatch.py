@@ -272,6 +272,16 @@ def check_revocation(world: World, report: Report):
     return offer["_id"]
 
 
+def _new_driver_accepts(world: World, request_id):
+    """The new driver's acceptance. Maria's and Luis's vans are driven from the driver page, so the check
+    taps Accept for them through offers:accept, the same mutation the driver page calls."""
+    offer = next((o for o in world.offers() if o["requestId"] == request_id and o["status"] in ("offered", "accepted")), None)
+    if offer and offer["status"] == "offered" and not world.vehicles()[offer["vehicleId"]]["driverIsSimulated"]:
+        world.client.mutation("offers:accept", {"assignmentId": offer["_id"]})
+        return None
+    return offer if offer and offer["status"] == "accepted" else None
+
+
 def check_cancel_and_new_driver(world: World, report: Report, avoid):
     offer = wait_for(lambda: pick_accepted(world, avoid), 120)
     if not offer:
@@ -280,13 +290,10 @@ def check_cancel_and_new_driver(world: World, report: Report, avoid):
     world.client.mutation("offers:cancelByDriver", {"assignmentId": offer["_id"]})
     request_id, old_vehicle = offer["requestId"], offer["vehicleId"]
     told = wait_for(lambda: callbacks_for(world, request_id, "reassigning"), 15)
-    # An offer to a driver-page van (Maria, Luis) waits out its 2-minute expiry before a simulated driver gets it.
-    new = wait_for(
-        lambda: next((o for o in world.offers() if o["requestId"] == request_id and o["status"] == "accepted"), None), 300
-    )
+    new = wait_for(lambda: _new_driver_accepts(world, request_id), 180)
     vehicles = world.vehicles()
     detail = f"{vehicles[old_vehicle]['label']} cancelled at {offer['address']}; reassigning callback {'queued' if told else 'missing'}; "
-    detail += f"new driver: {vehicles[new['vehicleId']]['label']}" if new else "no new driver accepted within 300 s"
+    detail += f"new driver: {vehicles[new['vehicleId']]['label']}" if new else "no new driver accepted within 180 s"
     report.check(bool(told) and bool(new) and new["vehicleId"] != old_vehicle, "Driver cancels, rider told, a new driver accepts", detail)
     return offer["_id"]
 

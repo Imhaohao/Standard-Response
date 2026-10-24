@@ -30,29 +30,10 @@ async function assignmentsWith(ctx: QueryCtx, statuses: Doc<"assignments">["stat
   return lists.flat();
 }
 
-// Riders picked up and not yet dropped off: the request is "arrived" and its assignment completed.
+// Riders picked up and not yet dropped off, as the movement tick keeps them.
 async function onboardRiders(ctx: QueryCtx) {
-  const arrived = await ctx.db.query("requests").withIndex("by_status", (q) => q.eq("status", "arrived")).take(500);
-  const riders = [];
-  for (const request of arrived) {
-    const rows = await ctx.db.query("assignments").withIndex("by_requestId", (q) => q.eq("requestId", request._id)).take(50);
-    const completed = rows.find((a) => a.status === "completed");
-    if (completed) riders.push({ vehicleId: completed.vehicleId, load: request.load });
-  }
-  return riders;
-}
-
-// People already dropped at, or promised to, each shelter. Their requests carry the party size.
-async function shelterOccupancy(ctx: QueryCtx) {
-  const occupied: Record<string, number> = {};
-  for (const assignment of await assignmentsWith(ctx, ["accepted", "completed"])) {
-    if (!assignment.shelterId) continue;
-    const request = await ctx.db.get("requests", assignment.requestId);
-    if (!request) continue;
-    const party = request.load.seats + request.load.wheelchairSpaces + request.load.stretcherSpaces;
-    occupied[assignment.shelterId] = (occupied[assignment.shelterId] ?? 0) + party;
-  }
-  return occupied;
+  const loads = await ctx.db.query("vehicleLoads").take(200);
+  return loads.flatMap((row) => row.riders.map((rider) => ({ vehicleId: row.vehicleId, shelterId: rider.shelterId, load: rider.load })));
 }
 
 export async function readSnapshot(ctx: QueryCtx) {
@@ -67,7 +48,6 @@ export async function readSnapshot(ctx: QueryCtx) {
     shelters: await ctx.db.query("shelters").take(50),
     closures: await ctx.db.query("roadClosures").take(1000),
     routes: await ctx.db.query("vehicleRoutes").take(200),
-    shelterOccupancy: await shelterOccupancy(ctx),
     autoApprove: control?.autoApprove ?? false,
   };
 }

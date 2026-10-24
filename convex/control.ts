@@ -130,6 +130,7 @@ const TABLES = [
   "vehicles",
   "shelters",
   "vehicleRoutes",
+  "vehicleLoads",
   "dispatchState",
 ] as const;
 const DELETE_BATCH = 2000;

@@ -16,6 +16,9 @@ import type { Snapshot } from "./dispatchSnapshot";
 // Every write goes through writePlan, so the contract's rules hold for this dispatcher too.
 
 const REPLAN_EVERY_MS = 5_000;
+// With nobody waiting, re-plan only this often. Each re-plan reads every open request, so this
+// is most of Track C's database reads on a quiet night.
+const REFRESH_EVERY_MS = 30_000;
 const REPLAN_LOCK_MS = 30_000;
 
 async function stateRow(ctx: MutationCtx) {
@@ -25,11 +28,17 @@ async function stateRow(ctx: MutationCtx) {
   return (await ctx.db.get("dispatchState", id))!;
 }
 
-async function hasWork(ctx: MutationCtx) {
+// Riders waiting for a vehicle or offers waiting for approval: re-plan often.
+async function hasUrgentWork(ctx: MutationCtx) {
   for (const status of ["received", "reassigning"] as const) {
     if (await ctx.db.query("requests").withIndex("by_status", (q) => q.eq("status", status)).first()) return true;
   }
-  for (const status of ["proposed", "offered", "accepted"] as const) {
+  return (await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", "proposed")).first()) !== null;
+}
+
+// Only accepted runs and open offers: re-plan now and then, to keep ETAs and revocations current.
+async function hasLiveRuns(ctx: MutationCtx) {
+  for (const status of ["offered", "accepted"] as const) {
     if (await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", status)).first()) return true;
   }
   return false;
@@ -41,7 +50,8 @@ export async function maybeReplan(ctx: MutationCtx, now: number) {
   if (state.replanStartedAt && now - state.replanStartedAt < REPLAN_LOCK_MS) return;
   const closures = (await ctx.db.query("roadClosures").take(1000)).length;
   const closureAdded = closures !== state.closuresSeen;
-  const due = now - state.lastReplanAt >= REPLAN_EVERY_MS && (await hasWork(ctx));
+  const since = now - state.lastReplanAt;
+  const due = (since >= REPLAN_EVERY_MS && (await hasUrgentWork(ctx))) || (since >= REFRESH_EVERY_MS && (await hasLiveRuns(ctx)));
   if (!closureAdded && !due) return;
   await ctx.db.patch("dispatchState", state._id, { replanStartedAt: now });
   await ctx.scheduler.runAfter(0, internal.dispatch.replan, {});

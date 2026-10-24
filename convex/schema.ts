@@ -256,6 +256,8 @@ export default defineSchema({
     lat: v.number(),
     lng: v.number(),
     capacity: v.number(),
+    // Track C: people dropped off here so far.
+    occupied: v.optional(v.number()),
   }),
 
   plans: defineTable({
@@ -295,7 +297,9 @@ export default defineSchema({
   })
     .index("by_requestId", ["requestId"])
     .index("by_vehicleId", ["vehicleId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    // Track C: a vehicle's accepted run in stop order, without reading its whole history.
+    .index("by_vehicleId_and_status_and_stopOrder", ["vehicleId", "status", "stopOrder"]),
 
   // One row per thing the resident must be told. The key makes a repeated event a no-op.
   callbacks: defineTable({
@@ -411,6 +415,12 @@ export default defineSchema({
     // When the vehicle row's lat/lng was last written from this route.
     positionWrittenAt: v.optional(v.number()),
     updatedAt: v.number(),
+  }).index("by_vehicleId", ["vehicleId"]),
+
+  // Track C: riders on board each vehicle, kept by the movement tick so it never rescans history.
+  vehicleLoads: defineTable({
+    vehicleId: v.id("vehicles"),
+    riders: v.array(v.object({ requestId: v.id("requests"), shelterId: v.optional(v.id("shelters")), load })),
   }).index("by_vehicleId", ["vehicleId"]),
 
   // Singleton row. Operator controls plus one switch per stand-in.
