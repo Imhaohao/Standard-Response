@@ -1,6 +1,6 @@
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
-import { convex } from "./convex";
+import { convex, logSubscriptionError } from "./convex";
 import { env, mayDial } from "./env";
 import { onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/twilio";
@@ -32,10 +32,10 @@ export function startDialer() {
 
   convex().onUpdate(api.control.get, {}, (row) => {
     control = row;
-  });
+  }, logSubscriptionError("control"));
   convex().onUpdate(api.voice.dialQueue, { limit: QUEUE_LIMIT }, (rows) => {
     queue = rows;
-  });
+  }, logSubscriptionError("dialQueue"));
   onCallEnded((ended) => {
     if (ended.mode === "survey" && ended.callId) inFlight.delete(ended.callId);
   });

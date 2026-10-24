@@ -3,7 +3,7 @@ import type { Doc, Id } from "../convex/_generated/dataModel";
 import { interpret } from "./agent/interpreter";
 import { isEmpty, needsRide } from "./agent/record";
 import { languageOf, LINES, statusLine } from "./agent/script";
-import { convex } from "./convex";
+import { convex, logSubscriptionError } from "./convex";
 
 // The text step of the reach ladder for real riders. SMS registration won't clear this weekend, so
 // texts live in Convex and show on Track A's simulated phone panel. No reply in time means the
@@ -23,7 +23,7 @@ export function startTextFollowUp() {
 
   convex().onUpdate(api.voice.textFollowUps, {}, (rows) => {
     followUps = rows;
-  });
+  }, logSubscriptionError("textFollowUps"));
 
   async function parseReply(followUp: FollowUp, reply: Doc<"texts">) {
     const language = languageOf(followUp.language);

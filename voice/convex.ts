@@ -14,3 +14,8 @@ export function convex() {
 export function fireAndForget(label: string, write: Promise<unknown>) {
   write.catch((error: unknown) => console.error(`[convex] ${label} failed`, error));
 }
+
+// A failing live query (deployment disabled, function missing) would otherwise throw out of the
+// client and take the whole server down, text turns included.
+export const logSubscriptionError = (label: string) => (error: Error) =>
+  console.error(`[convex] ${label} subscription failed`, error.message);

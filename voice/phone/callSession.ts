@@ -4,7 +4,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversation";
 import { AgentRecord, FIELDS } from "../agent/record";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
-import { convex, fireAndForget } from "../convex";
+import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { Transcriber } from "./cartesia";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
 import { CallSpeech } from "./speech";
@@ -84,7 +84,7 @@ class CallSession implements LiveCall {
     this.language = languageOf(household.language);
     this.unsubscribe = convex().onUpdate(api.voice.statusFor, { householdId }, (ride) => {
       this.ride = ride;
-    });
+    }, logSubscriptionError("statusFor"));
     this.conversation = new Conversation({
       language: this.language,
       onFile: onFileRecord(household),

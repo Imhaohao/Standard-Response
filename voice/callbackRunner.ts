@@ -1,7 +1,7 @@
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { languageOf, LINES, statusLine } from "./agent/script";
-import { convex } from "./convex";
+import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
 import { callbackScripts, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/twilio";
@@ -114,6 +114,6 @@ export function startCallbackRunner() {
     else void unanswered(ended.callbackId as Id<"callbacks">);
   });
 
-  convex().onUpdate(api.voice.pendingCallbacks, {}, (rows) => handleAll(rows as Pending[]));
+  convex().onUpdate(api.voice.pendingCallbacks, {}, (rows) => handleAll(rows as Pending[]), logSubscriptionError("pendingCallbacks"));
   console.log("[callbacks] watching for callbacks to place");
 }
