@@ -72,8 +72,7 @@ export const EN: Lines = {
   textPrompt:
     "Altadena evacuation line: an evacuation warning covers your street. Reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle. You can also write who is with you.",
   textThanks: "Thank you. We have your answer.",
-  backchannels: ["Mm-hm.", "Okay.", "Hmm, okay.", "Alright.", "One moment."],
-  neutralAck: "Okay.",
+  backchannels: ["Mm-hm.", "Mm.", "Alright.", "Let me see."],
   waiting:
     "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now.",
   reassigning:

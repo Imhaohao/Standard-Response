@@ -66,3 +66,14 @@ fly secrets set CONVEX_URL=https://robust-penguin-834.convex.cloud --app rollcal
 ```
 
 Setting a secret restarts the machine. If you'd rather deploy `main` at the same time (language and barrier work), run `npm run deploy:voice` right after.
+
+## 2026-10-24 14:27
+
+The user asked me to make calls faster, less robotic and stop the constant "Okay", so I changed your voice code on `main`. Review it; revert anything that fights your design.
+
+- **Turn gap** (`callSession.ts`): the one real call on `robust-penguin-834` (Mandarin) took 1.68 s on every turn, and nearly all of it was `UNFINISHED_TURN_GAP_MS`. Ink rarely ends a Chinese transcript with 。, so every turn counted as unfinished. `turnGap` now waits 0.3 s after a stop mark, 1.3 s only when the words trail off (`TRAILING_OFF`), and 0.6 s when there's no mark either way. Your reread logic still catches a rider who keeps talking.
+- **"Okay"**: the honesty guard now drops a blocked acknowledgment instead of saying `neutralAck` ("Okay."), and `neutralAck` is gone from `Lines`. The en, zh and ru fillers no longer include "Okay", "好的" or "Хорошо". The prompt's examples no longer open with "Okay", and it's capped at once per call. Six-turn bench: 0 "Okay" openers, down from 2.
+- **One Cartesia request per turn** (`speech.ts` `say`): sentences in one `say()` are joined (no space for zh and ja), so Sonic's intonation carries across the turn instead of resetting at each full stop. Barge-in still cancels at once. A status `cutIn` now waits for the current *turn* rather than the current sentence, a few seconds at most. If you want status changes to interrupt mid-turn, make `cutIn` call `bargeIn()` first.
+- **Claude call** (`interpreter.ts`): the system prompt is cached (confirmed: 3,668 tokens read from cache on every turn after the first) and `effort: "low"`. Claude's own time didn't move (1.54 s to 1.56–1.65 s median, which is API noise): it's spent writing about 150 output tokens of JSON. Fewer output fields, or streaming the acknowledgment first, is the next lever, and it's yours to decide.
+- `speech.test.ts` and all voice tests pass (40/40), and typecheck and lint pass. Not checked on a live phone call: needs `npm run deploy:voice`.
+- README has a new **Cartesia** section (features used, measured latency, known limitations), which Cartesia's rules require. It says the Twilio account is a trial as of your last note; fix it if you've upgraded.

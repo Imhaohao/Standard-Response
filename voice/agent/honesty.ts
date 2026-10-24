@@ -1,5 +1,5 @@
 import { REVIEWED_LANGUAGES } from "../../convex/languages";
-import { Language, LINES, RequestStatus } from "./script";
+import { Language, RequestStatus } from "./script";
 
 // Claude writes only short acknowledgments. This guard is the code-level backstop: while no driver
 // has accepted, any acknowledgment that sounds like a promise of help is replaced with a neutral one.
@@ -16,16 +16,17 @@ const UNCONFIRMED = new Set<RequestStatus | "none">(["none", "received", "approv
 
 export type GuardResult = { text: string; blocked: boolean };
 
-const neutral = (language: Language): GuardResult => ({ text: LINES[language].neutralAck, blocked: true });
+// A blocked acknowledgment is dropped, not replaced: a stock "Okay." on every turn sounds robotic.
+const blocked: GuardResult = { text: "", blocked: true };
 
 export function guardAcknowledgment(text: string, status: RequestStatus | "none", language: Language): GuardResult {
   const trimmed = text.trim();
   if (trimmed === "") return { text: "", blocked: false };
   // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
-  if (!REVIEWED_LANGUAGES.includes(language)) return neutral(language);
+  if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
   const soundsLikePromise = PROMISES.some((pattern) => pattern.test(trimmed));
-  if (UNCONFIRMED.has(status) && soundsLikePromise) return neutral(language);
+  if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
   // Even after acceptance, ETAs and names come only from templates.
-  if (/\d/.test(trimmed)) return neutral(language);
+  if (/\d/.test(trimmed)) return blocked;
   return { text: trimmed, blocked: false };
 }

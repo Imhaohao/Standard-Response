@@ -2,11 +2,13 @@ import type WebSocket from "ws";
 import type { Language } from "../agent/script";
 import { Speaker } from "./cartesia";
 
-// The agent's mouth on one Twilio call. Sentences play in order; each is sent to Cartesia only
-// after the previous one finished generating, so a status change can cut in at a sentence boundary
-// and a barge-in can drop everything not yet heard.
+// The agent's mouth on one Twilio call. Turns play in order; each is sent to Cartesia only after the
+// previous one finished generating, so a status change can cut in between turns and a barge-in can
+// drop everything not yet heard.
 
 type Queued = { text: string; language: Language; onStart?: () => void };
+
+const NO_SPACE_BETWEEN_SENTENCES = new Set<Language>(["zh", "ja"]);
 
 // What CallSpeech needs from a text-to-speech engine. Tests pass a fake.
 export type SpeechEngine = Pick<Speaker, "speak" | "cancel" | "close">;
@@ -34,12 +36,15 @@ export class CallSpeech {
     return this.queue.length > 0 || this.current !== null || this.marksOutstanding > 0;
   }
 
+  // One turn is one Cartesia request, so intonation carries across its sentences instead of
+  // resetting at every full stop. A barge-in still cancels it at once; a status cut-in waits for it.
   say(sentences: string[], language: Language, onFirstAudio?: () => void) {
-    sentences.forEach((text, index) => this.queue.push({ text, language, onStart: index === 0 ? onFirstAudio : undefined }));
+    const text = sentences.filter((sentence) => sentence !== "").join(NO_SPACE_BETWEEN_SENTENCES.has(language) ? "" : " ");
+    if (text !== "") this.queue.push({ text, language, onStart: onFirstAudio });
     void this.drain();
   }
 
-  // A status update: finish the sentence that's playing, drop the rest, then say this.
+  // A status update: finish the turn that's playing, drop the rest, then say this.
   cutIn(sentences: string[], language: Language) {
     this.queue = [];
     this.say(sentences, language);

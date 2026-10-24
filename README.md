@@ -79,7 +79,29 @@ Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST 
 
 **Who decides what.** Claude (`voice/agent/interpreter.ts`) turns one utterance into field changes, a yes/no answer, emergency flags and an acknowledgment of six words or fewer. The state machine (`voice/agent/conversation.ts`) decides what to ask next. Everything said about a ride is a fixed template keyed by request status (`voice/agent/script.ts`). A code guard (`voice/agent/honesty.ts`) replaces any acknowledgment that sounds like a promise while no driver has accepted.
 
-**Cartesia.** Ink speech-to-text (`ink-whisper`, English and Spanish) and Sonic text-to-speech, both on 8 kHz μ-law, so Twilio audio passes through without transcoding. Each sentence is its own text-to-speech context: a barge-in cancels the rest, and a status change cuts in at the next sentence boundary.
+### Cartesia
+
+Voice is the product: every rider call is heard by Ink and spoken by Sonic. Both run over WebSockets on Twilio's 8 kHz μ-law audio, so nothing is transcoded on the way in or out.
+
+| Cartesia feature | What we use it for | Where |
+| --- | --- | --- |
+| Ink streaming speech-to-text (`ink-whisper`) | Hears the rider live in the call's language; restarts in a new language when the rider switches | `voice/phone/cartesia.ts` `Transcriber` |
+| Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn; the call then waits 0.3 s after a full stop, 0.6 s with no punctuation, 1.3 s when the words trail off | `voice/phone/callSession.ts` `turnGap` |
+| Sonic streaming text-to-speech (`sonic-latest`) | One request per agent turn, so intonation carries across its sentences | `voice/phone/speech.ts` |
+| Sonic context cancel | Barge-in: when the rider talks over the agent, the rest of the turn is cancelled at once | `CallSpeech.bargeIn` |
+| Sonic multilingual voices | Calls in en, es, zh, ko, vi, tl, ru and ja; `CARTESIA_VOICE_<CODE>` picks a native voice, otherwise the English voice speaks the language | `voice/env.ts` `voiceFor` |
+| Short Sonic fillers ("Mm-hm.") | Cover Claude's thinking time without claiming to have understood anything | `backchannels` in `voice/agent/lines/*.ts` |
+
+Measured: from the rider going quiet to the agent's first audio, the text eval puts the agent's own turn at 1.2 s median and 1.8 s p95 (`data/eval-results.json`); a live call adds Ink's 0.5 s end-of-speech wait and the turn gap above.
+
+**Known limitations**
+
+- Ink listens in one language at a time. A rider who switches languages is caught when they ask for it ("Korean, please") or when Claude recognizes the transcript; speech in a language the call isn't listening for can arrive garbled.
+- Armenian and Persian are heard but Sonic can't speak them, so those callers are handed to a person (`language_barrier`).
+- Six of the eight call languages (zh, ko, vi, tl, ru, ja) are machine translations awaiting a fluent speaker's review, and without `CARTESIA_VOICE_<CODE>` they are spoken by the English voice, with an English accent.
+- Phone audio is 8 kHz, so voices sound like a phone call, not a studio recording.
+- A status change (driver accepted, road closed) plays after the turn that's already speaking, a few seconds at most, not mid-sentence.
+- As of Track B's last note, the Twilio account is a trial: every call opens with Twilio's notice, and outbound calls reach verified numbers only.
 
 ## Dispatch and simulator (Track C)
 

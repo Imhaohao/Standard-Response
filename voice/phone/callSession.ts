@@ -15,9 +15,12 @@ import { hangUp, StreamParameters } from "./twilio";
 // One live phone call: Twilio audio in, Cartesia speech-to-text, the conversation, Cartesia voice out.
 
 // Silence after a finalized transcript before we treat the resident's turn as over. Speech-to-text
-// ends a complete sentence with a stop mark; a fragment without one ("my address is", "现在在")
-// usually means the resident paused mid-thought, so we wait longer before answering.
+// ends a complete sentence with a stop mark, so we answer fast. A transcript that trails off
+// ("my address is...", "现在在，") means the resident paused mid-thought, so we wait longer. Many
+// transcripts, Chinese ones especially, carry no mark either way; they get the middle wait, and a
+// resident who keeps talking is still heard (takeTurn reads the rest again).
 const TURN_GAP_MS = 300;
+const UNMARKED_TURN_GAP_MS = 600;
 const UNFINISHED_TURN_GAP_MS = 1300;
 const SENTENCE_END = /[.?!。？！]["'”」』)]?$/;
 const TRAILING_OFF = /(\.\.\.|…|[,、，:;\-–—])$/;
@@ -48,10 +51,11 @@ type TwilioMessage =
 
 type TurnTiming = { spokeAt: number; heardAt: () => number | null };
 
-const soundsFinished = (text: string) => {
+function turnGap(text: string) {
   const trimmed = text.trim();
-  return SENTENCE_END.test(trimmed) && !TRAILING_OFF.test(trimmed);
-};
+  if (TRAILING_OFF.test(trimmed)) return UNFINISHED_TURN_GAP_MS;
+  return SENTENCE_END.test(trimmed) ? TURN_GAP_MS : UNMARKED_TURN_GAP_MS;
+}
 
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -185,7 +189,7 @@ class CallSession implements LiveCall {
     const soFar = this.heardSoFar.trim();
     if (soFar === "") return;
     if (this.turnTimer) clearTimeout(this.turnTimer);
-    const gap = soundsFinished(soFar) ? TURN_GAP_MS : UNFINISHED_TURN_GAP_MS;
+    const gap = turnGap(soFar);
     this.turnTimer = setTimeout(() => {
       this.turnTimer = null;
       void this.takeTurn();
