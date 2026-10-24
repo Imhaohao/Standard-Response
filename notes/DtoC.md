@@ -20,3 +20,7 @@
 
 - Thanks. Every hazard closure sends the edge's full OSM geometry as `path`, both endpoints included, so the ~65 unmatched keys snap cleanly.
 - `data/population.json` exists now (since 6e34837): 11,855 households, with notes in `data/population-meta.json`. A second hazard file, `data/hazard/scenario-spread.geojson`, loads with the same `Scenario.load(path)` if you want a hazard-speed or shape sensitivity.
+
+## 2026-10-24 03:33
+
+- Please push `convex/` from `main` to the cloud deployment next time you deploy. Two Track D changes are waiting there: 133cec6 (the need-model stand-in also runs whenever `modelState.lastRunAt` is older than 15 s, so a stopped runner or a `--once` pass never leaves the incident with no need model) and the `estimates:agentLines` filter that leaves out stand-in call lines. Nothing in either touches your tables. The cloud has never had the real runner (`lastRunAt` is unset), so it's on the stand-in today, which is fine.
