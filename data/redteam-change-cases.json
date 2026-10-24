@@ -1,0 +1,213 @@
+{
+ "generatedAt": "2026-10-24T09:41:15.709Z",
+ "passed": 9,
+ "total": 9,
+ "results": [
+  {
+   "id": "driver_cancels",
+   "title": "Driver cancels an accepted pickup",
+   "riderHears": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "request is reassigning",
+     "pass": true,
+     "detail": "reassigning"
+    },
+    {
+     "name": "a reassigning callback is queued",
+     "pass": true,
+     "detail": "driver_accepted,reassigning"
+    },
+    {
+     "name": "rider hears no ETA or driver name",
+     "pass": true,
+     "detail": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911."
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "road_closes_after_accept",
+   "title": "A road closes after acceptance; a new driver accepts",
+   "riderHears": "A wheelchair-accessible van with a two-person crew is 6 minutes away. The driver's name is Luis. I'll call again if anything changes.",
+   "checks": [
+    {
+     "name": "revocation moves the request to reassigning",
+     "pass": true,
+     "detail": "reassigning"
+    },
+    {
+     "name": "rider is told right away (reassigning callback)",
+     "pass": true,
+     "detail": "driver_accepted,reassigning"
+    },
+    {
+     "name": "the reassigning words carry no ETA",
+     "pass": true,
+     "detail": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911."
+    },
+    {
+     "name": "the new acceptance returns to driver_accepted",
+     "pass": true,
+     "detail": "driver_accepted"
+    },
+    {
+     "name": "the new callback names the new driver",
+     "pass": true,
+     "detail": "A wheelchair-accessible van with a two-person crew is 6 minutes away. The driver's name is Luis. I'll call again if anything changes."
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "stale_acceptance",
+   "title": "A driver accepts an offer the plan already replaced",
+   "riderHears": "A wheelchair-accessible van with a two-person crew is 6 minutes away. The driver's name is Luis. I'll call again if anything changes.",
+   "checks": [
+    {
+     "name": "the stale accept returns changed",
+     "pass": true,
+     "detail": "changed"
+    },
+    {
+     "name": "no callback fires for the stale accept",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "name": "the rider still hears 'no driver yet'",
+     "pass": true,
+     "detail": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911."
+    },
+    {
+     "name": "the current offer's accept names its driver",
+     "pass": true,
+     "detail": "Luis"
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "duplicate_accept",
+   "title": "The same acceptance arrives twice",
+   "riderHears": "A wheelchair-accessible van with a two-person crew is 6 minutes away. The driver's name is Maria. I'll call again if anything changes.",
+   "checks": [
+    {
+     "name": "first accept succeeds",
+     "pass": true,
+     "detail": "accepted"
+    },
+    {
+     "name": "second accept is rejected",
+     "pass": true,
+     "detail": "changed"
+    },
+    {
+     "name": "exactly one driver_accepted callback",
+     "pass": true,
+     "detail": "driver_accepted"
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "duplicate_cancel",
+   "title": "The driver's cancel arrives twice",
+   "riderHears": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "exactly one reassigning callback",
+     "pass": true,
+     "detail": "driver_accepted,reassigning"
+    },
+    {
+     "name": "request stays reassigning",
+     "pass": true,
+     "detail": "reassigning"
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "decline_is_silent",
+   "title": "A driver declines before accepting",
+   "riderHears": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "request returns to received",
+     "pass": true,
+     "detail": "received"
+    },
+    {
+     "name": "no callback (the rider never heard of that driver)",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "correction_drops_open_offer",
+   "title": "A mid-call correction makes an open offer's vehicle unable to serve",
+   "riderHears": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "the incompatible offer is no longer live",
+     "pass": true
+    },
+    {
+     "name": "request is back to received",
+     "pass": true,
+     "detail": "received"
+    },
+    {
+     "name": "no callback (it was never accepted)",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "correction_revokes_accepted",
+   "title": "A correction after acceptance needs a stretcher the van doesn't have",
+   "riderHears": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911.",
+   "checks": [
+    {
+     "name": "request is reassigning",
+     "pass": true,
+     "detail": "reassigning"
+    },
+    {
+     "name": "a reassigning callback is queued",
+     "pass": true,
+     "detail": "driver_accepted,reassigning"
+    }
+   ],
+   "pass": true
+  },
+  {
+   "id": "status_change_mid_sentence",
+   "title": "The status changes while the agent is mid-sentence",
+   "riderHears": "Let me read that back. | Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911. | Is that right?",
+   "checks": [
+    {
+     "name": "the sentence in progress finishes",
+     "pass": true,
+     "detail": "Let me read that back."
+    },
+    {
+     "name": "the template plays next",
+     "pass": true,
+     "detail": "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911."
+    },
+    {
+     "name": "the stale queued sentences are dropped",
+     "pass": true,
+     "detail": "Let me read that back. | Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911. | Is that right?"
+    }
+   ],
+   "pass": true
+  }
+ ]
+}

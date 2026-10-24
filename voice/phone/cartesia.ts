@@ -110,7 +110,7 @@ export class Speaker {
   // Streams one sentence. Resolves once Cartesia has sent all of its audio.
   async speak(text: string, language: Language, onAudio: (base64: string) => void) {
     await this.ready;
-    const contextId = randomUUID();
+    const contextId: string = randomUUID();
     const done = new Promise<void>((resolve, reject) => this.utterances.set(contextId, { onAudio, resolve, reject }));
     this.socket.send(
       JSON.stringify({

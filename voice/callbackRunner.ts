@@ -15,6 +15,7 @@ const MAX_ATTEMPTS = 2;
 
 type Pending = {
   _id: Id<"callbacks">;
+  createdAt: number;
   householdId: Id<"households">;
   announces: "driver_accepted" | "reassigning";
   callbackNumber: string;
@@ -72,6 +73,27 @@ export function startCallbackRunner() {
     });
   }
 
+  // One call per household. It speaks the status as it is now, which covers every older callback
+  // still waiting; those are marked placed, never played, because their words were not said.
+  async function supersede(older: Pending[]) {
+    for (const callback of older) {
+      handling.add(callback._id);
+      await convex().mutation(api.callbacks.markPlaced, { callbackId: callback._id });
+    }
+  }
+
+  function handleAll(rows: Pending[]) {
+    const newestByHousehold = new Map<string, Pending>();
+    const covered: Pending[] = [];
+    for (const row of [...rows].sort((a, b) => a.createdAt - b.createdAt)) {
+      const previous = newestByHousehold.get(row.householdId);
+      if (previous && !handling.has(previous._id)) covered.push(previous);
+      newestByHousehold.set(row.householdId, row);
+    }
+    void supersede(covered.filter((row) => !handling.has(row._id))).catch((error) => console.error("[callbacks] supersede failed", error));
+    for (const row of newestByHousehold.values()) handle(row);
+  }
+
   // Unanswered: retry once, then send the same words as a text.
   async function unanswered(callbackId: Id<"callbacks">) {
     await convex().mutation(api.callbacks.markUnanswered, { callbackId });
@@ -92,8 +114,6 @@ export function startCallbackRunner() {
     else void unanswered(ended.callbackId as Id<"callbacks">);
   });
 
-  convex().onUpdate(api.voice.pendingCallbacks, {}, (rows) => {
-    for (const row of rows) handle(row as Pending);
-  });
+  convex().onUpdate(api.voice.pendingCallbacks, {}, (rows) => handleAll(rows as Pending[]));
   console.log("[callbacks] watching for callbacks to place");
 }

@@ -8,8 +8,12 @@ import { Speaker } from "./cartesia";
 
 type Queued = { text: string; language: Language; onStart?: () => void };
 
+// What CallSpeech needs from a text-to-speech engine. Tests pass a fake.
+export type SpeechEngine = Pick<Speaker, "speak" | "cancel" | "close">;
+
+export type TwilioSink = Pick<WebSocket, "send" | "readyState" | "OPEN">;
+
 export class CallSpeech {
-  private readonly speaker = new Speaker();
   private queue: Queued[] = [];
   private current: string | null = null;
   private marksOutstanding = 0;
@@ -18,8 +22,9 @@ export class CallSpeech {
   private idleWaiters: (() => void)[] = [];
 
   constructor(
-    private readonly twilio: WebSocket,
+    private readonly twilio: TwilioSink,
     private readonly streamSid: string,
+    private readonly speaker: SpeechEngine = new Speaker(),
   ) {}
 
   // True from the first queued sentence until Twilio reports the last one has played.
