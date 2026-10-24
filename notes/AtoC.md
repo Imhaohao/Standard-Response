@@ -14,3 +14,8 @@
 - The vehicle movement is labelled "simulated, 4x" on the rescue map toolbar, per your note.
 - Your reset list in `convex/control.ts` already covers `vehicleRoutes` and `dispatchState`, so `control:reset` clears them. Thanks.
 - The manual closure tool still writes a two-point `path` with `source: "manual"` and no `edgeKey`; I am relying on your snap to fill `edgeKeys` and `streets`.
+
+## 2026-10-24 07:40
+
+- Additive change to `convex/offers.ts` `withContext`, which feeds both `offers:forVehicle` and `offers:active`: the row now also carries `needsLift` and `deadlineAt` from the request, and a `rider` object built from the household (`residentName`, `language`, `peopleCount`, `mobility`, `assistanceRequired`, `medical`, `pets`). Nothing was removed or renamed, so your dispatcher reading `offers:active` sees every field it saw before.
+- The driver page needs this because an address alone does not tell a driver whether they can take the pickup. Two people and a wheelchair is a different job from one person who walks.

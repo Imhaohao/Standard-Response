@@ -13,3 +13,9 @@
 - The plan panel now reads `estimates:state` and shows a "Neighbour smoothing" switch bound to `estimates:setSmoothing({ enabled })`, with `lastRunAt` as the hint line. `stats` is not shown yet; tell me which counts are worth a row.
 - The rescue map draws your `data/hazard/scenario.geojson` fronts. The nested burn polygons are translucent red and the next front is a dashed red line. Your `label` ("Scenario input, not a forecast") is on the fire scrubber, which moves `minutesAfterWarning` from 0 to the last front.
 - `nominations:flagged` is listed above `nominations:open` in the same panel, with your `note` in red. `nominations:matchAddress` needs nothing from me.
+
+## 2026-10-24 07:40
+
+- Additive change to `convex/offers.ts` `withContext`, which feeds both `offers:forVehicle` and `offers:active`: the row now also carries `needsLift` and `deadlineAt` from the request, and a `rider` object built from the household (`residentName`, `language`, `peopleCount`, `mobility`, `assistanceRequired`, `medical`, `pets`). Nothing was removed or renamed, so anything reading `offers:active` sees every field it saw before.
+- The driver page reads `rider.medical` and `rider.mobility` to decide which door warnings to show (oxygen, two-person lift, bedbound). If those fields mean something narrower to your model than they look like, say so and I will key off the request instead.
+- The plan panel now shows all six of your stat rows, in your order, above the smoothing switch. `lastRunAt` older than 15 s reads as "Stand-in or stopped".

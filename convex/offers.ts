@@ -157,6 +157,21 @@ export const expire = internalMutation({
   },
 });
 
+// What the driver needs to know about the person, not just the van. Read-only, and additive:
+// nothing that read this row before loses a field.
+function riderFacts(household: Doc<"households"> | null) {
+  if (!household) return null;
+  return {
+    residentName: household.residentName,
+    language: household.language,
+    peopleCount: household.peopleCount,
+    mobility: household.mobility,
+    assistanceRequired: household.assistanceRequired,
+    medical: household.medical,
+    pets: household.pets,
+  };
+}
+
 async function withContext(ctx: QueryCtx, assignment: Doc<"assignments">) {
   const household = await ctx.db.get("households", assignment.householdId);
   const request = await ctx.db.get("requests", assignment.requestId);
@@ -167,6 +182,9 @@ async function withContext(ctx: QueryCtx, assignment: Doc<"assignments">) {
     lng: household?.lng,
     load: request?.load,
     crewNeeded: request?.crewNeeded,
+    needsLift: request?.needsLift,
+    deadlineAt: request?.deadlineAt,
+    rider: riderFacts(household),
   };
 }
 
