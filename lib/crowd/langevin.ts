@@ -108,6 +108,9 @@ export class CrowdSim {
   readonly segmentEntries: Uint32Array;
   readonly segmentSpeedSum: Float64Array;
   readonly segmentSpeedSamples: Uint32Array;
+  // Driving seconds lost to crowding on each segment: every sample counts 30 s times the share of
+  // the street's free-flow speed the car didn't get.
+  readonly segmentLostSeconds: Float64Array;
 
   private trueShut: Uint8Array;
   private trueBlocked = new Set<number>();
@@ -149,6 +152,7 @@ export class CrowdSim {
     this.segmentEntries = new Uint32Array(ground.segments.length);
     this.segmentSpeedSum = new Float64Array(ground.segments.length);
     this.segmentSpeedSamples = new Uint32Array(ground.segments.length);
+    this.segmentLostSeconds = new Float64Array(ground.segments.length);
     for (const [i, household] of households.entries()) {
       [this.x[i], this.y[i]] = toXY(household);
       this.people[i] = Math.max(1, household.peopleCount);
@@ -180,6 +184,48 @@ export class CrowdSim {
 
   trulyBlocked(): ReadonlySet<number> {
     return this.trueBlocked;
+  }
+
+  // Reads `blockedTruth` again on the next step instead of at the next scheduled refresh.
+  refreshBlockages() {
+    this.lastRefresh = -Infinity;
+  }
+
+  // A copy that carries on from exactly this state with its own noise, for running ahead of the
+  // present: the copy and this simulation evolve independently from here. The ground, router,
+  // parameters and cached route potentials are read-only and shared.
+  fork(random: Random): CrowdSim {
+    const copy = Object.create(CrowdSim.prototype) as CrowdSim;
+    return Object.assign(copy, this, {
+      random,
+      x: this.x.slice(),
+      y: this.y.slice(),
+      vx: this.vx.slice(),
+      vy: this.vy.slice(),
+      fx: this.fx.slice(),
+      fy: this.fy.slice(),
+      state: this.state.slice(),
+      decision: this.decision.slice(),
+      departedAt: this.departedAt.slice(),
+      arrivedAt: this.arrivedAt.slice(),
+      edge: this.edge.slice(),
+      point: this.point.slice(),
+      goal: this.goal.slice(),
+      stuck: this.stuck.slice(),
+      known: this.known.map((segments) => new Set(segments)),
+      discoveries: [...this.discoveries],
+      segmentEntries: this.segmentEntries.slice(),
+      segmentSpeedSum: this.segmentSpeedSum.slice(),
+      segmentSpeedSamples: this.segmentSpeedSamples.slice(),
+      segmentLostSeconds: this.segmentLostSeconds.slice(),
+      trueShut: this.trueShut.slice(),
+      trueBlocked: new Set(this.trueBlocked),
+      potentials: new Map(this.potentials),
+      agentPotential: [...this.agentPotential],
+      hashHead: new Map<number, number>(),
+      hashNext: new Int32Array(this.count),
+      hashKey: new Int32Array(this.count),
+    });
   }
 
   step() {
@@ -316,8 +362,11 @@ export class CrowdSim {
       if (this.state[i] !== STATE.moving || edge < 0) continue;
       const segment = this.router.edgeSegment[edge];
       if (segment < 0) continue;
-      this.segmentSpeedSum[segment] += Math.hypot(this.vx[i], this.vy[i]);
+      const speed = Math.hypot(this.vx[i], this.vy[i]);
+      this.segmentSpeedSum[segment] += speed;
       this.segmentSpeedSamples[segment] += 1;
+      const freeSpeed = this.ground.segments[segment].kph / 3.6;
+      if (freeSpeed > 0) this.segmentLostSeconds[segment] += DECISION_EVERY_SECONDS * Math.max(0, 1 - speed / freeSpeed);
     }
   }
 

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { gaussian, seededRandom } from "../mesh/random";
 import { DEFAULT_DEPARTURE, stepDecision } from "./departure";
+import { advance, FORECAST_HORIZON_MINUTES, FORECAST_WINDOWS, rangeOf, TrafficEnsemble } from "./forecast";
 import { buildGround, cellIndex, toLatLng, toXY } from "./grid";
 import { CrowdSim, DEFAULT_CROWD, Household, ouCoefficients, STATE } from "./langevin";
 import { RoadRouter } from "./navigation";
@@ -111,5 +112,52 @@ describe("Langevin dynamics", () => {
     for (let i = 0; i < sim.count; i++) assert.ok(Number.isFinite(sim.x[i]) && Number.isFinite(sim.y[i]));
     assert.ok(stats.waiting + stats.home + stats.moving + stats.arrived + stats.overrun === households.length);
     assert.ok(sim.state.some((state) => state === STATE.arrived));
+  });
+});
+
+describe("traffic forecast", () => {
+  const random = seededRandom(5);
+  const households = population.filter(() => random() < 0.05);
+  const params = { ...DEFAULT_CROWD, dt: 1 };
+
+  it("forks a simulation that carries on independently of the original", () => {
+    const sim = new CrowdSim(ground, households, seededRandom(6), () => new Set(), params);
+    advance(sim, 20);
+    const before = sim.x.slice();
+    const a = sim.fork(seededRandom(7));
+    const b = sim.fork(seededRandom(7));
+    advance(a, 30);
+    advance(b, 30);
+    assert.deepEqual(a.x, b.x);
+    assert.deepEqual(sim.x, before);
+    assert.equal(sim.minutes, 20);
+    assert.ok(a.stats().arrived >= sim.stats().arrived);
+  });
+
+  it("summarises an ensemble's hour ahead as ranges over its members", () => {
+    const blocked = () => new Set<number>();
+    const ensemble = new TrafficEnsemble(ground, households, blocked, 3, 11, params);
+    ensemble.advanceTo(15);
+    const forecast = ensemble.forecast();
+    assert.equal(forecast.members, 3);
+    assert.equal(forecast.baseMinute, 15);
+    assert.equal(forecast.timeline.length, FORECAST_HORIZON_MINUTES / 5 + 1);
+    assert.equal(forecast.windows.length, FORECAST_WINDOWS.length);
+    const arrived = forecast.timeline.map((point) => point.arrived.median ?? 0);
+    assert.ok(arrived.every((value, k) => k === 0 || value >= arrived[k - 1]));
+    for (const window of forecast.windows) {
+      for (const row of [...window.streets, ...window.segments]) {
+        assert.ok((row.lostCarMinutes.p5 ?? 0) <= (row.lostCarMinutes.median ?? 0));
+        assert.ok((row.lostCarMinutes.median ?? 0) <= (row.lostCarMinutes.p95 ?? 0));
+        if (row.slowdown.median !== null) assert.ok(row.slowdown.median >= 0 && row.slowdown.median <= 1);
+      }
+    }
+    // Forecasting leaves the members at the present.
+    assert.equal(ensemble.minutes, 15);
+  });
+
+  it("gives an empty range for no values and quantiles otherwise", () => {
+    assert.deepEqual(rangeOf([]), { median: null, p5: null, p95: null, n: 0 });
+    assert.deepEqual(rangeOf([3, null, 1, 2]), { median: 2, p5: 1, p95: 3, n: 3 });
   });
 });
