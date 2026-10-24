@@ -12,8 +12,13 @@ import { hangUp, StreamParameters } from "./twilio";
 
 // One live phone call: Twilio audio in, Cartesia speech-to-text, the conversation, Cartesia voice out.
 
-// Silence after a finalized transcript before we treat the resident's turn as over.
-const TURN_GAP_MS = 250;
+// Silence after a finalized transcript before we treat the resident's turn as over. Speech-to-text
+// ends a complete sentence with a stop mark; a fragment without one ("my address is", "现在在")
+// usually means the resident paused mid-thought, so we wait longer before answering.
+const TURN_GAP_MS = 300;
+const UNFINISHED_TURN_GAP_MS = 1300;
+const SENTENCE_END = /[.?!。？！]["'”」』)]?$/;
+const TRAILING_OFF = /(\.\.\.|…|[,、，:;\-–—])$/;
 // If Claude hasn't answered by then, a short backchannel covers the wait.
 const BACKCHANNEL_AFTER_MS = 300;
 const BARGE_IN_MIN_WORDS = 2;
@@ -33,6 +38,11 @@ type TwilioMessage =
   | { event: "connected" };
 
 type TurnTiming = { spokeAt: number; heardAt: () => number | null };
+
+const soundsFinished = (text: string) => {
+  const trimmed = text.trim();
+  return SENTENCE_END.test(trimmed) && !TRAILING_OFF.test(trimmed);
+};
 
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
@@ -148,7 +158,8 @@ class CallSession implements LiveCall {
     if (isFinal) this.heardSoFar += text;
     if (this.heardSoFar.trim() === "") return;
     if (this.turnTimer) clearTimeout(this.turnTimer);
-    this.turnTimer = setTimeout(() => void this.takeTurn(), TURN_GAP_MS);
+    const gap = soundsFinished(this.heardSoFar) ? TURN_GAP_MS : UNFINISHED_TURN_GAP_MS;
+    this.turnTimer = setTimeout(() => void this.takeTurn(), gap);
   }
 
   private async takeTurn() {
