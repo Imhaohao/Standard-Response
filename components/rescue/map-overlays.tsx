@@ -83,9 +83,10 @@ function VehicleMark({ vehicle, busy }: { vehicle: Vehicle; busy: boolean }) {
 function VehicleRoute({ route, committed }: { route: Route; committed: boolean }) {
   return (
     <>
-      <GeoLine route={route.remaining} stroke={PAPER} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
+      <GeoLine route={route.remaining} fill="none" stroke={PAPER} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
       <GeoLine
         route={route.remaining}
+        fill="none"
         stroke={INK}
         strokeWidth={committed ? 2 : 1.4}
         strokeDasharray={committed ? undefined : "5 4"}
