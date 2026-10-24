@@ -10,7 +10,8 @@ import { ROUND_MASS } from "@/lib/mesh/rounds";
 
 export type Technology = "langevin" | "departure" | "federated" | "mesh";
 
-type Entry = { name: string; summary: string; equation?: string; points: string[] };
+// Also used by the readiness survey add-on (components/prepare/technology.tsx) for its own entries.
+export type Entry = { name: string; summary: string; equation?: string; points: string[] };
 
 const FEATURES = FEATURE_NAMES.filter((name) => name !== "bias").map((name) => name.replaceAll("_", " "));
 
@@ -64,19 +65,22 @@ export const TECHNOLOGIES: Record<Technology, Entry> = {
 
 // The label on a panel: which technologies it runs on.
 export function TechTags({ uses, className = "px-3 pb-1" }: { uses: Technology[]; className?: string }) {
+  return <EntryTags entries={uses.map((tech) => TECHNOLOGIES[tech])} className={className} />;
+}
+
+export function EntryTags({ entries, className = "px-3 pb-1" }: { entries: Entry[]; className?: string }) {
   return (
     <ul className={`flex flex-wrap gap-1 ${className}`} aria-label="Technology">
-      {uses.map((tech) => (
-        <li key={tech} title={TECHNOLOGIES[tech].summary} className="rounded-full bg-panel-raised px-2 py-0.5 text-[0.75rem] font-semibold leading-tight text-on-panel">
-          {TECHNOLOGIES[tech].name}
+      {entries.map((entry) => (
+        <li key={entry.name} title={entry.summary} className="rounded-full bg-panel-raised px-2 py-0.5 text-[0.75rem] font-semibold leading-tight text-on-panel">
+          {entry.name}
         </li>
       ))}
     </ul>
   );
 }
 
-function Explanation({ tech, children }: { tech: Technology; children?: ReactNode }) {
-  const entry = TECHNOLOGIES[tech];
+function Explanation({ entry, children }: { entry: Entry; children?: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="type-small">{entry.summary}</p>
@@ -96,13 +100,21 @@ function Explanation({ tech, children }: { tech: Technology; children?: ReactNod
 // "How it works", folded away under a panel. `children` says what this panel uses it for.
 export function HowItWorks({ tech, open = false, inset = "px-3", children }: { tech: Technology; open?: boolean; inset?: string; children?: ReactNode }) {
   return (
+    <EntryHowItWorks entry={TECHNOLOGIES[tech]} open={open} inset={inset}>
+      {children}
+    </EntryHowItWorks>
+  );
+}
+
+export function EntryHowItWorks({ entry, open = false, inset = "px-3", children }: { entry: Entry; open?: boolean; inset?: string; children?: ReactNode }) {
+  return (
     <details open={open} className="group border-t border-panel-raised">
       <summary className={`type-small flex cursor-pointer list-none items-center justify-between gap-2 py-2 ${inset} font-semibold hover:bg-panel-raised/50 [&::-webkit-details-marker]:hidden`}>
-        How it works: {TECHNOLOGIES[tech].name}
+        How it works: {entry.name}
         <CaretDown weight="bold" className="size-3.5 shrink-0 text-on-panel-muted transition-transform duration-150 group-open:rotate-180" aria-hidden />
       </summary>
       <div className={`pb-3 ${inset}`}>
-        <Explanation tech={tech}>{children}</Explanation>
+        <Explanation entry={entry}>{children}</Explanation>
       </div>
     </details>
   );

@@ -139,3 +139,12 @@ Three features beside the core flow, with their own tables and pages; nothing in
 - A traffic forecast for the agency from the same dynamics: `npm run forecast:traffic` follows the incident with an ensemble of simulations and publishes the next hour's slow streets, with ranges, to `/mesh/agency`.
 
 `npm run test:mesh` runs the add-on's tests. `npx tsx scripts/mesh/simulate.ts` regenerates `data/flow-results.json`.
+
+## Readiness survey add-on
+
+Decentralized data collection for disaster preparedness, before any disaster and separate from the evacuation night. Households answer sensitive questions on their own phones: whether their tap water is at risk, whether they could pay to evacuate, whether someone depends on powered medical equipment. Answers never leave the phone. `docs/prepare.md` has the design, the privacy accounting, the simulation results and the limits.
+
+- `/prepare`: a household's phone. Answers stay on it. With consent, topic by topic, it adds randomized-response counts and noised federated-learning updates to one vector that it mixes with nearby phones (tabs on one device, or phones paired by QR code). Volunteer gateways upload only mixes of five or more households.
+- `/prepare/county`: what the county learns. Shares by census block group with 95% intervals, and two shared models (unsafe tap water, can't afford to leave) that phones use to show each home its own risk.
+
+`npm run test:prepare` runs the add-on's tests. `npx tsx scripts/prepare/simulate.ts --seeds 3` regenerates `data/prepare-results.json`; add `--publish` (with `--env-file=.env.local`) to send a simulated campaign through Convex so `/prepare/county` has data. `npx convex run prepare:clear` empties its tables.

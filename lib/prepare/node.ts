@@ -187,9 +187,9 @@ export class SurveyPhone {
 
   // Meetings to the nearest gateway: 0 for a gateway, else one more than the best route heard of
   // in the last ROUTE_TTL_MS.
-  hops() {
+  hops(now = this.options.now()) {
     if (this.sink) return 0;
-    return this.options.now() - this.route.at > ROUTE_TTL_MS ? MAX_HOPS : this.route.hops;
+    return now - this.route.at > ROUTE_TTL_MS ? MAX_HOPS : this.route.hops;
   }
 
   private learnRoute(hello: Hello) {

@@ -16,6 +16,8 @@ const SCREENS: Screen[] = [
   { href: "/driver", label: "Driver page" },
   // The mesh add-on's three pages, which link to each other.
   { href: "/flow", label: "Mesh and flow", also: ["/mesh", "/mesh/agency"] },
+  // The readiness survey add-on: preparedness data from households, before any disaster.
+  { href: "/prepare/county", label: "Readiness survey", also: ["/prepare"] },
 ];
 
 function ScreenNav() {

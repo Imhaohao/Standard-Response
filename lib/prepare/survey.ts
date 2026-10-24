@@ -26,7 +26,7 @@ export const TOPIC_LABELS: Record<Topic, { title: string; why: string }> = {
 };
 
 export type Option = { value: string; label: string };
-export type Question = { id: QuestionId; topic: Topic; prompt: string; options: Option[] };
+export type Question = { id: QuestionId; topic: Topic; prompt: string; options: readonly Option[] };
 
 export const QUESTIONS = [
   {
