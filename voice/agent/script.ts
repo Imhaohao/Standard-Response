@@ -45,9 +45,15 @@ function readbackParts(record: AgentRecord, lines: Lines) {
 
 // The facts one answer just gave, said back from templates: "2 people, with pets." It can't
 // overstate anything, so it is spoken in every language, unlike Claude's own acknowledgment.
-const ECHO_PARTS: ((changed: AgentRecord, lines: Lines) => string | undefined)[] = [
+type EchoPart = (changed: AgentRecord, lines: Lines) => string | undefined;
+
+// Whole clauses ("you can't leave on your own") are a sentence each; the short household facts
+// share one ("2 people, with pets."), so the echo never crams a clause into a list.
+const ECHO_CLAUSES: EchoPart[] = [
   (changed, lines) => (changed.canLeave ? lines.leaveEcho[changed.canLeave] : undefined),
   (changed, lines) => (changed.hasCar === true ? lines.hasCarEcho : undefined),
+];
+const ECHO_FACTS: EchoPart[] = [
   (changed, lines) => (changed.peopleCount !== undefined ? lines.people(changed.peopleCount) : undefined),
   (changed, lines) => (changed.mobility ? lines.mobility[changed.mobility] : undefined),
   (changed, lines) => (changed.medical?.includes("oxygen") ? lines.oxygen : undefined),
@@ -56,12 +62,16 @@ const ECHO_PARTS: ((changed: AgentRecord, lines: Lines) => string | undefined)[]
   (changed, lines) => (changed.hasCar === false ? lines.noCar : undefined),
 ];
 
+const said = (parts: EchoPart[], changed: AgentRecord, lines: Lines) =>
+  parts.map((part) => part(changed, lines)).filter((part): part is string => part !== undefined);
+
+const sentence = (text: string, lines: Lines) => `${text.charAt(0).toUpperCase()}${text.slice(1)}${lines.sentenceEnd ?? "."}`;
+
 export function echo(changed: AgentRecord, language: Language) {
   const lines = LINES[language];
-  const parts = ECHO_PARTS.map((part) => part(changed, lines)).filter((part): part is string => part !== undefined);
-  if (parts.length === 0) return "";
-  const summary = parts.join(lines.listSeparator);
-  return `${summary.charAt(0).toUpperCase()}${summary.slice(1)}${lines.sentenceEnd ?? "."}`;
+  const facts = said(ECHO_FACTS, changed, lines);
+  const sentences = [...said(ECHO_CLAUSES, changed, lines), ...(facts.length ? [facts.join(lines.listSeparator)] : [])];
+  return sentences.map((text) => sentence(text, lines)).join(lines.sentenceGap ?? " ");
 }
 
 export function readback(record: AgentRecord, language: Language) {

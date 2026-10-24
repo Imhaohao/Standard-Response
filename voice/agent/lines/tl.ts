@@ -47,7 +47,7 @@ export const TL: Lines = {
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
   statusUnchanged: "Wala pa pong nagbabago mula nang sabihin ko kanina. Sasabihin ko po agad kapag may nagbago.",
   holdSteps: [
-    "Habang naghihintay po, ilagay ninyo sa isang bag ang mga gamot, salamin, ID at charger ng telepono.",
+    "Ilagay po ninyo sa isang bag ang mga gamot, salamin, ID at charger ng telepono.",
     "Magsuot po kayo ng matibay na sapatos, at manatili po sa iisang kuwarto ang lahat ng aalis kasama ninyo.",
     "Kung kaya po, buksan ninyo ang ilaw sa labas para madaling mahanap ang bahay ninyo.",
   ],

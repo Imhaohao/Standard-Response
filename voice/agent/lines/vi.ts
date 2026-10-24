@@ -47,7 +47,7 @@ export const VI: Lines = {
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
   statusUnchanged: "Dạ, chưa có gì thay đổi so với lúc tôi vừa nói. Có thay đổi là tôi báo ngay cho quý vị.",
   holdSteps: [
-    "Trong lúc chờ, quý vị hãy bỏ thuốc, kính, giấy tờ tùy thân và sạc điện thoại vào một túi.",
+    "Quý vị hãy bỏ thuốc, kính, giấy tờ tùy thân và sạc điện thoại vào một túi.",
     "Quý vị hãy mang giày chắc chắn, và để mọi người sẽ đi cùng ở chung một phòng.",
     "Nếu được, quý vị hãy bật đèn bên ngoài để dễ tìm thấy nhà mình.",
   ],

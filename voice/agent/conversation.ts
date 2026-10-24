@@ -318,8 +318,11 @@ export class Conversation {
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const said = answer.blocked ? (this.holding ? [this.rideUpdate()] : []) : this.freshReply(answer.text);
-    const lines = [...greeting, ...this.feelingLines(heard, status, urgent), ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
+    const feeling = this.feelingLines(heard, status, urgent);
+    // A reply that names the feeling again after the feeling line is scripted sympathy: dropped.
+    const repeatsFeeling = feeling.length > 0 && FEELING_WORDS.test(answer.text);
+    const said = answer.blocked ? (this.holding ? [this.rideUpdate()] : []) : repeatsFeeling ? [] : this.freshReply(answer.text);
+    const lines = [...greeting, ...feeling, ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
@@ -831,6 +834,7 @@ export class Conversation {
 }
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
+const FEELING_WORDS = /(frighten|scar(y|ed)|terrif|afraid|worried|fear|asustad|miedo|aterr|preocupad)/i;
 // How far back a status line still counts as just heard. Reaching hold three turns after a
 // status change replayed the whole reassigning line twenty seconds after the first.
 const RECENT_AGENT_TURNS = 3;
