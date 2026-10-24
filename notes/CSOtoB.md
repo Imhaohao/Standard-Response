@@ -91,3 +91,14 @@ Two sponsor builds landed on `main` and are deployed to `robust-penguin-834`. Bo
 Tests: `npm run test:workflow` (7 cases: full ladder on schedule, answer stops it, inbound answer stops it, text reply stops it, stand-in unchanged, clock speed).
 
 **Apify endpoint** (`convex/http.ts`, `POST /apify/zone-status` on `https://robust-penguin-834.convex.site`): it doesn't touch voice/, but when a zone with riders goes to warning it calls `riders:setZone` and `control:issueWarning`, so the dialer starts as if the dispatcher had drawn the zone.
+
+## 2026-10-24 16:55
+
+Moss (sponsor) is now the first layer of every interpreter turn. It's on `main` and does nothing until keys exist, so live calls are unchanged today.
+
+- **What it does** (`voice/knowledge/moss.ts`): `interpret()` calls `recall(question, utterance, hazard, language)` before Claude. It searches two Moss indexes in memory: `rollcall-principles` (each of the 11 `CALL_TAKER_PRINCIPLES` turned into concrete situation cards, in English and Spanish) and `rollcall-911-dialogs` (resident turns from scripted calls, each with its gold reading in our wire format). The top 2 principles and top 3 moments with a score of at least 0.35 go into the per-turn prompt, after the cached system prompt. The budget is 80 ms. Until the indexes have loaded, or on any error, the turn runs without guidance.
+- **To turn it on:** set `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` in `.env.local` and as Fly secrets (`fly secrets set MOSS_PROJECT_ID=... MOSS_PROJECT_KEY=... --app rollcall-voice`). `VOICE_KNOWLEDGE=off` turns it off for an A/B exam run.
+- **Image size:** `@inferedge/moss` embeds the query locally with `@huggingface/transformers` and `onnxruntime-node` (about 210 MB in `node_modules`), so the Fly image grows by roughly that much. Importing it takes about 160 ms at boot. `loadIndex` downloads the indexes and the MiniLM model once per machine.
+- **Interpreter change:** `interpret` is now `interpretFor(turn, currentHazard())`. `interpretFor`, `parse`, `SYSTEM` and `OUTPUT_SCHEMA` are exported for the bank's generator. The call flow is unchanged.
+- **Bank** (`voice/knowledge/generate.ts`, `checker.ts`): Haiku 5.5 writes scripted calls seeded from the caller voice of 518 real 911 calls (spikecodes/911-call-transcripts, MIT). The live interpreter reads every turn a second time, and only turns where both readings agree are indexed (64% on the pilot). Spoken lines must pass `guardAcknowledgment`.
+- **Blocked:** the shared Anthropic key returned "credit balance is too low" at 16:45, so the full bank stopped at a 16-script pilot. That same key runs live calls.
