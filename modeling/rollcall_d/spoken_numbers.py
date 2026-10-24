@@ -112,3 +112,57 @@ def digits_in(text: str) -> list[tuple[str, list[str]]]:
         found.append((run_to_digits(tokens[i:j]), tokens[j:]))
         i = j
     return found
+
+
+# ---- the other direction: digits to the words a resident would say -------------------------------
+
+EN_UNITS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+            "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+EN_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+ES_UNITS = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce",
+            "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno",
+            "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"]
+ES_TENS = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"]
+ES_HUNDREDS = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos",
+               "ochocientos", "novecientos"]
+
+
+def _en_pair(n: int) -> str:
+    if n < 20:
+        return EN_UNITS[n]
+    return EN_TENS[n // 10] + ("-" + EN_UNITS[n % 10] if n % 10 else "")
+
+
+def say_en(n: int) -> str:
+    """House numbers the way people say them: 486 -> 'four eighty-six', 2609 -> 'twenty-six oh nine'."""
+    if n < 100:
+        return _en_pair(n)
+    if n < 1000:
+        rest = n % 100
+        return f"{EN_UNITS[n // 100]} " + (_en_pair(rest) if rest >= 10 else f"oh {EN_UNITS[rest]}" if rest else "hundred")
+    if n % 1000 == 0:
+        return f"{_en_pair(n // 1000)} thousand"
+    high, low = divmod(n, 100)
+    if low == 0:
+        return f"{_en_pair(high)} hundred"
+    return f"{_en_pair(high)} " + (_en_pair(low) if low >= 10 else f"oh {EN_UNITS[low]}")
+
+
+def _es_below_100(n: int) -> str:
+    if n < 30:
+        return ES_UNITS[n]
+    return ES_TENS[n // 10] + (f" y {ES_UNITS[n % 10]}" if n % 10 else "")
+
+
+def say_es(n: int) -> str:
+    """Spanish cardinal: 486 -> 'cuatrocientos ochenta y seis', 2609 -> 'dos mil seiscientos nueve'."""
+    parts = []
+    thousands, n = divmod(n, 1000)
+    if thousands:
+        parts.append("mil" if thousands == 1 else f"{_es_below_100(thousands)} mil")
+    hundreds, rest = divmod(n, 100)
+    if hundreds:
+        parts.append("cien" if hundreds == 1 and rest == 0 else ES_HUNDREDS[hundreds])
+    if rest or not parts:
+        parts.append(_es_below_100(rest))
+    return " ".join(parts)

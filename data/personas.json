@@ -1,0 +1,5687 @@
+[
+ {
+  "id": "P-001",
+  "name": "Carmen Ortiz",
+  "age": 79,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1001",
+  "address": "486 West Mariposa Street, Altadena",
+  "lat": 34.195227,
+  "lng": -118.157957,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "next_turn"
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Carmen, 79, speaks Spanish. You first say it's just you. Then you remember your son is home: he uses a wheelchair and needs two people to lift him. Ask whether someone is coming."
+ },
+ {
+  "id": "P-002",
+  "name": "Walter Briggs",
+  "age": 84,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1002",
+  "address": "2609 North Lincoln Avenue, Altadena",
+  "lat": 34.190571,
+  "lng": -118.159083,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Walter, 84. You live alone with your dog and use a wheelchair; you need one person to help you out. You use oxygen. You're a little hard of hearing, so ask the agent to repeat once."
+ },
+ {
+  "id": "P-003",
+  "name": "Lucille Haynes",
+  "age": 89,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1003",
+  "address": "796 West Altadena Drive, Altadena",
+  "lat": 34.199253,
+  "lng": -118.16291,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Lucille Haynes, 89, 796 West Altadena Drive, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car."
+ },
+ {
+  "id": "P-004",
+  "name": "Tomás Reyes",
+  "age": 93,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1004",
+  "address": "2829 North Marengo Avenue, Altadena",
+  "lat": 34.193476,
+  "lng": -118.141127,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "second_voice"
+  },
+  "card": "Tomás Reyes, 93, 2829 North Marengo Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker. You have a car you can use. At first you get canLeave wrong (you say \"yes\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-005",
+  "name": "Bernice Cole",
+  "age": 85,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1005",
+  "address": "45 East Mariposa Street, Altadena",
+  "lat": 34.192195,
+  "lng": -118.147375,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "2615 Catherine Road, Altadena",
+  "card": "Bernice Cole, 85, 45 East Mariposa Street, Altadena. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have a car you can use. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-006",
+  "name": "Harold Kim",
+  "age": 67,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1006",
+  "address": "3100 Olive Avenue, Altadena",
+  "lat": 34.198198,
+  "lng": -118.152871,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"none\"",
+   "when": "second_voice"
+  },
+  "card": "Harold Kim, 67, 3100 Olive Avenue, Altadena. There are 4 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. You have a dog. At first you get assistanceRequired wrong (you say \"none\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-007",
+  "name": "Rosario Méndez",
+  "age": 77,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1007",
+  "address": "280 Marathon Road, Altadena",
+  "lat": 34.198138,
+  "lng": -118.139487,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice",
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "second_voice"
+  },
+  "card": "Rosario Méndez, 77, 280 Marathon Road, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a wheelchair. You have no car. At first you get mobility wrong (you say \"walks\"), then correct it when someone else in the room reminds you. How you talk: second voice, asks reassurance."
+ },
+ {
+  "id": "P-008",
+  "name": "Clarence Odum",
+  "age": 92,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1008",
+  "address": "521 West Harriet Street, Altadena",
+  "lat": 34.19378,
+  "lng": -118.159473,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "panic",
+   "second_voice",
+   "asks_reassurance",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "second_voice"
+  },
+  "neighborAddress": "3375 North Marengo Avenue, Altadena",
+  "card": "Clarence Odum, 92, 521 West Harriet Street, Altadena. You live alone. The person who needs the most help uses a power wheelchair. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it when someone else in the room reminds you. How you talk: hard of hearing, panic, second voice, asks reassurance, nominates neighbor."
+ },
+ {
+  "id": "P-009",
+  "name": "Mei-Ling Chen",
+  "age": 86,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1009",
+  "address": "78 West Terrace Street, Altadena",
+  "lat": 34.194016,
+  "lng": -118.149465,
+  "onFile": {
+   "mobility": "walks",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Mei-Ling Chen, 86, 78 West Terrace Street, Altadena. You live alone. The person who needs the most help can walk. You have no car."
+ },
+ {
+  "id": "P-010",
+  "name": "Darnell Washington",
+  "age": 89,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1010",
+  "address": "116 East Palm Street, Altadena",
+  "lat": 34.19572,
+  "lng": -118.144147,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "second_voice"
+  },
+  "card": "Darnell Washington, 89, 116 East Palm Street, Altadena. You live alone. The person who needs the most help uses a walker. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-011",
+  "name": "Josefina Flores",
+  "age": 83,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1011",
+  "address": "143 West Harriet Street, Altadena",
+  "lat": 34.191471,
+  "lng": -118.15216,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "neighborAddress": "3503 Giddings Ranch Road, Altadena",
+  "card": "Josefina Flores, 83, 143 West Harriet Street, Altadena. There are 2 of you at home. The person who needs the most help uses a walker. You use oxygen. You have no car. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: panic, nominates neighbor."
+ },
+ {
+  "id": "P-012",
+  "name": "Raymond Takahashi",
+  "age": 87,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1012",
+  "address": "118 West Poppyfields Drive, Altadena",
+  "lat": 34.198819,
+  "lng": -118.14815,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Raymond Takahashi, 87, 118 West Poppyfields Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a power wheelchair and needs one person to help getting out. You have no car."
+ },
+ {
+  "id": "P-013",
+  "name": "Esperanza Gutiérrez",
+  "age": 71,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1013",
+  "address": "3037 Ewing Street, Altadena",
+  "lat": 34.196818,
+  "lng": -118.145067,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic",
+   "tangents",
+   "asks_reassurance",
+   "flames"
+  ],
+  "card": "Esperanza Gutiérrez, 71, 3037 Ewing Street, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: panic, tangents, asks reassurance, flames."
+ },
+ {
+  "id": "P-014",
+  "name": "Kwame Mensah",
+  "age": 90,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1014",
+  "address": "3445 North Fair Oaks Avenue, Altadena",
+  "lat": 34.203735,
+  "lng": -118.143412,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Kwame Mensah, 90, 3445 North Fair Oaks Avenue, Altadena. You live alone. The person who needs the most help uses a power wheelchair. You have no car. How you talk: tangents."
+ },
+ {
+  "id": "P-015",
+  "name": "Hyun-woo Park",
+  "age": 74,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1015",
+  "address": "3024 Glen Avenue, Altadena",
+  "lat": 34.196857,
+  "lng": -118.151066,
+  "onFile": {
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "895 Chevron Court, Altadena",
+  "card": "Hyun-woo Park, 74, 3024 Glen Avenue, Altadena. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-016",
+  "name": "Gloria Jefferson",
+  "age": 84,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1016",
+  "address": "3135 Ewing Street, Altadena",
+  "lat": 34.198442,
+  "lng": -118.144209,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "readback"
+  },
+  "card": "Gloria Jefferson, 84, 3135 Ewing Street, Altadena. You live alone. The person who needs the most help uses a walker. You have no car. At first you get mobility wrong (you say \"walks\"), then correct it."
+ },
+ {
+  "id": "P-017",
+  "name": "Leon Price",
+  "age": 93,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1017",
+  "address": "148 West Palm Street, Altadena",
+  "lat": 34.197413,
+  "lng": -118.149482,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "453 West Mendocino Street, Altadena",
+  "card": "Leon Price, 93, 148 West Palm Street, Altadena. There are 3 of you at home. The person who needs the most help uses a power wheelchair. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-018",
+  "name": "Shirley Holloway",
+  "age": 67,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1018",
+  "address": "410 Punahou Street, Altadena",
+  "lat": 34.197817,
+  "lng": -118.136778,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents",
+   "medical"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Shirley Holloway, 67, 410 Punahou Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: tangents, medical."
+ },
+ {
+  "id": "P-019",
+  "name": "Arturo Navarro",
+  "age": 73,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1019",
+  "address": "3237 Lincoln Avenue, Altadena",
+  "lat": 34.201171,
+  "lng": -118.159411,
+  "onFile": {
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Arturo Navarro, 73, 3237 Lincoln Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help is bedbound and needs two people to lift. You have no car."
+ },
+ {
+  "id": "P-020",
+  "name": "Yolanda Banks",
+  "age": 69,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1020",
+  "address": "3043 Santa Anita Avenue, Altadena",
+  "lat": 34.196715,
+  "lng": -118.135203,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "neighborAddress": "356 Parkman Street, Altadena",
+  "card": "Yolanda Banks, 69, 3043 Santa Anita Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-021",
+  "name": "Odessa Pruitt",
+  "age": 83,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1021",
+  "address": "71 West Las Flores Drive, Altadena",
+  "lat": 34.199944,
+  "lng": -118.146526,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Odessa Pruitt, 83, 71 West Las Flores Drive, Altadena. There are 3 of you at home. The person who needs the most help uses a walker. You have no car. You have a dog. At first you get canLeave wrong (you say \"yes\"), then correct it."
+ },
+ {
+  "id": "P-022",
+  "name": "Felipe Salazar",
+  "age": 77,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1022",
+  "address": "206 Marathon Road, Altadena",
+  "lat": 34.198729,
+  "lng": -118.140817,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "800 Florecita Terrace, Altadena",
+  "card": "Felipe Salazar, 77, 206 Marathon Road, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-023",
+  "name": "Mae Whitfield",
+  "age": 81,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1023",
+  "address": "2515 North El Sol Avenue, Altadena",
+  "lat": 34.18891,
+  "lng": -118.167221,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Mae Whitfield, 81, 2515 North El Sol Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You use oxygen. You have no car. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-024",
+  "name": "Rogelio Ramírez",
+  "age": 76,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1024",
+  "address": "721 Ventura Street, Altadena",
+  "lat": 34.192997,
+  "lng": -118.164165,
+  "onFile": {
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "asks_reassurance",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "327 West Loma Alta Drive, Altadena",
+  "card": "Rogelio Ramírez, 76, 721 Ventura Street, Altadena. You speak Spanish. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. How you talk: hard of hearing, asks reassurance, nominates neighbor."
+ },
+ {
+  "id": "P-025",
+  "name": "Ruth Goldberg",
+  "age": 77,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1025",
+  "address": "252 East Montana Street, Altadena",
+  "lat": 34.180073,
+  "lng": -118.145504,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "129 West Mendocino Street, Altadena",
+  "card": "Ruth Goldberg, 77, 252 East Montana Street, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: tangents, nominates neighbor."
+ },
+ {
+  "id": "P-026",
+  "name": "Alma Castillo",
+  "age": 88,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1026",
+  "address": "445 West Mariposa Street, Altadena",
+  "lat": 34.195412,
+  "lng": -118.156916,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "medical",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "2019 North Summit Avenue, Altadena",
+  "card": "Alma Castillo, 88, 445 West Mariposa Street, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help uses a walker. You have no car. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: medical, nominates neighbor."
+ },
+ {
+  "id": "P-027",
+  "name": "Gustavo Herrera",
+  "age": 91,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1027",
+  "address": "429 West Terrace Street, Altadena",
+  "lat": 34.196515,
+  "lng": -118.155629,
+  "onFile": {
+   "mobility": "walks",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "355 East Mendocino Street, Altadena",
+  "card": "Gustavo Herrera, 91, 429 West Terrace Street, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: hard of hearing, nominates neighbor."
+ },
+ {
+  "id": "P-028",
+  "name": "Wen Liu",
+  "age": 87,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1028",
+  "address": "955 La Canada Verdugo Road, Altadena",
+  "lat": 34.18653,
+  "lng": -118.170846,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Wen Liu, 87, 955 La Canada Verdugo Road, Altadena. There are 2 of you at home. The person who needs the most help uses a power wheelchair. You have a car you can use. You have a dog. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-029",
+  "name": "Beatrice Fontaine",
+  "age": 79,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1029",
+  "address": "974 La Canada Verdugo Road, Altadena",
+  "lat": 34.185641,
+  "lng": -118.171651,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Beatrice Fontaine, 79, 974 La Canada Verdugo Road, Altadena. There are 3 of you at home. The person who needs the most help uses a walker. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: tangents."
+ },
+ {
+  "id": "P-030",
+  "name": "Ming Zhou",
+  "age": 87,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1030",
+  "address": "843 Florecita Way, Altadena",
+  "lat": 34.201773,
+  "lng": -118.162925,
+  "onFile": {
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Ming Zhou, 87, 843 Florecita Way, Altadena. There are 2 of you at home. The person who needs the most help uses a power wheelchair and needs one person to help getting out. You have no car."
+ },
+ {
+  "id": "P-031",
+  "name": "Juanita Delgado",
+  "age": 81,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1031",
+  "address": "2817 Saint James Place, Altadena",
+  "lat": 34.193219,
+  "lng": -118.136152,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "readback"
+  },
+  "card": "Juanita Delgado, 81, 2817 Saint James Place, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have a car you can use. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-032",
+  "name": "Earl Simmons",
+  "age": 67,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1032",
+  "address": "261 East Montana Street, Altadena",
+  "lat": 34.180548,
+  "lng": -118.145352,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Earl Simmons, 67, 261 East Montana Street, Altadena. There are 2 of you at home. The person who needs the most help uses a walker. You have no car."
+ },
+ {
+  "id": "P-033",
+  "name": "Dolores Aguilar",
+  "age": 73,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1033",
+  "address": "486 Devirian Place, Altadena",
+  "lat": 34.196008,
+  "lng": -118.157606,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "148 East Loma Alta Drive, Altadena",
+  "card": "Dolores Aguilar, 73, 486 Devirian Place, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help uses a walker. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-034",
+  "name": "Vernon Brooks",
+  "age": 72,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1034",
+  "address": "814 West Altadena Drive, Altadena",
+  "lat": 34.199393,
+  "lng": -118.163389,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Vernon Brooks, 72, 814 West Altadena Drive, Altadena. There are 3 of you at home. The person who needs the most help is bedbound and needs two people to lift. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it."
+ },
+ {
+  "id": "P-035",
+  "name": "Ana Morales",
+  "age": 81,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1035",
+  "address": "68 West Laurel Drive, Altadena",
+  "lat": 34.200232,
+  "lng": -118.14631,
+  "onFile": {
+   "mobility": "walks",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Ana Morales, 81, 68 West Laurel Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it."
+ },
+ {
+  "id": "P-036",
+  "name": "Hattie Tate",
+  "age": 77,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1036",
+  "address": "3277 Tonia Avenue, Altadena",
+  "lat": 34.200233,
+  "lng": -118.141735,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Hattie Tate, 77, 3277 Tonia Avenue, Altadena. There are 4 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. How you talk: tangents."
+ },
+ {
+  "id": "P-037",
+  "name": "Ignacio Villanueva",
+  "age": 67,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": "R-1037",
+  "address": "444 Alameda Street, Altadena",
+  "lat": 34.184345,
+  "lng": -118.141413,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Ignacio Villanueva, 67, 444 Alameda Street, Altadena. You speak Spanish. There are 3 of you at home. The person who needs the most help uses a wheelchair. You have no car. You have a dog. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-038",
+  "name": "Pearl Greene",
+  "age": 81,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1038",
+  "address": "2482 Catherine Road, Altadena",
+  "lat": 34.187366,
+  "lng": -118.135243,
+  "onFile": {
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "medical"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"none\"",
+   "when": "readback"
+  },
+  "card": "Pearl Greene, 81, 2482 Catherine Road, Altadena. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. At first you get assistanceRequired wrong (you say \"none\"), then correct it. How you talk: hard of hearing, medical."
+ },
+ {
+  "id": "P-039",
+  "name": "Samuel Okafor",
+  "age": 91,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1039",
+  "address": "3223 Grandeur Avenue, Altadena",
+  "lat": 34.200099,
+  "lng": -118.151418,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist"
+  },
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Samuel Okafor, 91, 3223 Grandeur Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-040",
+  "name": "Consuelo Vega",
+  "age": 72,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": "R-1040",
+  "address": "133 East Pine Street, Altadena",
+  "lat": 34.194965,
+  "lng": -118.144155,
+  "onFile": {
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none"
+  },
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "readback"
+  },
+  "card": "Consuelo Vega, 72, 133 East Pine Street, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have no car. At first you get mobility wrong (you say \"walks\"), then correct it."
+ },
+ {
+  "id": "P-041",
+  "name": "Vernon Haynes",
+  "age": 77,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "403 East Marigold Street, Altadena",
+  "lat": 34.195277,
+  "lng": -118.137995,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "next_turn"
+  },
+  "card": "Vernon Haynes, 77, 403 East Marigold Street, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get canLeave wrong (you say \"no\"), then correct it."
+ },
+ {
+  "id": "P-042",
+  "name": "Kwame Holloway",
+  "age": 89,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2853 Sterling Place, Altadena",
+  "lat": 34.194511,
+  "lng": -118.167594,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "tangents"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Kwame Holloway, 89, 2853 Sterling Place, Altadena. There are 2 of you at home. The person who needs the most help uses a walker. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: hard of hearing, tangents."
+ },
+ {
+  "id": "P-043",
+  "name": "Juanita Castillo",
+  "age": 87,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3255 North Fair Oaks Avenue, Altadena",
+  "lat": 34.2008,
+  "lng": -118.144772,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Juanita Castillo, 87, 3255 North Fair Oaks Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help is bedbound and needs two people to lift. You have a car you can use."
+ },
+ {
+  "id": "P-044",
+  "name": "Kwame Odum",
+  "age": 69,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "274 West Mariposa Street, Altadena",
+  "lat": 34.193907,
+  "lng": -118.153829,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Kwame Odum, 69, 274 West Mariposa Street, Altadena. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. At first you get peopleCount wrong (you say 2), then correct it."
+ },
+ {
+  "id": "P-045",
+  "name": "Chester Mensah",
+  "age": 62,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "64 West Mariposa Street, Altadena",
+  "lat": 34.192251,
+  "lng": -118.14997,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Chester Mensah, 62, 64 West Mariposa Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-046",
+  "name": "Refugio Gutiérrez",
+  "age": 79,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "613 East Sacramento Street, Altadena",
+  "lat": 34.182315,
+  "lng": -118.137706,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Refugio Gutiérrez, 79, 613 East Sacramento Street, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. You have a dog."
+ },
+ {
+  "id": "P-047",
+  "name": "Irene Cole",
+  "age": 84,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2585 Catherine Road, Altadena",
+  "lat": 34.189124,
+  "lng": -118.134861,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Irene Cole, 84, 2585 Catherine Road, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get peopleCount wrong (you say 2), then correct it."
+ },
+ {
+  "id": "P-048",
+  "name": "Tomás Cervantes",
+  "age": 67,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "177 Wapello Street, Altadena",
+  "lat": 34.202318,
+  "lng": -118.139537,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "neighborAddress": "3340 Crestford Drive, Altadena",
+  "card": "Tomás Cervantes, 67, 177 Wapello Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-049",
+  "name": "Juanita Navarro",
+  "age": 61,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3232 Olive Avenue, Altadena",
+  "lat": 34.200315,
+  "lng": -118.151946,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "neighborAddress": "318 West Altadena Drive, Altadena",
+  "card": "Juanita Navarro, 61, 3232 Olive Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help can walk. You have no car. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: panic, nominates neighbor."
+ },
+ {
+  "id": "P-050",
+  "name": "Clarence Banks",
+  "age": 79,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "460 West Montana Street, Altadena",
+  "lat": 34.18063,
+  "lng": -118.160423,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Clarence Banks, 79, 460 West Montana Street, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have a car you can use."
+ },
+ {
+  "id": "P-051",
+  "name": "Tomás Gutiérrez",
+  "age": 89,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3061 La Corona Avenue, Altadena",
+  "lat": 34.197983,
+  "lng": -118.147342,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "readback"
+  },
+  "card": "Tomás Gutiérrez, 89, 3061 La Corona Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have no car. At first you get peopleCount wrong (you say 2), then correct it."
+ },
+ {
+  "id": "P-052",
+  "name": "Ramón Lozano",
+  "age": 82,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3467 McNally Avenue, Altadena",
+  "lat": 34.203726,
+  "lng": -118.142308,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "second_voice"
+  },
+  "card": "Ramón Lozano, 82, 3467 McNally Avenue, Altadena. You speak Spanish. There are 3 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have a car you can use. At first you get peopleCount wrong (you say 2), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-053",
+  "name": "Leon Washington",
+  "age": 74,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3448 Holly Slope Road, Altadena",
+  "lat": 34.204442,
+  "lng": -118.138274,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "second_voice"
+  },
+  "card": "Leon Washington, 74, 3448 Holly Slope Road, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get peopleCount wrong (you say 1), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-054",
+  "name": "Raymond Liu",
+  "age": 74,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "356 Vinehill Drive, Altadena",
+  "lat": 34.205598,
+  "lng": -118.136443,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "flames"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Raymond Liu, 74, 356 Vinehill Drive, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get peopleCount wrong (you say 2), then correct it. How you talk: flames."
+ },
+ {
+  "id": "P-055",
+  "name": "Kwame Fontaine",
+  "age": 88,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3510 McNally Avenue, Altadena",
+  "lat": 34.204303,
+  "lng": -118.141503,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Kwame Fontaine, 88, 3510 McNally Avenue, Altadena. There are 4 of you at home. The person who needs the most help can walk. You use oxygen. You have no car. You have a dog. How you talk: tangents."
+ },
+ {
+  "id": "P-056",
+  "name": "Chester Brooks",
+  "age": 78,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3325 Florecita Drive, Altadena",
+  "lat": 34.202238,
+  "lng": -118.162661,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Chester Brooks, 78, 3325 Florecita Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a walker and needs two people to lift. You have no car. How you talk: tangents."
+ },
+ {
+  "id": "P-057",
+  "name": "Ramón Lozano",
+  "age": 78,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3064 Ridgeview Drive, Altadena",
+  "lat": 34.198878,
+  "lng": -118.164284,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "card": "Ramón Lozano, 78, 3064 Ridgeview Drive, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You use oxygen. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it."
+ },
+ {
+  "id": "P-058",
+  "name": "Dolores Castillo",
+  "age": 81,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3040 Glen Avenue, Altadena",
+  "lat": 34.197135,
+  "lng": -118.150955,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Dolores Castillo, 81, 3040 Glen Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help uses a wheelchair. You have no car."
+ },
+ {
+  "id": "P-059",
+  "name": "Hyun-woo Chen",
+  "age": 75,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2834 Saint James Place, Altadena",
+  "lat": 34.193317,
+  "lng": -118.135259,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "readback"
+  },
+  "card": "Hyun-woo Chen, 75, 2834 Saint James Place, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get canLeave wrong (you say \"no\"), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-060",
+  "name": "Chester Chen",
+  "age": 63,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2975 El Nido Drive, Altadena",
+  "lat": 34.196379,
+  "lng": -118.164849,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "second_voice"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "second_voice"
+  },
+  "card": "Chester Chen, 63, 2975 El Nido Drive, Altadena. There are 3 of you at home. The person who needs the most help uses a power wheelchair and needs two people to lift. You have no car. At first you get peopleCount wrong (you say 2), then correct it when someone else in the room reminds you. How you talk: hard of hearing, second voice."
+ },
+ {
+  "id": "P-061",
+  "name": "Darnell Washington",
+  "age": 92,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2360 Vista Laguna Terrace, Altadena",
+  "lat": 34.186263,
+  "lng": -118.171447,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Darnell Washington, 92, 2360 Vista Laguna Terrace, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use."
+ },
+ {
+  "id": "P-062",
+  "name": "Marjorie Brooks",
+  "age": 68,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "265 West Las Flores Drive, Altadena",
+  "lat": 34.201164,
+  "lng": -118.150139,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic",
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "card": "Marjorie Brooks, 68, 265 West Las Flores Drive, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: panic, asks reassurance."
+ },
+ {
+  "id": "P-063",
+  "name": "Harold Takahashi",
+  "age": 66,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "980 Chevron Court, Altadena",
+  "lat": 34.187548,
+  "lng": -118.170597,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"none\"",
+   "when": "readback"
+  },
+  "neighborAddress": "276 Wapello Street, Altadena",
+  "card": "Harold Takahashi, 66, 980 Chevron Court, Altadena. There are 3 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. At first you get assistanceRequired wrong (you say \"none\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-064",
+  "name": "Rogelio Aguilar",
+  "age": 78,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3057 North Fair Oaks Avenue, Altadena",
+  "lat": 34.197621,
+  "lng": -118.146357,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Rogelio Aguilar, 78, 3057 North Fair Oaks Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker. You have no car."
+ },
+ {
+  "id": "P-065",
+  "name": "Felipe Ibarra",
+  "age": 84,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2864 Sterling Place, Altadena",
+  "lat": 34.194551,
+  "lng": -118.167124,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Felipe Ibarra, 84, 2864 Sterling Place, Altadena. You speak Spanish. There are 3 of you at home. The person who needs the most help can walk. You use oxygen. You have no car. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-066",
+  "name": "Leticia Ramírez",
+  "age": 88,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "45 East Palm Street, Altadena",
+  "lat": 34.196586,
+  "lng": -118.145426,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Leticia Ramírez, 88, 45 East Palm Street, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a wheelchair. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-067",
+  "name": "Rogelio Ramírez",
+  "age": 65,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "105 West Ventura Street, Altadena",
+  "lat": 34.189276,
+  "lng": -118.152251,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Rogelio Ramírez, 65, 105 West Ventura Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-068",
+  "name": "Josefina Ibarra",
+  "age": 86,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2921 Santa Anita Avenue, Altadena",
+  "lat": 34.194906,
+  "lng": -118.13654,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "1000 Chevron Court, Altadena",
+  "card": "Josefina Ibarra, 86, 2921 Santa Anita Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-069",
+  "name": "Bernice Kim",
+  "age": 68,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "605 East Calaveras Street, Altadena",
+  "lat": 34.185814,
+  "lng": -118.137497,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic",
+   "second_voice"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "card": "Bernice Kim, 68, 605 East Calaveras Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: panic, second voice."
+ },
+ {
+  "id": "P-070",
+  "name": "Lorraine Holloway",
+  "age": 66,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "85 West Laurel Drive, Altadena",
+  "lat": 34.200747,
+  "lng": -118.146477,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "card": "Lorraine Holloway, 66, 85 West Laurel Drive, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: partial address."
+ },
+ {
+  "id": "P-071",
+  "name": "Mei-Ling Liu",
+  "age": 81,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "493 East Altadena Drive, Altadena",
+  "lat": 34.191789,
+  "lng": -118.137627,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "panic",
+   "medical",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "264 West Loma Alta Drive, Altadena",
+  "card": "Mei-Ling Liu, 81, 493 East Altadena Drive, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. How you talk: hard of hearing, panic, medical, nominates neighbor."
+ },
+ {
+  "id": "P-072",
+  "name": "Socorro Gutiérrez",
+  "age": 61,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2325 North Arroyo Boulevard, Altadena",
+  "lat": 34.185351,
+  "lng": -118.170898,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Socorro Gutiérrez, 61, 2325 North Arroyo Boulevard, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a walker. You have a car you can use. How you talk: tangents."
+ },
+ {
+  "id": "P-073",
+  "name": "Consuelo Ramírez",
+  "age": 83,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2753 Callecita Drive, Altadena",
+  "lat": 34.192478,
+  "lng": -118.142584,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Consuelo Ramírez, 83, 2753 Callecita Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You have a car you can use."
+ },
+ {
+  "id": "P-074",
+  "name": "Gustavo Vega",
+  "age": 69,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "135 West Pine Street, Altadena",
+  "lat": 34.19671,
+  "lng": -118.149457,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Gustavo Vega, 69, 135 West Pine Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a power wheelchair and needs one person to help getting out. You have no car. You have a dog."
+ },
+ {
+  "id": "P-075",
+  "name": "Darnell Price",
+  "age": 94,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3121 Highview Avenue, Altadena",
+  "lat": 34.197629,
+  "lng": -118.14285,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "next_turn"
+  },
+  "card": "Darnell Price, 94, 3121 Highview Avenue, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get canLeave wrong (you say \"no\"), then correct it."
+ },
+ {
+  "id": "P-076",
+  "name": "Pearl Liu",
+  "age": 86,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "314 East Las Flores Drive, Altadena",
+  "lat": 34.197019,
+  "lng": -118.139126,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Pearl Liu, 86, 314 East Las Flores Drive, Altadena. You live alone. The person who needs the most help uses a power wheelchair and needs two people to lift. You have no car. You have a dog. At first you get peopleCount wrong (you say 2), then correct it."
+ },
+ {
+  "id": "P-077",
+  "name": "Bernice Kim",
+  "age": 74,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "357 East Altadena Drive, Altadena",
+  "lat": 34.192596,
+  "lng": -118.140253,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents",
+   "second_voice",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "second_voice"
+  },
+  "neighborAddress": "597 Colman Street, Altadena",
+  "card": "Bernice Kim, 74, 357 East Altadena Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a walker. You use oxygen. You have no car. At first you get mobility wrong (you say \"walks\"), then correct it when someone else in the room reminds you. How you talk: tangents, second voice, nominates neighbor."
+ },
+ {
+  "id": "P-078",
+  "name": "Hyun-woo Brooks",
+  "age": 72,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "240 West Palm Street, Altadena",
+  "lat": 34.197943,
+  "lng": -118.151215,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "next_turn"
+  },
+  "card": "Hyun-woo Brooks, 72, 240 West Palm Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it."
+ },
+ {
+  "id": "P-079",
+  "name": "Darnell Zhou",
+  "age": 87,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2680 McNally Avenue, Altadena",
+  "lat": 34.191027,
+  "lng": -118.147344,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Darnell Zhou, 87, 2680 McNally Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it."
+ },
+ {
+  "id": "P-080",
+  "name": "Arturo Aguilar",
+  "age": 77,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3127 Glenrose Avenue, Altadena",
+  "lat": 34.198151,
+  "lng": -118.149763,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "card": "Arturo Aguilar, 77, 3127 Glenrose Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You use oxygen. You have a car you can use. How you talk: partial address."
+ },
+ {
+  "id": "P-081",
+  "name": "Socorro Vega",
+  "age": 84,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "293 East Loma Alta Drive, Altadena",
+  "lat": 34.20388,
+  "lng": -118.13734,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "card": "Socorro Vega, 84, 293 East Loma Alta Drive, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-082",
+  "name": "Hattie Zhou",
+  "age": 65,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3117 Thurin Avenue, Altadena",
+  "lat": 34.198504,
+  "lng": -118.156795,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents",
+   "asks_reassurance",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "108 West Altadena Drive, Altadena",
+  "card": "Hattie Zhou, 65, 3117 Thurin Avenue, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair. You have no car. How you talk: tangents, asks reassurance, nominates neighbor."
+ },
+ {
+  "id": "P-083",
+  "name": "Mae Tate",
+  "age": 79,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "289 West Terrace Street, Altadena",
+  "lat": 34.195557,
+  "lng": -118.153415,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "partial_address"
+  ],
+  "card": "Mae Tate, 79, 289 West Terrace Street, Altadena. You live alone. The person who needs the most help uses a power wheelchair. You have no car. How you talk: hard of hearing, partial address."
+ },
+ {
+  "id": "P-084",
+  "name": "Dolores Delgado",
+  "age": 63,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "357 East Calaveras Street, Altadena",
+  "lat": 34.18734,
+  "lng": -118.142405,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "readback"
+  },
+  "card": "Dolores Delgado, 63, 357 East Calaveras Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-085",
+  "name": "Earl Goldberg",
+  "age": 88,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "1010 Chevron Court, Altadena",
+  "lat": 34.18806,
+  "lng": -118.170569,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Earl Goldberg, 88, 1010 Chevron Court, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it."
+ },
+ {
+  "id": "P-086",
+  "name": "Esperanza Ortiz",
+  "age": 85,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "156 West Mariposa Street, Altadena",
+  "lat": 34.192812,
+  "lng": -118.15178,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "118 West Laurel Drive, Altadena",
+  "card": "Esperanza Ortiz, 85, 156 West Mariposa Street, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a wheelchair. You have a car you can use. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-087",
+  "name": "Josefina Ramírez",
+  "age": 86,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2536 La Fiesta Avenue, Altadena",
+  "lat": 34.189053,
+  "lng": -118.150955,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "neighborAddress": "103 West Manor Street, Altadena",
+  "card": "Josefina Ramírez, 86, 2536 La Fiesta Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: second voice, nominates neighbor."
+ },
+ {
+  "id": "P-088",
+  "name": "Clarence Cole",
+  "age": 60,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "476 West Altadena Drive, Altadena",
+  "lat": 34.197272,
+  "lng": -118.156771,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "neighborAddress": "2832 Olive Avenue, Altadena",
+  "card": "Clarence Cole, 60, 476 West Altadena Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have a car you can use. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: tangents, nominates neighbor."
+ },
+ {
+  "id": "P-089",
+  "name": "Ignacio Castillo",
+  "age": 63,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2969 Bargen Way, Altadena",
+  "lat": 34.195956,
+  "lng": -118.162285,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "second_voice"
+  },
+  "card": "Ignacio Castillo, 63, 2969 Bargen Way, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walker\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-090",
+  "name": "Ignacio Salazar",
+  "age": 70,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3143 Thurin Avenue, Altadena",
+  "lat": 34.198939,
+  "lng": -118.156629,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "second_voice"
+  },
+  "card": "Ignacio Salazar, 70, 3143 Thurin Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-091",
+  "name": "Kwame Chen",
+  "age": 73,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "172 West Harriet Street, Altadena",
+  "lat": 34.191225,
+  "lng": -118.152937,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Kwame Chen, 73, 172 West Harriet Street, Altadena. You live alone. The person who needs the most help can walk. You use oxygen. You have a car you can use. How you talk: tangents."
+ },
+ {
+  "id": "P-092",
+  "name": "Marjorie Holloway",
+  "age": 62,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2633 North Highview Avenue, Altadena",
+  "lat": 34.190089,
+  "lng": -118.147179,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Marjorie Holloway, 62, 2633 North Highview Avenue, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-093",
+  "name": "Refugio Reyes",
+  "age": 82,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "398 East Palm Street, Altadena",
+  "lat": 34.194466,
+  "lng": -118.138529,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Refugio Reyes, 82, 398 East Palm Street, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You have no car."
+ },
+ {
+  "id": "P-094",
+  "name": "Hattie Park",
+  "age": 72,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3514 Loma View Drive, Altadena",
+  "lat": 34.20419,
+  "lng": -118.143833,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Hattie Park, 72, 3514 Loma View Drive, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have no car."
+ },
+ {
+  "id": "P-095",
+  "name": "Irene Whitfield",
+  "age": 62,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3482 Holly Slope Road, Altadena",
+  "lat": 34.205016,
+  "lng": -118.138372,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "card": "Irene Whitfield, 62, 3482 Holly Slope Road, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-096",
+  "name": "Otis Goldberg",
+  "age": 93,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2960 El Nido Drive, Altadena",
+  "lat": 34.195941,
+  "lng": -118.164533,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "next_turn"
+  },
+  "card": "Otis Goldberg, 93, 2960 El Nido Drive, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get peopleCount wrong (you say 1), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-097",
+  "name": "Rogelio Vega",
+  "age": 84,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3279 North Raymond Avenue, Altadena",
+  "lat": 34.19958,
+  "lng": -118.139743,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic"
+  ],
+  "card": "Rogelio Vega, 84, 3279 North Raymond Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a wheelchair. You have no car. How you talk: panic."
+ },
+ {
+  "id": "P-098",
+  "name": "Lucille Brooks",
+  "age": 94,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "218 East Las Flores Drive, Altadena",
+  "lat": 34.197703,
+  "lng": -118.141088,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Lucille Brooks, 94, 218 East Las Flores Drive, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-099",
+  "name": "Darnell Chen",
+  "age": 75,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2776 Casitas Avenue, Altadena",
+  "lat": 34.193212,
+  "lng": -118.164415,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Darnell Chen, 75, 2776 Casitas Avenue, Altadena. You live alone. The person who needs the most help can walk. You have no car."
+ },
+ {
+  "id": "P-100",
+  "name": "Shirley Zhou",
+  "age": 62,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2077 El Sereno Avenue, Altadena",
+  "lat": 34.181463,
+  "lng": -118.152661,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Shirley Zhou, 62, 2077 El Sereno Avenue, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have no car. You have a dog. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-101",
+  "name": "Eugene Mensah",
+  "age": 67,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3300 Crestford Drive, Altadena",
+  "lat": 34.202402,
+  "lng": -118.163213,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Eugene Mensah, 67, 3300 Crestford Drive, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-102",
+  "name": "Refugio Castillo",
+  "age": 82,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "545 East Las Flores Drive, Altadena",
+  "lat": 34.196286,
+  "lng": -118.134454,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "521 West Montana Street, Altadena",
+  "card": "Refugio Castillo, 82, 545 East Las Flores Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-103",
+  "name": "Ignacio Aguilar",
+  "age": 78,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3520 Glenrose Avenue, Altadena",
+  "lat": 34.203704,
+  "lng": -118.145822,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "readback"
+  },
+  "card": "Ignacio Aguilar, 78, 3520 Glenrose Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair and needs one person to help getting out. You have no car. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it."
+ },
+ {
+  "id": "P-104",
+  "name": "Bernice Liu",
+  "age": 90,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "141 East Pine Street, Altadena",
+  "lat": 34.194921,
+  "lng": -118.144013,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "second_voice"
+  },
+  "card": "Bernice Liu, 90, 141 East Pine Street, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs two people to lift. You have no car. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-105",
+  "name": "Vernon Haynes",
+  "age": 76,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "678 West Mendocino Street, Altadena",
+  "lat": 34.195238,
+  "lng": -118.162239,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Vernon Haynes, 76, 678 West Mendocino Street, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-106",
+  "name": "Walter Odum",
+  "age": 74,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3516 North Fair Oaks Avenue, Altadena",
+  "lat": 34.204762,
+  "lng": -118.142348,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Walter Odum, 74, 3516 North Fair Oaks Avenue, Altadena. There are 4 of you at home. The person who needs the most help can walk. You use oxygen. You have a car you can use. You have a dog. How you talk: tangents."
+ },
+ {
+  "id": "P-107",
+  "name": "Leon Zhou",
+  "age": 76,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3075 Calanda Avenue, Altadena",
+  "lat": 34.198253,
+  "lng": -118.154577,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic",
+   "asks_reassurance"
+  ],
+  "card": "Leon Zhou, 76, 3075 Calanda Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. How you talk: panic, asks reassurance."
+ },
+ {
+  "id": "P-108",
+  "name": "Otis Kim",
+  "age": 90,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "540 West Crosby Street, Altadena",
+  "lat": 34.184671,
+  "lng": -118.162168,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Otis Kim, 90, 540 West Crosby Street, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-109",
+  "name": "Raymond Simmons",
+  "age": 78,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "129 Wapello Street, Altadena",
+  "lat": 34.202389,
+  "lng": -118.140716,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Raymond Simmons, 78, 129 Wapello Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it."
+ },
+ {
+  "id": "P-110",
+  "name": "Chester Odum",
+  "age": 69,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2694 Lincoln Avenue, Altadena",
+  "lat": 34.191823,
+  "lng": -118.158342,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "medical",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "3025 El Nido Drive, Altadena",
+  "card": "Chester Odum, 69, 2694 Lincoln Avenue, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: hard of hearing, medical, nominates neighbor."
+ },
+ {
+  "id": "P-111",
+  "name": "Shirley Mensah",
+  "age": 74,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "282 West Laurel Drive, Altadena",
+  "lat": 34.201611,
+  "lng": -118.150592,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing",
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "readback"
+  },
+  "card": "Shirley Mensah, 74, 282 West Laurel Drive, Altadena. There are 3 of you at home. The person who needs the most help uses a power wheelchair. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: hard of hearing, asks reassurance."
+ },
+ {
+  "id": "P-112",
+  "name": "Arturo Lozano",
+  "age": 66,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "360 West Terrace Street, Altadena",
+  "lat": 34.195571,
+  "lng": -118.154998,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "card": "Arturo Lozano, 66, 360 West Terrace Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: tangents."
+ },
+ {
+  "id": "P-113",
+  "name": "Yolanda Herrera",
+  "age": 90,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2425 North Lincoln Avenue, Altadena",
+  "lat": 34.187334,
+  "lng": -118.159994,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Yolanda Herrera, 90, 2425 North Lincoln Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker. You have a car you can use. At first you get peopleCount wrong (you say 2), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-114",
+  "name": "Mae Banks",
+  "age": 80,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "353 West Terrace Street, Altadena",
+  "lat": 34.195876,
+  "lng": -118.154735,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Mae Banks, 80, 353 West Terrace Street, Altadena. There are 3 of you at home. The person who needs the most help uses a walker. You have a car you can use. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-115",
+  "name": "Alma Ortiz",
+  "age": 74,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "1085 Chevron Court, Altadena",
+  "lat": 34.187741,
+  "lng": -118.168853,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Alma Ortiz, 74, 1085 Chevron Court, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use."
+ },
+ {
+  "id": "P-116",
+  "name": "Walter Chen",
+  "age": 66,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "405 West Poppyfields Drive, Altadena",
+  "lat": 34.201384,
+  "lng": -118.153276,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "431 West Palm Street, Altadena",
+  "card": "Walter Chen, 66, 405 West Poppyfields Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-117",
+  "name": "Pearl Park",
+  "age": 88,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2040 North Madison Avenue, Altadena",
+  "lat": 34.180611,
+  "lng": -118.137371,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Pearl Park, 88, 2040 North Madison Avenue, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog."
+ },
+ {
+  "id": "P-118",
+  "name": "Odessa Mensah",
+  "age": 89,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "461 East Las Flores Drive, Altadena",
+  "lat": 34.197062,
+  "lng": -118.13614,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "second_voice"
+  },
+  "neighborAddress": "2616 Catherine Road, Altadena",
+  "card": "Odessa Mensah, 89, 461 East Las Flores Drive, Altadena. You live alone. The person who needs the most help uses a walker. You have a car you can use. At first you get mobility wrong (you say \"walks\"), then correct it when someone else in the room reminds you. How you talk: second voice, nominates neighbor."
+ },
+ {
+  "id": "P-119",
+  "name": "Odessa Fontaine",
+  "age": 95,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "63 West Loma Alta Drive, Altadena",
+  "lat": 34.203179,
+  "lng": -118.144833,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "3309 Thurin Avenue, Altadena",
+  "card": "Odessa Fontaine, 95, 63 West Loma Alta Drive, Altadena. There are 4 of you at home. The person who needs the most help uses a walker. You have a car you can use. How you talk: partial address, nominates neighbor."
+ },
+ {
+  "id": "P-120",
+  "name": "Consuelo Herrera",
+  "age": 69,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2059 Navarro Avenue, Altadena",
+  "lat": 34.18118,
+  "lng": -118.154205,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "card": "Consuelo Herrera, 69, 2059 Navarro Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: panic."
+ },
+ {
+  "id": "P-121",
+  "name": "Leon Fontaine",
+  "age": 92,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2628 Glenrose Avenue, Altadena",
+  "lat": 34.190017,
+  "lng": -118.153007,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "partial_address"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "next_turn"
+  },
+  "card": "Leon Fontaine, 92, 2628 Glenrose Avenue, Altadena. You live alone. The person who needs the most help uses a walker. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: hard of hearing, partial address."
+ },
+ {
+  "id": "P-122",
+  "name": "Juanita Cervantes",
+  "age": 89,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "65 Reever Way, Altadena",
+  "lat": 34.20178,
+  "lng": -118.145586,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents",
+   "medical"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"none\"",
+   "when": "readback"
+  },
+  "card": "Juanita Cervantes, 89, 65 Reever Way, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. You have a dog. At first you get assistanceRequired wrong (you say \"none\"), then correct it. How you talk: tangents, medical."
+ },
+ {
+  "id": "P-123",
+  "name": "Josefina Flores",
+  "age": 76,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "352 Wapello Street, Altadena",
+  "lat": 34.200018,
+  "lng": -118.136995,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "2617 North Raymond Avenue, Altadena",
+  "card": "Josefina Flores, 76, 352 Wapello Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs two people to lift. You have a car you can use. You have a dog. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-124",
+  "name": "Frances Mensah",
+  "age": 90,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "672 Colman Street, Altadena",
+  "lat": 34.184015,
+  "lng": -118.136591,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Frances Mensah, 90, 672 Colman Street, Altadena. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. At first you get peopleCount wrong (you say 2), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-125",
+  "name": "Lucille Whitfield",
+  "age": 95,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3052 La Corona Avenue, Altadena",
+  "lat": 34.197694,
+  "lng": -118.14689,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Lucille Whitfield, 95, 3052 La Corona Avenue, Altadena. There are 4 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car."
+ },
+ {
+  "id": "P-126",
+  "name": "Odessa Kim",
+  "age": 83,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "641 West Mendocino Street, Altadena",
+  "lat": 34.195408,
+  "lng": -118.161311,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "next_turn"
+  },
+  "card": "Odessa Kim, 83, 641 West Mendocino Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it."
+ },
+ {
+  "id": "P-127",
+  "name": "Walter Simmons",
+  "age": 86,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3459 McNally Avenue, Altadena",
+  "lat": 34.203597,
+  "lng": -118.142338,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Walter Simmons, 86, 3459 McNally Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have no car. You have a dog. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: tangents."
+ },
+ {
+  "id": "P-128",
+  "name": "Clarence Goldberg",
+  "age": 64,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "782 West Altadena Drive, Altadena",
+  "lat": 34.199071,
+  "lng": -118.162686,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "partial_address",
+   "panic"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "next_turn"
+  },
+  "card": "Clarence Goldberg, 64, 782 West Altadena Drive, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get canLeave wrong (you say \"no\"), then correct it. How you talk: hard of hearing, partial address, panic."
+ },
+ {
+  "id": "P-129",
+  "name": "Otis Mensah",
+  "age": 88,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2791 Santa Rosa Avenue, Altadena",
+  "lat": 34.192861,
+  "lng": -118.134631,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "two_person_lift",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "2789 Glen Avenue, Altadena",
+  "card": "Otis Mensah, 88, 2791 Santa Rosa Avenue, Altadena. You live alone. The person who needs the most help uses a wheelchair and needs two people to lift. You use oxygen. You have a car you can use. You have a dog. How you talk: partial address, nominates neighbor."
+ },
+ {
+  "id": "P-130",
+  "name": "Earl Cole",
+  "age": 90,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2954 Crestford Drive, Altadena",
+  "lat": 34.196617,
+  "lng": -118.165237,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "2817 Saint James Place, Altadena",
+  "card": "Earl Cole, 90, 2954 Crestford Drive, Altadena. There are 4 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-131",
+  "name": "Ruth Whitfield",
+  "age": 86,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "613 West Harriet Street, Altadena",
+  "lat": 34.194308,
+  "lng": -118.16115,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "neighborAddress": "2067 Navarro Avenue, Altadena",
+  "card": "Ruth Whitfield, 86, 613 West Harriet Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: second voice, nominates neighbor."
+ },
+ {
+  "id": "P-132",
+  "name": "Walter Fontaine",
+  "age": 71,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "581 East Mendocino Street, Altadena",
+  "lat": 34.187771,
+  "lng": -118.137454,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "asks_reassurance"
+  ],
+  "card": "Walter Fontaine, 71, 581 East Mendocino Street, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: hard of hearing, asks reassurance."
+ },
+ {
+  "id": "P-133",
+  "name": "Rogelio Reyes",
+  "age": 95,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2705 North Marengo Avenue, Altadena",
+  "lat": 34.191598,
+  "lng": -118.142042,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "card": "Rogelio Reyes, 95, 2705 North Marengo Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have no car. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-134",
+  "name": "Hattie Banks",
+  "age": 92,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2339 Kellogg Court, Altadena",
+  "lat": 34.186143,
+  "lng": -118.151449,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Hattie Banks, 92, 2339 Kellogg Court, Altadena. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have a car you can use."
+ },
+ {
+  "id": "P-135",
+  "name": "Dolores Herrera",
+  "age": 64,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "285 West Montana Street, Altadena",
+  "lat": 34.181083,
+  "lng": -118.156784,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address",
+   "second_voice"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "second_voice"
+  },
+  "card": "Dolores Herrera, 64, 285 West Montana Street, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walker\"), then correct it when someone else in the room reminds you. How you talk: partial address, second voice."
+ },
+ {
+  "id": "P-136",
+  "name": "Clarence Simmons",
+  "age": 93,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "700 West Mendocino Street, Altadena",
+  "lat": 34.195284,
+  "lng": -118.16258,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "next_turn"
+  },
+  "card": "Clarence Simmons, 93, 700 West Mendocino Street, Altadena. You live alone. The person who needs the most help uses a walker and needs two people to lift. You have a car you can use. At first you get mobility wrong (you say \"walks\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-137",
+  "name": "Hyun-woo Kim",
+  "age": 60,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "272 West Terrace Street, Altadena",
+  "lat": 34.194976,
+  "lng": -118.15333,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "card": "Hyun-woo Kim, 60, 272 West Terrace Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have no car. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-138",
+  "name": "Gloria Jefferson",
+  "age": 78,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "441 Punahou Street, Altadena",
+  "lat": 34.19806,
+  "lng": -118.136,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "card": "Gloria Jefferson, 78, 441 Punahou Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: tangents."
+ },
+ {
+  "id": "P-139",
+  "name": "Alma Castillo",
+  "age": 81,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2049 North Summit Avenue, Altadena",
+  "lat": 34.181058,
+  "lng": -118.148028,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "medical"
+  ],
+  "card": "Alma Castillo, 81, 2049 North Summit Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You use oxygen. You have no car. How you talk: medical."
+ },
+ {
+  "id": "P-140",
+  "name": "Clarence Pruitt",
+  "age": 87,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "794 West Harriet Street, Altadena",
+  "lat": 34.195036,
+  "lng": -118.164905,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice",
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "second_voice"
+  },
+  "card": "Clarence Pruitt, 87, 794 West Harriet Street, Altadena. There are 4 of you at home. The person who needs the most help uses a wheelchair. You have no car. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it when someone else in the room reminds you. How you talk: second voice, asks reassurance."
+ },
+ {
+  "id": "P-141",
+  "name": "Ignacio Ortiz",
+  "age": 95,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "140 West Terrace Street, Altadena",
+  "lat": 34.194426,
+  "lng": -118.150679,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walks\"",
+   "when": "next_turn"
+  },
+  "card": "Ignacio Ortiz, 95, 140 West Terrace Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a power wheelchair. You have a car you can use. At first you get mobility wrong (you say \"walks\"), then correct it."
+ },
+ {
+  "id": "P-142",
+  "name": "Beatrice Holloway",
+  "age": 64,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "275 East Pentagon Street, Altadena",
+  "lat": 34.194133,
+  "lng": -118.141352,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Beatrice Holloway, 64, 275 East Pentagon Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have no car. You have a dog. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-143",
+  "name": "Yolanda Méndez",
+  "age": 78,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "385 West Loma Alta Drive, Altadena",
+  "lat": 34.202989,
+  "lng": -118.151233,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "readback"
+  },
+  "card": "Yolanda Méndez, 78, 385 West Loma Alta Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker. You have a car you can use. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-144",
+  "name": "Felipe Ortiz",
+  "age": 76,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3091 Glenrose Avenue, Altadena",
+  "lat": 34.197614,
+  "lng": -118.15002,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Felipe Ortiz, 76, 3091 Glenrose Avenue, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use."
+ },
+ {
+  "id": "P-145",
+  "name": "Shirley Price",
+  "age": 60,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "571 Toolen Place, Altadena",
+  "lat": 34.180169,
+  "lng": -118.16269,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Shirley Price, 60, 571 Toolen Place, Altadena. There are 2 of you at home. The person who needs the most help uses a walker. You have no car."
+ },
+ {
+  "id": "P-146",
+  "name": "Samuel Washington",
+  "age": 65,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "175 East Altadena Drive, Altadena",
+  "lat": 34.194003,
+  "lng": -118.143525,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "next_turn"
+  },
+  "card": "Samuel Washington, 65, 175 East Altadena Drive, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair. You have a car you can use. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-147",
+  "name": "Samuel Takahashi",
+  "age": 94,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "870 Arwin Street, Altadena",
+  "lat": 34.186046,
+  "lng": -118.168874,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Samuel Takahashi, 94, 870 Arwin Street, Altadena. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-148",
+  "name": "Raymond Liu",
+  "age": 61,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "326 Alta Pine Drive, Altadena",
+  "lat": 34.202833,
+  "lng": -118.137144,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "flames"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "card": "Raymond Liu, 61, 326 Alta Pine Drive, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: flames."
+ },
+ {
+  "id": "P-149",
+  "name": "Frances Simmons",
+  "age": 82,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "280 West Montana Street, Altadena",
+  "lat": 34.180674,
+  "lng": -118.156671,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "card": "Frances Simmons, 82, 280 West Montana Street, Altadena. There are 4 of you at home. The person who needs the most help uses a walker. You have no car. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-150",
+  "name": "Bernice Cole",
+  "age": 91,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "315 West Harriet Street, Altadena",
+  "lat": 34.192544,
+  "lng": -118.155455,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "411 West Calaveras Street, Altadena",
+  "card": "Bernice Cole, 91, 315 West Harriet Street, Altadena. You live alone. The person who needs the most help uses a walker. You have no car. You have a dog. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-151",
+  "name": "Shirley Goldberg",
+  "age": 68,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "627 Alameda Street, Altadena",
+  "lat": 34.183653,
+  "lng": -118.137288,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Shirley Goldberg, 68, 627 Alameda Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have no car. You have a dog."
+ },
+ {
+  "id": "P-152",
+  "name": "Frances Mensah",
+  "age": 90,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2700 North Raymond Avenue, Altadena",
+  "lat": 34.19065,
+  "lng": -118.145017,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "medical"
+  ],
+  "card": "Frances Mensah, 90, 2700 North Raymond Avenue, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have no car. How you talk: medical."
+ },
+ {
+  "id": "P-153",
+  "name": "Socorro Navarro",
+  "age": 88,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2 West Pine Street, Altadena",
+  "lat": 34.195493,
+  "lng": -118.147162,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents"
+  ],
+  "card": "Socorro Navarro, 88, 2 West Pine Street, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a wheelchair. You have no car. How you talk: tangents."
+ },
+ {
+  "id": "P-154",
+  "name": "Darnell Takahashi",
+  "age": 89,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "588 West Woodbury Road, Altadena",
+  "lat": 34.182542,
+  "lng": -118.161155,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Darnell Takahashi, 89, 588 West Woodbury Road, Altadena. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. You have a dog. At first you get canLeave wrong (you say \"yes\"), then correct it."
+ },
+ {
+  "id": "P-155",
+  "name": "Hyun-woo Pruitt",
+  "age": 84,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "569 West Harriet Street, Altadena",
+  "lat": 34.194073,
+  "lng": -118.160373,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "second_voice"
+  },
+  "neighborAddress": "765 Ventura Street, Altadena",
+  "card": "Hyun-woo Pruitt, 84, 569 West Harriet Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get peopleCount wrong (you say 1), then correct it when someone else in the room reminds you. How you talk: second voice, nominates neighbor."
+ },
+ {
+  "id": "P-156",
+  "name": "Mae Odum",
+  "age": 88,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2832 El Nido Drive, Altadena",
+  "lat": 34.194027,
+  "lng": -118.165813,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "panic",
+   "asks_reassurance"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Mae Odum, 88, 2832 El Nido Drive, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: panic, asks reassurance."
+ },
+ {
+  "id": "P-157",
+  "name": "Rogelio Herrera",
+  "age": 74,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "806 West Altadena Drive, Altadena",
+  "lat": 34.198907,
+  "lng": -118.163077,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "265 West Terrace Street, Altadena",
+  "card": "Rogelio Herrera, 74, 806 West Altadena Drive, Altadena. You speak Spanish. There are 3 of you at home. The person who needs the most help uses a wheelchair. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-158",
+  "name": "Héctor Morales",
+  "age": 86,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "202 West Loma Alta Drive, Altadena",
+  "lat": 34.202551,
+  "lng": -118.147731,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "2714 Callecita Drive, Altadena",
+  "card": "Héctor Morales, 86, 202 West Loma Alta Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-159",
+  "name": "Gustavo Vega",
+  "age": 68,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2980 El Nido Drive, Altadena",
+  "lat": 34.196252,
+  "lng": -118.164397,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Gustavo Vega, 68, 2980 El Nido Drive, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it."
+ },
+ {
+  "id": "P-160",
+  "name": "Socorro Castillo",
+  "age": 75,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2768 Highview Avenue, Altadena",
+  "lat": 34.192135,
+  "lng": -118.145824,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "next_turn"
+  },
+  "card": "Socorro Castillo, 75, 2768 Highview Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. You have a dog. At first you get peopleCount wrong (you say 1), then correct it."
+ },
+ {
+  "id": "P-161",
+  "name": "Socorro Méndez",
+  "age": 75,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "29 North Fair Oaks Avenue, Altadena",
+  "lat": 34.200244,
+  "lng": -118.145613,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Socorro Méndez, 75, 29 North Fair Oaks Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help can walk. You use oxygen. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: partial address."
+ },
+ {
+  "id": "P-162",
+  "name": "Rosario Salazar",
+  "age": 85,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "182 West Poppyfields Drive, Altadena",
+  "lat": 34.198918,
+  "lng": -118.149713,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "card": "Rosario Salazar, 85, 182 West Poppyfields Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: partial address."
+ },
+ {
+  "id": "P-163",
+  "name": "Ruth Fontaine",
+  "age": 71,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3369 Lincoln Avenue, Altadena",
+  "lat": 34.203469,
+  "lng": -118.159584,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Ruth Fontaine, 71, 3369 Lincoln Avenue, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-164",
+  "name": "Marjorie Mensah",
+  "age": 65,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "306 Parkman Street, Altadena",
+  "lat": 34.202167,
+  "lng": -118.13776,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "card": "Marjorie Mensah, 65, 306 Parkman Street, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-165",
+  "name": "Irene Kim",
+  "age": 72,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "624 Devirian Place, Altadena",
+  "lat": 34.197223,
+  "lng": -118.16007,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "730 Florecita Terrace, Altadena",
+  "card": "Irene Kim, 72, 624 Devirian Place, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-166",
+  "name": "Yolanda Herrera",
+  "age": 60,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3322 Laurice Avenue, Altadena",
+  "lat": 34.20033,
+  "lng": -118.139912,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Yolanda Herrera, 60, 3322 Laurice Avenue, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help uses a walker. You have no car. You have a dog."
+ },
+ {
+  "id": "P-167",
+  "name": "Mei-Ling Zhou",
+  "age": 79,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3504 McNally Avenue, Altadena",
+  "lat": 34.20415,
+  "lng": -118.141562,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "panic"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "next_turn"
+  },
+  "card": "Mei-Ling Zhou, 79, 3504 McNally Avenue, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get canLeave wrong (you say \"no\"), then correct it. How you talk: panic."
+ },
+ {
+  "id": "P-168",
+  "name": "Wen Brooks",
+  "age": 89,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2770 Olive Avenue, Altadena",
+  "lat": 34.192964,
+  "lng": -118.155371,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "panic"
+  ],
+  "card": "Wen Brooks, 89, 2770 Olive Avenue, Altadena. There are 2 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. How you talk: panic."
+ },
+ {
+  "id": "P-169",
+  "name": "Otis Banks",
+  "age": 77,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3322 Alicia Avenue, Altadena",
+  "lat": 34.200985,
+  "lng": -118.141865,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "readback"
+  },
+  "card": "Otis Banks, 77, 3322 Alicia Avenue, Altadena. There are 4 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it."
+ },
+ {
+  "id": "P-170",
+  "name": "Harold Banks",
+  "age": 90,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "345 Wapello Street, Altadena",
+  "lat": 34.200825,
+  "lng": -118.136681,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "next_turn"
+  },
+  "neighborAddress": "313 East Loma Alta Drive, Altadena",
+  "card": "Harold Banks, 90, 345 Wapello Street, Altadena. There are 3 of you at home. The person who needs the most help uses a power wheelchair. You have a car you can use. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-171",
+  "name": "Rosario Aguilar",
+  "age": 89,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3234 Crestford Drive, Altadena",
+  "lat": 34.201137,
+  "lng": -118.163165,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Rosario Aguilar, 89, 3234 Crestford Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a power wheelchair. You have a car you can use."
+ },
+ {
+  "id": "P-172",
+  "name": "Marjorie Banks",
+  "age": 95,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "1991 North Raymond Avenue, Altadena",
+  "lat": 34.180071,
+  "lng": -118.149555,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "next_turn"
+  },
+  "neighborAddress": "2801 Highview Avenue, Altadena",
+  "card": "Marjorie Banks, 95, 1991 North Raymond Avenue, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair. You have no car. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-173",
+  "name": "Wen Holloway",
+  "age": 71,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3301 Dabney Street, Altadena",
+  "lat": 34.201752,
+  "lng": -118.155735,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "1",
+   "when": "second_voice"
+  },
+  "card": "Wen Holloway, 71, 3301 Dabney Street, Altadena. There are 2 of you at home. The person who needs the most help uses a wheelchair and needs one person to help getting out. You have no car. You have a dog. At first you get peopleCount wrong (you say 1), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-174",
+  "name": "Samuel Banks",
+  "age": 81,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2876 North Marengo Avenue, Altadena",
+  "lat": 34.194041,
+  "lng": -118.139848,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "444 Alameda Street, Altadena",
+  "card": "Samuel Banks, 81, 2876 North Marengo Avenue, Altadena. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have no car. You have a dog. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-175",
+  "name": "Rosario Méndez",
+  "age": 60,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3042 North Marengo Avenue, Altadena",
+  "lat": 34.196504,
+  "lng": -118.138197,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "readback"
+  },
+  "card": "Rosario Méndez, 60, 3042 North Marengo Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get canLeave wrong (you say \"no\"), then correct it. How you talk: partial address."
+ },
+ {
+  "id": "P-176",
+  "name": "Refugio Lozano",
+  "age": 73,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "6 West Altadena Drive, Altadena",
+  "lat": 34.194493,
+  "lng": -118.147754,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "2796 Olive Avenue, Altadena",
+  "card": "Refugio Lozano, 73, 6 West Altadena Drive, Altadena. You speak Spanish. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: tangents, nominates neighbor."
+ },
+ {
+  "id": "P-177",
+  "name": "Ignacio Navarro",
+  "age": 74,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "465 Wapello Street, Altadena",
+  "lat": 34.199555,
+  "lng": -118.13477,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "panic",
+   "asks_reassurance",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "89 West Ventura Street, Altadena",
+  "card": "Ignacio Navarro, 74, 465 Wapello Street, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: panic, asks reassurance, nominates neighbor."
+ },
+ {
+  "id": "P-178",
+  "name": "Lorraine Haynes",
+  "age": 76,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "660 East Pine Street, Altadena",
+  "lat": 34.191443,
+  "lng": -118.134072,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "partial_address"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "card": "Lorraine Haynes, 76, 660 East Pine Street, Altadena. You live alone. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. You have a dog. At first you get peopleCount wrong (you say 2), then correct it. How you talk: partial address."
+ },
+ {
+  "id": "P-179",
+  "name": "Gloria Washington",
+  "age": 62,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "368 Anna Maria Street, Altadena",
+  "lat": 34.204623,
+  "lng": -118.136131,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Gloria Washington, 62, 368 Anna Maria Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have a car you can use."
+ },
+ {
+  "id": "P-180",
+  "name": "Hyun-woo Goldberg",
+  "age": 67,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "641 Devirian Place, Altadena",
+  "lat": 34.197712,
+  "lng": -118.160221,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [],
+  "card": "Hyun-woo Goldberg, 67, 641 Devirian Place, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use."
+ },
+ {
+  "id": "P-181",
+  "name": "Felipe Ortiz",
+  "age": 76,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2714 Callecita Drive, Altadena",
+  "lat": 34.191713,
+  "lng": -118.142393,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "49 West Terrace Street, Altadena",
+  "card": "Felipe Ortiz, 76, 2714 Callecita Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help uses a walker and needs two people to lift. You have no car. You have a dog. How you talk: tangents, nominates neighbor."
+ },
+ {
+  "id": "P-182",
+  "name": "Gustavo Ibarra",
+  "age": 88,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "491 West Palm Street, Altadena",
+  "lat": 34.199929,
+  "lng": -118.155883,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "bedbound",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "second_voice"
+  },
+  "card": "Gustavo Ibarra, 88, 491 West Palm Street, Altadena. You speak Spanish. You live alone. The person who needs the most help is bedbound and needs two people to lift. You have a car you can use. At first you get peopleCount wrong (you say 2), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-183",
+  "name": "Walter Price",
+  "age": 68,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "631 West Mendocino Street, Altadena",
+  "lat": 34.1954,
+  "lng": -118.161088,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "correction": {
+   "field": "assistanceRequired",
+   "firstSays": "\"one_person_assist\"",
+   "when": "readback"
+  },
+  "card": "Walter Price, 68, 631 West Mendocino Street, Altadena. You live alone. The person who needs the most help can walk. You have no car. At first you get assistanceRequired wrong (you say \"one_person_assist\"), then correct it. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-184",
+  "name": "Lucille Tate",
+  "age": 62,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2616 Catherine Road, Altadena",
+  "lat": 34.189422,
+  "lng": -118.134169,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "medical"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"yes\"",
+   "when": "readback"
+  },
+  "card": "Lucille Tate, 62, 2616 Catherine Road, Altadena. There are 2 of you at home. The person who needs the most help can walk. You have no car. At first you get canLeave wrong (you say \"yes\"), then correct it. How you talk: medical."
+ },
+ {
+  "id": "P-185",
+  "name": "Hyun-woo Whitfield",
+  "age": 62,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3066 Glenrose Avenue, Altadena",
+  "lat": 34.197045,
+  "lng": -118.14975,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "575 East Sacramento Street, Altadena",
+  "card": "Hyun-woo Whitfield, 62, 3066 Glenrose Avenue, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. You have a dog. How you talk: hard of hearing, tangents, nominates neighbor."
+ },
+ {
+  "id": "P-186",
+  "name": "Frances Odum",
+  "age": 70,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "3279 Laurice Avenue, Altadena",
+  "lat": 34.199879,
+  "lng": -118.140748,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "power_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Frances Odum, 70, 3279 Laurice Avenue, Altadena. There are 4 of you at home. The person who needs the most help uses a power wheelchair. You have no car. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-187",
+  "name": "Gustavo Ortiz",
+  "age": 61,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "60 East Las Flores Drive, Altadena",
+  "lat": 34.198667,
+  "lng": -118.144036,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "hard_of_hearing"
+  ],
+  "card": "Gustavo Ortiz, 61, 60 East Las Flores Drive, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have no car. How you talk: hard of hearing."
+ },
+ {
+  "id": "P-188",
+  "name": "Earl Zhou",
+  "age": 87,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "926 La Canada Verdugo Road, Altadena",
+  "lat": 34.186072,
+  "lng": -118.170821,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address",
+   "flames",
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "peopleCount",
+   "firstSays": "2",
+   "when": "next_turn"
+  },
+  "neighborAddress": "320 West Terrace Street, Altadena",
+  "card": "Earl Zhou, 87, 926 La Canada Verdugo Road, Altadena. You live alone. The person who needs the most help uses a wheelchair. You use oxygen. You have a car you can use. You have a dog. At first you get peopleCount wrong (you say 2), then correct it. How you talk: partial address, flames, nominates neighbor."
+ },
+ {
+  "id": "P-189",
+  "name": "Hattie Park",
+  "age": 83,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2082 Parnell Way, Altadena",
+  "lat": 34.181498,
+  "lng": -118.162818,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 3,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [],
+  "card": "Hattie Park, 83, 2082 Parnell Way, Altadena. There are 3 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car."
+ },
+ {
+  "id": "P-190",
+  "name": "Marjorie Banks",
+  "age": 94,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "201 West Terrace Street, Altadena",
+  "lat": 34.195015,
+  "lng": -118.151719,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 4,
+   "mobility": "walker",
+   "assistanceRequired": "one_person_assist",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "446 Punahou Street, Altadena",
+  "card": "Marjorie Banks, 94, 201 West Terrace Street, Altadena. There are 4 of you at home. The person who needs the most help uses a walker and needs one person to help getting out. You have no car. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-191",
+  "name": "Marjorie Chen",
+  "age": 79,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "428 East Mariposa Street, Altadena",
+  "lat": 34.190333,
+  "lng": -118.140377,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Marjorie Chen, 79, 428 East Mariposa Street, Altadena. You live alone. The person who needs the most help can walk. You have a car you can use. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-192",
+  "name": "Kwame Chen",
+  "age": 90,
+  "language": "en",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "480 West Montana Street, Altadena",
+  "lat": 34.180607,
+  "lng": -118.160771,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [
+    "oxygen"
+   ],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "tangents"
+  ],
+  "correction": {
+   "field": "mobility",
+   "firstSays": "\"walker\"",
+   "when": "readback"
+  },
+  "card": "Kwame Chen, 90, 480 West Montana Street, Altadena. There are 2 of you at home. The person who needs the most help can walk. You use oxygen. You have a car you can use. At first you get mobility wrong (you say \"walker\"), then correct it. How you talk: tangents."
+ },
+ {
+  "id": "P-193",
+  "name": "Marjorie Jefferson",
+  "age": 82,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "2034 North Summit Avenue, Altadena",
+  "lat": 34.180791,
+  "lng": -118.147442,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 2,
+   "mobility": "walker",
+   "assistanceRequired": "two_person_lift",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "partial_address",
+   "tangents"
+  ],
+  "card": "Marjorie Jefferson, 82, 2034 North Summit Avenue, Altadena. There are 2 of you at home. The person who needs the most help uses a walker and needs two people to lift. You have a car you can use. You have a dog. How you talk: partial address, tangents."
+ },
+ {
+  "id": "P-194",
+  "name": "Josefina Méndez",
+  "age": 83,
+  "language": "es",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "3458 North Fair Oaks Avenue, Altadena",
+  "lat": 34.203845,
+  "lng": -118.142754,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": false
+  },
+  "traits": [
+   "asks_reassurance"
+  ],
+  "card": "Josefina Méndez, 83, 3458 North Fair Oaks Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have no car. How you talk: asks reassurance."
+ },
+ {
+  "id": "P-195",
+  "name": "Darnell Jefferson",
+  "age": 90,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "165 East Las Flores Drive, Altadena",
+  "lat": 34.198445,
+  "lng": -118.141832,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 4,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "hard_of_hearing",
+   "tangents",
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "3271 North Raymond Avenue, Altadena",
+  "card": "Darnell Jefferson, 90, 165 East Las Flores Drive, Altadena. There are 4 of you at home. The person who needs the most help can walk. You have a car you can use. How you talk: hard of hearing, tangents, nominates neighbor."
+ },
+ {
+  "id": "P-196",
+  "name": "Irene Chen",
+  "age": 92,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "463 West Mariposa Street, Altadena",
+  "lat": 34.19551,
+  "lng": -118.157263,
+  "onFile": {},
+  "truth": {
+   "canLeave": "unsure",
+   "peopleCount": 1,
+   "mobility": "manual_wheelchair",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "neighborAddress": "485 Devirian Place, Altadena",
+  "card": "Irene Chen, 92, 463 West Mariposa Street, Altadena. You live alone. The person who needs the most help uses a wheelchair. You have a car you can use. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-197",
+  "name": "Consuelo Flores",
+  "age": 94,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "721 Colman Street, Altadena",
+  "lat": 34.183975,
+  "lng": -118.135448,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 1,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "canLeave",
+   "firstSays": "\"no\"",
+   "when": "readback"
+  },
+  "neighborAddress": "421 East Calaveras Street, Altadena",
+  "card": "Consuelo Flores, 94, 721 Colman Street, Altadena. You speak Spanish. You live alone. The person who needs the most help can walk. You have a car you can use. You have a dog. At first you get canLeave wrong (you say \"no\"), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-198",
+  "name": "Vernon Takahashi",
+  "age": 78,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "229 Wapello Street, Altadena",
+  "lat": 34.201992,
+  "lng": -118.138736,
+  "onFile": {},
+  "truth": {
+   "canLeave": "yes",
+   "peopleCount": 3,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": false,
+   "hasCar": true
+  },
+  "traits": [
+   "nominates_neighbor"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "readback"
+  },
+  "neighborAddress": "3180 Crestford Drive, Altadena",
+  "card": "Vernon Takahashi, 78, 229 Wapello Street, Altadena. There are 3 of you at home. The person who needs the most help can walk. You have a car you can use. At first you get medical wrong (you say [\"oxygen\"]), then correct it. How you talk: nominates neighbor."
+ },
+ {
+  "id": "P-199",
+  "name": "Lucille Tate",
+  "age": 87,
+  "language": "en",
+  "direction": "inbound",
+  "riderId": null,
+  "address": "506 West Mariposa Street, Altadena",
+  "lat": 34.195471,
+  "lng": -118.158316,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 1,
+   "mobility": "walker",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "second_voice"
+  ],
+  "correction": {
+   "field": "medical",
+   "firstSays": "[\"oxygen\"]",
+   "when": "second_voice"
+  },
+  "card": "Lucille Tate, 87, 506 West Mariposa Street, Altadena. You live alone. The person who needs the most help uses a walker. You have no car. You have a dog. At first you get medical wrong (you say [\"oxygen\"]), then correct it when someone else in the room reminds you. How you talk: second voice."
+ },
+ {
+  "id": "P-200",
+  "name": "Consuelo Navarro",
+  "age": 72,
+  "language": "es",
+  "direction": "outbound",
+  "riderId": null,
+  "address": "2428 North Santa Anita Avenue, Altadena",
+  "lat": 34.18701,
+  "lng": -118.140145,
+  "onFile": {},
+  "truth": {
+   "canLeave": "no",
+   "peopleCount": 2,
+   "mobility": "walks",
+   "assistanceRequired": "none",
+   "medical": [],
+   "pets": true,
+   "hasCar": false
+  },
+  "traits": [
+   "panic"
+  ],
+  "card": "Consuelo Navarro, 72, 2428 North Santa Anita Avenue, Altadena. You speak Spanish. There are 2 of you at home. The person who needs the most help can walk. You have no car. You have a dog. How you talk: panic."
+ }
+]
