@@ -5,23 +5,46 @@ import { api } from "@/convex/_generated/api";
 import { formatClock } from "@/lib/time";
 import { Panel, PanelEmpty } from "../ui/panel";
 
+const VISIBLE_DOORS = 5;
+
+function DoorRow({ address, position }: { address: string; position: number }) {
+  return (
+    <li className="flex items-center gap-2.5 px-4 py-1">
+      <span className="type-small grid size-5 shrink-0 place-items-center rounded-full bg-surface-sunk font-bold tabular-nums">{position}</span>
+      <span className="type-small min-w-0 flex-1 truncate" title={address}>
+        {address}
+      </span>
+    </li>
+  );
+}
+
 // Nobody answered the phone or the text. These are the doors a crew has to knock, in the order
 // the fire will reach them.
 export function DoorCheckPanel({ className = "" }: { className?: string }) {
   const homes = useQuery(api.doorChecks.queue, { limit: 12 });
+  const rest = homes?.slice(VISIBLE_DOORS) ?? [];
   return (
-    <Panel title={`Doors to knock (${homes?.length ?? 0})`} className={className}>
+    <Panel title="Doors to knock" aside={homes && <span className="type-figure pr-4 text-xl">{homes.length}</span>} className={className}>
       {homes?.length ? (
-        <ol className="flex min-h-0 flex-col overflow-y-auto">
-          {homes.map((home, index) => (
-            <li key={home._id} className="flex items-baseline gap-2.5 border-b border-panel-raised px-3 py-2">
-              <span className="type-small w-4 shrink-0 text-right font-bold tabular-nums text-on-panel-muted">{index + 1}</span>
-              <span className="type-small min-w-0 flex-1">{home.address}</span>
-            </li>
-          ))}
-        </ol>
+        <>
+          <ol className="flex flex-col pb-2">
+            {homes.slice(0, VISIBLE_DOORS).map((home, index) => (
+              <DoorRow key={home._id} address={home.address} position={index + 1} />
+            ))}
+          </ol>
+          {rest.length > 0 && (
+            <details className="border-t border-panel-raised pb-2">
+              <summary className="type-small cursor-pointer px-4 py-2 font-semibold hover:bg-panel-raised">+{rest.length} more</summary>
+              <ol className="flex flex-col">
+                {rest.map((home, index) => (
+                  <DoorRow key={home._id} address={home.address} position={VISIBLE_DOORS + index + 1} />
+                ))}
+              </ol>
+            </details>
+          )}
+        </>
       ) : (
-        <PanelEmpty>Every home on the list has been reached by phone or text.</PanelEmpty>
+        <PanelEmpty>Every home reached.</PanelEmpty>
       )}
     </Panel>
   );
@@ -36,15 +59,15 @@ export function NominationPanel({ className = "" }: { className?: string }) {
   if (rows.length === 0) return null;
 
   return (
-    <Panel title={`Neighbors named on calls (${rows.length})`} className={className}>
-      <ul className="flex min-h-0 flex-col overflow-y-auto">
+    <Panel title="Neighbors named" aside={<span className="type-figure pr-4 text-xl">{rows.length}</span>} className={className}>
+      <ul className="flex min-h-0 flex-col overflow-y-auto pb-2">
         {rows.map((nomination) => (
-          <li key={nomination._id} className="flex flex-col gap-0.5 border-b border-panel-raised px-3 py-2">
-            <div className="flex items-baseline gap-2">
-              <span className="type-small min-w-0 flex-1 font-semibold">{nomination.spokenAddress}</span>
-              <span className="type-small shrink-0 tabular-nums text-on-panel-muted">{formatClock(nomination.at)}</span>
-            </div>
-            {nomination.note && <span className="type-small text-signal">{nomination.note}</span>}
+          <li key={nomination._id} className="flex items-center gap-2 px-4 py-1" title={nomination.note ?? undefined}>
+            <span className="type-small min-w-0 flex-1 truncate font-semibold">
+              {nomination.spokenAddress}
+              {nomination.note && <span className="font-normal text-on-panel-muted"> {nomination.note}</span>}
+            </span>
+            <span className="type-small shrink-0 tabular-nums text-on-panel-muted">{formatClock(nomination.at)}</span>
           </li>
         ))}
       </ul>

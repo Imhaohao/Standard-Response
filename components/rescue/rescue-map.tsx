@@ -47,12 +47,12 @@ export function RescueMap() {
   const finish = useCallback(async () => {
     if (tool === "zone" && draft.length >= 3) {
       const covered = await setZone({ polygon: draft.map(toLatLng) });
-      setStatus(`Zone saved. ${covered} homes inside it start getting calls.`);
+      setStatus(`Zone saved: ${covered} homes`);
       cancel();
     }
     if (tool === "closure" && draft.length === 2) {
       await addClosures({ closures: [{ path: draft.map(toLatLng), source: "manual" }] });
-      setStatus("Road closed. The next plan routes around it.");
+      setStatus("Road closed");
       cancel();
     }
   }, [tool, draft, setZone, addClosures, toLatLng, cancel]);
@@ -90,21 +90,21 @@ export function RescueMap() {
       <div className="pointer-events-none absolute inset-0 flex flex-col">
         <MapTopBar issuedAt={control?.warningIssuedAt} />
         <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-          <div className="pointer-events-auto flex w-[21rem] max-w-[38vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+          <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
             <NeedPanel />
             <NominationPanel />
           </div>
           <div className="min-w-0 flex-1" />
-          <div className="pointer-events-auto flex w-[19rem] max-w-[34vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
+          <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
             <PlanPanel />
             <FleetPanel />
             <DoorCheckPanel />
             <RiderUpload />
           </div>
         </div>
-        <div className="flex items-end gap-3 p-3">
+        <div className="flex items-end gap-3 p-3 pt-0">
           <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
-            {status && <p className="type-small max-w-[22rem] px-3 text-on-panel-muted">{status}</p>}
+            {status}
           </MapToolbar>
           <div className="flex min-w-0 flex-1 justify-center">
             <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />

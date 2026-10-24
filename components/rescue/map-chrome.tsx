@@ -1,43 +1,39 @@
 "use client";
 
-import { Cube, Cursor, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
+import { ArrowClockwise, Cube, Cursor, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
+import { ReactNode } from "react";
 import { FireClock } from "@/lib/ink-map/hazard";
 import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
+import { SegmentedControl } from "./segmented-control";
 
 export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
   return <AppBar>{issuedAt && <WarningClock issuedAt={issuedAt} />}</AppBar>;
 }
 
 export type MapTool = "look" | "zone" | "closure";
+type MapMode = "ink" | "paper";
 
 const TOOLS = [
-  { key: "look", label: "Look around", Icon: Cursor },
-  { key: "zone", label: "Draw warning zone", Icon: Path },
-  { key: "closure", label: "Close a road", Icon: RoadHorizon },
+  { value: "look", label: "Look around", Icon: Cursor },
+  { value: "zone", label: "Draw warning zone", Icon: Path },
+  { value: "closure", label: "Close a road", Icon: RoadHorizon },
+] as const;
+
+const MODES = [
+  { value: "ink", label: "3D", Icon: Cube },
+  { value: "paper", label: "Flat", Icon: MapTrifold },
 ] as const;
 
 const TOOL_HINTS: Record<MapTool, string> = {
   look: "",
-  zone: "Click the map to add corners, then finish the zone.",
-  closure: "Click where the road closes, then where it opens again.",
+  zone: "Click corners, Enter to save",
+  closure: "Click both ends of the road",
 };
 
-function ToolButton({ tool, active, onTool }: { tool: (typeof TOOLS)[number]; active: boolean; onTool: (tool: MapTool) => void }) {
-  const { Icon, label, key } = tool;
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={() => onTool(key)}
-      className={`inline-flex h-9 items-center gap-2 px-3 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
-        active ? "bg-on-panel text-panel" : "text-on-panel hover:bg-panel-raised"
-      }`}
-    >
-      <Icon weight="bold" className="size-4" />
-      <span className="type-small hidden md:inline">{label}</span>
-    </button>
-  );
+// The surface every bar along the bottom of the map shares.
+export function ChromeSurface({ className = "", children }: { className?: string; children: ReactNode }) {
+  return <div className={`pointer-events-auto rounded-2xl bg-panel/96 text-on-panel shadow-float backdrop-blur-md ${className}`}>{children}</div>;
 }
 
 export function MapToolbar({
@@ -48,43 +44,19 @@ export function MapToolbar({
   children,
 }: {
   tool: MapTool;
-  mode: "ink" | "paper";
+  mode: MapMode;
   onTool: (tool: MapTool) => void;
-  onMode: (mode: "ink" | "paper") => void;
-  children?: React.ReactNode;
+  onMode: (mode: MapMode) => void;
+  children?: ReactNode;
 }) {
+  const hint = TOOL_HINTS[tool] || children;
   return (
-    <div className="pointer-events-auto flex flex-col gap-2">
-      <div className="flex items-center gap-1 self-start border border-panel-raised bg-panel/96 p-1 text-on-panel backdrop-blur-md">
-        {TOOLS.map((entry) => (
-          <ToolButton key={entry.key} tool={entry} active={tool === entry.key} onTool={onTool} />
-        ))}
-        <span className="mx-1 h-6 w-px bg-panel-raised" aria-hidden />
-        <button
-          type="button"
-          aria-pressed={mode === "ink"}
-          onClick={() => onMode("ink")}
-          className={`inline-flex h-9 items-center gap-2 px-3 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
-            mode === "ink" ? "bg-on-panel text-panel" : "text-on-panel hover:bg-panel-raised"
-          }`}
-        >
-          <Cube weight="bold" className="size-4" />
-          <span className="type-small hidden md:inline">3D</span>
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === "paper"}
-          onClick={() => onMode("paper")}
-          className={`inline-flex h-9 items-center gap-2 px-3 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
-            mode === "paper" ? "bg-on-panel text-panel" : "text-on-panel hover:bg-panel-raised"
-          }`}
-        >
-          <MapTrifold weight="bold" className="size-4" />
-          <span className="type-small hidden md:inline">Flat</span>
-        </button>
-        {children}
-      </div>
-      {tool !== "look" && <p className="type-small self-start bg-panel/96 px-3 py-1.5 text-on-panel backdrop-blur-md">{TOOL_HINTS[tool]}</p>}
+    <div className="flex flex-col items-start gap-2">
+      {hint && <ChromeSurface className="type-small px-3 py-1.5 font-semibold">{hint}</ChromeSurface>}
+      <ChromeSurface className="flex items-center gap-2 p-1.5">
+        <SegmentedControl options={TOOLS} value={tool} onChange={onTool} ariaLabel="Map tool" />
+        <SegmentedControl options={MODES} value={mode} onChange={onMode} ariaLabel="Map view" />
+      </ChromeSurface>
     </div>
   );
 }
@@ -95,27 +67,42 @@ const scenarioClock = (minutes: number) => {
   return hours > 0 ? `${hours}h ${whole % 60}m` : `${whole}m`;
 };
 
+const SCENARIO_NOTE = "Scenario input, not a forecast";
+
+function ClockState({ previewing }: { previewing: boolean }) {
+  return (
+    <span className={`type-small inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 font-bold ${previewing ? "bg-on-panel text-panel" : "bg-surface-sunk"}`}>
+      <span className={`size-2 rounded-full ${previewing ? "bg-panel" : "bg-on-panel"}`} aria-hidden />
+      {previewing ? "Preview" : "Now"}
+    </span>
+  );
+}
+
 export function FireScrubber({ clock, label }: { clock: FireClock; label: string }) {
   return (
-    <div className="pointer-events-auto flex w-full max-w-xl flex-col gap-1 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
-      <div className="flex items-center gap-3">
-        <input
-          type="range"
-          min={0}
-          max={clock.last || 1}
-          value={Math.round(clock.minutes)}
-          onChange={(event) => clock.scrub(Number(event.target.value))}
-          aria-label="Minutes after the warning"
-          className="h-1 min-w-0 flex-1 accent-signal"
-        />
-        <span className="type-small shrink-0 whitespace-nowrap font-semibold tabular-nums">{scenarioClock(clock.minutes)} after the warning</span>
-        {clock.scrubbing && (
-          <Button variant="onPanelQuiet" className="!h-7 !px-2.5 !text-xs" onClick={clock.follow}>
-            Back to now
-          </Button>
-        )}
-      </div>
-      <p className="type-small text-on-panel-muted">{label}</p>
-    </div>
+    <ChromeSurface className="flex w-full max-w-2xl items-center gap-3 px-3 py-2">
+      <ClockState previewing={clock.scrubbing} />
+      <input
+        type="range"
+        min={0}
+        max={clock.last || 1}
+        value={Math.round(clock.minutes)}
+        onChange={(event) => clock.scrub(Number(event.target.value))}
+        aria-label="Minutes after the warning"
+        className="h-1 min-w-0 flex-1 accent-signal"
+      />
+      <span className="type-small w-12 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
+        +{scenarioClock(clock.minutes)}
+      </span>
+      {clock.scrubbing && (
+        <Button variant="onPanel" className="!h-8 !rounded-lg !px-2.5 !text-xs" onClick={clock.follow}>
+          <ArrowClockwise weight="bold" className="size-3.5" />
+          Back to now
+        </Button>
+      )}
+      <span title={label} className="type-small shrink-0 rounded-md bg-surface-sunk px-1.5 py-0.5 text-on-panel-muted">
+        {SCENARIO_NOTE}
+      </span>
+    </ChromeSurface>
   );
 }

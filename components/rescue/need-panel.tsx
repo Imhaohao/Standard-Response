@@ -2,82 +2,82 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { FunctionReturnType } from "convex/server";
-import { Users, Wheelchair } from "@phosphor-icons/react";
+import { Check } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { ASSIGNMENT_STATUS_LABELS, ESCALATION_LABELS, REQUEST_STATUS_LABELS, needsSummary } from "@/lib/labels";
+import { ASSIGNMENT_STATUS_LABELS, ESCALATION_LABELS } from "@/lib/labels";
 import { formatCountdown, useNow } from "@/lib/time";
 import { Button } from "../ui/button";
-import { Panel } from "../ui/panel";
-import { OpenRequest, awaitingRide, byUrgency } from "./marks";
+import { Panel, PanelEmpty } from "../ui/panel";
+import { OpenRequest, byUrgency } from "./marks";
+import { EscalationPill, NeedStage, RequestBadge, VanChip, needStage } from "./request-badge";
 
 type Assignment = FunctionReturnType<typeof api.offers.active>[number];
 
-// Two glyphs carry the whole request: who is travelling, and how many people it takes to move them.
-function NeedGlyphs({ request }: { request: OpenRequest }) {
-  const { seats, wheelchairSpaces, stretcherSpaces } = request.load;
-  const wheeled = wheelchairSpaces + stretcherSpaces;
+const STAGES = [
+  { stage: "waiting", label: "Waiting", segment: "bg-signal", figure: "text-signal text-5xl" },
+  { stage: "vanComing", label: "Van coming", segment: "bg-map-ink", figure: "text-ink text-3xl" },
+  { stage: "pickedUp", label: "Picked up", segment: "bg-on-panel-muted", figure: "text-ink-muted text-3xl" },
+] as const;
+
+const MIN_SEGMENT_SHARE = 0.1;
+
+function StageSummary({ counts }: { counts: Record<NeedStage, number> }) {
+  const total = STAGES.reduce((sum, { stage }) => sum + counts[stage], 0);
   return (
-    <span className="flex shrink-0 items-center gap-1 text-on-panel-muted" aria-label={needsSummary(request.load, request.crewNeeded)}>
-      {wheeled > 0 && (
-        <span className="flex items-center gap-0.5 text-signal">
-          <Wheelchair weight="bold" className="size-4" />
-          <span className="type-small font-bold">{wheeled}</span>
-        </span>
-      )}
-      <span className="flex items-center gap-0.5">
-        <Users weight="bold" className="size-4" />
-        <span className="type-small font-bold">{seats + request.crewNeeded}</span>
-      </span>
-    </span>
+    <div className="flex flex-col gap-2 px-4 pb-3">
+      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-surface-sunk" aria-hidden>
+        {STAGES.map(({ stage, segment }) => (
+          <span key={stage} className={`${segment} transition-[flex-grow] duration-300`} style={{ flexGrow: Math.max(counts[stage], counts[stage] > 0 ? total * MIN_SEGMENT_SHARE : 0), flexBasis: 0 }} />
+        ))}
+        {total === 0 && <span className="flex-1" />}
+      </div>
+      <dl className="flex items-end justify-between gap-2">
+        {STAGES.map(({ stage, label, figure }) => (
+          <div key={stage} className="flex flex-col gap-1">
+            <dd className={`type-figure tabular-nums ${figure}`}>{counts[stage]}</dd>
+            <dt className="type-small text-on-panel-muted">{label}</dt>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
-function AssignmentLine({ assignment, vehicleLabel }: { assignment: Assignment; vehicleLabel: string }) {
+function ApproveButton({ assignment }: { assignment: Assignment }) {
   const approve = useMutation(api.offers.approve);
-  const proposed = assignment.status === "proposed";
   return (
-    <div className="flex items-center gap-2 border-t border-panel-raised pt-1.5">
-      <span className="type-small min-w-0 flex-1 truncate text-on-panel-muted">
-        <span className="font-semibold text-on-panel">{vehicleLabel}</span> {ASSIGNMENT_STATUS_LABELS[assignment.status].toLowerCase()}
-        {assignment.etaMinutes > 0 && `, ${assignment.etaMinutes} min out`}
-      </span>
-      {proposed && (
-        <Button variant="onPanel" className="!h-7 !px-2.5 !text-xs" onClick={() => void approve({ assignmentId: assignment._id })}>
-          Approve
-        </Button>
-      )}
-    </div>
+    <Button variant="onPanel" aria-label="Approve this offer" title="Approve this offer" className="!size-7 !rounded-lg !p-0" onClick={() => void approve({ assignmentId: assignment._id })}>
+      <Check weight="bold" className="size-4" />
+    </Button>
   );
 }
 
 function NeedRow({
   request,
-  assignments,
-  vehicleLabels,
+  assignment,
+  vehicleLabel,
   now,
 }: {
   request: OpenRequest;
-  assignments: Assignment[];
-  vehicleLabels: Map<Id<"vehicles">, string>;
+  assignment?: Assignment;
+  vehicleLabel: string;
   now: number;
 }) {
   const escalation = request.escalation;
+  const title = escalation ? ESCALATION_LABELS[escalation] : undefined;
   return (
-    <li className={`flex flex-col gap-1.5 border-b border-panel-raised px-3 py-2.5 ${escalation ? "border-l-2 border-l-signal bg-signal/10" : ""}`}>
-      <div className="flex items-baseline gap-2">
-        <span className="type-small min-w-0 flex-1 font-semibold">{request.address}</span>
-        <span className="type-small shrink-0 tabular-nums text-on-panel-muted">{formatCountdown(request.deadlineAt - now)}</span>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className={`type-small ${escalation ? "font-bold text-signal" : "text-on-panel-muted"}`}>
-          {escalation ? ESCALATION_LABELS[escalation] : REQUEST_STATUS_LABELS[request.status]}
-        </span>
-        <NeedGlyphs request={request} />
-      </div>
-      {assignments.map((assignment) => (
-        <AssignmentLine key={assignment._id} assignment={assignment} vehicleLabel={vehicleLabels.get(assignment.vehicleId) ?? "Vehicle"} />
-      ))}
+    <li className={`flex items-center gap-2 px-4 py-1.5 ${escalation ? "bg-signal-soft" : ""}`} title={title}>
+      <RequestBadge request={request} />
+      <span className="type-small min-w-0 flex-1 truncate font-semibold" title={request.address}>
+        {request.address}
+      </span>
+      {escalation && <EscalationPill escalation={escalation} />}
+      <span className="type-small shrink-0 rounded-md bg-surface-sunk px-1.5 py-0.5 font-semibold tabular-nums">{formatCountdown(request.deadlineAt - now)}</span>
+      {assignment && (
+        <VanChip label={vehicleLabel} busy title={`${vehicleLabel} ${ASSIGNMENT_STATUS_LABELS[assignment.status].toLowerCase()}`} />
+      )}
+      {assignment?.status === "proposed" && <ApproveButton assignment={assignment} />}
     </li>
   );
 }
@@ -86,10 +86,16 @@ function ApproveAll({ proposed }: { proposed: Assignment[] }) {
   const approve = useMutation(api.offers.approve);
   if (proposed.length === 0) return null;
   return (
-    <Button variant="onPanelQuiet" className="!h-7 !px-2.5 !text-xs" onClick={() => void Promise.all(proposed.map((a) => approve({ assignmentId: a._id })))}>
+    <Button variant="onPanel" className="!h-7 !rounded-lg !px-2.5 !text-xs" onClick={() => void Promise.all(proposed.map((a) => approve({ assignmentId: a._id })))}>
       Approve all {proposed.length}
     </Button>
   );
+}
+
+function countStages(requests: OpenRequest[]): Record<NeedStage, number> {
+  const counts = { waiting: 0, vanComing: 0, pickedUp: 0 };
+  for (const request of requests) counts[needStage(request)] += 1;
+  return counts;
 }
 
 export function NeedPanel({ className = "" }: { className?: string }) {
@@ -97,27 +103,32 @@ export function NeedPanel({ className = "" }: { className?: string }) {
   const assignments = useQuery(api.offers.active) ?? [];
   const vehicles = useQuery(api.vehicles.list);
   const now = useNow(15_000);
-  const vehicleLabels = new Map(vehicles?.map((vehicle) => [vehicle._id, vehicle.label]));
-  const open = (requests ?? []).filter(awaitingRide).sort(byUrgency);
+  const vehicleLabels = new Map<Id<"vehicles">, string>(vehicles?.map((vehicle) => [vehicle._id, vehicle.label]));
+  const all = requests ?? [];
+  const open = all.filter((request) => needStage(request) !== "pickedUp").sort(byUrgency);
   const proposed = assignments.filter((assignment) => assignment.status === "proposed");
 
   return (
-    <Panel
-      title={`Who needs a ride (${open.length})`}
-      aside={<ApproveAll proposed={proposed} />}
-      className={className}
-    >
-      <ol className="flex min-h-0 flex-col overflow-y-auto">
-        {open.map((request) => (
-          <NeedRow
-            key={request._id}
-            request={request}
-            assignments={assignments.filter((assignment) => assignment.requestId === request._id)}
-            vehicleLabels={vehicleLabels}
-            now={now}
-          />
-        ))}
-      </ol>
+    <Panel title="Who needs a ride" aside={<ApproveAll proposed={proposed} />} className={className}>
+      <StageSummary counts={countStages(all)} />
+      {open.length === 0 ? (
+        <PanelEmpty>Nobody is waiting.</PanelEmpty>
+      ) : (
+        <ol className="flex min-h-0 flex-col overflow-y-auto pb-2">
+          {open.map((request) => {
+            const assignment = assignments.find((candidate) => candidate.requestId === request._id);
+            return (
+              <NeedRow
+                key={request._id}
+                request={request}
+                assignment={assignment}
+                vehicleLabel={assignment ? (vehicleLabels.get(assignment.vehicleId) ?? "Van") : ""}
+                now={now}
+              />
+            );
+          })}
+        </ol>
+      )}
     </Panel>
   );
 }
