@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { motion } from "motion/react";
 import { ReactNode, useState } from "react";
-import { Siren } from "@phosphor-icons/react";
+import { CaretDown, Siren } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { AREA_NAME } from "@/lib/brand";
@@ -70,15 +70,21 @@ function useFollowedCall() {
   const pinned = sorted.find((call) => call._id === pinnedId);
   const oldestLive = sorted.find((call) => call.phase === "live");
   const followed = pinned ?? oldestLive ?? null;
-  return { calls: sorted, followed, pinned: Boolean(pinned), pin: setPinnedId };
+  const [listening, setListening] = useState(true);
+  const pin = (id: Id<"calls"> | null) => {
+    setPinnedId(id);
+    setListening(true);
+  };
+  return { calls: sorted, followed, pinned: Boolean(pinned), pin, listening, close: () => setListening(false) };
 }
 
 function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
   const [tab, setTab] = useState<Tab>("lines");
+  const [open, setOpen] = useState(true);
   return (
     <div className="pointer-events-auto flex min-h-0 w-[23rem] max-w-[40vw] shrink-0 flex-col gap-3">
       <ReachPanel />
-      <section className="flex min-h-0 flex-1 flex-col bg-panel/96 text-on-panel backdrop-blur-md">
+      <section className={`flex min-h-0 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float ${open ? "flex-1" : ""}`}>
         <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
           <TabButton active={tab === "lines"} onClick={() => setTab("lines")}>
             On the phone <span className="tabular-nums text-on-panel-muted">{floor.calls.length}</span>
@@ -89,8 +95,17 @@ function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
           <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
             Activity
           </TabButton>
+          <button
+            type="button"
+            aria-label={open ? "Hide the lists" : "Show the lists"}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className="grid w-10 shrink-0 place-items-center text-on-panel-muted hover:text-on-panel focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+          >
+            <CaretDown weight="bold" className={`size-4 transition-transform duration-150 ${open ? "" : "-rotate-90"}`} />
+          </button>
         </div>
-        <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
+        <div role="tabpanel" hidden={!open} className="min-h-0 flex-1 overflow-y-auto">
           {tab === "lines" && <LineList calls={floor.calls} selectedId={floor.followed?._id ?? null} onSelect={floor.pin} />}
           {tab === "queue" && <QueueList />}
           {tab === "activity" && <ActivityList />}
@@ -124,7 +139,9 @@ export function CallFloor() {
             <WorkColumn floor={floor} />
             <div className="min-w-0 flex-1" />
             <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col">
-              <ListeningPanel callId={floor.followed?._id ?? null} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} />
+              {floor.listening && (
+                <ListeningPanel callId={floor.followed?._id ?? null} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />
+              )}
             </div>
           </div>
         )}

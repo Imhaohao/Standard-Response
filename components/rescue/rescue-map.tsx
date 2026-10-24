@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { ZoomControls } from "@/components/map/zoom-controls";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
 import { createProjection, Point } from "@/lib/ink-map/data";
@@ -83,6 +84,7 @@ export function RescueMap() {
         onPick={pick}
         interactive={tool !== "look"}
         className="absolute inset-0"
+        controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
         <MapOverlays tool={tool} draft={draft} />
       </MapStage>

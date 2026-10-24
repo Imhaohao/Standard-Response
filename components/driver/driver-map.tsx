@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
 import { MapStage } from "@/components/map/map-stage";
+import { ZoomControls } from "@/components/map/zoom-controls";
 import { NeedMark, useBuildingHighlights } from "@/components/map/use-highlights";
 import { LatLng } from "@/lib/geo";
 import { createProjection, InkMapData } from "@/lib/ink-map/data";
@@ -119,7 +120,7 @@ export function DriverMap({ focus, run, vehicle }: { focus: Stop | null; run: St
   if (!data || !view) return <div className="size-full bg-map-paper" aria-hidden />;
 
   return (
-    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} highlights={highlights} className="absolute inset-0">
+    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className="absolute right-3 bottom-3" />}>
       {vehicle && <VanRoute vehicleId={vehicle._id} />}
       {vehicle && <VanMark vehicle={vehicle} />}
       <StopPins focus={focus} run={run} />

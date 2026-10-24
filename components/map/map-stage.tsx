@@ -10,6 +10,7 @@ import { BuildingState } from "@/lib/ink-map/renderer";
 import { InkSurface } from "./ink-surface";
 import { PaperSurface } from "./paper-surface";
 import { closeupFrame, fitFrame, Frame, PAPER_FIT, Size, unframe } from "./projection";
+import { useMapGestures } from "./use-map-gestures";
 
 export type SurfaceMode = "ink" | "paper";
 export type ScreenPoint = { x: number; y: number; visible: boolean };
@@ -22,6 +23,9 @@ type StageValue = {
   toScreen: (point: LatLng) => ScreenPoint;
   toLocal: (point: LatLng) => Point;
   toLatLng: (point: Point) => LatLng;
+  zoomBy: (factor: number) => void;
+  resetView: () => void;
+  zoomed: boolean;
 };
 
 const StageContext = createContext<StageValue | null>(null);
@@ -53,6 +57,7 @@ export function MapStage({
   onPick,
   interactive = false,
   children,
+  controls,
   className = "",
 }: {
   data: InkMapData;
@@ -65,10 +70,11 @@ export function MapStage({
   onPick?: (point: Point) => void;
   interactive?: boolean;
   children?: ReactNode;
+  controls?: ReactNode;
   className?: string;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<Size | null>(null);
+  const size = useElementSize(boxRef);
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
   const [inkFailed, setInkFailed] = useState(false);
   const fail = useCallback(() => setInkFailed(true), []);
@@ -78,58 +84,42 @@ export function MapStage({
   const projection = useMemo(() => createProjection(data.origin), [data.origin]);
   const { toLatLng, toLocal } = projection;
 
-  useEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      if (width >= 2 && height >= 2) setSize({ width, height });
-    });
-    observer.observe(box);
-    return () => observer.disconnect();
-  }, []);
+
+  const renderer = mode === "ink" ? handle?.renderer ?? null : null;
+  const dragged = useMapGestures(boxRef, renderer);
 
   const click = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!onPick || !size) return;
+      if (!onPick || !size || dragged.current) return;
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const ground = mode === "paper" ? unframe(frame, size, x, y, PAPER_FIT) : handle?.renderer.pickGround(x, y) ?? null;
       if (ground) onPick(ground);
     },
-    [onPick, size, mode, frame, handle],
+    [onPick, size, mode, frame, handle, dragged],
   );
 
   // Markers are projected from the live camera on the 3D surface, and from the flat frame on the
   // 2D one. Until the canvas has a size there is nothing to project into.
-  const value = useMemo<StageValue | null>(() => {
-    if (!size) return null;
-    const renderer = handle?.renderer;
-    const project = mode === "paper" ? fitFrame(frame, size, PAPER_FIT) : renderer ? (point: Point) => renderer.project(point) : () => HIDDEN;
-    return { data, size, version: handle?.version ?? 0, project, toScreen: (point) => project(toLocal(point)), toLocal, toLatLng };
-  }, [data, size, handle, mode, frame, toLocal, toLatLng]);
+  const value = useMemo(
+    () => (size ? stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }) : null),
+    [data, size, handle, mode, frame, toLocal, toLatLng],
+  );
 
   return (
     <div
       ref={boxRef}
       onClick={onPick ? click : undefined}
-      className={`relative isolate size-full overflow-hidden bg-canvas ${interactive ? "cursor-crosshair" : ""} ${className}`}
+      className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
-      {mode === "ink" ? (
-        <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes ?? 0} highlights={highlights ?? EMPTY} onHandle={setHandle} onFail={fail} />
-      ) : (
-        size && (
-          <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">
-            <PaperSurface data={data} frame={frame} size={size} fronts={fronts ?? []} minutes={minutes ?? 0} />
-          </svg>
-        )
-      )}
+      <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} fronts={fronts} highlights={highlights} onHandle={setHandle} onFail={fail} />
       {value && (
         <StageContext.Provider value={value}>
           <svg width={value.size.width} height={value.size.height} className="pointer-events-none absolute inset-0" aria-hidden>
             {children}
           </svg>
+          {controls}
         </StageContext.Provider>
       )}
     </div>
@@ -137,3 +127,77 @@ export function MapStage({
 }
 
 const EMPTY: Map<number, BuildingState> = new Map();
+
+type SurfaceProps = {
+  mode: SurfaceMode;
+  data: InkMapData;
+  view: InkMapView;
+  frame: Frame;
+  size: Size | null;
+  hazard?: Hazard | null;
+  minutes?: number;
+  fronts?: { minutes: number; ring: Point[] }[];
+  highlights?: Map<number, BuildingState>;
+  onHandle: (handle: InkMapHandle | null) => void;
+  onFail: () => void;
+};
+
+function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fronts = [], highlights = EMPTY, onHandle, onFail }: SurfaceProps) {
+  if (mode === "ink") {
+    return <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes} highlights={highlights} onHandle={onHandle} onFail={onFail} />;
+  }
+  if (!size) return null;
+  return (
+    <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">
+      <PaperSurface data={data} frame={frame} size={size} fronts={fronts} minutes={minutes} />
+    </svg>
+  );
+}
+
+function useElementSize(ref: React.RefObject<HTMLDivElement | null>) {
+  const [size, setSize] = useState<Size | null>(null);
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width >= 2 && height >= 2) setSize({ width, height });
+    });
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [ref]);
+  return size;
+}
+
+function cursorFor(drawing: boolean, mode: SurfaceMode) {
+  if (drawing) return "cursor-crosshair";
+  return mode === "ink" ? "cursor-grab active:cursor-grabbing" : "";
+}
+
+type StageInputs = {
+  data: InkMapData;
+  size: Size;
+  handle: InkMapHandle | null;
+  mode: SurfaceMode;
+  frame: Frame;
+  toLocal: (point: LatLng) => Point;
+  toLatLng: (point: Point) => LatLng;
+};
+
+function stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }: StageInputs): StageValue {
+  const ink = mode === "ink" ? handle?.renderer : undefined;
+  const flat = fitFrame(frame, size, PAPER_FIT);
+  const project = mode === "paper" ? flat : ink ? (point: Point) => ink.project(point) : () => HIDDEN;
+  return {
+    data,
+    size,
+    version: handle?.version ?? 0,
+    project,
+    toScreen: (point) => project(toLocal(point)),
+    toLocal,
+    toLatLng,
+    zoomBy: (factor) => ink?.zoomAt(factor, size.width / 2, size.height / 2),
+    resetView: () => ink?.resetView(),
+    zoomed: (ink?.zoom ?? 1) > 1.01,
+  };
+}

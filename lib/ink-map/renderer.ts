@@ -207,13 +207,98 @@ export class InkMapRenderer {
     this.fireMask.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
     this.blurA.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
     configureCamera(this.camera, this.data, this.view, this.cssSize.width / this.cssSize.height);
+    this.home = { position: this.camera.position.clone(), target: this.lookTarget() };
+    this.composite.material.uniforms.uResolution.value.set(w, h);
+    this.applyNavigation();
+    this.renderStatic();
+    this.renderFrame();
+  }
+
+  // ---- Moving the view: drag to pan, wheel to zoom toward the cursor ----
+
+  private home = { position: new THREE.Vector3(), target: new THREE.Vector3() };
+  private nav = { pan: new THREE.Vector3(), zoom: 1 };
+  private viewListeners = new Set<() => void>();
+
+  private lookTarget() {
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    const t = (this.terrainLevel() - this.camera.position.y) / direction.y;
+    return this.camera.position.clone().addScaledVector(direction, t);
+  }
+
+  private terrainLevel() {
+    const centre = this.camera.position;
+    return terrainHeight(this.data.terrain, centre.x, -centre.z);
+  }
+
+  private applyNavigation() {
+    const offset = this.home.position.clone().sub(this.home.target).divideScalar(this.nav.zoom);
+    const target = this.home.target.clone().add(this.nav.pan);
+    this.camera.position.copy(target).add(offset);
+    this.camera.lookAt(target);
+    this.camera.updateMatrixWorld();
     const u = this.composite.material.uniforms;
-    u.uResolution.value.set(w, h);
     u.uInvProjection.value.copy(this.camera.projectionMatrixInverse);
     u.uCameraWorld.value.copy(this.camera.matrixWorld);
     u.uTanHalfFov.value = Math.tan((this.camera.fov * Math.PI) / 360);
-    this.renderStatic();
+  }
+
+  private redrawView() {
+    this.applyNavigation();
+    this.renderer.setRenderTarget(this.gbuffer);
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.clear();
+    this.renderer.render(this.scene, this.camera);
+    this.renderer.setRenderTarget(null);
     this.renderFrame();
+    for (const listener of this.viewListeners) listener();
+  }
+
+  onViewChange(listener: () => void) {
+    this.viewListeners.add(listener);
+    return () => this.viewListeners.delete(listener);
+  }
+
+  get zoom() {
+    return this.nav.zoom;
+  }
+
+  private clampPan() {
+    const region = viewRegion(this.data, this.view).buildings;
+    const t = this.home.target;
+    const x = THREE.MathUtils.clamp(t.x + this.nav.pan.x, region.x0, region.x1);
+    const z = THREE.MathUtils.clamp(t.z + this.nav.pan.z, -region.y1, -region.y0);
+    this.nav.pan.set(x - t.x, 0, z - t.z);
+  }
+
+  panBetween(fromX: number, fromY: number, toX: number, toY: number) {
+    const from = this.pickGround(fromX, fromY);
+    const to = this.pickGround(toX, toY);
+    if (!from || !to) return;
+    this.nav.pan.x -= to[0] - from[0];
+    this.nav.pan.z += to[1] - from[1];
+    this.clampPan();
+    this.redrawView();
+  }
+
+  zoomAt(factor: number, cssX: number, cssY: number) {
+    const before = this.pickGround(cssX, cssY);
+    const limit = this.view.kind === "overview" ? 14 : 4;
+    this.nav.zoom = THREE.MathUtils.clamp(this.nav.zoom * factor, 1, limit);
+    this.applyNavigation();
+    const after = this.pickGround(cssX, cssY);
+    if (before && after) {
+      this.nav.pan.x += before[0] - after[0];
+      this.nav.pan.z -= before[1] - after[1];
+    }
+    this.clampPan();
+    this.redrawView();
+  }
+
+  resetView() {
+    this.nav = { pan: new THREE.Vector3(), zoom: 1 };
+    this.redrawView();
   }
 
   private renderStatic() {

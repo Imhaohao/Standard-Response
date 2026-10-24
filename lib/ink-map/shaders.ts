@@ -197,7 +197,7 @@ float arrivalMinutes(vec2 mapXY) {
 float frontGlow(vec2 mapXY, float minutes) {
   float ragged = (fbm(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04)) - 0.5) * 9.0;
   float behind = uFireNow - (minutes + ragged);
-  float band = smoothstep(-1.5, 0.5, behind) * (1.0 - smoothstep(1.5, 6.5, behind));
+  float band = smoothstep(-1.0, 0.3, behind) * (1.0 - smoothstep(0.8, 3.5, behind));
   float flicker = 0.75 + 0.25 * sin(uTime * 7.0 + hash12(floor(mapXY / 9.0)) * 6.28);
   return band * flicker * uFireOn;
 }
@@ -218,7 +218,8 @@ void main() {
   float glow = frontGlow(mapXY, minutes);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
   float embers = burned * step(0.985, hash12(floor(mapXY / 6.0) + floor(uTime * 2.0))) * 0.8;
-  color = vec4(glow + embers, 0.0, 0.0, 1.0);
+  float fresh = burned * (1.0 - smoothstep(0.0, 70.0, uFireNow - minutes));
+  color = vec4(glow + embers, fresh + glow * 0.5, 0.0, 1.0);
 }
 `;
 
@@ -231,12 +232,12 @@ uniform sampler2D tInput;
 uniform vec2 uDirection;
 void main() {
   float weights[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-  float sum = texture(tInput, vUv).r * weights[0];
+  vec2 sum = texture(tInput, vUv).rg * weights[0];
   for (int i = 1; i < 5; i++) {
-    sum += texture(tInput, vUv + uDirection * float(i)).r * weights[i];
-    sum += texture(tInput, vUv - uDirection * float(i)).r * weights[i];
+    sum += texture(tInput, vUv + uDirection * float(i)).rg * weights[i];
+    sum += texture(tInput, vUv - uDirection * float(i)).rg * weights[i];
   }
-  color = vec4(sum, 0.0, 0.0, 1.0);
+  color = vec4(sum, 0.0, 1.0);
 }
 `;
 
@@ -434,6 +435,71 @@ vec4 buildingState(float id) {
   return texelFetch(tBuildingState, texel, 0);
 }
 
+// Flame tongues standing up off the burning front, in screen space so they always rise up the page.
+// The quarter-resolution glow mask says where the front is; noise columns give each tongue a height.
+// Glow of the crisp front at another screen point, for rooting flames on the real fire line.
+float frontAt(vec2 uv) {
+  float depth = texture(tDepth, uv).r;
+  if (depth >= 1.0) return 0.0;
+  vec3 w = worldPosition(uv, depth);
+  vec2 mapXY = vec2(w.x, -w.z);
+  return frontGlow(mapXY, arrivalMinutes(mapXY));
+}
+
+float flameTongues(vec2 uv) {
+  if (uFireOn < 0.5 || texture(tBloom, uv).r < 0.02) return 0.0;
+  float tall = 64.0 * uPixelRatio / uResolution.y;
+  float across = uv.x * uResolution.x / (8.0 * uPixelRatio);
+  float column = floor(across);
+  float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
+  float flame = 0.0;
+  for (int i = 1; i <= 10; i++) {
+    float t = float(i) / 10.0;
+    float base = frontAt(uv - vec2(0.0, t * tall));
+    if (base < 0.25) continue;
+    float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
+    float height = clamp(base, 0.0, 1.0) * (0.12 + 1.6 * flicker);
+    float rise = t / max(height, 1e-3);
+    flame = max(flame, step(rise, 1.0) * step(rise, profile) * (1.0 - rise));
+  }
+  return flame;
+}
+
+// A smoke plume rising from the front and bending downwind (the scenario wind blows toward the
+// west-southwest, screen left). Drawn the manga way: halftone puffs with an ink outline.
+vec2 smokePlume(vec2 uv) {
+  if (uFireOn < 0.5) return vec2(0.0);
+  float aspect = uResolution.x / uResolution.y;
+  float density = 0.0;
+  for (int i = 1; i <= 12; i++) {
+    float t = float(i) / 12.0;
+    vec2 source = uv - vec2(-0.16 * t * t / aspect, 0.42 * t);
+    density += min(texture(tBloom, source).g, 1.0) * (1.0 - t * 0.7);
+  }
+  density = 1.0 - exp(-density * 0.3);
+  vec2 q = vec2(uv.x * aspect, uv.y) * 13.0 + vec2(uTime * 0.04, -uTime * 0.12);
+  float puff = density * (0.1 + 1.25 * fbm(q));
+  float fill = smoothstep(0.4, 0.43, puff);
+  float rim = fill * (1.0 - smoothstep(0.43, 0.5, puff));
+  return vec2(fill, rim);
+}
+
+vec3 flameColor(float f) {
+  vec3 hot = vec3(1.0, 0.9, 0.62);
+  return f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
+}
+
+vec3 overlayFire(vec3 color, vec2 uv, float cell) {
+  vec2 smoke = smokePlume(uv);
+  float smokeTone = screentone(0.22 + smoke.x * 0.1, cell);
+  vec3 smoky = mix(mix(color, uPaper * 0.97, 0.85), uInk, smokeTone * 0.55);
+  color = mix(color, smoky, smoke.x * 0.5);
+  color = mix(color, uInk, smoke.y * 0.5);
+  float flame = flameTongues(uv);
+  color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
+  return color;
+}
+
 vec3 heatShimmer(vec2 uv) {
   float depth = texture(tDepth, uv).r;
   if (depth >= 1.0 || uFireOn < 0.5) return vec3(uv, depth);
@@ -458,7 +524,7 @@ void main() {
   float cell = mix(2.7, 4.4, detail0) * uPixelRatio;
 
   if (depth >= 1.0) {
-    fragColor = vec4(paper, 1.0);
+    fragColor = vec4(overlayFire(paper, vUv, cell), 1.0);
     return;
   }
 
@@ -509,6 +575,7 @@ void main() {
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
     float scorch = hatch(0.16, 8.0 * uPixelRatio, -0.75) * burned * fresh;
     float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
+    color = mix(color, color * vec3(0.8, 0.77, 0.74), burned * (0.35 + 0.35 * fresh));
     color = mix(color, uInk, scorch * 0.45);
     color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));
   }
@@ -523,7 +590,7 @@ void main() {
   float glow = frontGlow(mapXY, minutes);
   color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.6);
   float bloom = texture(tBloom, vUv).r;
-  color += uEmber * bloom * 0.5 + vec3(1.0, 0.85, 0.6) * smoothstep(0.75, 1.15, glow) * 0.25;
-  fragColor = vec4(color, 1.0);
+  color += uEmber * min(bloom, 1.0) * 0.45 + vec3(1.0, 0.85, 0.6) * smoothstep(0.75, 1.15, glow) * 0.3;
+  fragColor = vec4(overlayFire(color, vUv, cell), 1.0);
 }
 `;

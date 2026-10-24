@@ -31,7 +31,7 @@ function createRenderer(canvas: HTMLCanvasElement, data: InkMapData, view: InkMa
   }
 }
 
-// Owns the WebGL canvas. Every resize re-renders the static ink pass and bumps `version`,
+// Owns the WebGL canvas. Every resize or pan/zoom re-renders the ink pass and bumps `version`,
 // which tells overlays to re-project their markers.
 export function InkMapCanvas({
   data,
@@ -65,15 +65,22 @@ export function InkMapCanvas({
       return;
     }
     let version = 0;
+    let size = { width: 1, height: 1 };
+    const announce = () => {
+      version += 1;
+      onReadyRef.current({ renderer, data, size, version });
+    };
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       if (width < 2 || height < 2) return;
+      size = { width, height };
       renderer.resize(width, height);
-      version += 1;
-      onReadyRef.current({ renderer, data, size: { width, height }, version });
+      announce();
     });
     observer.observe(canvas);
+    const stopListening = renderer.onViewChange(announce);
     return () => {
+      stopListening();
       observer.disconnect();
       onReadyRef.current(null);
       renderer.dispose();

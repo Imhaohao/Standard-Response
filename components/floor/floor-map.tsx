@@ -9,6 +9,7 @@ import { AREA } from "@/convex/model";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor } from "@/components/map/layers";
 import { MapStage } from "@/components/map/map-stage";
+import { ZoomControls } from "@/components/map/zoom-controls";
 import { NeedMark, useBuildingHighlights } from "@/components/map/use-highlights";
 import { createProjection, InkMapData } from "@/lib/ink-map/data";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
@@ -123,7 +124,7 @@ export function FloorMap({ followed }: { followed: { householdId: Id<"households
   if (!data || !view) return <div className="absolute inset-0 bg-map-paper" aria-hidden />;
 
   return (
-    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} highlights={highlights} className="absolute inset-0">
+    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className="absolute right-[calc(min(27rem,40vw)+1.5rem)] bottom-4" />}>
       <HomeMarks homes={homes ?? EMPTY} />
       <QueueFlags homeById={homeById} />
       {followed && followedHome && <Followed home={followedHome} address={followed.address} />}

@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
-import { Headphones, PhoneCall, Robot, User } from "@phosphor-icons/react";
+import { Headphones, X, PhoneCall, Robot, User } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -109,7 +109,17 @@ function Transcript({ lines, residentName }: { lines: Line[]; residentName: stri
   );
 }
 
-export function ListeningPanel({ callId, pinned, onFollowLive }: { callId: Id<"calls"> | null; pinned: boolean; onFollowLive: () => void }) {
+export function ListeningPanel({
+  callId,
+  pinned,
+  onFollowLive,
+  onClose,
+}: {
+  callId: Id<"calls"> | null;
+  pinned: boolean;
+  onFollowLive: () => void;
+  onClose: () => void;
+}) {
   const detail = useQuery(api.calls.detail, callId ? { callId } : "skip");
   const follow = pinned && (
     <Button variant="onPanelQuiet" className="!h-7 !px-2.5 !text-xs" onClick={onFollowLive}>
@@ -118,17 +128,11 @@ export function ListeningPanel({ callId, pinned, onFollowLive }: { callId: Id<"c
     </Button>
   );
 
-  if (!callId || !detail?.household) {
-    return (
-      <section aria-label="Listening in" className="grid place-items-center bg-panel/96 py-8 text-on-panel-muted backdrop-blur-md">
-        <Headphones weight="bold" className="size-8" />
-      </section>
-    );
-  }
+  if (!callId || !detail?.household) return null;
 
   const { call, household, lines } = detail;
   return (
-    <section aria-label="Listening in" className="flex min-h-0 flex-1 flex-col bg-panel/96 text-on-panel backdrop-blur-md">
+    <section aria-label="Listening in" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float">
       <header className="flex flex-col gap-2.5 border-b border-panel-raised p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col">
@@ -137,6 +141,14 @@ export function ListeningPanel({ callId, pinned, onFollowLive }: { callId: Id<"c
           <div className="flex shrink-0 items-center gap-1.5">
             {call.language !== "en" && <span className="type-small bg-panel-raised px-2 py-1 font-bold">{languageName(call.language)}</span>}
             <OutcomeBadge household={household} />
+            <button
+              type="button"
+              aria-label="Close the call"
+              onClick={onClose}
+              className="-mr-1 grid size-9 place-items-center rounded-full text-on-panel-muted hover:bg-panel-raised hover:text-on-panel focus-visible:outline-2 focus-visible:outline-ink"
+            >
+              <X weight="bold" className="size-4" />
+            </button>
           </div>
         </div>
         <StageTrack stage={call.stage} live={call.phase === "live"} showLabel />
