@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { motion } from "motion/react";
 import { ReactNode, useState } from "react";
-import { CaretDown, Siren } from "@phosphor-icons/react";
+import { CaretDown, PhoneCall, Siren } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { AREA_NAME } from "@/lib/brand";
@@ -19,9 +19,32 @@ import { ReachPanel } from "./reach-panel";
 
 type Tab = "lines" | "queue" | "activity";
 
+// What the Ready check already knows before anyone is warned.
+function useReadyCount() {
+  const homes = useQuery(api.households.coverage);
+  const control = useQuery(api.control.get);
+  return {
+    onFile: homes?.filter((home) => home.exitPlan).length ?? 0,
+    total: homes?.length ?? 0,
+    running: control?.readyCheckRunning === true,
+  };
+}
+
+function ReadyCheckButton({ running }: { running: boolean }) {
+  const start = useMutation(api.ready.start);
+  const stop = useMutation(api.ready.stop);
+  return (
+    <Button variant="onPanelQuiet" size="lg" onClick={() => void (running ? stop() : start())}>
+      <PhoneCall weight={running ? "fill" : "bold"} className={`size-5 ${running ? "motion-safe:animate-ringing" : ""}`} />
+      {running ? "Pause the Ready check" : "Ready check: call every home"}
+    </Button>
+  );
+}
+
 function BeforeWarning() {
   const issueWarning = useMutation(api.control.issueWarning);
   const [pending, setPending] = useState(false);
+  const ready = useReadyCount();
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -29,20 +52,24 @@ function BeforeWarning() {
       transition={{ type: "spring", duration: 0.6, bounce: 0 }}
       className="pointer-events-auto flex max-w-xl flex-col gap-6 bg-panel/96 p-8 text-on-panel backdrop-blur-md"
     >
-      <h1 className="type-display">Nobody in {AREA_NAME} has been called yet.</h1>
-      <Button
-        variant="onPanel"
-        size="lg"
-        className="self-start"
-        disabled={pending}
-        onClick={() => {
-          setPending(true);
-          void issueWarning({}).finally(() => setPending(false));
-        }}
-      >
-        <Siren weight="fill" className="size-5 text-signal" />
-        Issue evacuation warning
-      </Button>
+      <h1 className="type-display">
+        {ready.onFile > 0 ? `${ready.onFile} of ${ready.total} homes are on file. Nobody has been warned yet.` : `Nobody in ${AREA_NAME} has been called yet.`}
+      </h1>
+      <div className="flex flex-wrap gap-3">
+        <ReadyCheckButton running={ready.running} />
+        <Button
+          variant="onPanel"
+          size="lg"
+          disabled={pending}
+          onClick={() => {
+            setPending(true);
+            void issueWarning({}).finally(() => setPending(false));
+          }}
+        >
+          <Siren weight="fill" className="size-5 text-signal" />
+          Issue evacuation warning
+        </Button>
+      </div>
     </motion.section>
   );
 }
