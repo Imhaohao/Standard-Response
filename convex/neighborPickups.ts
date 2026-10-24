@@ -5,13 +5,13 @@ import { simNow } from "./clock";
 
 // When tonight's call hears that someone can't get out and nobody agreed ahead of time to come for
 // them, 911 calls the nearest neighbor with a car straight away and asks them to pick the person up,
-// first within 800 m and then in wider circles.
+// first within 900 m and then in wider circles.
 // The ride request stays open the whole time: crews are likely swamped, so a neighbor is a faster
 // first try, never a reason to hold a van. Each "no" or missed call moves on to the next neighbor.
 
 // The circle starts small, so the first call goes to someone a few doors away, and widens only after
 // everyone in it has said no or not answered and three minutes pass with nobody on the way.
-const REACH_METERS = [800, 1600, 2400];
+const REACH_METERS = [900, 1600, 2400];
 const WIDEN_AFTER_MS = 3 * 60_000;
 const MAX_NEIGHBORS_ASKED = 6;
 const LIVE: Doc<"pickupPlans">["status"][] = ["arranged", "checking", "coming"];

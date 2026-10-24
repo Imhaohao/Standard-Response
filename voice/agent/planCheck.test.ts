@@ -72,6 +72,13 @@ describe("pickup check, helper call", () => {
     assert.deepEqual(recorded.helper, [[true, 5]]);
   });
 
+  it("gives a helper who said yes the resident's number", async () => {
+    const effects: PlanCheckEffects = { helperAnswered: () => undefined, residentAnswered: () => undefined, escalate: () => undefined, unreached: () => undefined };
+    const call = new PlanCheck({ role: "helper", language: "en", helperName: "Ana", residentName: "Wen", address: "915 Ventura Street", residentPhone: "+16506567040", recruited: true, effects, interpret: async () => heard({ answer: "yes", minutes: 5 }) });
+    call.start();
+    assert.match(spoken(await call.hear("yes, five minutes")), /Wen's number is 6 5 0, 6 5 6, 7 0 4 0, if you need to reach them\./);
+  });
+
   it("asks for minutes after a plain yes, then reports the helper coming", async () => {
     const { call, recorded } = planCall("helper", [{ answer: "yes" }, { minutes: 12 }]);
     assert.match(spoken(call.start()), /Can you get to them now\?/);
@@ -142,11 +149,11 @@ describe("pickup check, resident call", () => {
       escalate: () => undefined,
       unreached: () => (unreached += 1),
     };
-    const call = new PlanCheck({ role: "resident", language: "en", helperName: "Ana", residentName: "Walter", address: "1182 Mariposa St", notify: { minutes: 10 }, effects });
+    const call = new PlanCheck({ role: "resident", language: "en", helperName: "Ana", residentName: "Walter", address: "1182 Mariposa St", helperPhone: "+14252468208", notify: { minutes: 10 }, effects });
     const turn = call.start();
     assert.equal(turn.done, true);
     assert.match(spoken(turn), /it's 911 calling about your pickup/);
-    assert.match(spoken(turn), /Ana says they can pick you up in about 10 minutes/);
+    assert.match(spoken(turn), /Ana says they can pick you up in about 10 minutes\. Their number is 4 2 5, 2 4 6, 8 2 0 8\./);
     assert.match(spoken(turn), /ride request stays open/);
     assert.doesNotMatch(spoken(turn), /Has Ana picked you up/);
     call.lineClosed();

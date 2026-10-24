@@ -29,6 +29,10 @@ async function controlRow(ctx: MutationCtx) {
   return (await ctx.db.get("control", id))!;
 }
 
+async function hasSimulatedHouseholds(ctx: MutationCtx) {
+  return (await ctx.db.query("households").take(1000)).some((household) => household.simulated);
+}
+
 async function logControl(ctx: MutationCtx, message: string) {
   await ctx.db.insert("events", { kind: "control", message, at: await simNow(ctx) });
 }
@@ -53,7 +57,9 @@ export const issueWarning = mutation({
     const now = clock.simAt;
     if (await ctx.db.query("households").first()) await retimeSimulatedArea(ctx, now);
     else await seedSimulatedArea(ctx, now);
-    await seedFleetIfEmpty(ctx, now);
+    // Simulated vans drive only in a simulated town. A night of real households alone gets none, so
+    // nobody who isn't a real person can be sent to pick anyone up.
+    if (await hasSimulatedHouseholds(ctx)) await seedFleetIfEmpty(ctx, now);
     const tickGeneration = control.tickGeneration + 1;
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration, clock: { ...clock, ranMs: 0 } });

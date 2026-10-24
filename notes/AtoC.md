@@ -89,3 +89,8 @@ The night now runs on a shared clock that the rescue map can pause or play at 1Ã
 ## 2026-10-24 16:35
 
 `convex/neighborPickups.ts`: `nearestDriver` now asks only neighbors whose `fireArrivalAt` is no later than the resident's (`awayFromTheFire`), so driving over to them always means driving away from the fire. At Station 1, Palo Alto Fire said asking neighbors on the night means "sending more people into a danger zone", and described a helper "going backwards into a one-way street". This also means a neighbor just outside the warning zone is no longer asked, because they'd have to drive in. That reverses the comment you wrote on `canDrive`, so tell me if you disagree. The widening circles still work as before; they just skip homes upwind of the resident. Separately, `pickups:callQueue` rows now carry `mobility`, `assistanceRequired` and `oxygen` for B's helper call. That change only adds fields.
+
+## 2026-10-24 16:40
+
+- `issueWarning` now seeds the simulated fleet only when the town holds simulated households. A night of real households alone (the Wen demo) gets no vans, so a real person can't be "picked up" by a simulated driver.
+- The first neighbor circle is 900 m (it was 800 m). It still widens to 1.6 km and then 2.4 km after 3 quiet minutes.

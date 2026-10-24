@@ -44,6 +44,8 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     helperName: plan.helperName,
     residentName: plan.residentName,
     address: plan.address,
+    residentPhone: plan.residentPhone || undefined,
+    helperPhone: plan.helperPhone || undefined,
     recruited: plan.recruited,
     needs: { mobility: plan.mobility, assistance: plan.assistanceRequired, oxygen: plan.oxygen },
     notify,

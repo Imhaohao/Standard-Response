@@ -88,3 +88,7 @@ Changes from our two Palo Alto Fire station visits, in your voice code. `npm run
 - **Lines**: `askChairKind` and `askAgain.chairKind` are in all eight languages. The zh, ko, vi, tl, ru and ja versions are machine translations, like the rest of those files. `mobility.manual_wheelchair` now reads "someone uses a manual wheelchair", so the read-back says the kind out loud.
 - **Pickup check** (`planCheck.ts`): before asking, the helper now hears what the pickup takes: "They use a walker. They need one person to help them to the car. They use oxygen." That's `PlanCheckOptions.needs`, filled in `outboundFlows.ts` from new `pickups:callQueue` fields (`mobility`, `assistanceRequired`, `oxygen`). English and Spanish only, like the rest of the plan-check lines. Station 1 asked for exactly this: neighbors should know "what they're getting into right away."
 - Worth a re-run of `npm run exam:voice` when you next certify. I didn't run it because it costs API calls.
+
+## 2026-10-24 16:40
+
+- `planCheck.ts`: when a helper says yes, they hear the resident's number ("Wen's number is 6 5 0, 6 5 6, ..."), and the resident's "on the way" notice gives the helper's number. Both come from `callQueue` (`residentPhone`, `helperPhone`), spoken with `readyCall`'s `spokenDigits`. These only take effect on calls once Fly is redeployed.

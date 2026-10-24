@@ -90,7 +90,7 @@ export function startPickupRunner() {
     try {
       await convex().mutation(api.pickups.residentTold, { planId });
       if (live) {
-        await live.announce(helperOnTheWayLine(languageOf(plan.language), plan.helperName, minutesUntil(plan.helperEtaAt)));
+        await live.announce(helperOnTheWayLine(languageOf(plan.language), plan.helperName, minutesUntil(plan.helperEtaAt), plan.helperPhone));
         active.delete(planId);
         return console.log(`[pickups] told the resident of plan ${planId} on their live call`);
       }

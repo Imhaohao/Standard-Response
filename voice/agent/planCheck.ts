@@ -4,6 +4,7 @@ import { CallFlow, silentTurn } from "./callFlow";
 import type { AgentTurn } from "./conversation";
 import { guardAcknowledgment } from "./honesty";
 import { interpretPlanAnswer, PlanHeard, PlanInterpret, PlanRole } from "./planInterpreter";
+import { spokenDigits } from "./readyCall";
 import { Language, LINES, withSafety } from "./script";
 
 // The pickup check, one short call. The helper hears "can you get to them now?" and, on a yes,
@@ -33,12 +34,12 @@ type PlanCheckLines = {
   askComing: string;
   askCanPickUp: string;
   askMinutes: string;
-  helperComing: (residentName: string | undefined) => string;
+  helperComing: (residentName: string | undefined, residentPhone: string | undefined) => string;
   helperNotComing: string;
   residentIntro: (residentName: string | undefined) => string;
   askPickedUp: (helperName: string) => string;
   // Told as soon as the helper says yes. Their word, never our promise, and the ride request stays open.
-  helperOnTheWay: (helperName: string, minutes: number | undefined) => string;
+  helperOnTheWay: (helperName: string, minutes: number | undefined, helperPhone: string | undefined) => string;
   pickedUp: string;
   findingVehicle: string;
   sorry: string;
@@ -69,13 +70,13 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     askComing: "Can you get to them now?",
     askCanPickUp: "Could you pick them up and drive them out?",
     askMinutes: "About how many minutes until you're there?",
-    helperComing: (residentName) =>
-      `Thank you. We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
+    helperComing: (residentName, residentPhone) =>
+      `Thank you.${residentPhone ? ` ${possessive(residentName ?? "Their")} number is ${spokenDigits(residentPhone)}, if you need to reach them.` : ""} We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
     helperNotComing: "Thanks for telling us. We'll find them another way.",
     residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's 911 calling about your pickup.`,
     askPickedUp: (helperName) => `Has ${helperName} picked you up?`,
-    helperOnTheWay: (helperName, minutes) =>
-      `${capitalized(helperName)} says they can pick you up${minutes ? ` in about ${minutes === 1 ? "1 minute" : `${minutes} minutes`}` : " soon"}. Please get ready by the door with your medications and phone. Your ride request stays open in case they can't make it, and we'll call to check that they reached you.`,
+    helperOnTheWay: (helperName, minutes, helperPhone) =>
+      `${capitalized(helperName)} says they can pick you up${minutes ? ` in about ${minutes === 1 ? "1 minute" : `${minutes} minutes`}` : " soon"}.${helperPhone ? ` Their number is ${spokenDigits(helperPhone)}.` : ""} Please get ready by the door with your medications and phone. Your ride request stays open in case they can't make it, and we'll call to check that they reached you.`,
     pickedUp: "Good, I'm glad you're on your way. Goodbye.",
     findingVehicle: "We're finding you a vehicle now. I'll call you back as soon as a driver has said yes.",
     sorry: "Sorry, I didn't catch that.",
@@ -106,13 +107,13 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     askComing: "¿Puede ir por esa persona ahora?",
     askCanPickUp: "¿Podría pasar por esa persona y sacarla de la zona?",
     askMinutes: "¿Más o menos en cuántos minutos llega?",
-    helperComing: (residentName) =>
-      `Gracias. Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
+    helperComing: (residentName, residentPhone) =>
+      `Gracias.${residentPhone ? ` El número de ${residentName ?? "esa persona"} es ${spokenDigits(residentPhone)}, por si necesita comunicarse.` : ""} Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
     helperNotComing: "Gracias por avisarnos. Buscaremos otra manera.",
     residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos del 911 por su transporte.`,
     askPickedUp: (helperName) => `¿Ya le recogió ${helperName}?`,
-    helperOnTheWay: (helperName, minutes) =>
-      `${capitalized(helperName)} dice que puede pasar por usted${minutes ? (minutes === 1 ? " en 1 minuto" : ` en unos ${minutes} minutos`) : " pronto"}. Por favor, prepárese junto a la puerta con sus medicinas y su teléfono. Su solicitud de transporte sigue abierta por si no puede llegar, y le llamaremos para confirmar que llegó.`,
+    helperOnTheWay: (helperName, minutes, helperPhone) =>
+      `${capitalized(helperName)} dice que puede pasar por usted${minutes ? (minutes === 1 ? " en 1 minuto" : ` en unos ${minutes} minutos`) : " pronto"}.${helperPhone ? ` Su número es ${spokenDigits(helperPhone)}.` : ""} Por favor, prepárese junto a la puerta con sus medicinas y su teléfono. Su solicitud de transporte sigue abierta por si no puede llegar, y le llamaremos para confirmar que llegó.`,
     pickedUp: "Qué bien, me alegra que ya haya salido. Adiós.",
     findingVehicle: "Estamos buscándole un vehículo ahora. Le llamo en cuanto un conductor diga que sí.",
     sorry: "Perdón, no le entendí.",
@@ -125,6 +126,7 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
 };
 
 const capitalized = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+const possessive = (name: string) => `${name}${name.endsWith("s") ? "'" : "'s"}`;
 
 export const planCheckLanguage = (language: Language): Language => (PLAN_CHECK_LINES[language] ? language : "en");
 
@@ -132,8 +134,8 @@ export const planCheckLanguage = (language: Language): Language => (PLAN_CHECK_L
 export const minutesUntil = (at: number | undefined, now = Date.now()) => (at === undefined ? undefined : Math.max(1, Math.round((at - now) / 60_000)));
 
 // The same notice, said into a call the resident is already on.
-export function helperOnTheWayLine(language: Language, helperName: string, minutes: number | undefined) {
-  return (PLAN_CHECK_LINES[planCheckLanguage(language)] ?? PLAN_CHECK_LINES.en).helperOnTheWay(helperName, minutes);
+export function helperOnTheWayLine(language: Language, helperName: string, minutes: number | undefined, helperPhone?: string) {
+  return (PLAN_CHECK_LINES[planCheckLanguage(language)] ?? PLAN_CHECK_LINES.en).helperOnTheWay(helperName, minutes, helperPhone);
 }
 
 export interface PlanCheckEffects {
@@ -150,6 +152,9 @@ export type PlanCheckOptions = {
   helperName: string;
   residentName?: string;
   address: string;
+  // Each side hears the other's number once the helper says yes, so they can reach each other.
+  residentPhone?: string;
+  helperPhone?: string;
   // The helper is a neighbor we found during the warning, not someone who agreed ahead of time.
   recruited?: boolean;
   // Told to the helper before they're asked, so they know what they're agreeing to.
@@ -214,7 +219,7 @@ export class PlanCheck implements CallFlow {
   }
 
   private notice() {
-    return this.lines.helperOnTheWay(this.options.helperName, this.options.notify?.minutes);
+    return this.lines.helperOnTheWay(this.options.helperName, this.options.notify?.minutes, this.options.helperPhone);
   }
 
   private intro() {
@@ -313,7 +318,7 @@ export class PlanCheck implements CallFlow {
 
   private helperComing(minutes: number | undefined): Transition {
     this.report(() => this.options.effects.helperAnswered(true, minutes));
-    return { step: "done", lines: [this.lines.helperComing(this.options.residentName)] };
+    return { step: "done", lines: [this.lines.helperComing(this.options.residentName, this.options.residentPhone)] };
   }
 
   private helperNotComing(): Transition {
