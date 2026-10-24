@@ -31,12 +31,12 @@ function needsOf(stop: Stop): Need[] {
 function NeedTile({ need, large }: { need: Need; large: boolean }) {
   const { Icon, glyph, count, label } = need;
   return (
-    <li className={`flex flex-col items-center justify-center gap-1 bg-panel-raised ${large ? "min-h-20 min-w-24 px-3 py-2.5" : "min-h-12 min-w-16 px-2 py-1.5"}`}>
+    <li className={`flex flex-col items-center justify-center gap-1 bg-panel-raised ${large ? "min-h-24 min-w-24 px-4 py-3" : "min-h-12 min-w-16 px-2 py-1.5"}`}>
       <span className="flex items-center gap-1.5">
-        {Icon ? <Icon weight="bold" className={large ? "size-7" : "size-5"} /> : <span className={`type-figure ${large ? "text-2xl" : "text-lg"}`}>{glyph}</span>}
-        {count !== undefined && <span className={`type-figure ${large ? "text-3xl" : "text-xl"}`}>{count}</span>}
+        {Icon ? <Icon weight="bold" className={large ? "size-9" : "size-5"} /> : <span className={`type-figure ${large ? "text-3xl" : "text-lg"}`}>{glyph}</span>}
+        {count !== undefined && <span className={`type-figure ${large ? "text-4xl" : "text-xl"}`}>{count}</span>}
       </span>
-      <span className="type-small text-on-panel-muted">{label}</span>
+      <span className="type-small font-semibold">{label}</span>
     </li>
   );
 }
@@ -44,7 +44,7 @@ function NeedTile({ need, large }: { need: Need; large: boolean }) {
 // Who is getting in the van, read at arm's length: a glyph and a count per need, no sentences.
 export function RideNeeds({ stop, large = true }: { stop: Stop; large?: boolean }) {
   return (
-    <ul className="flex flex-wrap gap-1" aria-label={stop.load ? `Needs ${needsSummary(stop.load, stop.crewNeeded ?? 1)}` : undefined}>
+    <ul className="flex flex-wrap gap-2" aria-label={stop.load ? `Needs ${needsSummary(stop.load, stop.crewNeeded ?? 1)}` : undefined}>
       {needsOf(stop).map((need) => (
         <NeedTile key={need.key} need={need} large={large} />
       ))}

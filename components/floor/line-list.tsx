@@ -2,13 +2,11 @@
 
 import { FunctionReturnType } from "convex/server";
 import { AnimatePresence, motion } from "motion/react";
-import { Headphones, PhoneCall, PhoneIncoming, PhoneOutgoing } from "@phosphor-icons/react";
+import { Phone, PhoneCall, PhoneIncoming, PhoneOutgoing } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { languageName, STAGES, stageIndex } from "@/lib/labels";
 import { formatElapsed, useNow } from "@/lib/time";
-import { PanelEmpty } from "../ui/panel";
-import { StageTrack } from "../ui/stage-track";
 import { Waveform } from "../ui/waveform";
 
 export type ActiveCall = FunctionReturnType<typeof api.calls.active>[number];
@@ -21,9 +19,13 @@ function CallIcon({ call }: { call: ActiveCall }) {
   return <Icon weight="bold" className="size-5" />;
 }
 
-function callNote(call: ActiveCall) {
-  if (call.direction === "inbound") return `${languageName(call.language)}, called in`;
-  return call.attempt > 1 ? `${languageName(call.language)}, try ${call.attempt}` : languageName(call.language);
+function LanguageChip({ language }: { language: string }) {
+  if (language === "en") return null;
+  return (
+    <span title={languageName(language)} className="type-small shrink-0 rounded bg-panel-raised px-1.5 font-bold uppercase">
+      {language}
+    </span>
+  );
 }
 
 function LineRow({ call, selected, onSelect, now }: { call: ActiveCall; selected: boolean; onSelect: () => void; now: number }) {
@@ -41,30 +43,30 @@ function LineRow({ call, selected, onSelect, now }: { call: ActiveCall; selected
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        className={`flex w-full flex-col gap-2 border-b border-panel-raised px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
+        className={`flex h-12 w-full items-center gap-2 border-b border-panel-raised px-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
           selected ? "bg-panel-raised shadow-[inset_3px_0_0_var(--on-panel)]" : "hover:bg-panel-raised/50"
         }`}
       >
-        <span className="flex items-center gap-2.5">
-          <CallIcon call={call} />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="type-small truncate font-bold">{call.address}</span>
-            <span className="type-small text-on-panel-muted">{callNote(call)}</span>
-          </span>
-          {selected && <Headphones weight="fill" className="size-4 shrink-0" aria-label="Listening" />}
-          <span className="type-small shrink-0 font-semibold tabular-nums">{formatElapsed(now - call.startedAt)}</span>
-        </span>
-        <span className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <span className="flex flex-col gap-1">
-            <StageTrack stage={call.stage} live={call.phase === "live"} />
-            <span className="type-small text-on-panel-muted">{stageLabel}</span>
-          </span>
-          <span className="shrink-0">
+        <CallIcon call={call} />
+        <span className="type-small min-w-0 flex-1 truncate font-bold">{call.address}</span>
+        <LanguageChip language={call.language} />
+        <span className="type-small shrink-0 bg-panel-raised px-1.5 ring-1 ring-inset ring-on-panel/15 font-semibold">{stageLabel}</span>
+        <span className="block h-4 w-14 shrink-0 overflow-hidden">
+          <span className="block origin-top-left scale-50">
             <Waveform active={speaking} speaker={call.lastLine?.speaker ?? null} />
           </span>
         </span>
+        <span className="type-small w-10 shrink-0 text-right font-semibold tabular-nums">{formatElapsed(now - call.startedAt)}</span>
       </button>
     </motion.li>
+  );
+}
+
+function Empty() {
+  return (
+    <div className="grid place-items-center py-8 text-on-panel-muted" role="status" aria-label="No calls in progress">
+      <Phone weight="bold" className="size-8" />
+    </div>
   );
 }
 
@@ -78,7 +80,7 @@ export function LineList({
   onSelect: (id: Id<"calls">) => void;
 }) {
   const now = useNow(500);
-  if (calls.length === 0) return <PanelEmpty>Every line is free. The dialer picks the next home within a second.</PanelEmpty>;
+  if (calls.length === 0) return <Empty />;
   return (
     <ol className="flex flex-col">
       <AnimatePresence initial={false} mode="popLayout">

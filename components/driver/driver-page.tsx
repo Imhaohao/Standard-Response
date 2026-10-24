@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
-import { CaretDown, Users, Van, Wheelchair } from "@phosphor-icons/react";
+import { CaretDown, Gear, Users, Van, Wheelchair } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { capacitySummary } from "@/lib/labels";
@@ -78,14 +78,37 @@ function DriverPicker({
   );
 }
 
+// Demo-only: with hold on, this phone acts like one on a slow network and a replaced offer stays tappable.
+function DemoSettings({ hold, onHoldChange }: { hold: boolean; onHoldChange: (hold: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label="Settings"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={`grid size-12 place-items-center hover:bg-panel-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${open || hold ? "bg-panel-raised" : ""}`}
+      >
+        <Gear weight={hold ? "fill" : "bold"} className="size-5" />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 z-30 w-64 bg-panel shadow-float">
+          <Switch checked={hold} onChange={onHoldChange} label="Hold offers until I tap" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmptyBoard() {
   return (
-    <div className="flex items-center gap-3 bg-panel px-4 py-5 text-on-panel-muted">
+    <div className="flex items-center justify-center gap-3 bg-panel px-4 py-5 text-on-panel-muted" role="status">
       <span className="relative grid size-3 place-items-center" aria-hidden>
         <span className="absolute size-3 rounded-full bg-on-panel-muted animate-ping motion-reduce:hidden" />
         <span className="size-2 rounded-full bg-on-panel" />
       </span>
-      <p className="type-body">Waiting for an offer. It shows up here the moment the dispatcher sends one.</p>
+      <Van weight="bold" className="size-6" aria-label="Waiting for an offer" />
     </div>
   );
 }
@@ -132,11 +155,15 @@ export function DriverPage() {
       <main className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-panel text-on-panel shadow-[0_0_0_1px_oklch(0_0_0/0.08),0_24px_60px_oklch(0_0_0/0.18)]">
         <div className="z-10 flex flex-col divide-y divide-panel-raised bg-panel/96 backdrop-blur-md">
           {vehicles && vehicles.length > 0 ? (
-            <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
+            <div className="flex items-center">
+              <div className="min-w-0 flex-1">
+                <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
+              </div>
+              <DemoSettings hold={hold} onHoldChange={setHold} />
+            </div>
           ) : (
-            <p className="type-body px-4 py-4 text-on-panel-muted">Vans show up once the warning goes out on the call floor.</p>
+            <Van weight="bold" className="mx-4 my-4 size-6 text-on-panel-muted" aria-label="No vans yet" />
           )}
-          <Switch checked={hold} onChange={setHold} label="Hold offers until I tap" hint="Acts like a phone on a slow network" />
         </div>
         {selected && <Board key={selected} vehicleId={selected} vehicle={vehicle} hold={hold} />}
       </main>

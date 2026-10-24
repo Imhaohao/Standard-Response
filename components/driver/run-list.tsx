@@ -19,7 +19,7 @@ function CantMakeIt({ stop }: { stop: Stop }) {
         void cancel({ assignmentId: stop._id });
       }}
     >
-      {armed ? "Tap again: the rider will be told" : "I can't make this pickup"}
+      {armed ? "Tap again to cancel" : "I can't make this pickup"}
     </Button>
   );
 }

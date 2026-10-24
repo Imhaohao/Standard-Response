@@ -22,7 +22,7 @@ const ICON_SWAP = {
 function DialerToggle({ running }: { running: boolean }) {
   const setDialer = useMutation(api.control.setDialer);
   return (
-    <Button variant="onPanel" onClick={() => void setDialer({ running: !running })} className="!h-8 w-[8.5rem]">
+    <Button variant="onPanel" onClick={() => void setDialer({ running: !running })} className="!h-8 w-[6.5rem]">
       <span className="relative size-4">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.span key={running ? "pause" : "play"} className="absolute inset-0" {...ICON_SWAP}>
@@ -30,7 +30,7 @@ function DialerToggle({ running }: { running: boolean }) {
           </motion.span>
         </AnimatePresence>
       </span>
-      {running ? "Pause dialer" : "Resume dialer"}
+      {running ? "Pause" : "Resume"}
     </Button>
   );
 }
@@ -114,10 +114,9 @@ function StandIns({ control }: { control: ControlState }) {
   const real = STAND_INS.filter((entry) => control[entry.key] === false).length;
   return (
     <div ref={ref} className="relative">
-      <Button variant="onPanelQuiet" className="!h-8" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button variant="onPanelQuiet" className="!h-8" aria-label="Stand-ins" aria-expanded={open} onClick={() => setOpen(!open)}>
         <SlidersHorizontal weight="bold" className="size-4" />
-        Stand-ins
-        <span className="type-small text-on-panel-muted tabular-nums">{real} of {STAND_INS.length} real</span>
+        <span className="tabular-nums">{real}/{STAND_INS.length} real</span>
       </Button>
       {open && (
         <div className="absolute top-full right-0 z-30 mt-2 flex w-80 flex-col bg-panel text-on-panel shadow-[0_0_0_1px_var(--panel-raised),0_16px_40px_oklch(0_0_0/0.35)]">
@@ -145,11 +144,13 @@ export function FloorControls({ control }: { control: ControlState | undefined }
   if (!control.warningIssuedAt) return <StandIns control={control} />;
   return (
     <>
-      <LineStepper value={control.maxConcurrentCalls} />
-      <Button variant="onPanelQuiet" className="!h-8" onClick={() => void surge({})}>
-        <PhoneIncoming weight="bold" className="size-4" />
-        Simulate inbound surge
-      </Button>
+      <div className="flex items-center gap-2 bg-panel-raised/60 pr-2">
+        <LineStepper value={control.maxConcurrentCalls} />
+        <Button variant="onPanelQuiet" className="!h-8" onClick={() => void surge({})}>
+          <PhoneIncoming weight="bold" className="size-4" />
+          Inbound surge
+        </Button>
+      </div>
       <DialerToggle running={control.dialerRunning} />
       <StandIns control={control} />
     </>
