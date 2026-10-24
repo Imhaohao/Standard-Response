@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { Doc } from "./_generated/dataModel";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 
 // Track D's model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
@@ -19,7 +20,16 @@ async function ensureState(ctx: MutationCtx) {
 
 export const state = query({
   args: {},
-  handler: async (ctx) => (await stateRow(ctx)) ?? DEFAULT_STATE,
+  returns: v.object({
+    smoothing: v.boolean(),
+    doorAlpha: v.optional(v.number()),
+    lastRunAt: v.optional(v.number()),
+    stats: v.optional(v.record(v.string(), v.number())),
+  }),
+  handler: async (ctx) => {
+    const row = await stateRow(ctx);
+    return { smoothing: row?.smoothing ?? DEFAULT_STATE.smoothing, doorAlpha: row?.doorAlpha, lastRunAt: row?.lastRunAt, stats: row?.stats };
+  },
 });
 
 // The on-screen toggle for spatial smoothing of need estimates. The runner picks it up on its next pass.
@@ -54,6 +64,43 @@ export const reportRun = mutation({
 
 const HOUSEHOLD_LIMIT = 5000;
 
+// Python reads these payloads, so an absent field is written as null rather than left out.
+const orNull = <T>(value: T | undefined): T | null => value ?? null;
+
+const toHouseholdInput = (h: Doc<"households">) => ({
+  _id: h._id,
+  address: h.address,
+  lat: orNull(h.lat),
+  lng: orNull(h.lng),
+  riderId: orNull(h.riderId),
+  mobility: orNull(h.mobility),
+  outcome: h.outcome,
+  callStatus: h.callStatus,
+  escalation: orNull(h.escalation),
+  inZone: h.inZone,
+  attempts: h.attempts,
+  lastAttemptAt: orNull(h.lastAttemptAt),
+  needPrior: h.needPrior,
+  needProbability: h.needProbability,
+  fireArrivalAt: h.fireArrivalAt,
+  doorPriority: orNull(h.doorPriority),
+  simulated: h.simulated,
+});
+
+const toNominationInput = (n: Doc<"nominations">) => ({
+  _id: n._id,
+  spokenAddress: n.spokenAddress,
+  fromHouseholdId: orNull(n.fromHouseholdId),
+  at: n.at,
+});
+
+const toClosureInput = (c: Doc<"roadClosures">) => ({ edgeKey: orNull(c.edgeKey), path: c.path, source: c.source });
+
+const matchedHouseholdIds = (matched: Doc<"nominations">[]) =>
+  matched.flatMap((n) => (n.matchedHouseholdId ? [n.matchedHouseholdId] : []));
+
+const zoneInput = (zone: Doc<"zones"> | null) => (zone ? { polygon: zone.polygon, drawnAt: zone.drawnAt } : null);
+
 // Everything the hazard runner, need model, door-check score and address matcher need, in one read.
 export const inputs = query({
   args: {},
@@ -69,42 +116,16 @@ export const inputs = query({
       .query("nominations")
       .withIndex("by_status", (q) => q.eq("status", "open"))
       .take(200);
+    const closures = await ctx.db.query("roadClosures").take(2000);
     return {
       now: Date.now(),
-      warningIssuedAt: control?.warningIssuedAt ?? null,
-      zone: zone ? { polygon: zone.polygon, drawnAt: zone.drawnAt } : null,
+      warningIssuedAt: orNull(control?.warningIssuedAt),
+      zone: zoneInput(zone),
       state: (await stateRow(ctx)) ?? DEFAULT_STATE,
-      households: households.map((h) => ({
-        _id: h._id,
-        address: h.address,
-        lat: h.lat ?? null,
-        lng: h.lng ?? null,
-        riderId: h.riderId ?? null,
-        mobility: h.mobility ?? null,
-        outcome: h.outcome,
-        callStatus: h.callStatus,
-        escalation: h.escalation ?? null,
-        inZone: h.inZone,
-        attempts: h.attempts,
-        lastAttemptAt: h.lastAttemptAt ?? null,
-        needPrior: h.needPrior,
-        needProbability: h.needProbability,
-        fireArrivalAt: h.fireArrivalAt,
-        doorPriority: h.doorPriority ?? null,
-        simulated: h.simulated,
-      })),
-      nominatedHouseholdIds: matched.flatMap((n) => (n.matchedHouseholdId ? [n.matchedHouseholdId] : [])),
-      openNominations: open.map((n) => ({
-        _id: n._id,
-        spokenAddress: n.spokenAddress,
-        fromHouseholdId: n.fromHouseholdId ?? null,
-        at: n.at,
-      })),
-      closures: (await ctx.db.query("roadClosures").take(2000)).map((c) => ({
-        edgeKey: c.edgeKey ?? null,
-        path: c.path,
-        source: c.source,
-      })),
+      households: households.map(toHouseholdInput),
+      nominatedHouseholdIds: matchedHouseholdIds(matched),
+      openNominations: open.map(toNominationInput),
+      closures: closures.map(toClosureInput),
     };
   },
 });
