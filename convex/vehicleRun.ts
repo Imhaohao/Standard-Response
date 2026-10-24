@@ -56,7 +56,11 @@ export function forecastRun<Id>(start: RunState<Id>, startSeconds: number, trave
       continue;
     }
     const shelter = shelterFor(state.node);
-    if (!shelter) break;
+    if (!shelter) {
+      // Boxed in by closures: no shelter and none of the remaining pickups can be reached from here.
+      for (const pickup of state.pickups) forecast.arrivals.set(pickup.id, null);
+      break;
+    }
     time += shelter.seconds + UNLOAD_SECONDS;
     state.node = shelter.node;
     state.onboard = [];

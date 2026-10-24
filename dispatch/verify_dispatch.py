@@ -237,9 +237,10 @@ def _rerouted(world: World, vehicle_id, target, old_route):
     return None
 
 
-def pick_accepted(world: World, avoid=()):
+def pick_accepted(world: World, avoid=(), min_eta=0):
     for offer in world.offers():
-        if offer["status"] == "accepted" and offer["_id"] not in avoid and offer.get("lat") is not None:
+        usable = offer["status"] == "accepted" and offer["_id"] not in avoid and offer.get("lat") is not None
+        if usable and offer["etaMinutes"] >= min_eta:
             return offer
     return None
 
@@ -249,9 +250,10 @@ def callbacks_for(world: World, request_id, announces):
 
 
 def check_revocation(world: World, report: Report):
-    offer = wait_for(lambda: pick_accepted(world), 120)
+    # At least 5 minutes away, so the van isn't already at the door when the roads close.
+    offer = wait_for(lambda: pick_accepted(world, min_eta=5), 120)
     if not offer:
-        report.check(False, "Unreachable pickup is revoked and the rider told", "no accepted pickup")
+        report.check(False, "Unreachable pickup is revoked and the rider told", "no accepted pickup 5+ minutes out")
         return None
     node = nearest_node(offer["lat"], offer["lng"])
     closures = [closure_for(e) for e in edges_touching(node)]
@@ -278,12 +280,13 @@ def check_cancel_and_new_driver(world: World, report: Report, avoid):
     world.client.mutation("offers:cancelByDriver", {"assignmentId": offer["_id"]})
     request_id, old_vehicle = offer["requestId"], offer["vehicleId"]
     told = wait_for(lambda: callbacks_for(world, request_id, "reassigning"), 15)
+    # An offer to a driver-page van (Maria, Luis) waits out its 2-minute expiry before a simulated driver gets it.
     new = wait_for(
-        lambda: next((o for o in world.offers() if o["requestId"] == request_id and o["status"] == "accepted"), None), 90
+        lambda: next((o for o in world.offers() if o["requestId"] == request_id and o["status"] == "accepted"), None), 300
     )
     vehicles = world.vehicles()
     detail = f"{vehicles[old_vehicle]['label']} cancelled at {offer['address']}; reassigning callback {'queued' if told else 'missing'}; "
-    detail += f"new driver: {vehicles[new['vehicleId']]['label']}" if new else "no new driver accepted within 90 s"
+    detail += f"new driver: {vehicles[new['vehicleId']]['label']}" if new else "no new driver accepted within 300 s"
     report.check(bool(told) and bool(new) and new["vehicleId"] != old_vehicle, "Driver cancels, rider told, a new driver accepts", detail)
     return offer["_id"]
 
@@ -329,25 +332,43 @@ def check_completed(world: World, report: Report):
     report.check(bool(done) or closed > 0, "Pickups complete and riders reach the shelter", f"{len(done or [])} riders on board now, {closed} dropped at the shelter in the recent audit trail")
 
 
+CHECKS = {
+    "solver": lambda w, r, ctx: check_solver(w, r),
+    "compatibility": lambda w, r, ctx: check_compatibility(w, r),
+    "movement": lambda w, r, ctx: check_movement(w, r),
+    "frozen": lambda w, r, ctx: check_frozen_runs(w, r),
+    "reroute": lambda w, r, ctx: check_reroute(w, r),
+    "cancel": lambda w, r, ctx: ctx.update(cancelled=check_cancel_and_new_driver(w, r, avoid=())),
+    "stale": lambda w, r, ctx: check_stale_accept(w, r, ctx.get("cancelled") or _ended_assignment(w)),
+    "revocation": lambda w, r, ctx: check_revocation(w, r),
+    "fallback": lambda w, r, ctx: check_fallback(w, r, ctx["fallback_dir"]),
+    "completed": lambda w, r, ctx: check_completed(w, r),
+}
+
+
+def _ended_assignment(world: World):
+    trail = world.client.query("plans:auditTrail", {"limit": 200})
+    return next((a.get("assignmentId") for a in trail if a["kind"] in ("revoked", "replaced", "expired")), None)
+
+
+def run_checks(world: World, report: Report, names, fallback_dir):
+    context = {"fallback_dir": fallback_dir}
+    for name in CHECKS:
+        if name in names:
+            CHECKS[name](world, report, context)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url")
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--fallback-dir", type=Path)
+    parser.add_argument("--only", nargs="+", choices=sorted(CHECKS), help="run just these checks")
     args = parser.parse_args()
     world = World(ConvexClient(args.url or env_url()))
     report = Report()
     start_night(world, args.reset)
-    check_solver(world, report)
-    check_compatibility(world, report)
-    check_movement(world, report)
-    check_frozen_runs(world, report)
-    check_reroute(world, report)
-    cancelled = check_cancel_and_new_driver(world, report, avoid=())
-    check_stale_accept(world, report, cancelled)
-    check_revocation(world, report)
-    check_fallback(world, report, args.fallback_dir)
-    check_completed(world, report)
+    run_checks(world, report, args.only or list(CHECKS), args.fallback_dir)
     print(f"\n{len(report.rows) - len(report.failed)} of {len(report.rows)} checks passed")
     sys.exit(1 if report.failed else 0)
 
