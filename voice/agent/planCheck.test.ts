@@ -1,0 +1,220 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { PlanCheck, PlanCheckEffects } from "./planCheck";
+import type { PlanHeard, PlanRole } from "./planInterpreter";
+import { ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
+import type { ReadyHeard } from "./readyInterpreter";
+
+type Recorded = { helper: [boolean, number | undefined][]; resident: boolean[]; escalations: string[]; unreached: number };
+
+const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
+  answer: "unclear",
+  minutes: null,
+  emergency: "none",
+  wantsRepeat: false,
+  addressedToAgent: true,
+  acknowledgment: "",
+  ...partial,
+});
+
+function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en") {
+  const recorded: Recorded = { helper: [], resident: [], escalations: [], unreached: 0 };
+  const effects: PlanCheckEffects = {
+    helperAnswered: (coming, eta) => recorded.helper.push([coming, eta]),
+    residentAnswered: (pickedUp) => recorded.resident.push(pickedUp),
+    escalate: (kind) => recorded.escalations.push(kind),
+    unreached: () => (recorded.unreached += 1),
+  };
+  const queue = [...answers];
+  const call = new PlanCheck({
+    role,
+    language,
+    helperName: "Ana",
+    residentName: "Walter",
+    address: "1182 Mariposa St",
+    effects,
+    interpret: async () => heard(queue.shift() ?? {}),
+  });
+  return { call, recorded };
+}
+
+const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
+
+describe("pickup check, helper call", () => {
+  it("asks for minutes after a plain yes, then reports the helper coming", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "yes" }, { minutes: 12 }]);
+    assert.match(spoken(call.start()), /Can you get to them now\?/);
+    assert.match(spoken(await call.hear("yes")), /how many minutes/);
+    const last = await call.hear("about twelve");
+    assert.equal(last.done, true);
+    assert.deepEqual(recorded.helper, [[true, 12]]);
+    assert.match(spoken(last), /check in with Walter/);
+  });
+
+  it("skips the minutes question when the yes comes with a time", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "yes", minutes: 10 }]);
+    call.start();
+    assert.equal((await call.hear("yes, ten minutes")).done, true);
+    assert.deepEqual(recorded.helper, [[true, 10]]);
+  });
+
+  it("counts two unclear answers as no", async () => {
+    const { call, recorded } = planCall("helper", [{}, {}]);
+    call.start();
+    assert.equal((await call.hear("hmm")).done, false);
+    const last = await call.hear("maybe");
+    assert.equal(last.done, true);
+    assert.deepEqual(recorded.helper, [[false, undefined]]);
+    assert.match(spoken(last), /another way/);
+  });
+
+  it("never invents a time when the helper can't say how long", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "yes" }, {}, {}]);
+    call.start();
+    await call.hear("yes");
+    await call.hear("not sure");
+    await call.hear("depends on traffic");
+    assert.deepEqual(recorded.helper, [[true, undefined]]);
+  });
+
+  it("ignores noise without using up a try", async () => {
+    const { call, recorded } = planCall("helper", [{ addressedToAgent: false }, {}, { answer: "no" }]);
+    call.start();
+    assert.equal((await call.hear("woof")).ignored, true);
+    await call.hear("what?");
+    await call.hear("no, I can't");
+    assert.deepEqual(recorded.helper, [[false, undefined]]);
+  });
+
+  it("tells a helper in danger to call 911 without escalating the resident's home", async () => {
+    const { call, recorded } = planCall("helper", [{ emergency: "flames", answer: "no" }]);
+    call.start();
+    assert.match(spoken(await call.hear("there's fire on my street, I can't")), /911/);
+    assert.deepEqual(recorded.escalations, []);
+  });
+
+  it("reports a hang-up before any answer as unreached, once", async () => {
+    const { call, recorded } = planCall("helper", []);
+    call.start();
+    call.lineClosed();
+    call.lineClosed();
+    assert.equal(recorded.unreached, 1);
+  });
+});
+
+describe("pickup check, resident call", () => {
+  it("records a pickup", async () => {
+    const { call, recorded } = planCall("resident", [{ answer: "yes" }]);
+    assert.match(spoken(call.start()), /Has Ana picked you up\?/);
+    assert.equal((await call.hear("yes, I'm in the car")).done, true);
+    assert.deepEqual(recorded.resident, [true]);
+    call.lineClosed();
+    assert.equal(recorded.unreached, 0);
+  });
+
+  it("promises no pickup or time when nobody came, and gives the safety line", async () => {
+    const { call, recorded } = planCall("resident", [{ answer: "no", acknowledgment: "Okay, a driver is coming soon." }]);
+    call.start();
+    const last = await call.hear("no, nobody came");
+    assert.deepEqual(recorded.resident, [false]);
+    const text = spoken(last);
+    assert.match(text, /finding you a vehicle/);
+    assert.match(text, /call 911/);
+    assert.doesNotMatch(text, /coming soon|\d+ minutes/);
+  });
+
+  it("escalates a medical emergency at the home", async () => {
+    const { call, recorded } = planCall("resident", [{ emergency: "medical", answer: "no" }]);
+    call.start();
+    await call.hear("no, and I can't breathe");
+    assert.deepEqual(recorded.escalations, ["medical"]);
+  });
+
+  it("speaks Spanish, and falls back to English for other languages", async () => {
+    assert.match(spoken(planCall("resident", [], "es").call.start()), /recogió/);
+    const korean = planCall("resident", [], "ko").call;
+    assert.equal(korean.language, "en");
+    assert.match(spoken(korean.start()), /picked you up/);
+  });
+});
+
+const readyHeard = (partial: Partial<ReadyHeard>): ReadyHeard => ({
+  answer: null,
+  updates: {},
+  emergency: false,
+  asksAboutRide: false,
+  wantsRepeat: false,
+  wantsToEnd: false,
+  addressedToAgent: true,
+  acknowledgment: "",
+  ...partial,
+});
+
+function readyCall(answers: Partial<ReadyHeard>[]) {
+  const saved: ReadyProfileArgs[] = [];
+  const queue = [...answers];
+  const call = new ReadyCall({
+    language: "en",
+    addressOnFile: "1182 Mariposa St",
+    effects: { save: (profile) => saved.push(profile) },
+    interpret: async () => readyHeard(queue.shift() ?? {}),
+  });
+  return { call, saved };
+}
+
+describe("Ready check call", () => {
+  it("walks a household with a helper through to a saved profile", async () => {
+    const { call, saved } = readyCall([
+      { answer: "yes" },
+      { answer: "yes" },
+      { updates: { peopleCount: 2, pets: false } },
+      { updates: { mobility: "walker" } },
+      { updates: { assistanceRequired: "one_person_assist" } },
+      { updates: { bedroomFloor: "upstairs", bedroomSide: "back" } },
+      { updates: { care: ["hearing"] } },
+      { updates: { exitPlan: "helper", helperName: "Ana" } },
+      { updates: { helperPhone: "+16265550123" } },
+      { answer: "yes" },
+      { updates: { note: "Key under the mat" } },
+      { answer: "yes" },
+    ]);
+    call.start();
+    const turns = [];
+    while (!call.done) turns.push(spoken(await call.hear("…")));
+    assert.match(turns[8], /6 2 6, 5 5 5, 0 1 2 3/);
+    assert.match(turns[10], /Ana would pick you up/);
+    assert.equal(saved.length, 1);
+    assert.deepEqual(saved[0].helper, { name: "Ana", phone: "+16265550123", relation: undefined });
+    assert.deepEqual(saved[0].bedroom, { floor: "upstairs", side: "back" });
+    assert.equal(saved[0].exitPlan, "helper");
+  });
+
+  it("ends without saving or counting a miss when now isn't a good time", async () => {
+    const { call, saved } = readyCall([{ answer: "no" }]);
+    call.start();
+    assert.equal((await call.hear("not now")).done, true);
+    call.lineClosed();
+    assert.equal(saved.length, 0);
+  });
+
+  it("saves a partial profile on hang-up only once the exit plan is known", async () => {
+    const early = readyCall([{ answer: "yes" }, { answer: "yes" }]);
+    early.call.start();
+    await early.call.hear("sure");
+    await early.call.hear("yes");
+    early.call.lineClosed();
+    assert.equal(early.saved.length, 0);
+
+    const late = readyCall([{ answer: "yes" }, { answer: "yes" }, { updates: { peopleCount: 1 } }, { answer: "no" }, { answer: "no" }, { updates: { exitPlan: "own_car" } }]);
+    late.call.start();
+    for (let turn = 0; turn < 6; turn++) await late.call.hear("…");
+    late.call.lineClosed();
+    assert.equal(late.saved.length, 1);
+    assert.equal(late.saved[0].exitPlan, "own_car");
+    assert.equal(late.saved[0].hasCar, true);
+  });
+
+  it("reads a phone number back digit by digit", () => {
+    assert.equal(spokenDigits("+16265550123"), "6 2 6, 5 5 5, 0 1 2 3");
+  });
+});

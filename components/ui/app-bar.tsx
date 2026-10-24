@@ -14,6 +14,8 @@ const SCREENS: Screen[] = [
   { href: "/system", label: "Under the hood" },
   { href: "/phone", label: "Simulated phone" },
   { href: "/driver", label: "Driver page" },
+  // The Ready check: a household signs itself up before any disaster.
+  { href: "/ready", label: "Ready sign-up" },
   // The mesh add-on's three pages, which link to each other.
   { href: "/flow", label: "Mesh and flow", also: ["/mesh", "/mesh/agency"] },
   // The readiness survey add-on: preparedness data from households, before any disaster.

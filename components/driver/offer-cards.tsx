@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { ArrowsClockwise, Check, HourglassMedium, X } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "../ui/button";
+import { InsideFacts } from "../ready/profile";
 import { RideNeeds } from "./ride-needs";
 import { Stop } from "./stops";
 
@@ -65,6 +66,7 @@ export function OfferCard({ stop, onChanged, onDeclined }: { stop: Stop; onChang
     <motion.li layout {...ENTER} className="flex flex-col gap-4 bg-panel px-4 pt-5 pb-4">
       <StopHeading stop={stop} />
       <RideNeeds stop={stop} />
+      {stop.rider?.ready && <InsideFacts ready={stop.rider.ready} />}
       {waiting ? (
         <p className="type-heading flex items-center gap-2">
           <HourglassMedium weight="bold" className="size-6 shrink-0" />

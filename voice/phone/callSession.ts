@@ -1,11 +1,13 @@
 import type WebSocket from "ws";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import type { CallFlow } from "../agent/callFlow";
 import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversation";
 import { AgentRecord, FIELDS } from "../agent/record";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { Transcriber } from "./cartesia";
+import { isOutboundFlowMode, outboundFlowFor } from "./outboundFlows";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
 import { CallSpeech } from "./speech";
 import { hangUp, StreamParameters } from "./twilio";
@@ -69,7 +71,7 @@ class CallSession implements LiveCall {
   private readonly callSid: string;
   private readonly speech: CallSpeech;
   private transcriber: Transcriber | null = null;
-  private conversation: Conversation | null = null;
+  private conversation: CallFlow | null = null;
   private callId: Id<"calls"> | null = null;
   private language: Language = "en";
   private ride: RideStatus = null;
@@ -93,6 +95,7 @@ class CallSession implements LiveCall {
 
   async begin() {
     if (this.params.mode === "callback") return this.beginCallback();
+    if (isOutboundFlowMode(this.params.mode)) return this.beginOutboundFlow();
     const householdId = await this.resolveHousehold();
     this.householdId = householdId;
     liveByHousehold.set(householdId, this);
@@ -111,6 +114,14 @@ class CallSession implements LiveCall {
     });
     this.listen();
     if (this.callId) fireAndForget("setPhase", convex().mutation(api.calls.setPhase, { callId: this.callId, phase: "live" }));
+    this.speakTurn(this.conversation.start(), null);
+  }
+
+  // The pickup check and the Ready check: short calls with their own state machine and no `calls` row.
+  private async beginOutboundFlow() {
+    this.conversation = await outboundFlowFor(this.params);
+    this.language = this.conversation.language;
+    this.listen();
     this.speakTurn(this.conversation.start(), null);
   }
 
@@ -270,7 +281,9 @@ class CallSession implements LiveCall {
     if (this.residentSpoke || this.ended) return;
     this.reachedMachine = true;
     this.speech.bargeIn();
-    const voicemail = this.params.mode === "callback" ? this.callbackSentences() : [LINES[this.language].voicemail];
+    const voicemail = this.params.mode === "callback"
+      ? this.callbackSentences()
+      : (this.conversation?.voicemail?.() ?? [LINES[this.language].voicemail]);
     this.speech.say(voicemail, this.language);
     void this.speech.whenSilent().then(() => this.finish(false));
   }
@@ -307,8 +320,10 @@ class CallSession implements LiveCall {
     if (this.householdId && liveByHousehold.get(this.householdId) === this) liveByHousehold.delete(this.householdId);
     if (answered !== null) await hangUp(this.callSid);
     const wasAnswered = answered ?? this.residentSpoke;
+    if (wasAnswered) this.conversation?.lineClosed?.();
     if (this.callId) fireAndForget("calls.end", convex().mutation(api.calls.end, { callId: this.callId, answered: wasAnswered }));
-    callEnded({ mode: this.params.mode, callId: this.callId ?? undefined, callbackId: this.params.callbackId, answered: wasAnswered });
+    const { mode, callbackId, householdId, planId, role } = this.params;
+    callEnded({ mode, callId: this.callId ?? undefined, callbackId, householdId, planId, role, answered: wasAnswered });
   }
 }
 

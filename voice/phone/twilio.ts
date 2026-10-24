@@ -4,7 +4,7 @@ import { env } from "../env";
 // Outbound calls connect straight to our media stream. Answering-machine detection runs
 // asynchronously, so the greeting starts on pickup and a machine result cuts over to voicemail.
 
-export type CallMode = "survey" | "callback" | "inbound";
+export type CallMode = "survey" | "callback" | "inbound" | "plan_check" | "ready";
 
 export type StreamParameters = {
   mode: CallMode;
@@ -12,6 +12,8 @@ export type StreamParameters = {
   callId?: string;
   callbackId?: string;
   from?: string;
+  planId?: string;
+  role?: "helper" | "resident";
 };
 
 let client: ReturnType<typeof twilio> | null = null;
@@ -33,7 +35,14 @@ export function streamTwiml(parameters: StreamParameters) {
 const callbackUrl = (path: string, query: Record<string, string>) => `${env.publicUrl()}${path}?${new URLSearchParams(query)}`;
 
 export async function placeCall(to: string, parameters: StreamParameters) {
-  const query = { mode: parameters.mode, callId: parameters.callId ?? "", callbackId: parameters.callbackId ?? "" };
+  const query = {
+    mode: parameters.mode,
+    callId: parameters.callId ?? "",
+    callbackId: parameters.callbackId ?? "",
+    householdId: parameters.householdId ?? "",
+    planId: parameters.planId ?? "",
+    role: parameters.role ?? "",
+  };
   const machineDetection = env.twilioTrial
     ? {}
     : { machineDetection: "DetectMessageEnd", asyncAmd: "true", asyncAmdStatusCallback: callbackUrl("/twilio/amd", query) };

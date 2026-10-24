@@ -5,11 +5,13 @@ import type { Id } from "../convex/_generated/dataModel";
 import { startCallbackRunner } from "./callbackRunner";
 import { convex } from "./convex";
 import { startDialer } from "./dialer";
+import { startPickupRunner } from "./pickupRunner";
+import { startReadyDialer } from "./readyDialer";
 import { env } from "./env";
 import { watchHazard } from "./hazard";
 import { handleMediaStream } from "./phone/callSession";
 import { callEnded, liveByCallSid, onCallEnded } from "./phone/registry";
-import { signatureIsValid, streamTwiml } from "./phone/twilio";
+import { CallMode, signatureIsValid, streamTwiml } from "./phone/twilio";
 import { startTextFollowUp } from "./textFollowUp";
 import { handleTurn } from "./textAgent";
 
@@ -57,7 +59,21 @@ function callStatus(query: URLSearchParams, params: Record<string, string>) {
     callEnded({ mode: "survey", callId, answered: false });
   } else if (mode === "callback") {
     callEnded({ mode: "callback", callbackId: query.get("callbackId") ?? undefined, answered: false });
+  } else if (mode === "plan_check" || mode === "ready") {
+    reportUnreached(mode, query);
   }
+}
+
+// The pickup runner and the Ready dialer count the miss when they hear about it.
+function reportUnreached(mode: CallMode, query: URLSearchParams) {
+  const role = query.get("role");
+  callEnded({
+    mode,
+    householdId: query.get("householdId") || undefined,
+    planId: query.get("planId") || undefined,
+    role: role === "helper" || role === "resident" ? role : undefined,
+    answered: false,
+  });
 }
 
 function machineDetected(params: Record<string, string>) {
@@ -104,5 +120,7 @@ server.listen(env.port, () => {
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   startDialer();
   startCallbackRunner();
+  startPickupRunner();
+  startReadyDialer();
   startTextFollowUp();
 });

@@ -21,3 +21,14 @@ Heads-up before you start anything new: Boris asked for a Ready check and a pick
 - **New household field `ready`** (owned by A): `{ at, via, exitPlan, bedroom?, care, note? }`. Your record fields are unchanged. The Ready check fills `peopleCount`, `mobility`, `assistanceRequired`, `medical`, `pets` and `hasCar` ahead of time without touching `outcome`, so the evening call confirms them as "on file" the way it already does for rider-list mobility.
 - **New table `pickupPlans`.** You report call results through `pickups:startAttempt`, `pickups:helperAnswered`, `pickups:residentAnswered` and `pickups:unanswered`. The queue is `pickups:callQueue`.
 - Plan-check and Ready check calls don't create `calls` rows, so the call floor's line counts stay about the night. They log to `events`.
+
+## 2026-10-24 14:05
+
+The pickup check and Ready check calls are in `voice/` now. What changed in your files, all small:
+
+- `phone/callSession.ts`: `conversation` is typed as the new `CallFlow` interface (`agent/callFlow.ts`; your `Conversation` already satisfies it unchanged). `begin()` has one branch to `beginOutboundFlow()` for `plan_check` and `ready`. `onMachine` uses a flow's own voicemail when it has one, and `finish()` calls the flow's optional `lineClosed()` and passes `householdId`, `planId` and `role` to `callEnded`.
+- `phone/twilio.ts` and `phone/registry.ts`: two more `CallMode` values, plus `planId` and `role` on the stream parameters and the status-callback query.
+- `server.ts`: unanswered `plan_check` and `ready` calls report through `reportUnreached()`, and `startPickupRunner()` and `startReadyDialer()` start next to the callback runner.
+- New files: `agent/planCheck.ts`, `agent/planInterpreter.ts`, `agent/readyCall.ts`, `agent/readyInterpreter.ts`, `phone/outboundFlows.ts`, `pickupRunner.ts`, `readyDialer.ts`, and a test (`npx tsx --test voice/agent/planCheck.test.ts`, 15 pass).
+- Both runners respect `DIAL_ALLOWLIST`. The pickup runner only dials while `control.dialerRunning` is on; the Ready dialer only while a Ready check campaign runs and no warning is out.
+- None of it has been dialed through real Twilio or Cartesia yet; it's checked with stubbed interpreters only. Lines are English and Spanish, and other languages fall back to English. When you redeploy Fly, these go out too. Please try one helper call to your own phone.

@@ -1,4 +1,5 @@
 import type { Language } from "../agent/script";
+import type { CallMode } from "./twilio";
 
 // Shared lookups between the dialer, the callback runner, Twilio webhooks and live call sessions.
 
@@ -11,7 +12,15 @@ export interface LiveCall {
 
 export type CallbackScript = { sentences: string[]; language: Language; announces: "driver_accepted" | "reassigning" };
 
-export type CallEnded = { mode: "survey" | "callback" | "inbound"; callId?: string; callbackId?: string; answered: boolean };
+export type CallEnded = {
+  mode: CallMode;
+  callId?: string;
+  callbackId?: string;
+  householdId?: string;
+  planId?: string;
+  role?: "helper" | "resident";
+  answered: boolean;
+};
 
 export const liveByCallSid = new Map<string, LiveCall>();
 export const liveByHousehold = new Map<string, LiveCall>();

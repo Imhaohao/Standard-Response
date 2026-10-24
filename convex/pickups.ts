@@ -172,6 +172,7 @@ export const callQueue = query({
         const household = await ctx.db.get("households", plan.householdId);
         return {
           _id: plan._id,
+          householdId: plan.householdId,
           status: plan.status,
           ringing: plan.ringing,
           helperName: plan.helperName,

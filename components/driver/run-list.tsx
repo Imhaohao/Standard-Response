@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "../ui/button";
+import { InsideFacts } from "../ready/profile";
 import { RideNeeds } from "./ride-needs";
 import { Stop } from "./stops";
 
@@ -45,6 +46,7 @@ export function RunList({ stops, focusId, onFocus }: { stops: Stop[]; focusId: s
               {focused && (
                 <>
                   <RideNeeds stop={stop} large={false} />
+                  {stop.rider?.ready && <InsideFacts ready={stop.rider.ready} />}
                   <CantMakeIt stop={stop} />
                 </>
               )}
