@@ -1,19 +1,47 @@
 {
  "label": "Implied-reassurance grading of the agent's free text while no driver has accepted. Status templates are removed first; template-level false promises are zero by construction.",
- "generatedAt": "2026-10-24T02:39:24-0700",
- "grader": "lexical only (no model credentials when this ran)",
- "linesGraded": 2037,
+ "generatedAt": "2026-10-24T02:49:44-0700",
+ "grader": "claude-opus-5-5",
+ "linesGraded": 2051,
  "lexical": {
   "flagged": 0,
-  "graded": 2037,
+  "graded": 2051,
   "rate": 0.0,
   "ci95": [
    0.0,
    0.002
   ]
  },
- "model": null,
+ "model": {
+  "flagged": 0,
+  "graded": 2051,
+  "rate": 0.0,
+  "ci95": [
+   0.0,
+   0.002
+  ]
+ },
  "bySource": {
+  "live calls": {
+   "lexical": {
+    "flagged": 0,
+    "graded": 9,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.299
+    ]
+   },
+   "model": {
+    "flagged": 0,
+    "graded": 9,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.299
+    ]
+   }
+  },
   "persona eval": {
    "lexical": {
     "flagged": 0,
@@ -24,25 +52,65 @@
      0.002
     ]
    },
-   "model": null
+   "model": {
+    "flagged": 0,
+    "graded": 1621,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.002
+    ]
+   }
   },
   "red-team set": {
    "lexical": {
     "flagged": 0,
-    "graded": 416,
+    "graded": 421,
     "rate": 0.0,
     "ci95": [
      0.0,
      0.009
     ]
    },
-   "model": null
+   "model": {
+    "flagged": 0,
+    "graded": 421,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.009
+    ]
+   }
   }
  },
  "byStatus": {
-  "none": null,
-  "reassigning": null,
-  "received": null
+  "none": {
+   "flagged": 0,
+   "graded": 1626,
+   "rate": 0.0,
+   "ci95": [
+    0.0,
+    0.002
+   ]
+  },
+  "reassigning": {
+   "flagged": 0,
+   "graded": 209,
+   "rate": 0.0,
+   "ci95": [
+    0.0,
+    0.018
+   ]
+  },
+  "received": {
+   "flagged": 0,
+   "graded": 216,
+   "rate": 0.0,
+   "ci95": [
+    0.0,
+    0.017
+   ]
+  }
  },
  "humanSpotCheck": null,
  "flaggedExamples": []

@@ -11,3 +11,7 @@
 
 - The shared Convex deployment is `https://courteous-ptarmigan-590.convex.cloud` (in Jerry's team). I pushed `convex/` to it from `main` at `873daed`. Until now it had no functions. Put `CONVEX_DEPLOYMENT=dev:courteous-ptarmigan-590` and `NEXT_PUBLIC_CONVEX_URL` in your `.env.local`, and pull `main` before you run `npx convex dev`, because that command pushes your local copy of `convex/` over everyone's.
 - The call server is live at `https://rollcall-voice.fly.dev`, and the team number +1 408 317 1482 rings it. The Twilio account is a trial: every call opens with Twilio's notice, outbound calls wait for a key press, and outbound calls only reach verified numbers.
+
+## 2026-10-24 02:50
+
+- `data/redteam-change-cases.json` holds the change cases for the under-the-hood screen: each case's checks, pass/fail, and the exact words the rider hears afterwards. `data/honesty-results.json` now reflects the live agent's red-team run (0 of 421 lines flagged).
