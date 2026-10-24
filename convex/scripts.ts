@@ -1,12 +1,12 @@
 import { Doc } from "./_generated/dataModel";
 import { RecordPatch } from "./households";
 
-// Stand-in conversation for simulated residents. The real voice agent (Jerry) replaces
+// Stand-in conversation for simulated residents. The real voice agent (Track B) replaces
 // this with Claude + speech; the stage order matches the plan's state machine.
 
 type Truth = Doc<"personas">["truth"];
 type Stage = Doc<"calls">["stage"];
-type Language = "en" | "es" | "zh";
+type Language = "en" | "es";
 
 export type ScriptStep = {
   speaker: "agent" | "resident";
@@ -25,6 +25,7 @@ type Phrasebook = {
   askNeeds: string;
   mobility: Record<Truth["mobility"], string>;
   oxygen: string;
+  twoPersonLift: string;
   readback: (people: number, address: string) => string;
   confirmReadback: string;
   closeLeaving: string;
@@ -53,6 +54,7 @@ const PHRASES: Record<Language, Phrasebook> = {
       bedbound: "One of us is bedbound.",
     },
     oxygen: " I'm on oxygen.",
+    twoPersonLift: " It takes two people to lift me out of bed.",
     readback: (people, address) => `Let me read that back. ${people === 1 ? "1 person" : `${people} people`} at ${address}. Is that right?`,
     confirmReadback: "Yes, that's right.",
     closeLeaving: "Thank you. Please leave now and head south on Lincoln Avenue.",
@@ -79,35 +81,11 @@ const PHRASES: Record<Language, Phrasebook> = {
       bedbound: "Una persona está en cama y no puede levantarse.",
     },
     oxygen: " Uso oxígeno.",
+    twoPersonLift: " Se necesitan dos personas para levantarme de la cama.",
     readback: (people, address) => `Le confirmo: ${people === 1 ? "1 persona" : `${people} personas`} en ${address}. ¿Es correcto?`,
     confirmReadback: "Sí, es correcto.",
     closeLeaving: "Gracias. Por favor salgan ahora hacia el sur por Lincoln Avenue.",
     closeVehicle: "Gracias. Estamos organizando un vehículo y le llamaremos con el nombre del conductor. Quédese cerca del teléfono.",
-  },
-  zh: {
-    greet: (address) => `您好，这里是阿尔塔迪纳疏散热线。现在已发布疏散警告。请问是${address}吗？`,
-    confirm: (address) => `是的，这里是${address}。`,
-    askLeave: "您家里的每个人现在都能自己离开吗？",
-    canLeave: {
-      yes: "可以，我们能开车离开。",
-      no: "不行，我自己出不去。",
-      unsure: "我不确定，不知道怎么出去。",
-    },
-    askHousehold: "有几个人和您在一起？有宠物吗？",
-    household: (people, pets) => `${people === 1 ? "只有我一个人" : `我们有${people}个人`}${pets ? "，还有一只狗。" : "，没有宠物。"}`,
-    askNeeds: "有人使用助行器或轮椅，或者需要氧气或其他医疗设备吗？",
-    mobility: {
-      walks: "我们都能走路。",
-      walker: "我用助行器。",
-      manual_wheelchair: "我坐轮椅。",
-      power_wheelchair: "我用电动轮椅。",
-      bedbound: "家里有人卧床不起。",
-    },
-    oxygen: "我需要吸氧。",
-    readback: (people, address) => `我确认一下：${address}，共${people}人。对吗？`,
-    confirmReadback: "对，没错。",
-    closeLeaving: "谢谢。请现在沿林肯大道向南离开。",
-    closeVehicle: "谢谢。我们正在安排车辆，会再打电话告诉您司机的名字。请留在电话旁。",
   },
 };
 
@@ -119,7 +97,10 @@ const NEEDS_VEHICLE = (truth: Truth) => truth.canLeave !== "yes" || truth.mobili
 
 export function scriptFor(address: string, language: string, truth: Truth): ScriptStep[] {
   const p = phrasebookFor(language);
-  const needsLine = p.mobility[truth.mobility] + (truth.medical.includes("oxygen") ? p.oxygen : "");
+  const needsLine =
+    p.mobility[truth.mobility] +
+    (truth.medical.includes("oxygen") ? p.oxygen : "") +
+    (truth.assistanceRequired === "two_person_lift" ? p.twoPersonLift : "");
   return [
     { speaker: "agent", stage: "greet", text: p.greet(address) },
     { speaker: "resident", stage: "confirm_address", text: p.confirm(address), patch: { address } },
@@ -137,7 +118,12 @@ export function scriptFor(address: string, language: string, truth: Truth): Scri
       speaker: "resident",
       stage: "needs",
       text: needsLine,
-      patch: { mobility: truth.mobility, medical: truth.medical, hasCar: truth.hasCar },
+      patch: {
+        mobility: truth.mobility,
+        assistanceRequired: truth.assistanceRequired,
+        medical: truth.medical,
+        hasCar: truth.hasCar,
+      },
     },
     { speaker: "agent", stage: "readback", text: p.readback(truth.peopleCount, address) },
     { speaker: "resident", stage: "readback", text: p.confirmReadback },

@@ -70,6 +70,12 @@ function sampleMobility(random: Random, age: number, vulnerability: number): Tru
   return "walks";
 }
 
+function sampleAssistance(random: Random, mobility: Truth["mobility"]): Truth["assistanceRequired"] {
+  if (mobility === "bedbound") return "two_person_lift";
+  if (mobility === "walks") return "none";
+  return random() < 0.3 ? "one_person_assist" : "none";
+}
+
 function sampleTruth(random: Random, age: number, vulnerability: number): Truth {
   const mobility = sampleMobility(random, age, vulnerability);
   const limited = mobility !== "walks";
@@ -80,18 +86,14 @@ function sampleTruth(random: Random, age: number, vulnerability: number): Truth 
     canLeave,
     peopleCount: age > 75 && random() < 0.6 ? 1 : 1 + Math.floor(random() * 4),
     mobility,
+    assistanceRequired: sampleAssistance(random, mobility),
     medical: oxygen ? ["oxygen"] : random() < 0.04 ? ["dialysis"] : [],
     pets: random() < 0.4,
     hasCar,
   };
 }
 
-function sampleLanguage(random: Random) {
-  const roll = random();
-  if (roll < 0.64) return "en";
-  if (roll < 0.9) return "es";
-  return "zh";
-}
+const sampleLanguage = (random: Random) => (random() < 0.7 ? "en" : "es");
 
 function fireArrivalFor(point: { lat: number; lng: number }, warningAt: number) {
   const minutes = FIRE_FIRST_ARRIVAL_MINUTES + metersBetween(point, FIRE_ORIGIN) / FIRE_SPREAD_METERS_PER_MINUTE;
@@ -100,10 +102,48 @@ function fireArrivalFor(point: { lat: number; lng: number }, warningAt: number) 
 
 const HOUSEHOLD_COUNT = 200;
 
+type VehicleSeed = Omit<Doc<"vehicles">, "_id" | "_creationTime" | "lat" | "lng" | "shiftEndsAt">;
+
+const van = (label: string, driverName: string, crewSize: number, driverIsSimulated = true): VehicleSeed => ({
+  label,
+  type: "paratransit",
+  driverName,
+  seats: 4,
+  wheelchairSpaces: 2,
+  stretcherSpaces: 0,
+  crewSize,
+  liftCapable: true,
+  driverIsSimulated,
+});
+
+// Maria's and Luis's vans are driven from the driver page during the demo.
+const FLEET: VehicleSeed[] = [
+  van("Van 12", "Maria", 2, false),
+  van("Van 7", "Luis", 2, false),
+  van("Van 3", "Dwayne", 1),
+  van("Van 4", "Paulina", 1),
+  van("Van 9", "Grace", 2),
+  van("Van 15", "Ernesto", 1),
+  { ...van("Bus 2", "Howard", 1), type: "bus", seats: 20, wheelchairSpaces: 1 },
+  { ...van("Medic 41", "Rosa", 2), type: "ambulance", seats: 1, wheelchairSpaces: 0, stretcherSpaces: 1 },
+];
+
+const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.1446, capacity: 1200 }];
+
+async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number) {
+  for (const vehicle of FLEET) {
+    const lat = AREA.south - 0.004 + random() * 0.008;
+    const lng = AREA.west + random() * (AREA.east - AREA.west);
+    await ctx.db.insert("vehicles", { ...vehicle, lat, lng, shiftEndsAt: warningAt + 8 * 60 * 60_000 });
+  }
+  for (const shelter of SHELTERS) await ctx.db.insert("shelters", shelter);
+}
+
 export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number) {
   const random = mulberry32(13);
   const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
   const usedAddresses = new Set<string>();
+  await seedFleet(ctx, random, warningAt);
 
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) {
     const { lat, lng, street } = placeOnStreet(random);
@@ -124,6 +164,7 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number) {
       language: sampleLanguage(random),
       callStatus: "not_called",
       outcome: "unknown",
+      inZone: true,
       attempts: 0,
       needPrior,
       needProbability: needPrior,

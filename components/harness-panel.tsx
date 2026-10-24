@@ -9,11 +9,14 @@ import { Button } from "./ui/button";
 import { Section } from "./ui/section";
 import type { ControlState } from "./header-bar";
 
-type StandInKey = "simulateVoice" | "simulateNeedModel";
+type StandInKey = "simulateVoice" | "simulateNeedModel" | "simulateDispatch" | "simulateDrivers" | "autoApprove";
 
 const STAND_INS: { key: StandInKey; label: string; owner: string }[] = [
-  { key: "simulateVoice", label: "Voice agent and dialer", owner: "Jerry" },
-  { key: "simulateNeedModel", label: "Need model", owner: "David" },
+  { key: "simulateVoice", label: "Voice agent, dialer and callbacks", owner: "Track B" },
+  { key: "simulateDispatch", label: "Dispatcher and vehicle movement", owner: "Track C" },
+  { key: "simulateDrivers", label: "Drivers not on the driver page", owner: "Track C" },
+  { key: "autoApprove", label: "Dispatcher approval", owner: "Track A" },
+  { key: "simulateNeedModel", label: "Need model", owner: "Track D" },
 ];
 
 function SourceSwitch({ label, owner, simulated, onChange }: { label: string; owner: string; simulated: boolean; onChange: (simulated: boolean) => void }) {

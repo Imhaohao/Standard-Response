@@ -1,0 +1,9 @@
+rider_id,name,address,lat,lng,phone,language,mobility,assistance
+R-1001,Carmen Ortiz,"1182 Mariposa St, Altadena",34.1951,-118.1583,+16265550101,es,walker,none
+R-1002,Walter Briggs,"905 Lincoln Ave, Altadena",34.1872,-118.1517,+16265550102,en,manual_wheelchair,one_person_assist
+R-1003,Lucille Haynes,"640 Calaveras St, Altadena",34.1915,-118.1622,+16265550103,en,power_wheelchair,none
+R-1004,Tomás Reyes,"1320 Woodbury Rd, Altadena",34.1846,-118.1458,+16265550104,es,walks,none
+R-1005,Bernice Cole,"771 Palm St, Altadena",34.1823,-118.1601,+16265550105,en,bedbound,two_person_lift
+R-1006,Harold Kim,"1048 Ventura St, Altadena",34.1887,-118.1549,+16265550106,en,walker,one_person_assist
+R-1007,Rosario Méndez,"512 Figueroa Dr, Altadena",34.1797,-118.1644,+16265550107,es,manual_wheelchair,none
+R-1008,Clarence Odum,"1455 Altadena Dr, Altadena",34.1979,-118.1431,+16265550108,en,walks,none

@@ -10,6 +10,9 @@ const DEFAULTS = {
   maxConcurrentCalls: 12,
   simulateVoice: true,
   simulateNeedModel: true,
+  simulateDispatch: true,
+  simulateDrivers: true,
+  autoApprove: true,
   tickGeneration: 0,
 };
 
@@ -73,7 +76,13 @@ export const setMaxConcurrentCalls = mutation({
 });
 
 export const setStandIns = mutation({
-  args: { simulateVoice: v.optional(v.boolean()), simulateNeedModel: v.optional(v.boolean()) },
+  args: {
+    simulateVoice: v.optional(v.boolean()),
+    simulateNeedModel: v.optional(v.boolean()),
+    simulateDispatch: v.optional(v.boolean()),
+    simulateDrivers: v.optional(v.boolean()),
+    autoApprove: v.optional(v.boolean()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const control = await controlRow(ctx);
@@ -102,7 +111,24 @@ export const inboundSurge = mutation({
   },
 });
 
-const TABLES = ["transcriptLines", "calls", "events", "assignments", "personas", "households", "vehicles"] as const;
+const TABLES = [
+  "transcriptLines",
+  "texts",
+  "calls",
+  "events",
+  "callbacks",
+  "auditLog",
+  "assignments",
+  "plans",
+  "requests",
+  "nominations",
+  "roadClosures",
+  "zones",
+  "personas",
+  "households",
+  "vehicles",
+  "shelters",
+] as const;
 const DELETE_BATCH = 2000;
 
 export const reset = mutation({

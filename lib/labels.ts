@@ -28,7 +28,7 @@ export const STAGES: { key: Stage; label: string }[] = [
 
 export const stageIndex = (stage: Stage) => STAGES.findIndex((s) => s.key === stage);
 
-const LANGUAGES: Record<string, string> = { en: "English", es: "Español", zh: "中文" };
+const LANGUAGES: Record<string, string> = { en: "English", es: "Español" };
 export const languageName = (code: string) => LANGUAGES[code] ?? code;
 
 export const MOBILITY_LABELS: Record<NonNullable<Doc<"households">["mobility"]>, string> = {

@@ -5,7 +5,8 @@ import { Doc } from "./_generated/dataModel";
 import { applyRecordPatch, nextToCall } from "./households";
 import { endCall, resolveFollowUpFor, startCall } from "./calls";
 import { scriptFor } from "./scripts";
-import { callPriorityFor, metersBetween } from "./model";
+import { callPriorityFor, located, metersBetween, Point } from "./model";
+import { standInCallbacks, standInDispatch } from "./dispatchStandIn";
 
 // Stand-ins. Each block below fakes one teammate's service so the whole pipeline runs
 // before the real piece exists. Flip its switch in `control` once the real one writes.
@@ -71,7 +72,7 @@ async function standInVoiceAgent(ctx: MutationCtx, now: number) {
 }
 
 function readyToDial(household: Doc<"households">, now: number) {
-  if (!household.simulated) return false;
+  if (!household.simulated || !household.inZone) return false;
   if (household.callStatus === "not_called") return true;
   return now - (household.lastAttemptAt ?? 0) > RETRY_AFTER_MS;
 }
@@ -87,7 +88,7 @@ async function standInDialer(ctx: MutationCtx, control: Doc<"control">, now: num
       .withIndex("by_callStatus_and_callPriority", (q) => q.eq("callStatus", "not_called"))
       .take(200);
     const caller = waiting[Math.floor(Math.random() * waiting.length)];
-    if (caller?.simulated) {
+    if (caller?.simulated && caller.inZone) {
       await startCall(ctx, { householdId: caller._id, direction: "inbound", simulated: true });
       slots -= 1;
     }
@@ -99,13 +100,26 @@ async function standInDialer(ctx: MutationCtx, control: Doc<"control">, now: num
   }
 }
 
+const TEXT_PROMPT = "Altadena evacuation line: reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle.";
+
+async function ensureTextSent(ctx: MutationCtx, household: Doc<"households">) {
+  const sent = await ctx.db.query("texts").withIndex("by_householdId", (q) => q.eq("householdId", household._id)).first();
+  if (!sent) await ctx.db.insert("texts", { householdId: household._id, direction: "outbound", body: TEXT_PROMPT, at: Date.now() });
+}
+
+const replyDigit = (truth: Doc<"personas">["truth"]) =>
+  truth.mobility !== "walks" ? "3" : truth.canLeave === "yes" && truth.hasCar ? "1" : "2";
+
 async function standInTextFollowUp(ctx: MutationCtx, now: number) {
   const texted = await ctx.db.query("households").withIndex("by_callStatus_and_callPriority", (q) => q.eq("callStatus", "texted")).take(50);
   for (const household of texted) {
-    if (!household.simulated || now - (household.lastAttemptAt ?? now) < TEXT_REPLY_WAIT_MS) continue;
+    if (!household.simulated) continue;
+    await ensureTextSent(ctx, household);
+    if (now - (household.lastAttemptAt ?? now) < TEXT_REPLY_WAIT_MS) continue;
     const persona = await personaFor(ctx, household);
     if (!persona) continue;
     if (persona.repliesToText) {
+      await ctx.db.insert("texts", { householdId: household._id, direction: "inbound", body: replyDigit(persona.truth), at: now });
       const { truth } = persona;
       const patch = { canLeave: truth.canLeave, mobility: truth.mobility, medical: truth.medical, hasCar: truth.hasCar };
       await applyRecordPatch(ctx, household._id, patch, fieldConfidence(patch));
@@ -122,7 +136,7 @@ const MAX_MODEL_EVENTS_PER_TICK = 2;
 
 const NEEDS_HELP = new Set(["needs_ride", "needs_accessible"]);
 
-function posteriorFor(household: Doc<"households">, reached: Doc<"households">[]) {
+function posteriorFor(household: Doc<"households"> & Point, reached: (Doc<"households"> & Point)[]) {
   let neighbors = 0;
   let needing = 0;
   for (const other of reached) {
@@ -134,7 +148,7 @@ function posteriorFor(household: Doc<"households">, reached: Doc<"households">[]
 }
 
 async function standInNeedModel(ctx: MutationCtx, now: number) {
-  const households = await ctx.db.query("households").take(1000);
+  const households = (await ctx.db.query("households").take(1000)).filter(located);
   const reached = households.filter((h) => h.outcome !== "unknown" && h.outcome !== "unreachable");
   let events = 0;
   for (const household of households) {
@@ -170,7 +184,9 @@ export const tick = internalMutation({
       if (control.dialerRunning) await standInDialer(ctx, control, now);
       await standInTextFollowUp(ctx, now);
     }
+    if (control.simulateVoice) await standInCallbacks(ctx, now);
     if (control.simulateNeedModel) await standInNeedModel(ctx, now);
+    if (control.simulateDispatch) await standInDispatch(ctx, control, now, TICK_MS);
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation });
     return null;
   },

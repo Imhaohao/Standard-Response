@@ -1,13 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { callStatus, canLeave, mobility, medicalNeed, outcome } from "./schema";
-import { callPriorityFor, outcomeFor } from "./model";
+import { assistanceRequired, callStatus, canLeave, mobility, medicalNeed, outcome } from "./schema";
+import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
+import { openRequestFor, syncRequest } from "./requests";
 
 const recordPatch = v.object({
   canLeave: v.optional(canLeave),
   peopleCount: v.optional(v.number()),
   mobility: v.optional(mobility),
+  assistanceRequired: v.optional(assistanceRequired),
   medical: v.optional(v.array(medicalNeed)),
   pets: v.optional(v.boolean()),
   hasCar: v.optional(v.boolean()),
@@ -16,6 +18,17 @@ const recordPatch = v.object({
 });
 
 export type RecordPatch = typeof recordPatch.type;
+
+type Correction = NonNullable<Doc<"households">["corrections"]>[number];
+
+// A field that already had a value and now has a different one is a correction.
+function correctionsBetween(household: Doc<"households">, patch: RecordPatch, at: number): Correction[] {
+  return Object.entries(patch).flatMap(([field, value]) => {
+    const before = household[field as keyof RecordPatch];
+    if (before === undefined || JSON.stringify(before) === JSON.stringify(value)) return [];
+    return [{ field, from: JSON.stringify(before), to: JSON.stringify(value), at }];
+  });
+}
 
 export async function applyRecordPatch(
   ctx: MutationCtx,
@@ -27,11 +40,14 @@ export async function applyRecordPatch(
   if (!household) throw new Error(`Household ${householdId} not found`);
   const merged = { ...household, ...patch };
   const outcome = outcomeFor(merged);
+  const corrections = correctionsBetween(household, patch, Date.now());
   await ctx.db.patch("households", householdId, {
     ...patch,
     outcome,
     confidence: { ...household.confidence, ...confidence },
+    corrections: [...(household.corrections ?? []), ...corrections],
   });
+  await syncRequest(ctx, householdId);
   if (outcome !== household.outcome && outcome !== "unknown") {
     await ctx.db.insert("events", {
       kind: "record",
@@ -43,6 +59,7 @@ export async function applyRecordPatch(
 }
 
 // Voice agent tool call: `update_household`. Send only the fields the resident just answered.
+// Changing a field that already had a value is logged as a correction and re-checks any open offer.
 export const update = mutation({
   args: {
     householdId: v.id("households"),
@@ -56,7 +73,7 @@ export const update = mutation({
   },
 });
 
-// Need model and fire model output. Send any subset of households, as often as you like.
+// Track D: need estimate and hazard arrival. Send any subset of households, as often as you like.
 export const setEstimates = mutation({
   args: {
     estimates: v.array(
@@ -79,6 +96,8 @@ export const setEstimates = mutation({
         fireArrivalAt,
         callPriority: callPriorityFor(estimate.needProbability, fireArrivalAt, now),
       });
+      const request = await openRequestFor(ctx, household._id);
+      if (request) await ctx.db.patch("requests", request._id, { deadlineAt: deadlineFor(fireArrivalAt) });
     }
     return null;
   },
@@ -98,6 +117,7 @@ export async function nextToCall(ctx: QueryCtx, limit: number) {
   );
   return lists
     .flat()
+    .filter((h) => h.inZone)
     .sort((a, b) => b.callPriority - a.callPriority)
     .slice(0, limit);
 }
@@ -143,7 +163,7 @@ export const coverage = query({
   ),
   handler: async (ctx) => {
     const households = await ctx.db.query("households").take(1000);
-    return households.map((h) => ({
+    return households.filter(located).map((h) => ({
       _id: h._id,
       lat: h.lat,
       lng: h.lng,
@@ -182,17 +202,45 @@ export const counts = query({
   },
 });
 
-const RIDE_OUTCOMES = ["needs_accessible", "needs_ride"] as const;
+// Voice track: an inbound caller. Unknown numbers get a household with no location until
+// the address is matched; the dispatcher sees it flagged.
+export const findOrCreateByPhone = mutation({
+  args: { callbackNumber: v.string(), language: v.optional(v.string()) },
+  returns: v.id("households"),
+  handler: async (ctx, { callbackNumber, language }) => {
+    const existing = await ctx.db
+      .query("households")
+      .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
+      .first();
+    if (existing) return existing._id;
+    const now = Date.now();
+    return await ctx.db.insert("households", {
+      address: "Address not confirmed",
+      callbackNumber,
+      language: language ?? "en",
+      callStatus: "in_call",
+      outcome: "unknown",
+      escalation: "address_unconfirmed",
+      inZone: true,
+      attempts: 0,
+      needPrior: 0.5,
+      needProbability: 0.5,
+      fireArrivalAt: now + 60 * 60_000,
+      callPriority: 0,
+      simulated: false,
+    });
+  },
+});
 
-// Optimizer input (Boris): every household that has told us it needs a vehicle.
-export const needingRides = query({
-  args: {},
-  handler: async (ctx) => {
-    const lists = await Promise.all(
-      RIDE_OUTCOMES.map((outcome) =>
-        ctx.db.query("households").withIndex("by_outcome", (q) => q.eq("outcome", outcome)).take(1000),
-      ),
-    );
-    return lists.flat();
+// Track D: an address was matched to a point (inbound callers, nominations).
+export const setLocation = mutation({
+  args: { householdId: v.id("households"), address: v.string(), lat: v.number(), lng: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { householdId, ...location }) => {
+    const household = await ctx.db.get("households", householdId);
+    if (!household) throw new Error(`Household ${householdId} not found`);
+    const escalation = household.escalation === "address_unconfirmed" ? undefined : household.escalation;
+    await ctx.db.patch("households", householdId, { ...location, escalation });
+    return null;
   },
 });
