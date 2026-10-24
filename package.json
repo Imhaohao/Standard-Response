@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
     "dev:voice": "tsx watch --env-file=.env.local voice/server.ts",
     "voice": "tsx voice/server.ts",
-    "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile"
+    "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
+    "test:mesh": "tsx --test lib/mesh/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
