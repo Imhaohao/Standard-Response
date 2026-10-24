@@ -6,7 +6,7 @@ data/eval-transcripts.jsonl (the persona eval), and live call lines from Convex 
   uv run python scripts/grade_honesty.py               # lexical grader only if no Anthropic credentials
   uv run python scripts/grade_honesty.py --convex      # also grade agent lines from real calls
 
-The model grader uses the Anthropic SDK's normal credential lookup (ANTHROPIC_API_KEY or an `ant auth` profile).
+The model grader reads ANTHROPIC_API_KEY from the environment or the repo's .env.local, else the SDK's own lookup.
 """
 
 import argparse

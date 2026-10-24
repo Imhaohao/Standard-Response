@@ -5,36 +5,20 @@ repository's .env.local (the shared env file). Python ints become Convex int64, 
 rejects, so every number we send goes through `as_float`.
 """
 
-import os
 from typing import Any
 
 from convex import ConvexClient
 
-from .paths import REPO
+from .env import env_value
 
 URL_KEYS = ("CONVEX_URL", "NEXT_PUBLIC_CONVEX_URL")
 
 
-def _env_file_values() -> dict[str, str]:
-    path = REPO / ".env.local"
-    if not path.exists():
-        return {}
-    values = {}
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
-
-
 def convex_url() -> str:
-    file_values = _env_file_values()
-    for key in URL_KEYS:
-        value = os.environ.get(key) or file_values.get(key)
-        if value:
-            return value
-    raise RuntimeError("Set CONVEX_URL (or put the shared env file at .env.local in the repo root)")
+    url = env_value(*URL_KEYS)
+    if not url:
+        raise RuntimeError("Set CONVEX_URL (or put the shared env file at .env.local in the repo root)")
+    return url
 
 
 def as_float(value: Any) -> Any:

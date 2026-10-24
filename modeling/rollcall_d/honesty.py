@@ -17,6 +17,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+from .env import env_value
 from .spoken_numbers import strip_accents
 
 UNCONFIRMED = {"none", "received", "approved", "reassigning"}
@@ -84,7 +85,9 @@ class ModelGrader:
     def __init__(self):
         import anthropic
 
-        self.client = anthropic.Anthropic()
+        # The key may live in the shared env file; otherwise the SDK's own credential lookup applies.
+        api_key = env_value("ANTHROPIC_API_KEY")
+        self.client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
 
     def grade(self, line: Line) -> dict:
         response = self.client.beta.messages.create(

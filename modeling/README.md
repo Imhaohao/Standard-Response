@@ -50,7 +50,7 @@ uv run python scripts/door_fairness.py                                          
 ```
 
 - Without `--endpoint`, the eval runs a scripted stand-in agent. Its score only proves the harness works, and the results file says so.
-- The honesty grader uses `claude-opus-5-5` (low effort, structured output, server-side fallbacks on), with the SDK's normal credential lookup. With no credentials it runs only the lexical floor, and the results file says so. It writes `data/honesty-spot-check.csv`: fill in the `human` column (yes/no) and re-run to get grader–human agreement.
+- The honesty grader uses `claude-opus-5-5` (low effort, structured output, server-side fallbacks on), reading `ANTHROPIC_API_KEY` from the repo's `.env.local` (or the environment). With no credentials it runs only the lexical floor, and the results file says so. It writes `data/honesty-spot-check.csv`: fill in the `human` column (yes/no) and re-run to get grader–human agreement.
 
 ## What we claim, and what we don't
 
