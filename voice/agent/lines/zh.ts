@@ -1,0 +1,77 @@
+import type { Lines } from "./types";
+// Machine translation from en.ts. Not yet reviewed by a fluent speaker.
+
+export const ZH: Lines = {
+  greetOutbound: (address, name) =>
+    `${name ? `${name}，` : ""}您好，这里是阿尔塔迪纳残障接送撤离热线。您所在的街道已发布撤离警告。请问您现在是在${address}吗？`,
+  greetInbound: "这里是阿尔塔迪纳撤离热线。我可以帮您安排车辆出去。",
+  greetCallback: (name) => `${name ? `${name}，` : ""}您好，这里是阿尔塔迪纳撤离热线，有最新情况通知您。`,
+  askAddress: "请问您现在在哪个地址？",
+  askHouseNumber: (street) => `请问您在${street}的门牌号是多少？`,
+  confirmAddress: (address) => `我记下的是${address}。对吗？`,
+  addressRetry: "抱歉，我没听清。请再说一下您现在所在的街道地址，好吗？",
+  addressEscalated: "我已标记您的地址，请调度员来确认。如果可以，也请拨打911。",
+  askCanLeave: "您家里所有人现在都能自己离开吗？",
+  askHasCar: "您有车，或者有人可以开车送您出去吗？",
+  askHousehold: "现在有几个人和您在一起？有宠物吗？",
+  askNeeds: "那里有人用助行器或轮椅，需要吸氧，或者卧床吗？",
+  askNeedsOnFile: (onFile) => `我们的记录显示：${onFile}。现在还是这样吗？另外，有人需要吸氧吗？`,
+  askAssistance: "他们出门需要多少帮助：不需要帮助，需要一个人帮忙，还是需要两个人抬？",
+  readbackIntro: "我再跟您确认一下。",
+  readbackQuestion: "对吗？",
+  readbackFixed: "谢谢，我已经改好了。",
+  whatToFix: "需要改哪里？",
+  askNeighbor: "您的街上还有其他可能无法离开的人吗？如果有，他们的地址是什么？",
+  leaveNow: "请现在就离开，带上您的药和手机充电器。",
+  goodbye: "谢谢。请守在电话旁。再见。",
+  repeatPrompt: "抱歉，您能再说一遍吗？",
+  emergency: "如果可以，请现在就拨打911。我已经向调度员标记您为紧急。",
+  languageBarrier:
+    "我现在把您的电话转给我们团队的一位工作人员。如果您能安全离开，请现在就离开。如果大火烧到您家，请拨打911。",
+  voicemail:
+    "这里是阿尔塔迪纳撤离热线。您所在的街道已发布撤离警告。我们两分钟后会再打电话。如果您需要车辆出去，请回拨这个号码。",
+  people: (count) => (count === 1 ? "一个人" : `${count}个人`),
+  pets: "带着宠物",
+  noCar: "没有车",
+  leavingOnOwn: "您自己离开",
+  byCar: "开车",
+  mobility: {
+    walks: "大家都能走路",
+    walker: "有人用助行器",
+    manual_wheelchair: "有人用轮椅",
+    power_wheelchair: "有人用电动轮椅",
+    bedbound: "有人卧床",
+  },
+  assistance: {
+    none: "出门不需要帮助",
+    one_person_assist: "需要一个人帮忙",
+    two_person_lift: "需要两个人抬",
+  },
+  oxygen: "在吸氧",
+  atAddress: (address) => `在${address}`,
+  listSeparator: "，",
+  sentenceEnd: "。",
+  textPrompt:
+    "阿尔塔迪纳撤离热线：您所在的街道已发布撤离警告。如果您能自己离开，请回复1；如果需要车辆接送，请回复2；如果需要能上轮椅的车辆，请回复3。您也可以写下和您在一起的人。",
+  textThanks: "谢谢。我们已收到您的回复。",
+  backchannels: ["好的。", "明白了。", "嗯，好的。"],
+  neutralAck: "好的。",
+  waiting:
+    "您已在救援名单上，优先级很高。目前还没有司机接受任务。一有司机接受，我马上给您回电话。如果您能安全离开，请现在就离开。如果大火烧到您家，请拨打911。",
+  reassigning:
+    "您的司机已无法赶到您那里。您仍然排在名单最前面。一有新司机接受，我就给您打电话。如果您能安全离开，请现在就离开。如果大火烧到您家，请拨打911。",
+  vehicle: {
+    stretcher_van: "可运送担架的厢式车",
+    wheelchair_van: "可上轮椅的厢式车",
+    paratransit: "残障接送厢式车",
+    bus: "公交车",
+    fire_unit: "消防部门的车辆",
+    ambulance: "救护车",
+  },
+  crew: (size) => `，配有${size}人车组，`,
+  minutes: (count) => `${count}分钟`,
+  accepted: (vehicle, crew, eta, driverName) =>
+    `一辆${vehicle}${crew}距您还有${eta}的路程。司机的名字是${driverName}。如果有变化，我会再打电话给您。`,
+  enRoute: (driverName, eta) => `${driverName}正在开车去接您，大约还有${eta}的路程。如果有变化，我会再打电话给您。`,
+  arrived: (shelterName) => `您的司机现在已到您家。${shelterName ? `您要去${shelterName}。` : ""}`,
+};

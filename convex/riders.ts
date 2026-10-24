@@ -3,6 +3,7 @@ import { mutation, query, MutationCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
 import { callPriorityFor, insidePolygon, located, Point } from "./model";
+import { fileLanguageOf } from "./languages";
 
 // The agency's rider list. Columns, in any order:
 // rider_id, name, address, lat, lng, phone, language, mobility, assistance
@@ -64,7 +65,7 @@ function householdFromRow(row: Row, now: number) {
     lat,
     lng,
     callbackNumber: row.phone,
-    language: row.language === "es" ? "es" : "en",
+    language: fileLanguageOf(row.language),
     riderId: blankToUndefined(row.rider_id),
     residentName: blankToUndefined(row.name),
     mobility: knownMobility,

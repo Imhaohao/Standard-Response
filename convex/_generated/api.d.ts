@@ -23,6 +23,7 @@ import type * as events from "../events.js";
 import type * as fleet from "../fleet.js";
 import type * as heuristic from "../heuristic.js";
 import type * as households from "../households.js";
+import type * as languages from "../languages.js";
 import type * as model from "../model.js";
 import type * as nominations from "../nominations.js";
 import type * as offers from "../offers.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   fleet: typeof fleet;
   heuristic: typeof heuristic;
   households: typeof households;
+  languages: typeof languages;
   model: typeof model;
   nominations: typeof nominations;
   offers: typeof offers;

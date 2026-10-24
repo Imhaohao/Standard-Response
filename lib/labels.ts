@@ -70,6 +70,7 @@ export const ESCALATION_LABELS: Record<NonNullable<Doc<"households">["escalation
   medical: "Medical emergency",
   flames: "Sees flames",
   unservable: "No vehicle can reach in time",
+  language_barrier: "Needs an interpreter or a visit",
 };
 
 type Load = Doc<"requests">["load"];

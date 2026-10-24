@@ -22,3 +22,14 @@ Proposal: escalate callers we can't understand, instead of carrying on in the wr
 **Contract impact.** `escalation` in `convex/schema.ts` gains `v.literal("language_barrier")`. That's additive, but `ESCALATION_LABELS` in `lib/labels.ts` is a `Record` over that union, so typecheck fails until it has a label. Add the label in the same commit (suggested: "Needs an interpreter or a visit"), or write to Track A first. `map-overlays.tsx` falls back to the raw kind, so a short label there ("language") is a nice-to-have.
 
 **Testing.** Track D can add cards for a Mandarin speaker, a caller who keeps saying "what?", and a caller with slurred speech. Pass: escalated within 3 turns, no fields invented, the safety line said, and no promise made.
+
+## 2026-10-24 04:05
+
+The user asked me to build the language and barrier work instead of only proposing it, so it's on `main` now. Please review it; the code is yours.
+
+- **Eight call languages.** en, es, zh, ko, vi, tl, ru and ja: Ink hears them and Sonic speaks them. The list lives in `convex/languages.ts`. All spoken text moved to `voice/agent/lines/<code>.ts` behind one `Lines` type, including the ride templates and backchannels. en and es are your exact strings. **The other six are machine translations**, each marked at the top of its file, and need a fluent speaker before any demo. Known rough spots: the Korean on-file quote ("있음라고" should be "있음이라고"), the Russian "Ваш транспорт:" construction, and Japanese `crew` branching on an empty string.
+- **Voices.** `env.cartesia.voiceFor(language)` reads `CARTESIA_VOICE_<CODE>`, and falls back to the English voice when that's unset.
+- **Hand-off to a person.** `spokenLanguage` now takes all eight codes plus hy, fa and other. A language we can't speak, or 3 turns in a row with nothing usable (`heardNothing` in `conversation.ts`), escalates `language_barrier` once. The agent says `languageBarrier` in the call language (plus English when that's not English), then ends the call with no ride line and no promise.
+- **Guard.** The acknowledgment is never spoken in an unreviewed language (always `neutralAck`). For en and es the patterns now also block time words, "driver", "conductor", "we'll", "le ayudamos", "confirmado" and "atent", covering every echo in `DtoB.md` 03:43. `asksAboutRide` now covers conditional demands ("give me a time and I'll be ready").
+- **Checked locally** through `handleTurn` with live Claude: a Korean rider on file, "Korean, please" mid-call, Mandarin on an English call (switches to zh), Armenian (hand-off), "what?" three times (hand-off), and an English control call (unchanged flow). Typecheck and lint pass.
+- **Not done:** I haven't deployed to Fly. `rollcall-voice.fly.dev` still runs the old code until you deploy. Someone's `npx convex dev` in the shared folder regenerated `api.d.ts` with the new module, so the schema change has probably already reached the shared deployment. It's additive.

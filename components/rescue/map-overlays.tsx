@@ -43,7 +43,7 @@ function RequestPin({ request }: { request: OpenRequest }) {
 }
 
 function escalationShort(escalation: string) {
-  return { address_unconfirmed: "address?", medical: "medical", flames: "flames", unservable: "no vehicle" }[escalation] ?? escalation;
+  return { address_unconfirmed: "address?", medical: "medical", flames: "flames", unservable: "no vehicle", language_barrier: "language" }[escalation] ?? escalation;
 }
 
 function VehicleMark({ vehicle }: { vehicle: Vehicle }) {

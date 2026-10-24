@@ -1,0 +1,76 @@
+import type { Lines } from "./types";
+// Machine translation from en.ts. Not yet reviewed by a fluent speaker.
+
+export const KO: Lines = {
+  greetOutbound: (address, name) =>
+    `안녕하세요${name ? `, ${name}님` : ""}. 알타디나 교통약자 대피 안내 전화입니다. 고객님이 계신 거리에 대피 경보가 내려졌습니다. 지금 ${address}에 계십니까?`,
+  greetInbound: "알타디나 대피 안내 전화입니다. 대피하실 차량을 구하도록 도와드리겠습니다.",
+  greetCallback: (name) => `안녕하세요${name ? `, ${name}님` : ""}. 새로운 소식을 전해드리려고 알타디나 대피 안내 전화에서 연락드렸습니다.`,
+  askAddress: "지금 계신 주소가 어디입니까?",
+  askHouseNumber: (street) => `${street}에서 집 번호가 어떻게 됩니까?`,
+  confirmAddress: (address) => `제가 받은 주소는 ${address}입니다. 맞습니까?`,
+  addressRetry: "죄송합니다, 잘 듣지 못했습니다. 지금 계신 곳의 도로명 주소를 다시 말씀해 주시겠습니까?",
+  addressEscalated: "상황실 담당자가 확인하도록 주소를 표시해 두었습니다. 가능하시면 911에도 전화해 주십시오.",
+  askCanLeave: "지금 집에 계신 분들 모두 스스로 나갈 수 있습니까?",
+  askHasCar: "자동차가 있거나, 운전해 줄 분이 있습니까?",
+  askHousehold: "지금 함께 계신 분은 몇 명이고, 반려동물이 있습니까?",
+  askNeeds: "보행기나 휠체어를 쓰는 분, 산소가 필요한 분, 누워 계시는 분이 있습니까?",
+  askNeedsOnFile: (onFile) => `저희 기록에는 "${onFile}"라고 되어 있습니다. 지금도 맞습니까? 그리고 산소가 필요한 분이 있습니까?`,
+  askAssistance: "나가는 데 도움이 얼마나 필요합니까? 도움 필요 없음, 한 사람의 도움, 아니면 두 사람이 들어 올려야 합니까?",
+  readbackIntro: "제가 확인한 내용을 다시 말씀드리겠습니다.",
+  readbackQuestion: "맞습니까?",
+  readbackFixed: "감사합니다, 고쳤습니다.",
+  whatToFix: "무엇을 바꿀까요?",
+  askNeighbor: "같은 거리에 혹시 나가지 못할 수도 있는 다른 분이 있습니까? 있으면 그분의 주소를 알려 주십시오.",
+  leaveNow: "지금 바로 나가십시오. 약과 휴대전화 충전기를 챙기십시오.",
+  goodbye: "감사합니다. 전화기 가까이에 계십시오. 안녕히 계십시오.",
+  repeatPrompt: "죄송합니다, 다시 한번 말씀해 주시겠습니까?",
+  emergency: "가능하시면 지금 바로 911에 전화해 주십시오. 상황실 담당자에게 긴급으로 표시해 두었습니다.",
+  languageBarrier:
+    "우리 팀의 담당자에게 전화를 넘기겠습니다. 안전하게 나갈 수 있으면 지금 나가십시오. 불이 집까지 번지면 911에 전화하십시오.",
+  voicemail:
+    "알타디나 대피 안내 전화입니다. 고객님이 계신 거리에 대피 경보가 내려졌습니다. 2분 뒤에 다시 전화드리겠습니다. 차량이 필요하시면 이 번호로 전화해 주십시오.",
+  people: (count) => (count === 1 ? "한 명" : `${count}명`),
+  pets: "반려동물과 함께",
+  noCar: "자동차 없음",
+  leavingOnOwn: "스스로 나가심",
+  byCar: "자동차로",
+  mobility: {
+    walks: "모두 걸을 수 있음",
+    walker: "보행기를 쓰는 분이 있음",
+    manual_wheelchair: "휠체어를 쓰는 분이 있음",
+    power_wheelchair: "전동 휠체어를 쓰는 분이 있음",
+    bedbound: "누워 지내는 분이 있음",
+  },
+  assistance: {
+    none: "나가는 데 도움 필요 없음",
+    one_person_assist: "한 사람의 도움이 필요함",
+    two_person_lift: "두 사람이 들어 올려야 함",
+  },
+  oxygen: "산소 사용",
+  atAddress: (address) => `${address}에`,
+  listSeparator: ", ",
+  textPrompt:
+    "알타디나 대피 안내 전화: 고객님이 계신 거리에 대피 경보가 내려졌습니다. 스스로 나갈 수 있으면 1, 차량이 필요하면 2, 휠체어가 탈 수 있는 차량이 필요하면 3을 보내 주십시오. 함께 계신 분을 글로 적어 주셔도 됩니다.",
+  textThanks: "감사합니다. 답변을 받았습니다.",
+  backchannels: ["네.", "알겠습니다.", "네, 알겠습니다."],
+  neutralAck: "알겠습니다.",
+  waiting:
+    "고객님은 구조 대기 명단에 높은 우선순위로 올라 있습니다. 아직 수락한 운전자는 없습니다. 수락하는 즉시 다시 전화드리겠습니다. 안전하게 나갈 수 있으면 지금 나가십시오. 불이 집까지 번지면 911에 전화하십시오.",
+  reassigning:
+    "배정된 운전자가 더 이상 고객님께 갈 수 없습니다. 고객님은 여전히 명단 맨 위에 있습니다. 새 운전자가 수락하는 즉시 전화드리겠습니다. 안전하게 나갈 수 있으면 지금 나가십시오. 불이 집까지 번지면 911에 전화하십시오.",
+  vehicle: {
+    stretcher_van: "들것을 실을 수 있는 밴",
+    wheelchair_van: "휠체어 이용 가능 밴",
+    paratransit: "교통약자 이동 밴",
+    bus: "버스",
+    fire_unit: "소방서 차량",
+    ambulance: "구급차",
+  },
+  crew: (size) => ` 승무원 ${size}명과 함께`,
+  minutes: (count) => `${count}분`,
+  accepted: (vehicle, crew, eta, driverName) =>
+    `${vehicle} 한 대가${crew} ${eta} 거리에 있습니다. 운전자 이름은 ${driverName}입니다. 변동이 있으면 다시 전화드리겠습니다.`,
+  enRoute: (driverName, eta) => `${driverName} 운전자가 지금 고객님께 가고 있습니다. 약 ${eta} 거리입니다. 변동이 있으면 다시 전화드리겠습니다.`,
+  arrived: (shelterName) => `운전자가 지금 고객님 집에 도착했습니다.${shelterName ? ` ${shelterName}(으)로 가시게 됩니다.` : ""}`,
+};

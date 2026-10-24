@@ -18,10 +18,6 @@ const TURN_GAP_MS = 250;
 const BACKCHANNEL_AFTER_MS = 300;
 const BARGE_IN_MIN_WORDS = 2;
 
-const BACKCHANNELS: Record<Language, string[]> = {
-  en: ["Okay.", "Got it.", "Mm-hm, okay."],
-  es: ["Muy bien.", "Entendido.", "Ajá, muy bien."],
-};
 
 type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
 type TwilioMessage =
@@ -193,7 +189,7 @@ class CallSession implements LiveCall {
   }
 
   private pickBackchannel() {
-    const options = BACKCHANNELS[this.language];
+    const options = LINES[this.language].backchannels;
     return options[Math.floor(Math.random() * options.length)];
   }
 

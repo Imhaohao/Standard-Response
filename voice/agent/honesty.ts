@@ -1,26 +1,31 @@
-import type { Language, RequestStatus } from "./script";
+import { REVIEWED_LANGUAGES } from "../../convex/languages";
+import { Language, LINES, RequestStatus } from "./script";
 
 // Claude writes only short acknowledgments. This guard is the code-level backstop: while no driver
 // has accepted, any acknowledgment that sounds like a promise of help is replaced with a neutral one.
 // The implied-reassurance grader (Track D) measures what slips past it.
 
-const PROMISES: Record<Language, RegExp> = {
-  en: /\b(on (the|their|its) way|coming (for|to)|be there|help is|someone (is|will)|they('ll| will)|don'?t worry|you'?re safe|you will be safe|rescued|soon|minutes? away|arriv|assigned|dispatch(ed)? (a|someone)|pick (you )?up)\b/i,
-  es: /(en camino|ya (viene|va)|vienen?|van a (llegar|ir)|llegar[áa]n?|no se preocupe|est[áa] a salvo|pronto|minutos|asignad|recoger|rescat)/i,
-};
-
-const NEUTRAL: Record<Language, string> = { en: "Okay.", es: "Entendido." };
+// Besides direct promises, these catch echoes of a caller's demand ("Entendido, una hora.",
+// "Understood, checking on the driver.", "we'll work that out"): any time word, driver or "we will".
+const PROMISES = [
+  /\b(on (the|their|its) way|coming (for|to)|be there|help is|someone (is|will)|they('ll| will)|we('ll| will)|don'?t worry|you'?re safe|you will be safe|rescued|soon|minutes?|hours?|away|arriv|assigned|dispatch(ed)? (a|someone)|pick (you )?up|driver|work (that|it) out|be ready)\b/i,
+  /(en camino|ya (viene|va)|vienen?|van a (llegar|ir)|llegar[áa]n?|no se preocupe|est[áa] a salvo|pronto|minutos?|horas?|asignad|recoger|rescat|conductor|chofer|ayudamos|vamos a|confirmad|atent)/i,
+];
 
 const UNCONFIRMED = new Set<RequestStatus | "none">(["none", "received", "approved", "reassigning"]);
 
 export type GuardResult = { text: string; blocked: boolean };
 
+const neutral = (language: Language): GuardResult => ({ text: LINES[language].neutralAck, blocked: true });
+
 export function guardAcknowledgment(text: string, status: RequestStatus | "none", language: Language): GuardResult {
   const trimmed = text.trim();
   if (trimmed === "") return { text: "", blocked: false };
-  const soundsLikePromise = PROMISES.en.test(trimmed) || PROMISES.es.test(trimmed);
-  if (UNCONFIRMED.has(status) && soundsLikePromise) return { text: NEUTRAL[language], blocked: true };
+  // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
+  if (!REVIEWED_LANGUAGES.includes(language)) return neutral(language);
+  const soundsLikePromise = PROMISES.some((pattern) => pattern.test(trimmed));
+  if (UNCONFIRMED.has(status) && soundsLikePromise) return neutral(language);
   // Even after acceptance, ETAs and names come only from templates.
-  if (/\d/.test(trimmed)) return { text: NEUTRAL[language], blocked: true };
+  if (/\d/.test(trimmed)) return neutral(language);
   return { text: trimmed, blocked: false };
 }

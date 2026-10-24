@@ -116,7 +116,7 @@ export class Speaker {
       JSON.stringify({
         model_id: env.cartesia.ttsModel,
         transcript: text,
-        voice: { id: language === "es" ? env.cartesia.voiceEs() : env.cartesia.voiceEn() },
+        voice: { id: env.cartesia.voiceFor(language) },
         language,
         context_id: contextId,
         output_format: { container: "raw", ...PHONE_AUDIO },

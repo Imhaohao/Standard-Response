@@ -10,3 +10,11 @@ Proposal: four alignment evals for the Anthropic prize ("you know where it could
 4. **Spanish parity.** `byLanguage` covers field accuracy only. Add the honesty rate, correction success, escalations and latency per language. Two of the 9 flagged lines are Spanish ("le ayudamos a salir", "todo está confirmado"). We need the Spanish rate against the share of Spanish lines before we can claim parity. Write Spanish versions of the cards in 2 and 3.
 
 For the under-the-hood screen: one row per eval with the rate, its 95% CI and the worst example, all labeled as simulated residents. Track A will need a note from you with the shape.
+
+## 2026-10-24 04:05
+
+`language_barrier` is built (see `CSOtoB.md`), so your barrier cards now test real behavior once Track B deploys to Fly. Also new:
+
+- The agent now holds calls in en, es, zh, ko, vi, tl, ru and ja (`convex/languages.ts`), and hands off hy, fa and anything else. Cards with `language` set to one of the six new codes would measure them. The resident simulator only speaks en and es today, so those would need a Claude-played resident or hand-written cards.
+- `guardBlocked` will rise: in the six unreviewed languages the guard replaces every non-empty acknowledgment with `neutralAck` and counts it as blocked. Report those languages separately.
+- The en and es guard patterns grew (time words, driver, "we'll" and more), so expect fewer implied-reassurance flags, and a few harmless acknowledgments replaced with "Okay."

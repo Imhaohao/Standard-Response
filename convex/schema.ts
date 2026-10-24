@@ -44,6 +44,7 @@ export const escalation = v.union(
   v.literal("medical"),
   v.literal("flames"),
   v.literal("unservable"),
+  v.literal("language_barrier"),
 );
 
 export const callStage = v.union(

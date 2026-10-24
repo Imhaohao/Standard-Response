@@ -2,13 +2,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../env";
 import type { AgentRecord, Confidence, Field } from "./record";
 import { FIELDS } from "./record";
-import type { Language } from "./script";
+import { HEARD_ONLY_LANGUAGES, isSpokenLanguage, Language, SPOKEN_LANGUAGES } from "../../convex/languages";
 
 // Claude's whole job on a call: turn one messy utterance into structured changes plus a short
 // acknowledgment. It never decides what to ask next or what may be promised; the state machine does.
 
 export type Emergency = "none" | "medical" | "flames";
 export type Answer = "yes" | "no" | "unclear";
+
+// A language we can't hold a call in (heard-only, or anything else) means the call goes to a person.
+export type HeardLanguage = Language | (typeof HEARD_ONLY_LANGUAGES)[number] | "other";
+const HEARD_LANGUAGES: readonly string[] = [...SPOKEN_LANGUAGES, ...HEARD_ONLY_LANGUAGES, "other"];
 
 export type Interpretation = {
   updates: AgentRecord;
@@ -18,7 +22,7 @@ export type Interpretation = {
   asksAboutRide: boolean;
   wantsRepeat: boolean;
   neighborAddresses: string[];
-  spokenLanguage: Language;
+  spokenLanguage: HeardLanguage;
   acknowledgment: string;
 };
 
@@ -52,7 +56,7 @@ const OUTPUT_SCHEMA = objectOf({
   asksAboutRide: { type: "boolean" },
   wantsRepeat: { type: "boolean" },
   neighborAddresses: { type: "array", items: { type: "string" } },
-  spokenLanguage: enumOf(["en", "es"]),
+  spokenLanguage: enumOf(HEARD_LANGUAGES),
   acknowledgment: { type: "string" },
 });
 
@@ -81,11 +85,11 @@ Rules for changes:
 Other outputs:
 - answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise.
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; flames if they can see fire, flames or embers at or next to the home; otherwise none.
-- asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride.
+- asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also true for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
 - wantsRepeat: true if they didn't hear or understand the question.
 - neighborAddresses: addresses or locations of other people who might not be able to leave, if they mention any.
-- spokenLanguage: the language the resident is speaking.
-- acknowledgment: at most 6 words in spokenLanguage that show you heard them, such as "Okay, two people." or "Entendido." Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never ask a question. Empty string if nothing fits.`;
+- spokenLanguage: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, use other. A short or unclear answer in the call language is still the call language.
+- acknowledgment: at most 6 words in spokenLanguage that show you heard them, such as "Okay, two people." or "Entendido." Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never ask a question. Empty string if nothing fits.`;
 
 const client = new Anthropic();
 
@@ -128,7 +132,10 @@ function recordFrom(changes: RawChange[]) {
 
 const answerFrom = (raw: unknown): Answer | null => (raw === "yes" || raw === "no" || raw === "unclear" ? raw : null);
 const emergencyFrom = (raw: unknown): Emergency => (raw === "medical" || raw === "flames" ? raw : "none");
-const languageFrom = (raw: unknown, fallback: Language): Language => (raw === "es" || raw === "en" ? raw : fallback);
+const languageFrom = (raw: unknown, fallback: Language): HeardLanguage =>
+  typeof raw === "string" && HEARD_LANGUAGES.includes(raw) ? (raw as HeardLanguage) : fallback;
+
+export const canSpeak = (language: HeardLanguage): language is Language => isSpokenLanguage(language);
 
 function parse(text: string, fallbackLanguage: Language): Interpretation {
   const raw = JSON.parse(text) as Record<string, unknown>;

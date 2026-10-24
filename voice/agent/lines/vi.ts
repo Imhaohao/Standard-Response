@@ -1,0 +1,76 @@
+import type { Lines } from "./types";
+// Machine translation from en.ts. Not yet reviewed by a fluent speaker.
+
+export const VI: Lines = {
+  greetOutbound: (address, name) =>
+    `Xin chào${name ? ` ${name}` : ""}, đây là đường dây sơ tán xe đưa đón của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Hiện giờ quý vị có đang ở ${address} không ạ?`,
+  greetInbound: "Đây là đường dây sơ tán của Altadena. Tôi có thể giúp quý vị tìm xe để đi ra ngoài.",
+  greetCallback: (name) => `Xin chào${name ? ` ${name}` : ""}, đây là đường dây sơ tán của Altadena, có thông tin mới cho quý vị.`,
+  askAddress: "Hiện giờ quý vị đang ở địa chỉ nào ạ?",
+  askHouseNumber: (street) => `Số nhà của quý vị trên ${street} là số mấy ạ?`,
+  confirmAddress: (address) => `Tôi ghi là ${address}. Có đúng không ạ?`,
+  addressRetry: "Xin lỗi, tôi nghe chưa rõ. Quý vị có thể cho tôi biết địa chỉ nơi quý vị đang ở không ạ?",
+  addressEscalated: "Tôi đã đánh dấu địa chỉ của quý vị để nhân viên điều phối xác nhận. Nếu có thể, quý vị cũng hãy gọi 911.",
+  askCanLeave: "Mọi người trong nhà có thể tự ra ngoài ngay bây giờ không ạ?",
+  askHasCar: "Quý vị có xe, hoặc có ai lái xe đưa quý vị đi không ạ?",
+  askHousehold: "Hiện có mấy người ở cùng quý vị, và có thú cưng không ạ?",
+  askNeeds: "Ở đó có ai dùng khung tập đi hoặc xe lăn, cần thở oxy, hoặc nằm liệt giường không ạ?",
+  askNeedsOnFile: (onFile) => `Hồ sơ của chúng tôi ghi là ${onFile}. Hiện nay có còn đúng không ạ, và có ai cần thở oxy không?`,
+  askAssistance: "Họ cần được giúp bao nhiêu để ra ngoài: không cần giúp, cần một người giúp, hay cần hai người nhấc lên ạ?",
+  readbackIntro: "Tôi xin đọc lại những gì tôi ghi.",
+  readbackQuestion: "Có đúng không ạ?",
+  readbackFixed: "Cảm ơn quý vị, tôi đã sửa rồi.",
+  whatToFix: "Tôi cần sửa chỗ nào ạ?",
+  askNeighbor: "Trên phố của quý vị còn ai khác có thể không ra ngoài được không ạ? Nếu có, địa chỉ của họ là gì?",
+  leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
+  goodbye: "Cảm ơn quý vị. Xin ở gần điện thoại. Tạm biệt.",
+  repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
+  emergency: "Nếu có thể, xin quý vị gọi 911 ngay bây giờ. Tôi đã đánh dấu quý vị là khẩn cấp cho nhân viên điều phối.",
+  languageBarrier:
+    "Tôi sẽ chuyển cuộc gọi của quý vị cho một người trong nhóm của chúng tôi. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+  voicemail:
+    "Đây là đường dây sơ tán của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
+  people: (count) => (count === 1 ? "một người" : `${count} người`),
+  pets: "có thú cưng",
+  noCar: "không có xe",
+  leavingOnOwn: "quý vị tự rời đi",
+  byCar: "bằng xe hơi",
+  mobility: {
+    walks: "mọi người đều đi bộ được",
+    walker: "có người dùng khung tập đi",
+    manual_wheelchair: "có người dùng xe lăn",
+    power_wheelchair: "có người dùng xe lăn điện",
+    bedbound: "có người nằm liệt giường",
+  },
+  assistance: {
+    none: "không cần giúp để ra ngoài",
+    one_person_assist: "cần một người giúp",
+    two_person_lift: "cần hai người nhấc lên",
+  },
+  oxygen: "đang thở oxy",
+  atAddress: (address) => `tại ${address}`,
+  listSeparator: ", ",
+  textPrompt:
+    "Đường dây sơ tán Altadena: phố của quý vị đang có cảnh báo sơ tán. Trả lời 1 nếu quý vị có thể tự rời đi, 2 nếu cần xe đưa đi, 3 nếu cần xe có chỗ cho xe lăn. Quý vị cũng có thể ghi rõ những ai đang ở cùng quý vị.",
+  textThanks: "Cảm ơn quý vị. Chúng tôi đã nhận được câu trả lời.",
+  backchannels: ["Vâng.", "Tôi hiểu rồi.", "Vâng, tôi hiểu."],
+  neutralAck: "Vâng, tôi hiểu rồi.",
+  waiting:
+    "Quý vị đang nằm trong danh sách cứu hộ với mức ưu tiên cao. Chưa có tài xế nào nhận chuyến. Khi có tài xế nhận, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+  reassigning:
+    "Tài xế của quý vị không thể đến chỗ quý vị nữa. Quý vị vẫn đứng đầu danh sách. Khi có tài xế mới nhận chuyến, tôi sẽ gọi cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+  vehicle: {
+    stretcher_van: "xe van chở cáng",
+    wheelchair_van: "xe van có lối lên cho xe lăn",
+    paratransit: "xe van đưa đón người khuyết tật",
+    bus: "xe buýt",
+    fire_unit: "xe của sở cứu hỏa",
+    ambulance: "xe cứu thương",
+  },
+  crew: (size) => ` cùng đội ${size} người`,
+  minutes: (count) => `${count} phút`,
+  accepted: (vehicle, crew, eta, driverName) =>
+    `Một ${vehicle}${crew} đang cách quý vị ${eta}. Tên tài xế là ${driverName}. Tôi sẽ gọi lại nếu có gì thay đổi.`,
+  enRoute: (driverName, eta) => `${driverName} đang lái xe đến chỗ quý vị, còn khoảng ${eta}. Tôi sẽ gọi lại nếu có gì thay đổi.`,
+  arrived: (shelterName) => `Tài xế của quý vị hiện đã đến nhà quý vị.${shelterName ? ` Quý vị sẽ đến ${shelterName}.` : ""}`,
+};

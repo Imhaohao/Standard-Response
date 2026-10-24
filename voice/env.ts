@@ -42,6 +42,10 @@ export const env = {
     ttsModel: optional("CARTESIA_TTS_MODEL", "sonic-latest"),
     voiceEn: () => required("CARTESIA_VOICE_EN"),
     voiceEs: () => required("CARTESIA_VOICE_ES"),
+    // Sonic voices speak every supported language, so other languages fall back to the English
+    // voice until CARTESIA_VOICE_<CODE> (for example CARTESIA_VOICE_KO) names a native one.
+    voiceFor: (language: string) =>
+      language === "es" ? required("CARTESIA_VOICE_ES") : process.env[`CARTESIA_VOICE_${language.toUpperCase()}`] || required("CARTESIA_VOICE_EN"),
   },
   // Numbers the dialer may ring. "*" allows any. Everything else is skipped, so a fictional
   // rider list can never ring a stranger.

@@ -1,6 +1,6 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { guardAcknowledgment } from "./honesty";
-import { interpret, Interpretation, TurnContext } from "./interpreter";
+import { canSpeak, HeardLanguage, interpret, Interpretation, TurnContext } from "./interpreter";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
 import { Language, LINES, readback, RideStatus, statusLine } from "./script";
 
@@ -9,7 +9,7 @@ import { Language, LINES, readback, RideStatus, statusLine } from "./script";
 // Phone calls and the text endpoint (POST /turn) run this same class.
 
 export type Stage = Doc<"calls">["stage"];
-export type Escalation = "medical" | "flames" | "address_unconfirmed";
+export type Escalation = "medical" | "flames" | "address_unconfirmed" | "language_barrier";
 
 type Step =
   | "ask_address"
@@ -69,6 +69,8 @@ const MAX_TRIES_PER_STEP = 2;
 
 const hasHouseNumber = (address: string | undefined) => address !== undefined && /\d/.test(address);
 const MAX_READBACKS = 3;
+// Turns in a row where nothing usable was heard before the call goes to a person.
+const MAX_MISSED_TURNS = 3;
 const HISTORY_TURNS = 6;
 
 type Transition = { step: Step; lines?: string[] };
@@ -82,6 +84,7 @@ export class Conversation {
   private readonly residentName?: string;
   private triesOnStep = 0;
   private readbacks = 0;
+  private missedTurns = 0;
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
   private escalated = new Set<Escalation>();
@@ -126,7 +129,9 @@ export class Conversation {
       console.error("[agent] interpreter failed", error);
       return this.say("", [LINES[this.language].repeatPrompt], false);
     }
-    this.switchLanguageIfNeeded(heard.spokenLanguage);
+    if (!this.switchLanguageIfNeeded(heard.spokenLanguage)) return this.handOffToPerson();
+    this.missedTurns = heardNothing(heard) ? this.missedTurns + 1 : 0;
+    if (this.missedTurns >= MAX_MISSED_TURNS) return this.handOffToPerson();
     this.changedThisTurn = false;
     this.applyUpdates(heard.updates, heard.confidence);
     const urgent = this.handleEmergency(heard);
@@ -164,10 +169,22 @@ export class Conversation {
     };
   }
 
-  private switchLanguageIfNeeded(spoken: Language) {
-    if (spoken === this.language) return;
+  // False when the resident speaks a language we can't hold a call in.
+  private switchLanguageIfNeeded(spoken: HeardLanguage) {
+    if (!canSpeak(spoken)) return false;
+    if (spoken === this.language) return true;
     this.language = spoken;
     this.effects.updateRecord({ language: spoken }, {});
+    return true;
+  }
+
+  // Nobody can understand each other: flag the call for a person and end it without promising anything.
+  private handOffToPerson(): AgentTurn {
+    this.escalateOnce("language_barrier");
+    this.moveTo("done");
+    const barrier = [LINES[this.language].languageBarrier];
+    if (this.language !== "en") barrier.push(LINES.en.languageBarrier);
+    return this.say("", barrier, false);
   }
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {
@@ -336,6 +353,13 @@ export class Conversation {
   private closingLines() {
     return [this.rideLine(), LINES[this.language].goodbye];
   }
+}
+
+// A turn that gave us nothing to work with: asked us to repeat, or answered nothing usable.
+function heardNothing(heard: Interpretation) {
+  if (heard.wantsRepeat) return true;
+  const answered = heard.answer === "yes" || heard.answer === "no";
+  return !answered && isEmpty(heard.updates) && heard.emergency === "none" && !heard.asksAboutRide && heard.neighborAddresses.length === 0;
 }
 
 const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpretation) => Transition> = {
