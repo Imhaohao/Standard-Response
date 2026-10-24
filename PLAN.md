@@ -250,7 +250,7 @@ Every screen, built against the stand-ins. No setup.
 
 **Call floor.** Already built. Keep it working as the contract grows.
 
-**Track A's list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, the full under-the-hood screen, and the Auth0 add-on (dispatcher login, role-based access to the at-risk list, step-up authentication once per session so approval stays one click).
+**Track A's list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, and the full under-the-hood screen. The Auth0 dispatcher login is built but dropped from the demo; it stays off unless `AUTH0_DOMAIN` is set.
 
 ## Track B: voice and calls (Brendan)
 
@@ -509,7 +509,7 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 | Anthropic | Not posted yet | A named community (paratransit riders in LA County wildfire zones) and a real problem (what a practitioner told us). One flow done well. Claude interprets messy, corrected speech in two languages, code controls every commitment, and we show where Claude could go wrong (implied reassurance, measured). | Core |
 | Microsoft: Built for the Real World, Customer Impact | Surface each | The forward-deployed Q&A table, the three-phase path, the dispatch-only result, responsible design and the full flow end to end. Strongest if a practitioner conversation happened. | Core |
 | Apify: Best Actor | $400 | A public "California evacuation status" Actor that normalizes county and state evacuation zones and road closures and triggers Rider Check when a zone with riders goes to warning. It should be useful to others on its own. | Add-on |
-| MLH: Auth0 | Headphones each | Dispatcher login, role-based access to the at-risk list, and step-up authentication once per session. | Add-on |
+| MLH: Auth0 | Headphones each | Dropped. The login is built and off; see README. | Dropped |
 | Notability | 1 year Pro | Notes kept as we go: sketches, mentor feedback as audio, decisions as they happened. Notes added after the fact score zero. | Add-on |
 | Figma | Verify at the event | Keep the stage log only if it's already running. | Opt-in |
 | Planet-First, Hacker's Choice, MLH opt-ins (domain, Gen AI, hosting, Commit Fellowship) | Assorted | Opt in on Devpost; no extra build work. | Opt-in |
