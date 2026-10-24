@@ -512,6 +512,8 @@ export default defineSchema({
     lastAttemptAt: v.optional(v.number()),
     checkStartedAt: v.optional(v.number()),
     helperEtaAt: v.optional(v.number()),
+    // When the resident heard that their helper said yes, on the call they were on or a new one.
+    residentToldAt: v.optional(v.number()),
     updatedAt: v.number(),
     simulated: v.boolean(),
   })

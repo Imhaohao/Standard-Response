@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PlanCheck, PlanCheckEffects } from "./planCheck";
+import { helperOnTheWayLine, minutesUntil, PlanCheck, PlanCheckEffects } from "./planCheck";
 import type { PlanHeard, PlanRole } from "./planInterpreter";
 import { ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
 import type { ReadyHeard } from "./readyInterpreter";
@@ -121,6 +121,33 @@ describe("pickup check, helper call", () => {
 });
 
 describe("pickup check, resident call", () => {
+  it("tells the resident their helper is on the way, then hangs up without counting a miss", () => {
+    let unreached = 0;
+    const effects: PlanCheckEffects = {
+      helperAnswered: () => assert.fail("a notice asks nothing"),
+      residentAnswered: () => assert.fail("a notice asks nothing"),
+      escalate: () => undefined,
+      unreached: () => (unreached += 1),
+    };
+    const call = new PlanCheck({ role: "resident", language: "en", helperName: "Ana", residentName: "Walter", address: "1182 Mariposa St", notify: { minutes: 10 }, effects });
+    const turn = call.start();
+    assert.equal(turn.done, true);
+    assert.match(spoken(turn), /it's 911 calling about your pickup/);
+    assert.match(spoken(turn), /Ana says they can pick you up in about 10 minutes/);
+    assert.match(spoken(turn), /ride request stays open/);
+    assert.doesNotMatch(spoken(turn), /Has Ana picked you up/);
+    call.lineClosed();
+    assert.equal(unreached, 0);
+  });
+
+  it("gives the same notice in Spanish, and without minutes when the helper gave none", () => {
+    assert.match(helperOnTheWayLine("es", "Ana", 1), /Ana dice que puede pasar por usted en 1 minuto\./);
+    assert.match(helperOnTheWayLine("en", "the neighbor at 1190 Mariposa St", undefined), /^The neighbor at 1190 Mariposa St says they can pick you up soon\./);
+    assert.equal(minutesUntil(undefined), undefined);
+    assert.equal(minutesUntil(10_000, 0), 1);
+    assert.equal(minutesUntil(600_000, 0), 10);
+  });
+
   it("records a pickup", async () => {
     const { call, recorded } = planCall("resident", [{ answer: "yes" }]);
     assert.match(spoken(call.start()), /Has Ana picked you up\?/);

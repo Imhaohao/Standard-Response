@@ -1,7 +1,7 @@
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
-import { PlanCheck, PlanCheckEffects } from "../agent/planCheck";
+import { minutesUntil, PlanCheck, PlanCheckEffects } from "../agent/planCheck";
 import type { PlanRole } from "../agent/planInterpreter";
 import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
@@ -36,6 +36,8 @@ function planEffects(planId: Id<"pickupPlans">, role: PlanRole, householdId: Id<
 async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
   const role = params.role ?? "helper";
   const plan = await planRow(params.planId ?? "");
+  // Stream parameters arrive as strings.
+  const notify = String(params.notify) === "true" ? { minutes: minutesUntil(plan.helperEtaAt) } : undefined;
   return new PlanCheck({
     role,
     language: languageOf(plan.language),
@@ -43,6 +45,7 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     residentName: plan.residentName,
     address: plan.address,
     recruited: plan.recruited,
+    notify,
     effects: planEffects(plan._id, role, plan.householdId),
   });
 }

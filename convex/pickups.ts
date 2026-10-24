@@ -160,6 +160,19 @@ export const residentAnswered = mutation({
   },
 });
 
+// Voice server: the resident heard that their helper is on the way. Said once per plan.
+export const residentTold = mutation({
+  args: { planId: v.id("pickupPlans") },
+  returns: v.null(),
+  handler: async (ctx, { planId }) => {
+    const plan = await livePlan(ctx, planId);
+    if (plan.residentToldAt !== undefined) return null;
+    await ctx.db.patch("pickupPlans", planId, { residentToldAt: Date.now(), updatedAt: Date.now() });
+    await logPickup(ctx, plan, `Told ${await placeOf(ctx, plan)} that ${plan.helperName} is on the way`);
+    return null;
+  },
+});
+
 // Voice server: nobody picked up. The second miss ends the check.
 export const unanswered = mutation({
   args: { planId: v.id("pickupPlans"), role },
@@ -196,6 +209,7 @@ export const callQueue = query({
           residentAttempts: plan.residentAttempts,
           lastAttemptAt: plan.lastAttemptAt,
           helperEtaAt: plan.helperEtaAt,
+          residentToldAt: plan.residentToldAt,
           address: household?.address ?? "",
           residentName: household?.residentName,
           residentPhone: household?.callbackNumber ?? "",

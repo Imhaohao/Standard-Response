@@ -14,6 +14,8 @@ export type StreamParameters = {
   from?: string;
   planId?: string;
   role?: "helper" | "resident";
+  // A pickup-check call to the resident that only tells them their helper is on the way.
+  notify?: boolean;
 };
 
 let client: ReturnType<typeof twilio> | null = null;

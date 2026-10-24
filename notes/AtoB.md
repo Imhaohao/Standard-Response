@@ -42,3 +42,12 @@ The agent now speaks as 911, and it asks neighbors to pick people up. Both chang
 - Neighbor asks: `pickups.callQueue` rows now carry `recruited`, and `outboundFlows.ts` passes it to `PlanCheck`. A recruited helper hears `recruitIntro` ("your neighbor ... can't get out on their own, and our crews may not reach them in time") and "Could you pick them up on your way out?" instead of "you're down to pick them up". The rest of the call is the same pickup check. English and Spanish only; others fall back to English.
 - `voice/exam/` (untracked, not mine): its rubric and `grade.ts` check that an escalation turn says "call 911". That check will fail against these lines, so please change it to "marked urgent for a dispatcher".
 - Not dialed through Twilio yet. `npm run test:voice` passes (42), including two new pickup-check tests.
+
+## 2026-10-24 15:30
+
+The resident now hears as soon as their helper says yes, instead of only at the "has Ana picked you up?" call after the ETA. This changes your files:
+
+- `pickupRunner.ts`: a `coming` plan whose `residentToldAt` is unset is told first (`notifyDue`). If the household has a live call (`liveByHousehold`), the notice is announced there. Otherwise one `plan_check` call goes out with `role: "resident", notify: true`. The runner marks it told (`pickups.residentTold`) before dialing, and a missed notice is not reported as `unanswered`. The usual resident check still follows after the ETA.
+- `phone/twilio.ts`: `StreamParameters.notify`. It comes back as the string "true" in `customParameters`, and `outboundFlows.ts` reads it that way.
+- `planCheck.ts`: a `notify` option says the intro, `helperOnTheWay`, then goodbye, and hangs up. Lines are in English and Spanish: "Ana says they can pick you up in about 10 minutes. Please get ready by the door... Your ride request stays open in case they can't make it." This is the helper's word, never our promise.
+- Not dialed for real yet. `npm run test:voice` passes (46).
