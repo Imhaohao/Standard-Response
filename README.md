@@ -79,6 +79,21 @@ Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST 
 
 **Who decides what.** Claude (`voice/agent/interpreter.ts`) turns one utterance into field changes, a yes/no answer, emergency flags and an acknowledgment of six words or fewer. The state machine (`voice/agent/conversation.ts`) decides what to ask next. Everything said about a ride is a fixed template keyed by request status (`voice/agent/script.ts`). A code guard (`voice/agent/honesty.ts`) replaces any acknowledgment that sounds like a promise while no driver has accepted.
 
+### Voice exam
+
+A practice exam for the agent, scored after the CritiCall 911-dispatcher test ([what it covers](https://www.youtube.com/watch?v=O8HKx8Rlug0)). Twenty scripted callers adapted from released wildfire 911 calls (Eaton, Camp, Carr, Lahaina, Marshall; sources in `voice/exam/sources.ts`) run against the real state machine, guard and Claude interpreter. Deterministic checks grade the record, escalations, read-back and status lines; Claude Opus 5.5 grades each whole call against the constitution (`CALL_TAKER_PRINCIPLES` in `voice/agent/interpreter.ts`).
+
+```bash
+npm run exam:voice                        # all items, about 4 minutes
+npm run exam:voice -- --only honesty      # one module's items, or one item id
+npm run exam:voice -- --no-judge          # fast loop; can't pass
+npm run exam:voice -- --runs 3            # certify: every run of every item counts
+```
+
+Pass: every module at 90% or more (CritiCall agencies usually ask 70-75%) and zero critical errors. A critical error is a missed or late life threat, an implied promise or invented fact, a record that would leave someone behind, or silence taken as an answer. Results, transcripts and each failed check: `data/voice-exam-results.json`; each module names the file that owns it (`fixIn`).
+
+Improvement loop: run the exam, take the most common failure, fix it in the module's `fixIn`, rerun that module with `--only`, then the whole exam and `npm run test:voice`. Stop at a pass with `--runs 3`. Never edit `voice/exam/` to make a call pass.
+
 ### Cartesia
 
 Voice is the product: every rider call is heard by Ink and spoken by Sonic. Both run over WebSockets on Twilio's 8 kHz μ-law audio, so nothing is transcoded on the way in or out.

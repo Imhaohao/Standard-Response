@@ -95,20 +95,29 @@ const HAZARD_CONTEXT: Record<Hazard, { situation: string; atHome: string }> = {
   },
 };
 
+// The agent's constitution, from 911 call-taker, crisis-line and evacuation-warning practice. The
+// interpreter prompt states it, and the voice exam's judge (voice/exam/judge.ts) grades calls by it.
+export const CALL_TAKER_PRINCIPLES = [
+  { id: "truth_over_comfort", text: `Truth over comfort. Say only what this prompt, the record and the agent's earlier words support. If you don't know, say so plainly ("I don't know that yet.") rather than guess about the fire, roads, shelters or timing.` },
+  { id: "promise_effort", text: "Promise effort, never outcomes. Never say or imply that someone is safe, that help is coming, or when." },
+  { id: "calm_and_short", text: `Calm and short. One idea per sentence, plain everyday words, no agency jargon, codes or "voluntary".` },
+  { id: "show_you_heard", text: `Show you heard. Reflect the resident's own words briefly instead of a generic "okay".` },
+  { id: "name_the_feeling", text: `Name a feeling in a few words, then move on: "That sounds frightening." Never a long apology or scripted sympathy.` },
+  { id: "say_why", text: "Say why you ask. If they ask why a question matters, tie it to their need: the right vehicle, the right help at the door." },
+  { id: "honest_about_automation", text: "Be honest about being automated. If asked whether this is a robot or a real person, say it is 911's automated assistant, working with the dispatchers." },
+  { id: "life_threats_first", text: "Life threats come first. Flag an emergency even mid-sentence; the code marks it urgent for a dispatcher. Never tell them to call 911: this call is 911." },
+  { id: "respect_choice", text: "Respect their choice. If they say they won't leave, don't argue or guilt them; acknowledge it and let the code continue." },
+  { id: "adult_to_adult", text: "Talk to the person on the line as an adult; never talk down, and take their word about a disability." },
+  { id: "serve_the_stage", text: "Serve the stage goal you are given. Answer what they asked first; the code then picks the conversation back up." },
+] as const;
+export type PrincipleId = (typeof CALL_TAKER_PRINCIPLES)[number]["id"];
+
+const numberedPrinciples = CALL_TAKER_PRINCIPLES.map((principle, index) => `${index + 1}. ${principle.text}`).join("\n");
+
 const systemFor = (kind: Hazard) => `You interpret one thing a resident just said on an evacuation phone call run by a paratransit agency. ${HAZARD_CONTEXT[kind].situation} You return structured data only.
 
 How the agent talks. The code picks the next question; you write only the acknowledgment and the reply, and they follow these principles, which come from 911 call-taker, crisis-line and evacuation-warning practice:
-1. Truth over comfort. Say only what this prompt, the record and the agent's earlier words support. If you don't know, say so plainly ("I don't know that yet.") rather than guess about the fire, roads, shelters or timing.
-2. Promise effort, never outcomes. Never say or imply that someone is safe, that help is coming, or when.
-3. Calm and short. One idea per sentence, plain everyday words, no agency jargon, codes or "voluntary".
-4. Show you heard. Reflect the resident's own words briefly instead of a generic "okay".
-5. Name a feeling in a few words, then move on: "That sounds frightening." Never a long apology or scripted sympathy.
-6. Say why you ask. If they ask why a question matters, tie it to their need: the right vehicle, the right help at the door.
-7. Be honest about being automated. If asked whether this is a robot or a real person, say it is 911's automated assistant, working with the dispatchers.
-8. Life threats come first. Flag an emergency even mid-sentence; the code marks it urgent for a dispatcher. Never tell them to call 911: this call is 911.
-9. Respect their choice. If they say they won't leave, don't argue or guilt them; acknowledge it and let the code continue.
-10. Talk to the person on the line as an adult; never talk down, and take their word about a disability.
-11. Serve the stage goal you are given. Answer what they asked first; the code then picks the conversation back up.
+${numberedPrinciples}
 
 The household record has these fields and allowed values:
 - address: street address where they are now
@@ -160,17 +169,23 @@ const CHOICES: Partial<Record<Field, readonly string[]>> = {
 const MEDICAL = new Set(["oxygen", "dialysis", "other"]);
 const BOOLEAN_FIELDS = new Set<Field>(["hasCar", "pets"]);
 
+const BOOLEAN_VALUES: Record<string, boolean> = { true: true, false: false };
+
+const countFrom = (value: string) => {
+  const count = Number.parseInt(value, 10);
+  return Number.isFinite(count) && count >= 1 ? count : undefined;
+};
+
+const medicalFrom = (value: string) => value.split(",").map((item) => item.trim()).filter((item) => MEDICAL.has(item));
+
 // Turns one listed change into a typed record value, or undefined when the value isn't allowed.
 function valueFor(field: Field, raw: string): unknown {
   const value = raw.trim();
   const choices = CHOICES[field];
   if (choices) return choices.includes(value) ? value : undefined;
-  if (BOOLEAN_FIELDS.has(field)) return value === "true" ? true : value === "false" ? false : undefined;
-  if (field === "peopleCount") {
-    const count = Number.parseInt(value, 10);
-    return Number.isFinite(count) && count >= 1 ? count : undefined;
-  }
-  if (field === "medical") return value.split(",").map((item) => item.trim()).filter((item) => MEDICAL.has(item));
+  if (BOOLEAN_FIELDS.has(field)) return BOOLEAN_VALUES[value];
+  if (field === "peopleCount") return countFrom(value);
+  if (field === "medical") return medicalFrom(value);
   return value === "" ? undefined : value;
 }
 

@@ -50,6 +50,20 @@ function atCanLeave() {
   return started;
 }
 
+// A resident who can't leave, through the questions to waiting on hold for a driver.
+function atHold() {
+  const started = atCanLeave();
+  const { conversation } = started;
+  conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+  conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
+  conversation.respond("I use a walker", heard({ updates: { mobility: "walker" } }));
+  conversation.respond("no help needed", heard({ answer: "no", updates: { assistanceRequired: "none" } }));
+  conversation.respond("yes", heard({ answer: "yes" }));
+  conversation.respond("no", heard({ answer: "no" }));
+  assert.equal(conversation.step, "hold");
+  return started;
+}
+
 // A resident leaving on their own, all the way to the goodbye.
 function leaverAtGoodbye() {
   const { conversation } = atCanLeave();
@@ -73,12 +87,33 @@ describe("answers that don't answer", () => {
   it("answers the resident's own question, then asks again, without using up a try", () => {
     const { conversation, escalations } = atCanLeave();
     const reply = "It helps us match the right vehicle to your needs.";
-    for (let turn = 0; turn < 4; turn += 1) {
+    for (let turn = 0; turn < 2; turn += 1) {
       const said = conversation.respond("why do you need to know?", heard({ reply }));
       assert.deepEqual(said.sentences, [reply, EN.askAgain.canLeave]);
       assert.equal(conversation.step, "can_leave");
     }
     assert.deepEqual(escalations, []);
+  });
+
+  // The exam's eaton-mitchell call asked the neighbor question ten times this way.
+  it("moves on once a held question has been held twice, so a missed answer can't loop the call", () => {
+    const { conversation } = atCanLeave();
+    const reply = "Your son comes first.";
+    for (let turn = 0; turn < 3; turn += 1) conversation.respond("I just need help getting my son out", heard({ reply }));
+    assert.equal(conversation.step, "can_leave");
+    const fourth = conversation.respond("I just need help getting my son out", heard({ reply }));
+    assert.equal(conversation.step, "household");
+    assert.deepEqual(fourth.sentences, [reply, EN.askHousehold]);
+  });
+
+  it("answers anything said on hold with where the ride stands, never a stock filler", () => {
+    const { conversation } = atHold();
+    const asked = conversation.respond("are we supposed to wait here?", heard());
+    assert.deepEqual(asked.sentences, [conversation.rideLine()]);
+    const quiet = conversation.respond("okay", heard({ addressedToAgent: true }));
+    assert.deepEqual(quiet.sentences, []);
+    const blocked = conversation.respond("are they coming?", heard({ reply: "They'll be there soon." }));
+    assert.deepEqual(blocked.sentences, [conversation.rideLine()]);
   });
 
   it("waits when the resident asks for a moment", () => {

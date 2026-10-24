@@ -1,6 +1,6 @@
 import { AgentTurn, Conversation } from "./agent/conversation";
 import type { AgentRecord } from "./agent/record";
-import { languageOf, RequestStatus } from "./agent/script";
+import { languageOf, RequestStatus, RideStatus } from "./agent/script";
 
 // POST /turn for Track D's persona eval. Same state machine and prompt as phone calls, but sessions
 // live in memory and write nothing to Convex.
@@ -28,7 +28,7 @@ type TurnRequest = {
 
 const SESSION_TTL_MS = 30 * 60_000;
 const STATUSES = new Set<RequestStatus>(["received", "approved", "driver_accepted", "en_route", "reassigning", "arrived", "closed"]);
-const EVAL_DRIVER = {
+export const EVAL_DRIVER = {
   name: "Maria",
   vehicleType: "paratransit" as const,
   crewSize: 2,
@@ -39,7 +39,7 @@ const EVAL_DRIVER = {
 
 const sessions = new Map<string, Session>();
 
-function pinnedStatus(value: unknown) {
+export function pinnedStatus(value: unknown): RideStatus {
   if (typeof value !== "string" || !STATUSES.has(value as RequestStatus)) return null;
   const status = value as RequestStatus;
   const hasDriver = status !== "received" && status !== "approved" && status !== "reassigning";
