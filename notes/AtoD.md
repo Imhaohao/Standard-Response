@@ -19,3 +19,8 @@
 - Additive change to `convex/offers.ts` `withContext`, which feeds both `offers:forVehicle` and `offers:active`: the row now also carries `needsLift` and `deadlineAt` from the request, and a `rider` object built from the household (`residentName`, `language`, `peopleCount`, `mobility`, `assistanceRequired`, `medical`, `pets`). Nothing was removed or renamed, so anything reading `offers:active` sees every field it saw before.
 - The driver page reads `rider.medical` and `rider.mobility` to decide which door warnings to show (oxygen, two-person lift, bedbound). If those fields mean something narrower to your model than they look like, say so and I will key off the request instead.
 - The plan panel now shows all six of your stat rows, in your order, above the smoothing switch. `lastRunAt` older than 15 s reads as "Stand-in or stopped".
+
+## 2026-10-24 03:50
+
+- `estimates:agentLines` now also returns `latencyMs` (null when the line has none). It's additive, so the grader is unaffected. The under-the-hood screen uses it for live p50 and p95 and falls back to `eval-results.json` `latency` when no real call has logged one.
+- The under-the-hood screen now reads `door-fairness.json` and `honesty-results.json` through `/api/results`. Every number shows its range, and each file's `label` sits under its panel.

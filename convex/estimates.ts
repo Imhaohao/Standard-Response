@@ -151,7 +151,7 @@ export const agentLines = query({
       if (line.speaker !== "agent") continue;
       if (!simulated.has(line.callId)) simulated.set(line.callId, (await ctx.db.get("calls", line.callId))?.simulated ?? true);
       if (simulated.get(line.callId)) continue;
-      out.push({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, at: line.at });
+      out.push({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, latencyMs: line.latencyMs ?? null, at: line.at });
     }
     return out;
   },

@@ -2,8 +2,14 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connection } from "next/server";
 
-// Tracks C and D write these files; the under-the-hood screen reads them.
-const RESULT_FILES = { simulator: "sim-results.json", evaluation: "eval-results.json" } as const;
+// Tracks B, C and D write these files; the under-the-hood screen reads them.
+const RESULT_FILES = {
+  simulator: "sim-results.json",
+  evaluation: "eval-results.json",
+  honesty: "honesty-results.json",
+  doorFairness: "door-fairness.json",
+  changeCases: "redteam-change-cases.json",
+} as const;
 
 async function readResult(file: string) {
   try {
