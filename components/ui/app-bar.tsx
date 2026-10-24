@@ -6,13 +6,17 @@ import { ReactNode } from "react";
 import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { formatElapsed, useNow } from "@/lib/time";
 
-const SCREENS = [
+type Screen = { href: string; label: string; also?: string[] };
+
+const SCREENS: Screen[] = [
   { href: "/", label: "Call floor" },
   { href: "/map", label: "Rescue map" },
   { href: "/system", label: "Under the hood" },
   { href: "/phone", label: "Simulated phone" },
   { href: "/driver", label: "Driver page" },
-] as const;
+  // The mesh add-on's three pages, which link to each other.
+  { href: "/flow", label: "Mesh and flow", also: ["/mesh", "/mesh/agency"] },
+];
 
 function ScreenNav() {
   const pathname = usePathname();
@@ -20,7 +24,7 @@ function ScreenNav() {
     <nav aria-label="Screens" className="min-w-0">
       <ul className="flex flex-wrap gap-1">
         {SCREENS.map((screen) => {
-          const current = pathname === screen.href;
+          const current = pathname === screen.href || (screen.also?.includes(pathname) ?? false);
           return (
             <li key={screen.href}>
               <Link
