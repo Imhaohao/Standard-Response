@@ -1,0 +1,16 @@
+{
+ "label": "Synthetic population for simulation. Real ACS PUMS household records reweighted to real block-group and tract totals; not real people.",
+ "source": "ACS 2019-2023 5-year: PUMS (PUMAs 03709, 03718), B11001, B11007, B25044 by block group, B18101 by tract. OSM buildings and care facilities.",
+ "blockGroups": 28,
+ "households": 11855,
+ "needHelp": 1111,
+ "ipfWorstRelativeError": {
+  "households": 0.0,
+  "hasMember65": 0.0,
+  "alone65": 0.0,
+  "noVehicle": 0.0,
+  "disabled65 (tract)": 0.0
+ },
+ "seed": 13,
+ "assumptions": "ACS has no wheelchair, bed or oxygen variables; see rollcall_d/population.py for the mapping and its rates."
+}

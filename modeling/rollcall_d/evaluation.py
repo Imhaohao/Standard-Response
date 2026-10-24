@@ -88,17 +88,14 @@ def _address_key(address: str | None) -> tuple[str, str] | None:
 RIDE_FIELDS = {"peopleCount", "mobility", "assistanceRequired"}
 
 
-def needs_ride(truth: dict) -> bool:
-    """Mirrors needsRide in voice/agent/record.ts, on the persona's truth."""
-    if truth["mobility"] != "walks" or "oxygen" in truth["medical"]:
-        return True
-    return truth["canLeave"] != "yes" or not truth["hasCar"]
+def leaves_on_own(truth: dict) -> bool:
+    """Says everyone can leave and has a car: the agent skips the household and needs questions by design
+    (conversation.ts afterCanLeave), so those fields aren't graded."""
+    return truth["canLeave"] == "yes" and truth["hasCar"]
 
 
 def applicable(card: dict, name: str) -> bool:
-    """Residents leaving on their own skip the household and needs questions by design; those
-    fields aren't graded for them."""
-    return name not in RIDE_FIELDS or needs_ride(card["truth"])
+    return name not in RIDE_FIELDS or not leaves_on_own(card["truth"])
 
 
 def field_correct(run: CardRun, name: str) -> bool:
@@ -121,7 +118,7 @@ def wilson(correct: int, total: int, z: float = 1.96) -> list[float]:
     denominator = 1 + z * z / total
     center = (p + z * z / (2 * total)) / denominator
     half = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / denominator
-    return [round(center - half, 3), round(center + half, 3)]
+    return [round(max(center - half, 0.0), 3), round(min(center + half, 1.0), 3)]
 
 
 def _rate(correct: int, total: int) -> dict:

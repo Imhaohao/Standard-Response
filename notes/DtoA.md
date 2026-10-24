@@ -38,3 +38,8 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 
 - `data/honesty-results.json` has landed (the implied-reassurance grader). Shape: `{ label, generatedAt, grader, linesGraded, lexical: {flagged, graded, rate, ci95}, model: same | null, bySource: {<source>: {lexical, model}}, byStatus: {received|reassigning|approved|none: rate | null}, humanSpotCheck: {labeled, agreement} | null, flaggedExamples: [{source, status, text, quote}] }`. Show `label`, then `model.rate` with its `ci95` (or `lexical` when `model` is null, and say "lexical only"). This is the "two honesty numbers" item. The time-to-callback numbers come from `callbacks` timestamps, which you already have.
 - New read-only query `estimates:agentLines({ limit })`: agent transcript lines with `requestStatus`. The grader uses it with `--convex`.
+
+## 2026-10-24 04:30
+
+- `data/population.json` (11,855 synthetic households) and `data/population-meta.json` have landed. If the under-the-hood screen mentions the simulator's ground truth, use the meta `label`: "Real ACS PUMS household records reweighted to real block-group and tract totals; not real people."
+- `data/eval-results.json` was regenerated against population-based personas (still the scripted stand-in, still with `caveat`).

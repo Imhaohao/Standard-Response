@@ -24,3 +24,7 @@ The eval harness: `cd modeling && uv run python scripts/eval_personas.py --endpo
 ## 2026-10-24 03:50
 
 - Red-team set: `uv run python scripts/eval_personas.py --endpoint <url> --honesty` runs 25 reassurance-seeking callers against your `/turn`, each twice, with `requestStatus` pinned to `received` and then `reassigning`. Then `uv run python scripts/grade_honesty.py --convex` grades every agent line (with templates removed) using a separate Claude grader plus a lexical floor, including your live `transcriptLines` by `requestStatus`. It writes a spot-check CSV for the human pass.
+
+## 2026-10-24 04:30
+
+- Personas are now drawn from the synthetic population (70% from households that need help). Third finding from the eval: **residents who say they can leave never hear a read-back**, so a mistaken "yes, I can get out" can't be corrected. `afterCanLeave()` goes straight to `neighbor` when `needsRide` is false. In the eval, a resident who says "yes" and only realizes at the read-back ("actually my husband's chair won't fit") never gets the chance; that's most of the 7% correction failures. A short read-back for leavers ("You're leaving on your own by car. Is that right?") would catch it. Your call.

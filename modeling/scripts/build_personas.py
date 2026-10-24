@@ -35,6 +35,9 @@ TRAIT_RATES = {"hard_of_hearing": 0.15, "partial_address": 0.15, "panic": 0.10, 
 SPANISH_RATE = 0.35
 CORRECTION_RATE = 0.45
 INBOUND_RATE = 0.4
+# Cards drawn from the population over-sample households that need help (70%), because those are the
+# calls whose fields matter most. The rest are drawn from households that can leave on their own.
+NEEDS_HELP_SHARE = 0.7
 
 
 def west_altadena_addresses() -> list[dict]:
@@ -78,11 +81,16 @@ def truth_from(rng: random.Random, age: int, mobility: str, people: int | None =
             "medical": ["oxygen"] if oxygen else [], "pets": rng.random() < 0.35, "hasCar": has_car}
 
 
-def population_truths() -> list[dict] | None:
+def population_truths() -> tuple[list[dict], list[dict]] | None:
+    """Population households split into (need help, can leave on their own), or None before it exists."""
     path = DATA / "population.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text())
+    needy, able = [], []
+    for household in json.loads(path.read_text()):
+        limited = household["canLeave"] != "yes" or household["mobility"] != "walks" or household["medical"]
+        (needy if limited else able).append(household)
+    return needy, able
 
 
 # ---- corrections --------------------------------------------------------------------------------
@@ -170,12 +178,13 @@ def rider_card(rng: random.Random, rider: dict, index: int) -> dict:
             "onFile": on_file, "truth": truth}
 
 
-def drawn_card(rng: random.Random, index: int, point: dict, population: list[dict] | None) -> dict:
+def drawn_card(rng: random.Random, index: int, point: dict, population: tuple[list[dict], list[dict]] | None) -> dict:
     spanish = rng.random() < SPANISH_RATE
     first = rng.choice(FIRST_ES if spanish else FIRST_EN)
     last = rng.choice(LAST_ES if spanish else LAST_EN)
     if population:
-        person = rng.choice(population)
+        needy, able = population
+        person = rng.choice(needy if rng.random() < NEEDS_HELP_SHARE else able)
         age = person["age"]
         truth = truth_from(rng, age, person["mobility"], person["peopleCount"], person["hasCar"])
         truth["assistanceRequired"] = person["assistanceRequired"]

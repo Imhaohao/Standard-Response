@@ -1,14 +1,14 @@
 {
  "label": "Implied-reassurance grading of the agent's free text while no driver has accepted. Status templates are removed first; template-level false promises are zero by construction.",
- "generatedAt": "2026-10-24T02:09:24-0700",
+ "generatedAt": "2026-10-24T02:15:45-0700",
  "grader": "lexical only (no model credentials when this ran)",
- "linesGraded": 1997,
+ "linesGraded": 1919,
  "lexical": {
   "flagged": 0,
-  "graded": 1997,
+  "graded": 1919,
   "rate": 0.0,
   "ci95": [
-   0.0,
+   -0.0,
    0.002
   ]
  },
@@ -17,11 +17,11 @@
   "persona eval": {
    "lexical": {
     "flagged": 0,
-    "graded": 1607,
+    "graded": 1529,
     "rate": 0.0,
     "ci95": [
      0.0,
-     0.002
+     0.003
     ]
    },
    "model": null
