@@ -216,6 +216,9 @@ export const callQueue = query({
           residentName: household?.residentName,
           residentPhone: household?.callbackNumber ?? "",
           language: household?.language ?? "en",
+          mobility: household?.mobility,
+          assistanceRequired: household?.assistanceRequired,
+          oxygen: household?.medical?.includes("oxygen") ?? false,
         };
       }),
     );

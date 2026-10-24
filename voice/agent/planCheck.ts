@@ -1,3 +1,4 @@
+import type { Doc } from "../../convex/_generated/dataModel";
 import type { HazardEscalation } from "../../convex/hazards";
 import { CallFlow, silentTurn } from "./callFlow";
 import type { AgentTurn } from "./conversation";
@@ -10,10 +11,25 @@ import { Language, LINES, withSafety } from "./script";
 // who never agreed to anything is asked "could you pick them up and drive them out?" instead. Claude
 // only reads the answer. Two unclear answers count as no, because a van is the safer default.
 
+type Household = Doc<"households">;
+// What the helper needs to know before they set out. Firefighters told us a neighbor who said yes
+// to "a wheelchair" can arrive to find a 400-pound power chair or someone it takes two to lift.
+export type PickupNeeds = {
+  mobility?: Household["mobility"];
+  assistance?: Household["assistanceRequired"];
+  oxygen?: boolean;
+};
+type NeedLines = {
+  mobility: Partial<Record<NonNullable<PickupNeeds["mobility"]>, string>>;
+  assistance: Partial<Record<NonNullable<PickupNeeds["assistance"]>, string>>;
+  oxygen: string;
+};
+
 type PlanCheckLines = {
   helperIntro: (helperName: string, residentName: string | undefined, address: string) => string;
   // A neighbor with a car who has no arrangement with the resident.
   recruitIntro: (residentName: string | undefined, address: string) => string;
+  needs: NeedLines;
   askComing: string;
   askCanPickUp: string;
   askMinutes: string;
@@ -37,6 +53,19 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Hi ${helperName}, this is 911 calling for ${residentName ?? "your neighbor"} at ${address}. An evacuation warning now covers their street, and you're down to pick them up.`,
     recruitIntro: (residentName, address) =>
       `Hi, this is 911 calling about the evacuation in Altadena. ${residentName ? `Your neighbor ${residentName}` : "A neighbor of yours"} at ${address} can't get out on their own, and our crews may not reach them in time.`,
+    needs: {
+      mobility: {
+        walker: "They use a walker.",
+        manual_wheelchair: "They use a manual wheelchair, so you'll need room for it in your car.",
+        power_wheelchair: "They use a power wheelchair, which needs a van with a lift.",
+        bedbound: "They can't get out of bed on their own.",
+      },
+      assistance: {
+        one_person_assist: "They need one person to help them to the car.",
+        two_person_lift: "It takes two people to lift them.",
+      },
+      oxygen: "They use oxygen.",
+    },
     askComing: "Can you get to them now?",
     askCanPickUp: "Could you pick them up and drive them out?",
     askMinutes: "About how many minutes until you're there?",
@@ -61,6 +90,19 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Hola ${helperName}, le llamamos del 911 por ${residentName ?? "su vecino"}, en ${address}. Ahora hay un aviso de evacuación en su calle, y usted quedó en recogerle.`,
     recruitIntro: (residentName, address) =>
       `Hola, le llamamos del 911 por la evacuación en Altadena. ${residentName ? `Su vecino ${residentName}` : "Un vecino suyo"}, en ${address}, no puede salir por su cuenta, y es posible que nuestros equipos no lleguen a tiempo.`,
+    needs: {
+      mobility: {
+        walker: "Usa andadera.",
+        manual_wheelchair: "Usa silla de ruedas manual, así que necesitará espacio para la silla en su carro.",
+        power_wheelchair: "Usa silla de ruedas eléctrica, que necesita una camioneta con rampa.",
+        bedbound: "No puede levantarse de la cama por su cuenta.",
+      },
+      assistance: {
+        one_person_assist: "Necesita que una persona le ayude a llegar al carro.",
+        two_person_lift: "Hacen falta dos personas para levantarle.",
+      },
+      oxygen: "Usa oxígeno.",
+    },
     askComing: "¿Puede ir por esa persona ahora?",
     askCanPickUp: "¿Podría pasar por esa persona y sacarla de la zona?",
     askMinutes: "¿Más o menos en cuántos minutos llega?",
@@ -110,6 +152,8 @@ export type PlanCheckOptions = {
   address: string;
   // The helper is a neighbor we found during the warning, not someone who agreed ahead of time.
   recruited?: boolean;
+  // Told to the helper before they're asked, so they know what they're agreeing to.
+  needs?: PickupNeeds;
   // A call to the resident only to say their helper is on the way, with the minutes the helper gave.
   notify?: { minutes?: number };
   effects: PlanCheckEffects;
@@ -154,7 +198,15 @@ export class PlanCheck implements CallFlow {
       this.step = "done";
       return this.say("", [intro, this.notice(), LINES[this.language].goodbye]);
     }
-    return this.say("", [intro, this.question()]);
+    return this.say("", [intro, ...this.needLines(), this.question()]);
+  }
+
+  private needLines() {
+    const { role, needs } = this.options;
+    if (role !== "helper" || !needs) return [];
+    const { mobility, assistance, oxygen } = this.lines.needs;
+    const said = [needs.mobility && mobility[needs.mobility], needs.assistance && assistance[needs.assistance], needs.oxygen && oxygen];
+    return said.filter((line): line is string => typeof line === "string");
   }
 
   question(): string {

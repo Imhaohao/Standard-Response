@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { helperOnTheWayLine, minutesUntil, PlanCheck, PlanCheckEffects } from "./planCheck";
+import { helperOnTheWayLine, minutesUntil, PickupNeeds, PlanCheck, PlanCheckEffects } from "./planCheck";
 import type { PlanHeard, PlanRole } from "./planInterpreter";
 import { ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
 import type { ReadyHeard } from "./readyInterpreter";
@@ -17,7 +17,7 @@ const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
   ...partial,
 });
 
-function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en", recruited = false) {
+function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en", recruited = false, needs?: PickupNeeds) {
   const recorded: Recorded = { helper: [], resident: [], escalations: [], unreached: 0 };
   const effects: PlanCheckEffects = {
     helperAnswered: (coming, eta) => recorded.helper.push([coming, eta]),
@@ -33,6 +33,7 @@ function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" 
     residentName: "Walter",
     address: "1182 Mariposa St",
     recruited,
+    needs,
     effects,
     interpret: async () => heard(queue.shift() ?? {}),
   });
@@ -47,6 +48,18 @@ describe("pickup check, helper call", () => {
     const opening = spoken(call.start());
     assert.match(opening, /this is 911/);
     assert.doesNotMatch(spoken(await call.hear("no, and there's fire here")), /call 911/i);
+  });
+
+  it("tells the helper what the pickup takes before asking", () => {
+    const { call } = planCall("helper", [], "en", false, { mobility: "walker", assistance: "one_person_assist", oxygen: true });
+    const turn = call.start();
+    assert.deepEqual(turn.sentences.slice(1, 4), ["They use a walker.", "They need one person to help them to the car.", "They use oxygen."]);
+    assert.equal(turn.sentences.at(-1), "Can you get to them now?");
+  });
+
+  it("says nothing extra about someone who walks", () => {
+    const turn = planCall("helper", [], "en", false, { mobility: "walks", assistance: "none" }).call.start();
+    assert.equal(turn.sentences.length, 2);
   });
 
   it("asks a neighbor found during the warning to pick them up and drive them out", async () => {
@@ -257,6 +270,17 @@ describe("Ready check call", () => {
     assert.equal(late.saved.length, 1);
     assert.equal(late.saved[0].exitPlan, "own_car");
     assert.equal(late.saved[0].hasCar, true);
+  });
+
+  it("asks whether a wheelchair has a motor, and records a power chair on a yes", async () => {
+    const { call } = readyCall([{ answer: "yes" }, { answer: "yes" }, { updates: { peopleCount: 1 } }, { updates: { mobility: "manual_wheelchair" } }, { answer: "yes" }]);
+    call.start();
+    for (let turn = 0; turn < 3; turn++) await call.hear("…");
+    assert.match(spoken(await call.hear("I use a wheelchair")), /Is it a power wheelchair/);
+    assert.equal(call.step, "chair_kind");
+    await call.hear("yes");
+    assert.equal(call.answers.mobility, "power_wheelchair");
+    assert.equal(call.step, "assistance");
   });
 
   it("reads a phone number back digit by digit", () => {
