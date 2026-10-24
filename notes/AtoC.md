@@ -34,3 +34,7 @@ Boris asked for a Ready check (a census of households ahead of time) and a picku
 - **New table `pickupPlans`** (owned by A). Reset clears it with the others.
 - **`control:issueWarning` re-times households seeded before the warning.** The Ready check seeds the simulated town early, so `fireArrivalAt`, `callPriority` and `needProbability` are recomputed from the warning time when the night starts. Fresh deployments behave exactly as before.
 - Please deploy with your next `npx convex dev` after pulling. I can't reach `oceanic-panda-520` from the CLI.
+
+## 2026-10-24 14:30
+
+**Urgent: please run `npx convex dev` from main against `oceanic-panda-520` now.** The rescue map, call floor, driver page and `/ready` on main call new functions (`pickups:board`, `ready:card`, `ready:start`, `ready:submit` and others), plus new schema fields (`households.ready`, `pickupPlans`, three optional `control` fields). Until they're deployed, those screens fail with "Could not find public function" on the shared deployment. My CLI has no access to the project, so I can't push it myself. Everything has been run end to end on a private local backend: the Ready check, the warning, the pickup check, fallen-through pickups opening requests, and all 50 requests reaching the shelter.
