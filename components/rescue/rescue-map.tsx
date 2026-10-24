@@ -8,7 +8,8 @@ import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { ZoomControls } from "@/components/map/zoom-controls";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
-import { createProjection, Point } from "@/lib/ink-map/data";
+import { LatLng } from "@/lib/geo";
+import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
 import { useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
 import { DangerLayer, ForecastControl } from "./danger-zones";
@@ -31,26 +32,87 @@ export function RescueMap() {
   const danger = useDangerZones(data?.origin);
   const [forecastShown, setForecastShown] = useState(true);
   const control = useQuery(api.control.get);
-  const homes = useQuery(api.households.coverage);
   const clock = useFireClock(hazard, control?.warningIssuedAt);
 
   const [mode, setMode] = useState<SurfaceMode>("ink");
-  const [tool, setTool] = useState<MapTool>("look");
-  const [draft, setDraft] = useState<Point[]>([]);
-  const [status, setStatus] = useState("");
-
-  const setZone = useMutation(api.riders.setZone);
-  const addClosures = useMutation(api.roads.addClosures);
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
   const board = useRescueBoard(data ?? null, toLocal);
-  const withOpenRequest = useMemo(() => new Set<string>(board.people.map((person) => person.householdId)), [board.people]);
-  const marks = useMemo(
-    () => [...homeMarks(homes ?? [], withOpenRequest, toLocal), ...requestMarks(board.people)],
-    [homes, withOpenRequest, toLocal, board.people],
-  );
-  const highlights = useBuildingHighlights(data ?? null, marks);
+  const { homes, withOpenRequest, highlights } = useRoofs(data ?? null, board.people, toLocal);
   const { focus, flyTarget, focusProps } = usePersonFocus();
+
+  const { tool, setTool, draft, status, pick } = useDrawingTools(toLatLng);
+
+  if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
+
+  return (
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
+      <MapStage
+        data={data}
+        view={VIEW}
+        mode={mode}
+        hazard={hazard}
+        minutes={clock.minutes}
+        fronts={hazard?.field.fronts}
+        highlights={highlights}
+        onPick={pick}
+        focus={flyTarget}
+        interactive={tool !== "look"}
+        className="absolute inset-0"
+        controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
+      >
+        {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
+        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} />
+      </MapStage>
+
+      <div className="pointer-events-none absolute inset-0 flex flex-col">
+        <MapTopBar issuedAt={control?.warningIssuedAt} />
+        <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
+          <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
+            <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
+            <NeedPanel people={board.people} focus={focusProps} className="shrink" />
+            <NominationPanel />
+          </div>
+          <div className="min-w-0 flex-1" />
+          <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
+            <PlanPanel />
+            <FleetPanel vans={board.vans} />
+            <DoorCheckPanel />
+            <RiderUpload />
+          </div>
+        </div>
+        <div className="flex items-end gap-3 p-3 pt-0">
+          <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
+            {status}
+          </MapToolbar>
+          <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
+            <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Every household's roof: red while it has a ride request open, dark while it is still home, clear
+// once it has left.
+function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: LatLng) => Point) {
+  const coverage = useQuery(api.households.coverage);
+  const homes = useMemo(() => coverage ?? [], [coverage]);
+  const withOpenRequest = useMemo(() => new Set<string>(people.map((person) => person.householdId)), [people]);
+  const marks = useMemo(() => [...homeMarks(homes, withOpenRequest, toLocal), ...requestMarks(people)], [homes, withOpenRequest, toLocal, people]);
+  const highlights = useBuildingHighlights(data, marks);
+  return { homes, withOpenRequest, highlights };
+}
+
+// Drawing a warning zone (click its corners, Enter to save) or a road closure (two clicks).
+function useDrawingTools(toLatLng: (point: Point) => LatLng) {
+  const [tool, setTool] = useState<MapTool>("look");
+  const [draft, setDraft] = useState<Point[]>([]);
+  const [status, setStatus] = useState("");
+  const setZone = useMutation(api.riders.setZone);
+  const addClosures = useMutation(api.roads.addClosures);
 
   const cancel = useCallback(() => {
     setDraft([]);
@@ -80,57 +142,7 @@ export function RescueMap() {
     },
     [tool],
   );
-
-  if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
-
-  return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage
-        data={data}
-        view={VIEW}
-        mode={mode}
-        hazard={hazard}
-        minutes={clock.minutes}
-        fronts={hazard?.field.fronts}
-        highlights={highlights}
-        onPick={pick}
-        focus={flyTarget}
-        interactive={tool !== "look"}
-        className="absolute inset-0"
-        controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
-      >
-        {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
-        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} />
-      </MapStage>
-
-      <div className="pointer-events-none absolute inset-0 flex flex-col">
-        <MapTopBar issuedAt={control?.warningIssuedAt} />
-        <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-          <div className="pointer-events-auto flex w-[25rem] max-w-[40vw] shrink-0 flex-col gap-3 overflow-y-auto pr-1">
-            <HomesPanel homes={homes ?? []} withOpenRequest={withOpenRequest} />
-            <NeedPanel people={board.people} focus={focusProps} className="shrink" />
-            <NominationPanel />
-          </div>
-          <div className="min-w-0 flex-1" />
-          <div className="pointer-events-auto flex w-[20rem] max-w-[32vw] shrink-0 flex-col gap-3 overflow-y-auto pl-1">
-            <PlanPanel />
-            <FleetPanel vans={board.vans} />
-            <DoorCheckPanel />
-            <RiderUpload />
-          </div>
-        </div>
-        <div className="flex items-end gap-3 p-3 pt-0">
-          <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
-            {status}
-          </MapToolbar>
-          <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            {danger && <ForecastControl danger={danger} shown={forecastShown} onToggle={() => setForecastShown((shown) => !shown)} />}
-            <FireScrubber clock={clock} label={hazard?.label ?? "Waiting for the scenario fire"} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return { tool, setTool, draft, status, pick };
 }
 
 // A row clicked in the list flies the map to that person and rings their pin; a row hovered rings
