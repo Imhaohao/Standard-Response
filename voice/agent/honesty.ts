@@ -10,8 +10,15 @@ import { Language, RequestStatus } from "./script";
 // HELP_ON_THE_WAY holds what the voice exam caught Claude saying instead ("we're working on getting
 // help to you", "the crew knows to bring", "Estamos trabajando para ayudarle", "Seguimos con usted").
 const HELP_ON_THE_WAY = [
-  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by)\b/i,
-  /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|despachadores? (ya )?(tienen|saben|ven))/i,
+  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by|here with you|your agent|i'?m marking|i'?m noting|i'?ve noted|when (help|someone|they)|plan (a|the|your) (ride|pickup)|the code|the system|yes,? (it'?s|that'?s) (fine|okay|ok)|to send|for the vehicle|the vehicle (will|is|that)|noted|i can (hear|see) (the|that) (fire|flames|smoke))\b/i,
+  /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|estamos con usted|estoy aqu[ií] con usted|cu[aá]ndo (lleg|vien)|lleg(a|ue) (la )?ayuda|el c[oó]digo|el sistema|^s[ií],? est[aá] bien|despachadores? (ya )?(tienen|saben|ven))/i,
+];
+
+// Advice the agent can't stand behind: it sees no fire, roads or officers. The fixed lines carry the
+// only advice ("If you can leave safely, leave now").
+const INVENTED_ADVICE = [
+  /\b(officers?|signs|stay low|windows?|route|which way|turn (left|right)|head (north|south|east|west)|shelter in|news|alerts?|keep driving|stay on (the|a)|main road|reach (her|him|you|them)|anyone will)\b/i,
+  /(oficiales|polic[ií]a|ventanas|ruta|gire a|qu[eé]dese adentro)/i,
 ];
 
 // Comfort that may be false while the hazard is at the door: "Está bien, no pasa nada" to a caller
@@ -41,7 +48,7 @@ export function guardAcknowledgment(text: string, status: RequestStatus | "none"
   if (trimmed === "") return { text: "", blocked: false };
   // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
   if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
-  const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY].some((pattern) => pattern.test(trimmed));
+  const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE].some((pattern) => pattern.test(trimmed));
   if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
   // Even after acceptance, ETAs and names come only from templates.
   if (/\d/.test(trimmed)) return blocked;

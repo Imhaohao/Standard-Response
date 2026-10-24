@@ -41,6 +41,8 @@ export const ES: Lines = {
   stillThere: ["¿Sigue ahí?", "¿Hola? Sigo en la línea.", "¿Me escucha bien?"],
   takeYourTime: "Claro, tómese su tiempo. Aquí espero.",
   lostYou: "No le escucho, así que le volveré a llamar en un momento. Si puede salir con seguridad, salga ahora.",
+  passedOn: (place) => `Gracias, ya pasé ${place} a los despachadores.`,
+  needAddress: "Para ponerle en la lista de rescate, necesito la dirección.",
   leaveNow: "Por favor salga ahora, y lleve sus medicinas y el cargador del teléfono.",
   holdPrompt: "Me quedo en la línea con usted. Puede colgar cuando quiera.",
   goodbye: "Gracias. Adiós.",

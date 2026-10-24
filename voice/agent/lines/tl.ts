@@ -40,6 +40,8 @@ export const TL: Lines = {
   stillThere: ["Nandiyan pa po ba kayo?", "Hello po? Nandito pa rin po ako.", "Naririnig po ba ninyo ako nang maayos?"],
   takeYourTime: "Sige po, dahan-dahan lang po. Hihintayin ko po kayo.",
   lostYou: "Hindi ko po kayo marinig, kaya tatawag po ulit ako maya-maya. Kung kaya po ninyong umalis nang ligtas, umalis na po kayo ngayon.",
+  passedOn: (place) => `Salamat po, naipasa ko na po ang ${place}.`,
+  needAddress: "Para mailagay po kayo sa rescue list, kailangan ko po ang address.",
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
   holdPrompt: "Mananatili po ako sa linya kasama ninyo. Puwede po kayong magbaba anumang oras.",
   goodbye: "Salamat po. Paalam po.",

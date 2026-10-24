@@ -118,6 +118,38 @@ describe("answers that don't answer", () => {
     assert.deepEqual(blocked.sentences, [conversation.rideLine()]);
   });
 
+  it("takes a correction that restates the record as a confirmation, not a loop", () => {
+    const fresh = atCanLeave().conversation;
+    fresh.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    fresh.respond("just me", heard({ updates: { peopleCount: 1 } }));
+    fresh.respond("bedbound", heard({ updates: { mobility: "bedbound" } }));
+    fresh.respond("two to lift", heard({ updates: { assistanceRequired: "two_person_lift" } }));
+    assert.equal(fresh.step, "readback");
+    fresh.respond("No. It takes two people to lift him.", heard({ answer: "no", updates: { assistanceRequired: "two_person_lift" } }));
+    assert.equal(fresh.step, "neighbor");
+  });
+
+  it("takes \"I don't know\" to the can-leave question as unsure", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("I don't know. There's four of us left here.", heard({ answer: "unclear", updates: { peopleCount: 4 } }));
+    assert.equal(conversation.record.canLeave, "unsure");
+  });
+
+  it("passes on a neighbor named on two turns once", () => {
+    const nominations: string[] = [];
+    const conversation = new Conversation({
+      language: "en",
+      onFile: {},
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: (place) => nominations.push(place), rideStatus: () => null },
+    });
+    conversation.start();
+    const first = conversation.respond("the lady at 45 East Mariposa", heard({ neighborAddresses: ["45 East Mariposa"] }));
+    conversation.respond("yes, 45 East Mariposa", heard({ neighborAddresses: ["45 East Mariposa"] }));
+    assert.deepEqual(nominations, ["45 East Mariposa"]);
+    assert.ok(first.sentences.includes(EN.passedOn("45 East Mariposa")));
+  });
+
   it("stays on the line for a plain \"okay\" on hold, and ends only on a goodbye", () => {
     const { conversation } = atHold();
     conversation.respond("Okay.", heard({ wantsToEnd: true }));

@@ -40,6 +40,8 @@ export const VI: Lines = {
   stillThere: ["Quý vị còn nghe máy không ạ?", "Alô? Tôi vẫn đang ở trên máy.", "Quý vị có nghe rõ tôi không ạ?"],
   takeYourTime: "Dạ được, quý vị cứ từ từ. Tôi sẽ chờ.",
   lostYou: "Tôi không nghe được quý vị, nên tôi sẽ gọi lại ngay sau đây. Nếu quý vị có thể rời đi an toàn, xin hãy rời đi ngay bây giờ.",
+  passedOn: (place) => `Cảm ơn, tôi đã chuyển ${place} cho nhân viên điều phối.`,
+  needAddress: "Để đưa quý vị vào danh sách cứu hộ, tôi cần địa chỉ.",
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
   holdPrompt: "Tôi sẽ giữ máy cùng quý vị. Quý vị có thể cúp máy bất cứ lúc nào.",
   goodbye: "Cảm ơn quý vị. Tạm biệt.",

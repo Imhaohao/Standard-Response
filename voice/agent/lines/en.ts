@@ -39,6 +39,8 @@ export const EN: Lines = {
   stillThere: ["Are you still there?", "Hello? I'm still on the line.", "Can you hear me okay?"],
   takeYourTime: "Of course, take your time. I'll wait.",
   lostYou: "I can't hear you, so I'll call you back shortly. If you can leave safely, leave now.",
+  passedOn: (place) => `Thanks, I've passed on ${place}.`,
+  needAddress: "To put you on the rescue list, I need the address.",
   leaveNow: "Please leave now, and take your medications and phone charger.",
   holdPrompt: "I'll stay on the line with you. You can hang up any time.",
   goodbye: "Thank you. Goodbye.",

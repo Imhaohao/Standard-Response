@@ -55,6 +55,10 @@ export type Lines = {
   // Said after several quiet check-ins in a row. The call ends and the reach ladder calls back.
   // Always followed by the current hazard's safety line.
   lostYou: string;
+  // Said back when the resident names someone else who may not be able to leave.
+  passedOn: (place: string) => string;
+  // The answer to a plea for help before any address is known: there is no request yet.
+  needAddress: string;
   leaveNow: string;
   // Anyone who needs a ride stays on the line after the questions, so a driver's acceptance can be
   // said live. holdPrompt is said once.

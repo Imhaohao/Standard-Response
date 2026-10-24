@@ -40,6 +40,8 @@ export const ZH: Lines = {
   stillThere: ["您还在吗？", "喂？我还在线上。", "您能听清我说话吗？"],
   takeYourTime: "好的，不着急，我等您。",
   lostYou: "我听不到您的声音，稍后会再给您打过来。如果您能安全离开，请现在就离开。",
+  passedOn: (place) => `谢谢，我已把${place}转告调度员。`,
+  needAddress: "要把您列入救援名单，我需要地址。",
   leaveNow: "请现在就离开，带上您的药和手机充电器。",
   holdPrompt: "我会一直在线陪着您。您可以随时挂断。",
   goodbye: "谢谢。再见。",

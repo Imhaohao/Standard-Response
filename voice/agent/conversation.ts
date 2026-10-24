@@ -1,6 +1,7 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { guardAcknowledgment } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
+import { quickReading } from "./quickAnswer";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
 import { echo, Language, LINES, readback, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
 
@@ -136,6 +137,13 @@ export class Conversation {
   // The resident said they aren't at the address on file, so it isn't theirs to flag.
   private knownAddressDenied = false;
   private lastFeeling = "";
+  // The resident spoke about mobility on this call, so the file's version needs no confirming.
+  private mobilityHeard = false;
+  // Claude's answers already given, with what each answered. The same answer to something new is
+  // dropped ("I don't know where the fire is" three turns running); asked again, it is said again.
+  private readonly repliesSaid = new Map<string, string>();
+  // Neighbors already passed on, so one named on several turns is nominated and said back once.
+  private readonly passedOn = new Set<string>();
   private readonly residentName?: string;
   private triesOnStep = 0;
   private heldTurns = 0;
@@ -212,6 +220,8 @@ export class Conversation {
   // Claude's reading of one utterance. It changes nothing, so a phone call can throw it away and
   // read again when the resident turns out to still be talking. Null when the interpreter failed.
   async understand(utterance: string): Promise<Interpretation | null> {
+    const quick = quickReading(utterance, this.step, this.language);
+    if (quick) return quick;
     try {
       return await interpret(this.turnContext(utterance));
     } catch (error) {
@@ -240,8 +250,7 @@ export class Conversation {
     this.changedThisTurn = false;
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
-    const urgent = this.handleEmergency(heard);
-    for (const address of heard.neighborAddresses) this.effects.nominate(address);
+    const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
     // failed answer, so it doesn't use up a try.
@@ -270,8 +279,7 @@ export class Conversation {
     this.changedThisTurn = false;
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
-    const urgent = this.handleEmergency(heard);
-    for (const address of heard.neighborAddresses) this.effects.nominate(address);
+    const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
     if (this.changedThisTurn || heard.wantsTime || heard.answer === "no") {
       const fixed = this.changedThisTurn ? [LINES[this.language].readbackFixed] : [];
       this.moveTo(this.nextMissing());
@@ -293,11 +301,20 @@ export class Conversation {
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const said = answer.blocked ? (this.holding ? [this.rideLine()] : []) : [answer.text];
+    const said = answer.blocked ? (this.holding ? [this.rideLine()] : []) : this.freshReply(answer.text);
     const lines = [...greeting, ...this.feelingLines(heard, status), ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
+  }
+
+  private freshReply(text: string) {
+    const normalized = normalizeAck(text);
+    const asked = normalizeAck(this.lastResidentLine());
+    const answered = this.repliesSaid.get(normalized);
+    if (normalized === "" || (answered !== undefined && answered !== asked)) return [];
+    this.repliesSaid.set(normalized, asked);
+    return [text];
   }
 
   // A frightened caller hears their feeling named before the facts, once, not every turn.
@@ -436,6 +453,7 @@ export class Conversation {
   }
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {
+    if (updates.mobility !== undefined) this.mobilityHeard = true;
     const changed = changedFields(this.record, updates);
     if (isEmpty(changed)) return;
     this.record = { ...this.record, ...changed };
@@ -449,6 +467,17 @@ export class Conversation {
     this.escalated.add(kind);
     this.effects.escalate(kind);
     return true;
+  }
+
+  // A neighbor's address is said back from a template, since the guard keeps digits out of Claude's words.
+  private passOn(heard: Interpretation): string[] {
+    const fresh = heard.neighborAddresses.filter((place) => !this.passedOn.has(normalizeAck(place)));
+    for (const place of fresh) {
+      this.passedOn.add(normalizeAck(place));
+      this.effects.nominate(place);
+    }
+    // Only an address is said back; "my mom's house" is passed on without a sentence that garbles it.
+    return fresh.filter((place) => /^\s*\d/.test(place)).map((place) => LINES[this.language].passedOn(place));
   }
 
   private handleEmergency(heard: Interpretation): string[] {
@@ -497,7 +526,12 @@ export class Conversation {
     return { step: "can_leave", lines };
   }
 
+  // "I don't know" answers this question: unsure, which needs a ride. Claude took it for a
+  // question to itself and answered "I don't know that yet", leaving can-leave unrecorded.
   canLeave(): Transition {
+    if (this.record.canLeave === undefined && UNSURE.test(this.lastResidentLine())) {
+      this.applyUpdates({ canLeave: "unsure" }, { canLeave: 0.7 });
+    }
     if (this.record.canLeave === "yes") return { step: this.record.hasCar === undefined ? "has_car" : this.afterCanLeave() };
     if (this.record.canLeave) return { step: "household" };
     return this.retryOr("household");
@@ -556,14 +590,14 @@ export class Conversation {
     if (this.readbacks >= MAX_READBACKS) return { step: "neighbor" };
     this.shortReadback = false;
     if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
-    if (heard.answer === "yes") return { step: "neighbor" };
+    if (heard.answer === "yes" || restated(heard)) return { step: "neighbor" };
     if (heard.answer === "no") return { step: "fix" };
     this.shortReadback = true;
     return { step: "readback" };
   }
 
-  fix(): Transition {
-    if (!this.changedThisTurn) return this.retryOr("neighbor");
+  fix(heard: Interpretation): Transition {
+    if (!this.changedThisTurn) return restated(heard) ? { step: "neighbor" } : this.retryOr("neighbor");
     return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
   }
 
@@ -590,7 +624,7 @@ export class Conversation {
     this.holdTurns += 1;
     if (heard.wantsToEnd && !this.stillListening()) return { step: "done" };
     if (this.changedThisTurn) return { step: "hold", lines: [LINES[this.language].readbackFixed] };
-    const answered = heard.reply !== "" || heard.asksAboutRide;
+    const answered = heard.reply !== "" || heard.acknowledgment !== "" || heard.asksAboutRide;
     const brief = heardNothing(heard) && wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
     return { step: "hold", lines: answered || brief ? [] : [this.rideLine()] };
   }
@@ -646,7 +680,8 @@ export class Conversation {
     const lines = LINES[this.language];
     const { mobility } = this.record;
     if (!mobility) return lines.askNeeds;
-    return mobility === this.onFile.mobility ? lines.askNeedsOnFile(lines.mobility[mobility]) : lines.askOxygen;
+    const fromFile = mobility === this.onFile.mobility && !this.mobilityHeard;
+    return fromFile ? lines.askNeedsOnFile(lines.mobility[mobility]) : lines.askOxygen;
   }
 
   readbackQuestion() {
@@ -659,6 +694,8 @@ export class Conversation {
     const lines = LINES[this.language];
     const ride = this.effects.rideStatus();
     if (ride) return statusLine(ride, this.language) ?? lines.leaveNow;
+    // Before any address there is no request to talk about, only what's needed to make one.
+    if (!this.record.address && !this.knownAddress) return lines.needAddress;
     if (!needsRide(this.record)) return lines.leaveNow;
     return statusLine({ status: "received", driver: null }, this.language) ?? lines.leaveNow;
   }
@@ -671,11 +708,16 @@ export class Conversation {
 }
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
+const UNSURE = /^\s*(i don'?t know|i'?m not sure|not sure|no s[eé]\b|no estoy segur)/i;
 const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
 const firstWord = (normalized: string) => normalized.split(" ")[0];
+
+// A "correction" that says again what is already recorded confirms it: the caller is restating, and
+// asking "What should I change?" again looped the call.
+const restated = (heard: Interpretation) => !isEmpty(heard.updates);
 
 // Claude judged it not meant for the agent, and it carries nothing we must act on.
 function isNoise(heard: Interpretation) {
@@ -710,7 +752,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
   needs: (c, heard) => c.needs(heard),
   assistance: (c, heard) => c.assistance(heard),
   readback: (c, heard) => c.readback(heard),
-  fix: (c) => c.fix(),
+  fix: (c, heard) => c.fix(heard),
   neighbor: (c, heard) => c.neighbor(heard),
   hold: (c, heard) => c.hold(heard),
   done: () => ({ step: "done" }),
