@@ -110,7 +110,7 @@ Rules for changes:
 - confidence is 0 to 1. Use below 0.6 when you are guessing.
 
 Other outputs:
-- answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise.
+- answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise. When the agent read something back and asked "Is that right?" (or confirmed an address), agreement without the word yes is yes: "thank you", "okay", "mm-hm", "that's it", "correct", "감사합니다", "谢谢", "gracias". Only a correction or a no is no.
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none.
 - asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also true for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
 - wantsRepeat: true if they didn't hear or understand the question.

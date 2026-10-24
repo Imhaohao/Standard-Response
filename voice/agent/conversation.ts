@@ -101,6 +101,8 @@ export class Conversation {
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   private lastAcknowledgment = "";
   private holdTurns = 0;
+  // After an unclear reply to the read-back, ask "Is that right?" rather than read it all again.
+  private shortReadback = false;
   private reachedHold = false;
   // "Okay" or "mm-hm" on hold needs no reply; the line just stays open.
   private quietOnHold = false;
@@ -170,6 +172,7 @@ export class Conversation {
 
     // Asking us to repeat, or to switch language, isn't a failed answer, so it doesn't use up a try.
     this.quietOnHold = false;
+    if (heard.wantsRepeat) this.shortReadback = false;
     if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, [], transfer);
     const transition = this.advance(heard);
     this.moveTo(transition.step);
@@ -233,7 +236,8 @@ export class Conversation {
     if (spoken !== "other" && !canSpeak(spoken)) return true;
     this.unknownLanguageTurns = spoken === "other" ? this.unknownLanguageTurns + 1 : 0;
     // On hold, "okay" or "mm-hm" is a fine thing to say and never a reason to hand off.
-    const missed = spoken === "other" || (heardNothing(heard) && !this.holding);
+    // Neither is "say that again?", which shows they're following along in a language we speak.
+    const missed = spoken === "other" || (heardNothing(heard) && !this.holding && !heard.wantsRepeat);
     this.missedTurns = missed ? this.missedTurns + 1 : 0;
     return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS;
   }
@@ -279,6 +283,7 @@ export class Conversation {
   private moveTo(step: Step) {
     if (step === this.step) this.triesOnStep += 1;
     else this.triesOnStep = 0;
+    if (step !== this.step) this.shortReadback = false;
     this.step = step;
   }
 
@@ -369,9 +374,11 @@ export class Conversation {
   readback(heard: Interpretation): Transition {
     this.readbacks += 1;
     if (this.readbacks >= MAX_READBACKS) return { step: "neighbor" };
+    this.shortReadback = false;
     if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
     if (heard.answer === "yes") return { step: "neighbor" };
     if (heard.answer === "no") return { step: "fix" };
+    this.shortReadback = true;
     return { step: "readback" };
   }
 
@@ -423,6 +430,7 @@ export class Conversation {
   }
 
   readbackQuestion() {
+    if (this.shortReadback) return LINES[this.language].readbackQuestion;
     return readback(this.record, this.language);
   }
 
