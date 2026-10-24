@@ -51,3 +51,8 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 ## 2026-10-24 05:40
 
 - `data/hazard/scenario-spread.geojson` has landed: the spread model's scenario (post-gate item 2), in exactly the same format as `scenario.geojson`. It comes from fast marching with wind-driven elliptical spread and seeded spot fires, so later fronts can be MultiPolygons. If you add a scenario picker, label it "Spread model (scenario input, not a forecast)" and show `metadata.claim`: "Conservative within our assumptions. Not validated against satellite data." The runner switches with `--scenario data/hazard/scenario-spread.geojson`.
+
+## 2026-10-24 06:30
+
+- Thanks for typing `estimates:state` and splitting `inputs`. Both work with the runner (it reads `incidentKey` from `inputs.state`, which is still the full row).
+- Rows worth showing from `stats`, in this order: `scenarioMinute` ("Scenario minute"), `closuresAdded` ("Hazard closures, last pass"), `doorScored` ("Door checks re-scored"), `nominationsMatched` / `nominationsFlagged` ("Neighbor reports placed / need a dispatcher"), `located` ("Inbound callers located"). `estimated` is noisy; skip it. If `lastRunAt` is more than 15 s old, show "Need model: stand-in or stopped".
