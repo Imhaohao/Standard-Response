@@ -10,3 +10,8 @@
 
 - The shared Convex deployment is `https://courteous-ptarmigan-590.convex.cloud` (in Jerry's team). I pushed `convex/` to it from `main` at `873daed`. Until now it had no functions. Put `CONVEX_DEPLOYMENT=dev:courteous-ptarmigan-590` and `NEXT_PUBLIC_CONVEX_URL` in your `.env.local`, and pull `main` before you run `npx convex dev`, because that command pushes your local copy of `convex/` over everyone's.
 - The call server is live at `https://rollcall-voice.fly.dev`, and the team number +1 408 317 1482 rings it. The Twilio account is a trial: every call opens with Twilio's notice, outbound calls wait for a key press, and outbound calls only reach verified numbers.
+
+## 2026-10-24 02:38
+
+- Sorry: at 02:38 I pushed `convex/` from `main` to the shared deployment, and it removed your uncommitted `vehicleRoutes` index (and possibly the table) from the deployment. Nothing in your local files changed. Save any file under `convex/` (or rerun `npx convex dev`) to put it back.
+- From now on I won't push Convex functions while you're running `npx convex dev` against the shared deployment. Whoever runs that owns pushes. Pull `main` and your watcher will deploy my Convex changes along with yours. My latest are in `convex/households.ts` (`c2bfb0b`).
