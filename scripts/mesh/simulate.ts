@@ -167,6 +167,11 @@ const results = {
     { name: "Street blockages", value: "logistic in fire proximity, road class and time, spatially clustered", why: "lib/flow/blockage.ts; no published per-street data exists" },
     { name: "Departures", value: "drift-diffusion, keen and reluctant classes", why: "UC Berkeley survey of California wildfire evacuees" },
     { name: "Crowd motion", value: "underdamped Langevin, BAOAB, density-slowed speed", why: "lib/crowd/langevin.ts" },
+    {
+      name: "Route choice",
+      value: `fastest route with drive times slowed by traffic, refreshed every ${DEFAULT_WORLD.crowd.refreshMinutes} min; logit spread of ${DEFAULT_WORLD.crowd.routeSpreadSeconds} s`,
+      why: "lib/crowd/navigation.ts; Dial's stochastic assignment",
+    },
   ],
   privacy: {
     mechanism: "Gaussian noise on each phone's clipped update (local differential privacy)",

@@ -6,7 +6,7 @@ import { DEFAULT_DEPARTURE, stepDecision } from "./departure";
 import { advance, FORECAST_HORIZON_MINUTES, FORECAST_WINDOWS, rangeOf, TrafficEnsemble } from "./forecast";
 import { buildGround, cellIndex, toLatLng, toXY } from "./grid";
 import { CrowdSim, DEFAULT_CROWD, Household, ouCoefficients, STATE } from "./langevin";
-import { RoadRouter } from "./navigation";
+import { MIN_SPEED_SHARE, RoadRouter } from "./navigation";
 
 const scenario = JSON.parse(readFileSync(new URL("../../data/hazard/scenario.geojson", import.meta.url), "utf8"));
 const ground = buildGround(30, scenario);
@@ -60,6 +60,54 @@ describe("route choice", () => {
     }
     assert.ok(late.phi.filter(Number.isFinite).length < router.potential(0, new Set()).phi.filter(Number.isFinite).length);
   });
+
+  it("slows a street by the cars on it, down to a standstill floor", () => {
+    const cars = new Float64Array(router.edgeJamCars.length);
+    assert.ok(router.delays(cars).every((d) => d === 1));
+    const e = router.edgeJamCars.findIndex((jam) => jam >= 4);
+    cars[e] = router.edgeJamCars[e] / 2;
+    assert.ok(Math.abs(router.delays(cars)[e] - 2) < 1e-9);
+    cars[e] = router.edgeJamCars[e] * 3;
+    assert.equal(router.delays(cars)[e], 1 / MIN_SPEED_SHARE);
+  });
+
+  it("routes around a jammed street", () => {
+    const start = router.nearestNode(...toXY({ lat: 34.19, lng: -118.155 }));
+    const open = router.potential(0, new Set());
+    const first = router.nextEdge(start, open, new Set());
+    const cars = new Float64Array(router.edgeJamCars.length);
+    cars[first] = router.edgeJamCars[first];
+    const jammed = router.potential(0, new Set(), router.delays(cars));
+    assert.ok(jammed.phi[start] > open.phi[start]);
+    assert.notEqual(router.nextEdge(start, jammed, new Set()), first);
+  });
+
+  it("spreads drivers over downhill streets with logit odds, and never sends one uphill", () => {
+    const potential = router.potential(0, new Set());
+    const none = new Set<number>();
+    const seconds = (edge: number) => router.edgeSeconds(edge, 0, none) + potential.phi[router.edgeEnd(edge)];
+    const downhill = (node: number) =>
+      Array.from(router.edgeJamCars.keys()).filter((e) => router.edgeStart(e) === node && potential.phi[router.edgeEnd(e)] < potential.phi[node]);
+    // An intersection with two downhill streets less than a minute apart.
+    let node = -1;
+    for (let n = 0; n < potential.phi.length && node < 0; n++) {
+      const options = downhill(n).map(seconds).sort((a, b) => a - b);
+      if (options.length === 2 && options[1] - options[0] > 5 && options[1] - options[0] < 60) node = n;
+    }
+    assert.ok(node >= 0);
+    const [a, b] = downhill(node);
+    const random = seededRandom(9);
+    const draws = 20_000;
+    let takenA = 0;
+    for (let k = 0; k < draws; k++) {
+      const edge = router.chooseEdge(node, potential, none, 60, random);
+      assert.ok(edge === a || edge === b, `uphill edge ${edge}`);
+      if (edge === a) takenA += 1;
+    }
+    const expected = 1 / (1 + Math.exp((seconds(a) - seconds(b)) / 60));
+    assert.ok(Math.abs(takenA / draws - expected) < 0.015, `${takenA / draws} vs ${expected}`);
+    assert.equal(router.chooseEdge(node, potential, none, 0, random), router.nextEdge(node, potential, none));
+  });
 });
 
 describe("Langevin dynamics", () => {
@@ -112,6 +160,19 @@ describe("Langevin dynamics", () => {
     for (let i = 0; i < sim.count; i++) assert.ok(Number.isFinite(sim.x[i]) && Number.isFinite(sim.y[i]));
     assert.ok(stats.waiting + stats.home + stats.moving + stats.arrived + stats.overrun === households.length);
     assert.ok(sim.state.some((state) => state === STATE.arrived));
+  });
+
+  it("spreads cars over more streets with logit route choice than when all take the fastest", () => {
+    const random = seededRandom(8);
+    const households = population.filter(() => random() < 0.04);
+    const streetsUsed = (routeSpreadSeconds: number) => {
+      const sim = new CrowdSim(ground, households, seededRandom(9), () => new Set(), { ...DEFAULT_CROWD, dt: 1, routeSpreadSeconds });
+      for (let s = 0; s < 60 * 60; s++) sim.step();
+      return sim.segmentEntries.filter((entries) => entries > 0).length;
+    };
+    const fastest = streetsUsed(0);
+    const spread = streetsUsed(DEFAULT_CROWD.routeSpreadSeconds);
+    assert.ok(spread > fastest * 1.1, `${spread} streets with spread, ${fastest} without`);
   });
 });
 

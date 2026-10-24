@@ -1,17 +1,30 @@
 import { EDGES, NODE_COUNT, nodePoint } from "../../convex/roadGraph";
 import { cellIndex, Ground, toXY } from "./grid";
 import { NEVER_BURNS } from "../ink-map/fire-field";
+import { Random } from "../mesh/random";
 import { segmentKeyOf } from "../mesh/roads";
 
 // Route choice. Every driver holds a potential over the street graph: phi(n), the fastest drive
 // from intersection n to safety, avoiding streets the fire has reached and the streets that driver
-// believes are blocked, and crawling past streets the fire reaches within DANGER_MINUTES. At each
-// intersection a driver takes the street that minimises (drive time + phi at its far end). The
+// believes are blocked, and crawling past streets the fire reaches within DANGER_MINUTES. The
 // potential is one reverse Dijkstra from the safe intersections, under a millisecond on this graph,
 // so each driver can route on exactly what it knows.
+//
+// Drive times are congestion-aware. Each street's time is stretched by the cars on it when the
+// potential was built, by Greenshields' speed-density line v = v_free (1 - k / k_jam), the same
+// law the crowd dynamics drive by. So a jammed arterial costs more and later drivers route around it.
+//
+// At each intersection a driver doesn't always take the cheapest street. It picks among the streets
+// that lead downhill in the potential with logit probabilities, proportional to
+// exp(-(drive time + phi at the far end) / spread). That is Dial's (1971) stochastic assignment:
+// near-equal routes share the traffic, and the downhill rule means a route can't loop.
 
 const DANGER_MINUTES = 15;
 const DANGER_SLOWDOWN = 5;
+// A stated assumption: at a standstill each car takes 7.5 m of one lane.
+const JAM_SPACING_METERS = 7.5;
+// The slowest a crowded street gets, as a share of its free speed. The dynamics use the same floor.
+export const MIN_SPEED_SHARE = 0.05;
 
 const NEIGHBOR_OFFSETS: [number, number][] = [
   [1, 0],
@@ -109,7 +122,8 @@ export class IndexHeap {
   }
 }
 
-export type Potential = { minutes: number; phi: Float64Array };
+// `delay` is each edge's congestion multiplier on its drive time, or null for free flow.
+export type Potential = { minutes: number; phi: Float64Array; delay: Float64Array | null };
 
 export class RoadRouter {
   readonly nodeX = new Float64Array(NODE_COUNT);
@@ -118,6 +132,8 @@ export class RoadRouter {
   readonly edgeSegment = new Int32Array(EDGES.length);
   readonly edgeFire = new Float64Array(EDGES.length);
   readonly edgeSpeed = new Float64Array(EDGES.length);
+  // Cars that fill each edge bumper to bumper: its length times its lanes in that direction.
+  readonly edgeJamCars = new Float64Array(EDGES.length);
   // Each edge's shape in metres, as [x0, y0, x1, y1, ...] from its start node to its end node.
   readonly edgeShape: Float64Array[];
   private readonly outgoing: number[][] = Array.from({ length: NODE_COUNT }, () => []);
@@ -133,11 +149,15 @@ export class RoadRouter {
       [this.nodeX[n], this.nodeY[n]] = toXY(point);
       this.safe[n] = point.lat < safeLat ? 1 : 0;
     }
+    const directed = new Set(EDGES.map((edge) => `${edge.u}-${edge.v}`));
     this.edgeShape = EDGES.map((edge, e) => {
       this.outgoing[edge.u].push(e);
       this.incoming[edge.v].push(e);
       this.edgeSegment[e] = segmentIndex.get(segmentKeyOf(edge.key)) ?? -1;
       this.edgeSpeed[e] = Math.max(edge.meters / Math.max(edge.seconds, 1), 4);
+      // A two-way street's lane count covers both directions.
+      const lanes = directed.has(`${edge.v}-${edge.u}`) ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
+      this.edgeJamCars[e] = Math.max(1, (edge.meters * lanes) / JAM_SPACING_METERS);
       const shape = (edge.geometry ?? [[nodePoint(edge.u).lat, nodePoint(edge.u).lng], [nodePoint(edge.v).lat, nodePoint(edge.v).lng]]).flatMap(
         ([lat, lng]) => toXY({ lat, lng }),
       );
@@ -149,13 +169,23 @@ export class RoadRouter {
   }
 
   // Effective drive time of an edge for a driver, or Infinity if it won't use it.
-  edgeSeconds(edge: number, minutes: number, blocked: ReadonlySet<number>) {
+  edgeSeconds(edge: number, minutes: number, blocked: ReadonlySet<number>, delay: Float64Array | null = null) {
     if (this.edgeFire[edge] <= minutes || blocked.has(this.edgeSegment[edge])) return Infinity;
-    const seconds = EDGES[edge].seconds;
+    const seconds = EDGES[edge].seconds * (delay ? delay[edge] : 1);
     return this.edgeFire[edge] - minutes <= DANGER_MINUTES ? seconds * DANGER_SLOWDOWN : seconds;
   }
 
-  potential(minutes: number, blocked: ReadonlySet<number>): Potential {
+  // Each edge's congestion multiplier from the cars on it: 1 / (1 - k / k_jam), capped where the
+  // street is at a standstill.
+  delays(carsOnEdge: ArrayLike<number>) {
+    const delay = new Float64Array(EDGES.length);
+    for (let e = 0; e < delay.length; e++) {
+      delay[e] = 1 / Math.max(MIN_SPEED_SHARE, 1 - carsOnEdge[e] / this.edgeJamCars[e]);
+    }
+    return delay;
+  }
+
+  potential(minutes: number, blocked: ReadonlySet<number>, delay: Float64Array | null = null): Potential {
     const phi = new Float64Array(NODE_COUNT).fill(Infinity);
     const heap = new IndexHeap(4096);
     for (let n = 0; n < NODE_COUNT; n++) {
@@ -168,26 +198,56 @@ export class RoadRouter {
       const time = heap.lastKey;
       if (time > phi[node]) continue;
       for (const edge of this.incoming[node]) {
-        const arrival = time + this.edgeSeconds(edge, minutes, blocked);
+        const arrival = time + this.edgeSeconds(edge, minutes, blocked, delay);
         const from = EDGES[edge].u;
         if (arrival >= phi[from]) continue;
         phi[from] = arrival;
         heap.push(arrival, from);
       }
     }
-    return { minutes, phi };
+    return { minutes, phi, delay };
   }
 
-  // The street to take out of `node`, or -1 when no known route leads to safety.
+  // Time to safety leaving `node` by `edge`: the edge's drive time plus phi at its far end.
+  private routeSeconds(edge: number, potential: Potential, blocked: ReadonlySet<number>) {
+    return this.edgeSeconds(edge, potential.minutes, blocked, potential.delay) + potential.phi[EDGES[edge].v];
+  }
+
+  // The fastest street out of `node`, or -1 when no known route leads to safety.
   nextEdge(node: number, potential: Potential, blocked: ReadonlySet<number>) {
     let best = -1;
     let bestTime = Infinity;
     for (const edge of this.outgoing[node]) {
-      const time = this.edgeSeconds(edge, potential.minutes, blocked) + potential.phi[EDGES[edge].v];
+      const time = this.routeSeconds(edge, potential, blocked);
       if (time < bestTime) {
         best = edge;
         bestTime = time;
       }
+    }
+    return best;
+  }
+
+  // A street out of `node` drawn with logit probabilities over the fastest one and every street
+  // that leads downhill in the potential, or -1 when no known route leads to safety. A spread of 0
+  // always takes the fastest.
+  chooseEdge(node: number, potential: Potential, blocked: ReadonlySet<number>, spreadSeconds: number, random: Random) {
+    const best = this.nextEdge(node, potential, blocked);
+    if (best < 0 || spreadSeconds <= 0) return best;
+    const bestTime = this.routeSeconds(best, potential, blocked);
+    const candidates: number[] = [];
+    const weights: number[] = [];
+    let total = 0;
+    for (const edge of this.outgoing[node]) {
+      if (edge !== best && !(potential.phi[EDGES[edge].v] < potential.phi[node])) continue;
+      const weight = Math.exp((bestTime - this.routeSeconds(edge, potential, blocked)) / spreadSeconds);
+      candidates.push(edge);
+      weights.push(weight);
+      total += weight;
+    }
+    let draw = random() * total;
+    for (const [k, edge] of candidates.entries()) {
+      draw -= weights[k];
+      if (draw < 0) return edge;
     }
     return best;
   }

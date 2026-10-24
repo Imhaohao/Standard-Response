@@ -1,7 +1,7 @@
 import { gaussian, Random } from "../mesh/random";
 import { DEFAULT_DEPARTURE, DepartureParams, stepDecision } from "./departure";
 import { cellIndex, Ground, toXY } from "./grid";
-import { blockedMask, isBurning, Potential, RoadRouter } from "./navigation";
+import { blockedMask, isBurning, MIN_SPEED_SHARE, Potential, RoadRouter } from "./navigation";
 
 // Evacuating households as particles under underdamped Langevin dynamics:
 //
@@ -15,7 +15,8 @@ import { blockedMask, isBurning, Potential, RoadRouter } from "./navigation";
 // is BAOAB splitting (Leimkuhler and Matthews 2013): friction and noise are solved exactly, so the
 // half-second step is stable.
 //
-// Each driver routes on the blockages it knows about. A driver that runs into a blocked street it
+// Each driver routes on the blockages it knows about and on how crowded the streets were at the
+// last refresh, and picks among near-equal streets at random (see navigation.ts). A driver that runs into a blocked street it
 // didn't know about is stopped by it, learns it, turns back and re-routes. That knowledge is what
 // the phone mesh spreads.
 
@@ -33,6 +34,12 @@ export type CrowdParams = {
   repulsionRange: number;
   jamDensity: number;
   refreshMinutes: number;
+  // Logit spread of route choice in seconds: a street whose route is this much slower than the
+  // fastest is taken 1/e as often. 0 always takes the fastest.
+  routeSpreadSeconds: number;
+  // Share of the previous count of cars on each street kept at each refresh, so routes don't all
+  // swing to the same alternative at once.
+  congestionMemory: number;
   safeLat: number;
   departure: DepartureParams;
 };
@@ -46,13 +53,14 @@ export const DEFAULT_CROWD: CrowdParams = {
   repulsionRange: 1.5,
   jamDensity: 0.02,
   refreshMinutes: 5,
+  routeSpreadSeconds: 60,
+  congestionMemory: 0.5,
   safeLat: 34.152,
   departure: DEFAULT_DEPARTURE,
 };
 
 const HASH_CELL = 10;
 const DECISION_EVERY_SECONDS = 30;
-const MIN_SPEED_SHARE = 0.05;
 const BOUNCE_DAMPING = -0.2;
 // A route point counts as reached within this many metres.
 const REACH_METERS = 9;
@@ -114,6 +122,10 @@ export class CrowdSim {
 
   private trueShut: Uint8Array;
   private trueBlocked = new Set<number>();
+  // Cars on each edge as of the last refresh, smoothed over refreshes, and the congestion
+  // multipliers routes are planned on.
+  private edgeCars: Float64Array;
+  private delay: Float64Array | null = null;
   private potentials = new Map<string, Potential>();
   private agentPotential: (Potential | null)[];
   private lastRefresh = -Infinity;
@@ -161,6 +173,7 @@ export class CrowdSim {
       this.goal[i] = this.router.nearestNode(this.x[i], this.y[i]);
     }
     this.trueShut = new Uint8Array(ground.speed.length);
+    this.edgeCars = new Float64Array(this.router.edgeSpeed.length);
   }
 
   get minutes() {
@@ -220,6 +233,7 @@ export class CrowdSim {
       segmentLostSeconds: this.segmentLostSeconds.slice(),
       trueShut: this.trueShut.slice(),
       trueBlocked: new Set(this.trueBlocked),
+      edgeCars: this.edgeCars.slice(),
       potentials: new Map(this.potentials),
       agentPotential: [...this.agentPotential],
       hashHead: new Map<number, number>(),
@@ -297,8 +311,19 @@ export class CrowdSim {
     this.lastRefresh = this.minutes;
     this.trueBlocked = this.blockedTruth(this.minutes);
     this.trueShut = blockedMask(this.ground, this.trueBlocked);
+    this.measureCongestion();
     this.potentials = new Map();
     this.agentPotential.fill(null);
+  }
+
+  private measureCongestion() {
+    const now = new Float64Array(this.edgeCars.length);
+    for (let i = 0; i < this.count; i++) {
+      if (this.state[i] === STATE.moving && this.edge[i] >= 0) now[this.edge[i]] += 1;
+    }
+    const memory = this.params.congestionMemory;
+    for (let e = 0; e < now.length; e++) this.edgeCars[e] = memory * this.edgeCars[e] + (1 - memory) * now[e];
+    this.delay = this.router.delays(this.edgeCars);
   }
 
   private potentialFor(i: number): Potential {
@@ -308,7 +333,7 @@ export class CrowdSim {
     const key = [...known].sort((a, b) => a - b).join(",");
     let potential = this.potentials.get(key);
     if (!potential) {
-      potential = this.router.potential(this.minutes, known);
+      potential = this.router.potential(this.minutes, known, this.delay);
       this.potentials.set(key, potential);
     }
     this.agentPotential[i] = potential;
@@ -348,7 +373,7 @@ export class CrowdSim {
       this.vy[i] = 0;
       return;
     }
-    const next = this.router.nextEdge(node, this.potentialFor(i), this.known[i]);
+    const next = this.router.chooseEdge(node, this.potentialFor(i), this.known[i], this.params.routeSpreadSeconds, this.random);
     this.stuck[i] = next < 0 ? 1 : 0;
     if (next >= 0 && this.router.edgeSegment[next] >= 0) this.segmentEntries[this.router.edgeSegment[next]] += 1;
     this.edge[i] = next;

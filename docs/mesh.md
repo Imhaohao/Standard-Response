@@ -22,7 +22,7 @@ Three features built beside the core Rider Check flow. Nothing in the core flow 
 | `scripts/mesh/` | `simulate.ts` (writes `data/flow-results.json`), `traffic-forecast.ts` (the live forecast runner), `feature-scale.ts` |
 
 ```bash
-npm run test:mesh                                    # 32 tests: protocol, privacy, learning, transports, crowd model, forecast
+npm run test:mesh                                    # 36 tests: protocol, privacy, learning, transports, crowd model, forecast
 npm run forecast:traffic                             # the live traffic forecast for /mesh/agency, every 5 minutes
 npx tsx scripts/mesh/simulate.ts --seeds 4 --sample 0.3   # about 2 minutes
 npx convex run mesh:clear                            # empties the mesh tables only
@@ -86,7 +86,9 @@ dx = v dt
 dv = [ (v_des(x, ρ) e(x) − v) / τ  +  F_rep(x) ] dt  +  sqrt(2 T / τ) dW
 ```
 
-- **Direction e(x)** points to the next point on the driver's route. Route choice uses a potential over the street graph, φ(n): the fastest drive from intersection n to safety (any street south of 34.152° N), avoiding streets the fire has reached and the streets this driver believes are blocked, at a crawl past streets the fire reaches within 15 minutes. At each intersection a driver takes the street minimising drive time plus φ at its far end. φ is one reverse Dijkstra over 1,851 intersections, under a millisecond, so every driver routes on exactly what its phone knows.
+- **Direction e(x)** points to the next point on the driver's route. Route choice uses a potential over the street graph, φ(n): the fastest drive from intersection n to safety (any street south of 34.152° N), avoiding streets the fire has reached and the streets this driver believes are blocked, at a crawl past streets the fire reaches within 15 minutes. φ is one reverse Dijkstra over 1,851 intersections, under a millisecond, so every driver routes on exactly what its phone knows.
+- **Congestion in route choice.** Drive times in φ are stretched by traffic. Every 5 minutes each street's car count is taken (half the previous count kept, so routes don't all swing at once) and its time multiplied by 1 / (1 − k/k_jam): the Greenshields law the dynamics drive by, with k_jam one car per 7.5 m of lane and a floor of 5% of free speed. Later drivers route around a jam.
+- **Spreading drivers.** At each intersection a driver picks among the fastest street and every street that leads downhill in φ, with logit probabilities ∝ exp(−(drive time + φ at the far end) / 60 s). This is Dial's stochastic assignment: near-equal routes share the cars, and the downhill rule means no route loops.
 - **Speed.** v_des is the street's free-flow speed slowed by local density (Greenshields: v_free (1 − ρ/ρ_jam), with ρ_jam = 0.02 vehicles per m²).
 - **Repulsion.** F_rep is a soft exponential repulsion between vehicles (Helbing and Molnár's social force).
 - **Noise.** T is the velocity noise variance: hesitation and the spread in how people drive.
@@ -114,19 +116,19 @@ The model also records flow by street: cars through each segment, their sampled 
 
 | | Mesh on | Mesh off | Difference |
 | --- | --- | --- | --- |
-| Phones that know of a blocked street, 30 min in | 1,566 | 464 | +1,136 (+1,097 to +1,211) |
-| Phones that know of a blocked street, 60 min in | 2,460 | 809 | +1,763 (+1,525 to +1,836) |
-| Drivers who drove into a blocked street unaware | 762 | 1,070 | −290 (−348 to −110) |
-| Shared model, AUC ranking blocked streets | 0.93 | no model | |
-| Same model fitted centrally on all raw data (no privacy) | 0.93 | 0.93 | |
-| Time from a street blocking to the agency hearing, median | 14.0 min | 15.6 min | −0.6 (−3.5 to −0.1) |
-| Households out of the zone | 3,017 | 3,026 | 0 (−11 to +10) |
+| Phones that know of a blocked street, 30 min in | 1,715 | 524 | +1,332 (+1,160 to +1,349) |
+| Phones that know of a blocked street, 60 min in | 2,589 | 837 | +1,836 (+1,666 to +1,849) |
+| Drivers who drove into a blocked street unaware | 1,125 | 1,334 | −207 (−433 to −159) |
+| Shared model, AUC ranking blocked streets | 0.94 | no model | |
+| Same model fitted centrally on all raw data (no privacy) | 0.93 | 0.94 | |
+| Time from a street blocking to the agency hearing, median | 15.2 min | 15.3 min | −0.5 (−1.4 to +1.2) |
+| Households out of the zone | 3,010 | 3,011 | −1 (−23 to +6) |
 
 What this does and doesn't show:
 
 - **People in the zone learn about blocked streets far sooner, and fewer drive into them.** This is the mesh's clearest effect.
-- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model matches a central fit on raw data across all four seeds.
-- **The agency's own coverage barely changes.** In these runs most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
+- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model matches a central fit on raw data to within 0.01 AUC in three of the four seeds and trails it by 0.04 in the fourth (0.89 against 0.92).
+- **The agency's own coverage barely changes,** and how soon it hears of a blocked street moves by about a minute at most, either way across seeds. In these runs most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
 - **Evacuation totals don't move.** West Altadena's grid has plenty of detours, so a known blockage costs a driver little. The gain is in not being surprised. Denser blockages or a tighter grid would change that, and we haven't simulated it.
 
 ## How it got there

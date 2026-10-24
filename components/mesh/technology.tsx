@@ -26,6 +26,7 @@ export const TECHNOLOGIES: Record<Technology, Entry> = {
       `τ = ${DEFAULT_CROWD.tau} s is how quickly a driver gets to that speed. F_rep is a soft push between cars a few metres apart (Helbing and Molnár's social force).`,
       `dW is random noise of strength T = ${DEFAULT_CROWD.temperature} m²/s²: hesitation and the spread in how people drive.`,
       "Routes are the fastest way to safety on open streets, avoiding the fire and any street the driver knows is blocked. A car that hits a blocked street it didn't know about stops, turns back and re-routes.",
+      `Drive times count the traffic: every ${DEFAULT_CROWD.refreshMinutes} minutes each street is slowed by the cars on it, so later drivers route around jams. At each corner a driver picks among the streets that head toward safety, mostly the fastest, but a street whose route is ${DEFAULT_CROWD.routeSpreadSeconds} s slower is still taken about a third as often, so near-equal routes share the cars.`,
       `Stepped every ${DEFAULT_CROWD.dt} s with BAOAB splitting, which solves the friction and noise exactly so the steps stay stable.`,
     ],
   },

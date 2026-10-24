@@ -10,6 +10,8 @@ type EdgeRecord = {
   key: string;
   meters: number;
   seconds: number;
+  // OpenStreetMap's lane count for the whole street, both directions together; 1 when unknown.
+  lanes: number;
   name: string;
   geometry: number[][] | null;
 };
