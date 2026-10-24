@@ -7,10 +7,12 @@ import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
-import { TOWN_FRAME } from "@/components/map/projection";
+import { Frame, TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
+import { LatLng } from "@/lib/geo";
+import { createProjection, Point } from "@/lib/ink-map/data";
 import { ROUND_MASS } from "@/lib/mesh/rounds";
 import { AreaShape, areaLabel } from "@/lib/prepare/areas";
 import { Estimate, TALLY_ITEMS, TallyItemId } from "@/lib/prepare/tally";
@@ -20,7 +22,6 @@ import { SurveyHowItWorks, SurveyTags } from "./technology";
 import { useAreaShapes } from "./use-survey-phone";
 
 const INK = "var(--map-ink)";
-const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 // Areas with fewer answers than this are drawn empty: the interval would be too wide to read.
 const MIN_ANSWERS = 20;
 
@@ -33,6 +34,16 @@ function centroid(shape: AreaShape) {
   const lat = ring.reduce((s, p) => s + p.lat, 0) / Math.max(ring.length, 1);
   const lng = ring.reduce((s, p) => s + p.lng, 0) / Math.max(ring.length, 1);
   return { lat, lng };
+}
+
+// The block groups reach west and north of the town frame, so the map is framed on them instead:
+// both the 3D and the flat view then show every block group the counts cover.
+function areasFrame(shapes: AreaShape[], toLocal: (point: LatLng) => Point): Frame {
+  const points = shapes.flatMap((shape) => shape.rings.flat().map(toLocal));
+  if (!points.length) return TOWN_FRAME;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
 }
 
 // Each block group's tone is its estimated share; the darkest is the highest share on the map.
@@ -212,12 +223,15 @@ export function CountyView() {
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<SurfaceMode>("paper");
   const itemLabel = useMemo(() => TALLY_ITEMS.find((i) => i.id === item)?.label ?? "", [item]);
+  const origin = data?.origin;
+  const view = useMemo(() => (origin && shapes ? { kind: "overview" as const, fit: areasFrame(shapes, createProjection(origin).toLocal) } : null), [origin, shapes]);
 
-  if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
+  // The 3D map is rebuilt whenever its framing changes, so it waits for the block groups it frames.
+  if (!data || !view) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage data={data} view={VIEW} mode={mode} className="absolute inset-0">
+      <MapStage data={data} view={view} mode={mode} className="absolute inset-0">
         {shapes && <AreaShading shapes={shapes} counts={counts} item={item} selected={selected} />}
       </MapStage>
       <div className="pointer-events-none absolute inset-0 flex flex-col">

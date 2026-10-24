@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { terrainContours } from "@/lib/ink-map/contours";
 import { AREA_KIND, InkMapData, Point, ROAD_WIDTH } from "@/lib/ink-map/data";
 import { ScenarioFront } from "@/lib/ink-map/fire-field";
-import { Frame, fitFrame, frameTransform, LocalProjection, PAPER_FIT, Size } from "./projection";
+import { Frame, fitFrame, frameTransform, LocalProjection, Size } from "./projection";
 
 const CONTOUR_INTERVAL = 25;
 const MINOR_ROAD_CLASS = 6;
@@ -22,8 +22,8 @@ const AREA_TONE: Record<number, number> = {
   [AREA_KIND.wild]: 0.03,
 };
 
-// The flat map: the same ground as the 3D view, drawn as line work. It is the fallback for a
-// small screen, a slow machine, or a reader who wants no depth at all.
+// The flat map: the same ground as the 3D view, drawn as line work over a frame that fills the
+// box. It is the fallback for a small screen, a slow machine, or a reader who wants no depth at all.
 export function PaperSurface({
   data,
   frame,
@@ -37,9 +37,9 @@ export function PaperSurface({
   fronts: ScenarioFront[];
   minutes: number;
 }) {
-  const { scale } = frameTransform(frame, size, PAPER_FIT);
+  const { scale } = frameTransform(frame, size);
   const { width, height } = size;
-  const project = useMemo(() => fitFrame(frame, { width, height }, PAPER_FIT), [frame, width, height]);
+  const project = useMemo(() => fitFrame(frame, { width, height }), [frame, width, height]);
   const areas = useMemo(() => groupRings(data, frame, project), [data, frame, project]);
   const roads = useMemo(() => groupRoads(data, frame, project), [data, frame, project]);
   const contours = useMemo(() => contourPath(data, frame, project), [data, frame, project]);

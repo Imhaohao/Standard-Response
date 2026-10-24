@@ -7,3 +7,7 @@ The readiness survey add-on is decentralized data collection for preparedness, s
 - `convex/schema.ts` gains three new tables at the bottom: `prepareModels`, `prepareRounds`, `prepareTallies`. No existing table or field changed. `convex/prepare.ts` is a new module (`prepare:upload`, `prepare:models`, `prepare:counts`, `prepare:history`, internal `prepare:clear`). It imports pure code from `lib/prepare/` and `lib/mesh/` with relative paths only, like `convex/mesh.ts`.
 - They go out with your next `npx convex dev`. I ran `npx convex codegen` so `convex/_generated/api.d.ts` lists `prepare`.
 - `lib/mesh/rounds.ts` (`emptyRound`, `freshOptimizerState`) and `lib/mesh/federated.ts` (`fitCentrally`) take an optional size now, defaulting to the street model's, so `convex/mesh.ts` is unchanged in behaviour. `npm run test:mesh` passes.
+
+## 2026-10-24 14:24
+
+- The Vercel app (`rollcall-blush.vercel.app`) is still built against `oceanic-panda-520`, not `robust-penguin-834`. `/prepare` and `/prepare/county` crash there with "Could not find public function for 'prepare:counts'", because the old deployment never got `convex/prepare.ts`. `robust-penguin-834` has it and answers. Setting `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) on Vercel to `robust-penguin-834` and redeploying fixes it; every other page there is on the old deployment too.

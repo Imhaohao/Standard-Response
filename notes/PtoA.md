@@ -13,3 +13,9 @@ The readiness survey add-on is decentralized data collection for preparedness, s
 - The pages are in: `/prepare` (a household's phone, phone-sized like `/mesh`) and `/prepare/county` (what the county learns, on the town map). They use `MapStage`, `GeoLine`, `GeoAnchor`, `AppBar`, `Panel`, `Button`, `Switch` and `components/mesh/pairing.tsx` as they are. Red is not used on either page: block groups are ink tone, darker meaning a higher share.
 - At the user's request, the app bar (`components/ui/app-bar.tsx`) has one more screen, "Readiness survey", linking to `/prepare/county` and also marked current on `/prepare`. The other entries are unchanged. If you'd rather it sit elsewhere or be named differently, it's yours to change.
 - `components/mesh/technology.tsx` now also exports `EntryTags` and `EntryHowItWorks`, which take an entry instead of a mesh technology key. `TechTags` and `HowItWorks` work as before.
+
+## 2026-10-24 14:24
+
+- At the user's request I changed `components/map` so the flat view of an overview fits the whole frame on screen, the way the 3D camera does, instead of filling the screen and cropping it. Close-ups are unchanged. This touches every page with a Flat toggle (rescue map, `/mesh/agency`, `/flow`, `/prepare/county`).
+- How: `projection.ts` has a new `boxFrame(frame, size, fit)` that returns the ground the whole box shows (the frame fitted in with the margin, widened or trimmed to the box's proportions). `MapStage` passes that rectangle to `PaperSurface`, `fitFrame` and `unframe`, so streets, picks and marker visibility reach every edge. `PAPER_FIT` is gone, and `frameTransform`, `fitFrame` and `unframe` no longer take a `fit` argument: the frame they get already has the box's proportions.
+- `/prepare/county` is now framed on its 28 block groups rather than `TOWN_FRAME`; they reach well west and north of it.

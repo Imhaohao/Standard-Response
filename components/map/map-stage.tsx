@@ -10,7 +10,7 @@ import { BuildingState, InkMapRenderer } from "@/lib/ink-map/renderer";
 import { InkSurface } from "./ink-surface";
 import { PaperSurface } from "./paper-surface";
 import { SmokeLayer } from "./smoke-layer";
-import { closeupFrame, fitFrame, Frame, PAPER_FIT, Size, unframe } from "./projection";
+import { boxFrame, closeupFrame, Fit, fitFrame, Frame, Size, unframe } from "./projection";
 import { useMapGestures } from "./use-map-gestures";
 
 export type SurfaceMode = "ink" | "paper";
@@ -37,13 +37,16 @@ export function useMapStage() {
   return stage;
 }
 
-// The flat map draws a rectangle of ground; the 3D camera shows a bit more than the rectangle it
-// was asked to fit, so the flat frame is widened to hold roughly the same streets.
+// The flat map draws a rectangle of ground. The 3D camera fits the whole overview rectangle on
+// screen, and shows a bit more than a close-up's, so a close-up's flat frame is widened to hold
+// roughly the same streets and then fills the screen.
 function frameEdges(view: InkMapView): [number, number, number, number] {
   if (view.kind === "overview") return [view.fit.x0, view.fit.y0, view.fit.x1, view.fit.y1];
   const frame = closeupFrame(view.center, view.radius * 2.6);
   return [frame.x0, frame.y0, frame.x1, frame.y1];
 }
+
+const flatFit = (view: InkMapView): Fit => (view.kind === "overview" ? "contain" : "cover");
 
 const HIDDEN: ScreenPoint = { x: 0, y: 0, visible: false };
 
@@ -89,7 +92,9 @@ export function MapStage({
   const fail = useCallback(() => setInkFailed(true), []);
   const mode: SurfaceMode = inkFailed ? "paper" : requestedMode;
   const [x0, y0, x1, y1] = frameEdges(view);
-  const frame = useMemo<Frame>(() => ({ x0, y0, x1, y1 }), [x0, y0, x1, y1]);
+  const fit = flatFit(view);
+  // The ground the flat map shows, edge to edge of the box.
+  const frame = useMemo<Frame | null>(() => (size ? boxFrame({ x0, y0, x1, y1 }, size, fit) : null), [x0, y0, x1, y1, size, fit]);
   const projection = useMemo(() => createProjection(data.origin), [data.origin]);
   const { toLatLng, toLocal } = projection;
 
@@ -101,11 +106,11 @@ export function MapStage({
   const groundAt = useCallback(
     (event: ClientPoint) => {
       const box = boxRef.current;
-      if (!size || !box) return null;
+      if (!size || !frame || !box) return null;
       const rect = box.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      const ground = mode === "paper" ? unframe(frame, size, x, y, PAPER_FIT) : handle?.renderer.pickGround(x, y) ?? null;
+      const ground = mode === "paper" ? unframe(frame, size, x, y) : handle?.renderer.pickGround(x, y) ?? null;
       return ground ? { ground, screen: { x, y } } : null;
     },
     [size, mode, frame, handle],
@@ -135,7 +140,7 @@ export function MapStage({
   // Markers are projected from the live camera on the 3D surface, and from the flat frame on the
   // 2D one. Until the canvas has a size there is nothing to project into.
   const value = useMemo(
-    () => (size ? stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }) : null),
+    () => (size && frame ? stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }) : null),
     [data, size, handle, mode, frame, toLocal, toLatLng],
   );
 
@@ -195,7 +200,7 @@ type SurfaceProps = {
   mode: SurfaceMode;
   data: InkMapData;
   view: InkMapView;
-  frame: Frame;
+  frame: Frame | null;
   size: Size | null;
   hazard?: Hazard | null;
   minutes?: number;
@@ -209,7 +214,7 @@ function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fron
   if (mode === "ink") {
     return <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes} highlights={highlights} onHandle={onHandle} onFail={onFail} />;
   }
-  if (!size) return null;
+  if (!size || !frame) return null;
   return (
     <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">
       <PaperSurface data={data} frame={frame} size={size} fronts={fronts} minutes={minutes} />
@@ -263,7 +268,7 @@ type StageInputs = {
 
 function stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }: StageInputs): StageValue {
   const ink = mode === "ink" ? handle?.renderer : undefined;
-  const flat = fitFrame(frame, size, PAPER_FIT);
+  const flat = fitFrame(frame, size);
   const project = mode === "paper" ? flat : ink ? (point: Point, lift = 0) => ink.project(point, lift) : () => HIDDEN;
   return {
     data,

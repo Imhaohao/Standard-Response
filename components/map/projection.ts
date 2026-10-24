@@ -8,19 +8,29 @@ export type LocalProjection = (point: Point) => { x: number; y: number; visible:
 
 const MARGIN = 0.96;
 
-// "contain" leaves paper around the frame; "cover" fills the box and lets the frame run off the
-// edges, which is how the 3D camera frames the same ground.
+// "contain" fits the whole frame in the box, as the 3D camera frames an overview; "cover" fills
+// the box and lets the frame run off the edges, as it frames a close-up.
 export type Fit = "contain" | "cover";
 
-// The flat view and its markers both read this, so a marker never drifts off its street.
-export const PAPER_FIT: Fit = "cover";
-
-// Fits a frame into a box in CSS pixels, centred, keeping the map's proportions. Screen y grows
-// down while map y grows north, so the flip happens here and nowhere else.
-export function frameTransform(frame: Frame, size: Size, fit: Fit = "contain") {
+// The ground a box shows when a frame is fitted into it, centred, with a little margin: the frame
+// widened (contain) or trimmed (cover) to the box's proportions. The flat view draws, picks and
+// places markers over this rectangle, so its streets reach every edge of the box.
+export function boxFrame(frame: Frame, size: Size, fit: Fit): Frame {
   const across = size.width / (frame.x1 - frame.x0);
   const down = size.height / (frame.y1 - frame.y0);
   const scale = (fit === "cover" ? Math.max(across, down) : Math.min(across, down)) * MARGIN;
+  const halfWidth = size.width / scale / 2;
+  const halfHeight = size.height / scale / 2;
+  const cx = (frame.x0 + frame.x1) / 2;
+  const cy = (frame.y0 + frame.y1) / 2;
+  return { x0: cx - halfWidth, y0: cy - halfHeight, x1: cx + halfWidth, y1: cy + halfHeight };
+}
+
+// Maps a frame into a box in CSS pixels, centred, keeping the map's proportions; a frame from
+// boxFrame fills the box exactly. Screen y grows down while map y grows north, so the flip happens
+// here and nowhere else.
+export function frameTransform(frame: Frame, size: Size) {
+  const scale = Math.min(size.width / (frame.x1 - frame.x0), size.height / (frame.y1 - frame.y0));
   return {
     scale,
     offsetX: (size.width - (frame.x1 - frame.x0) * scale) / 2,
@@ -28,8 +38,8 @@ export function frameTransform(frame: Frame, size: Size, fit: Fit = "contain") {
   };
 }
 
-export function fitFrame(frame: Frame, size: Size, fit: Fit = "contain"): LocalProjection {
-  const { scale, offsetX, offsetY } = frameTransform(frame, size, fit);
+export function fitFrame(frame: Frame, size: Size): LocalProjection {
+  const { scale, offsetX, offsetY } = frameTransform(frame, size);
   return ([x, y]) => ({
     x: offsetX + (x - frame.x0) * scale,
     y: offsetY + (frame.y1 - y) * scale,
@@ -37,8 +47,8 @@ export function fitFrame(frame: Frame, size: Size, fit: Fit = "contain"): LocalP
   });
 }
 
-export function unframe(frame: Frame, size: Size, screenX: number, screenY: number, fit: Fit = "contain"): Point {
-  const { scale, offsetX, offsetY } = frameTransform(frame, size, fit);
+export function unframe(frame: Frame, size: Size, screenX: number, screenY: number): Point {
+  const { scale, offsetX, offsetY } = frameTransform(frame, size);
   return [frame.x0 + (screenX - offsetX) / scale, frame.y1 - (screenY - offsetY) / scale];
 }
 
