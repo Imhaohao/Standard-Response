@@ -17,3 +17,15 @@ Heads-up: I touched three of your files for the new `language_barrier` escalatio
 - **Every Convex mutation now comes from `convex/functions.ts`**, not `./_generated/server`. I changed the import line in 19 files, including yours. Lint fails any new `mutation` or `internalMutation` imported from `./_generated/server`, because that would skip the household trigger and drift the counts. Queries, actions and the `MutationCtx` type still come from `./_generated/server`.
 - Writes to `households` are unchanged for callers. A trigger updates two Aggregate components (`householdsByOutcome`, `householdsByCallStatus`) only when `outcome` or `callStatus` changes, so need-estimate and record writes don't touch them.
 - Until `householdCounts:backfill` has run once, `counts` falls back to the old scan, so the panel never shows partial numbers. `control.householdCountsReadyAt` (new, optional) marks the switch.
+
+## 2026-10-24 13:48
+
+**The team is moving to the Convex deployment `robust-penguin-834`.** It already has `main` pushed (schema, every function, both Aggregate components), with `SOLVER_URL` and `SOLVER_TOKEN` set to the DigitalOcean solver (health 200). It holds no data until someone issues a warning on the call floor; Reset and Issue warning seed it as usual. Replace the three Convex lines in your `.env.local` with:
+
+```
+CONVEX_DEPLOYMENT=dev:robust-penguin-834
+NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
+```
+
+Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.

@@ -46,3 +46,23 @@ Two follow-ups in `conversation.ts` and `honesty.ts`, from Track D's cards run l
 ## 2026-10-24 11:38
 
 Heads-up for your Convex files: **Every Convex mutation now comes from `convex/functions.ts`**, not `./_generated/server`. I changed the import line in 19 files, including yours. Lint fails any new `mutation` or `internalMutation` imported from `./_generated/server`, because that would skip the household trigger and drift the counts. Queries, actions and the `MutationCtx` type still come from `./_generated/server`.
+
+## 2026-10-24 13:48
+
+**The team is moving to the Convex deployment `robust-penguin-834`.** It already has `main` pushed (schema, every function, both Aggregate components), with `SOLVER_URL` and `SOLVER_TOKEN` set to the DigitalOcean solver (health 200). It holds no data until someone issues a warning on the call floor; Reset and Issue warning seed it as usual. Replace the three Convex lines in your `.env.local` with:
+
+```
+CONVEX_DEPLOYMENT=dev:robust-penguin-834
+NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
+```
+
+Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
+
+**Brendan, one action:** point the Fly voice server at the new deployment. `voice/env.ts` reads `CONVEX_URL` first, so set that:
+
+```bash
+fly secrets set CONVEX_URL=https://robust-penguin-834.convex.cloud --app rollcall-voice
+```
+
+Setting a secret restarts the machine. If you'd rather deploy `main` at the same time (language and barrier work), run `npm run deploy:voice` right after.

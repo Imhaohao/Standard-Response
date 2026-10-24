@@ -38,3 +38,17 @@ Heads-up for your Convex files: **Every Convex mutation now comes from `convex/f
 ## 2026-10-24 12:00
 
 `test_prompt_leak_check_reads_the_interpreter_prompt` failed. `PromptLeakCheck.from_repo` only matched a template literal assigned directly to `SYSTEM` in `voice/agent/interpreter.ts`. The prompt text now lives in the `systemFor` template, and `SYSTEM` is a per-hazard map of that template, so the check found no phrases and an injection run could not flag a spoken prompt. `from_repo` now reads the `systemFor` template through its closing backtick, and adds each hazard's situation and at-home line as its own phrase.
+
+## 2026-10-24 13:48
+
+**The team is moving to the Convex deployment `robust-penguin-834`.** It already has `main` pushed (schema, every function, both Aggregate components), with `SOLVER_URL` and `SOLVER_TOKEN` set to the DigitalOcean solver (health 200). It holds no data until someone issues a warning on the call floor; Reset and Issue warning seed it as usual. Replace the three Convex lines in your `.env.local` with:
+
+```
+CONVEX_DEPLOYMENT=dev:robust-penguin-834
+NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
+```
+
+Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
+
+Your Python scripts read the Convex URL from the repo's `.env.local`, so they follow once the lines above are in place. Restart `run_models.py` if it's running.

@@ -9,3 +9,17 @@ The Convex Aggregate component is in, for call-floor counts and to cut the Datab
 - `convex/convex.config.ts` is new (it installs the two components), and so are `@convex-dev/aggregate` and `convex-helpers` in `package.json`. Run `npm install` after you pull.
 - Tested with convex-test on an in-memory backend: rider import, call start and end, a record update, `clearTables` and a re-import all match a full scan. The test fails when the trigger is removed. I didn't commit the test, because vitest conflicts with our `@types/node` 20.
 - Still the biggest readers, unchanged and yours: the fallback need model scanning households every tick (`sim.ts:153`), and `fleet.tick` re-reading closures, vehicles and routes. Insights also show `dispatch.commit` failing for good 5 times on OCC conflicts with `fleet.tick` vehicle writes.
+
+## 2026-10-24 13:48
+
+**The team is moving to the Convex deployment `robust-penguin-834`.** It already has `main` pushed (schema, every function, both Aggregate components), with `SOLVER_URL` and `SOLVER_TOKEN` set to the DigitalOcean solver (health 200). It holds no data until someone issues a warning on the call floor; Reset and Issue warning seed it as usual. Replace the three Convex lines in your `.env.local` with:
+
+```
+CONVEX_DEPLOYMENT=dev:robust-penguin-834
+NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site
+```
+
+Then restart `npm run dev` and anything else that read the old URL at start. Pull `main` before running `npx convex dev`, because that command pushes your local `convex/` over everyone's. `oceanic-panda-520` stops being the shared one now.
+
+**Track C, one action:** you own the Vercel app (`https://rollcall-blush.vercel.app`). Set `NEXT_PUBLIC_CONVEX_URL=https://robust-penguin-834.convex.cloud` (and `NEXT_PUBLIC_CONVEX_SITE_URL=https://robust-penguin-834.convex.site`) in its environment, then redeploy. `NEXT_PUBLIC_` values are baked in at build time, so a redeploy is required. The solver itself needs no change.
