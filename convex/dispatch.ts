@@ -6,6 +6,7 @@ import { liveAssignmentsFor, liveAssignmentsForVehicle } from "./offers";
 import { writePlan } from "./plans";
 import { audit, escalateHousehold } from "./requests";
 import { vehicleCanServe } from "./model";
+import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
 import type { Snapshot } from "./dispatchSnapshot";
 
@@ -253,6 +254,8 @@ export const routes = query({
       vehicleId: route.vehicleId,
       target: route.target,
       boarding: route.dwellUntil !== undefined,
+      // Updated every tick; vehicles:list positions update every 2.5 s.
+      position: route.path.length > 0 ? positionAt(route, route.progressSeconds) : null,
       remaining: remainingPath(route.path, route.legSeconds, route.progressSeconds),
     }));
   },

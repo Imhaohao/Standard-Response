@@ -63,3 +63,17 @@ export function forecastRun<Id>(start: RunState<Id>, startSeconds: number, trave
   }
   return { ...forecast, endNode: state.node, endSeconds: time };
 }
+
+// Where a vehicle is after driving `progress` road seconds along a path split into legs.
+export function positionAt(route: { path: { lat: number; lng: number }[]; legSeconds: number[] }, progress: number) {
+  let elapsed = 0;
+  for (const [i, seconds] of route.legSeconds.entries()) {
+    if (elapsed + seconds >= progress) {
+      const fraction = seconds === 0 ? 1 : (progress - elapsed) / seconds;
+      const [a, b] = [route.path[i], route.path[i + 1]];
+      return { lat: a.lat + (b.lat - a.lat) * fraction, lng: a.lng + (b.lng - a.lng) * fraction };
+    }
+    elapsed += seconds;
+  }
+  return route.path[route.path.length - 1];
+}

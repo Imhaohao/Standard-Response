@@ -7,13 +7,16 @@ import { maybeReplan } from "./dispatch";
 import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
 import { closedEdgeSet, edgePath, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
-import { nextStop, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
+import { nextStop, positionAt, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
 
 // Simulated vehicles drive their accepted runs along real road paths. Replaces the straight-line
 // movement in dispatchStandIn.ts when the dispatch stand-in is switched off.
 
 // Getting from where the van stands to the nearest intersection, or from the curb to the door.
 const CURB_SPEED_MPS = 8;
+// Vehicle rows are written this often, not every tick: re-plan commits read vehicles, and a write on
+// every 0.9 s tick made busy commits conflict on every retry. dispatch:routes has the per-tick position.
+const VEHICLE_POSITION_EVERY_MS = 2_500;
 
 type Target = Doc<"vehicleRoutes">["target"];
 // Where the run says to go next. "shelter" becomes a specific shelter once the nearest is found.
@@ -123,19 +126,6 @@ async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles
   return (await ctx.db.get("vehicleRoutes", id))!;
 }
 
-function positionAt(route: Pick<Doc<"vehicleRoutes">, "path" | "legSeconds">, progress: number): Point {
-  let elapsed = 0;
-  for (const [i, seconds] of route.legSeconds.entries()) {
-    if (elapsed + seconds >= progress) {
-      const fraction = seconds === 0 ? 1 : (progress - elapsed) / seconds;
-      const [a, b] = [route.path[i], route.path[i + 1]];
-      return { lat: a.lat + (b.lat - a.lat) * fraction, lng: a.lng + (b.lng - a.lng) * fraction };
-    }
-    elapsed += seconds;
-  }
-  return route.path[route.path.length - 1];
-}
-
 async function event(ctx: MutationCtx, message: string, householdId?: Id<"households">) {
   await ctx.db.insert("events", { kind: "dispatch", message, householdId, at: Date.now() });
 }
@@ -175,9 +165,14 @@ async function drive(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, r
   if (route.legSeconds.length === 0) return;
   const total = route.legSeconds.reduce((sum, s) => sum + s, 0);
   const progressSeconds = Math.min(total, route.progressSeconds + fleet.tickSeconds * SIMULATED_TIME_LAPSE);
-  const position = positionAt(route, progressSeconds);
-  await ctx.db.patch("vehicles", vehicle._id, { lat: position.lat, lng: position.lng });
-  await ctx.db.patch("vehicleRoutes", route._id, { progressSeconds, updatedAt: fleet.now });
+  const arriving = progressSeconds >= total;
+  const positionDue = fleet.now - (route.positionWrittenAt ?? 0) >= VEHICLE_POSITION_EVERY_MS;
+  if (arriving || positionDue) {
+    const position = positionAt(route, progressSeconds);
+    await ctx.db.patch("vehicles", vehicle._id, { lat: position.lat, lng: position.lng });
+  }
+  const positionWrittenAt = arriving || positionDue ? fleet.now : route.positionWrittenAt;
+  await ctx.db.patch("vehicleRoutes", route._id, { progressSeconds, positionWrittenAt, updatedAt: fleet.now });
   await markEnRoute(ctx, route.target);
   if (progressSeconds < total) return;
   if (route.target.kind === "pickup") await arriveAtPickup(ctx, fleet, vehicle, route, route.target.assignmentId);

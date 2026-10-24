@@ -407,6 +407,8 @@ export default defineSchema({
     closuresSeen: v.number(),
     // Boarding: the vehicle waits at the pickup until then.
     dwellUntil: v.optional(v.number()),
+    // When the vehicle row's lat/lng was last written from this route.
+    positionWrittenAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_vehicleId", ["vehicleId"]),
 

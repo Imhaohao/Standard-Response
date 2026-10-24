@@ -10,7 +10,7 @@ cat do-app.yaml > "$spec"
 printf '    envs:\n      - key: SOLVER_TOKEN\n        scope: RUN_TIME\n        type: SECRET\n        value: "%s"\n' "$(cat .solver-token)" >> "$spec"
 app_id=$(doctl apps list --format ID,Spec.Name --no-header | awk '$2=="rollcall-solver"{print $1}')
 if [ -n "$app_id" ]; then
-  doctl apps update "$app_id" --spec "$spec" --wait --format ID,DefaultIngress,Phase
+  doctl apps update "$app_id" --spec "$spec" --wait --format ID,DefaultIngress
 else
-  doctl apps create --spec "$spec" --wait --format ID,DefaultIngress,Phase
+  doctl apps create --spec "$spec" --wait --format ID,DefaultIngress
 fi
