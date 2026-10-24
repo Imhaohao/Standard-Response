@@ -24,10 +24,23 @@ export const REPORT_TTL_MS = 6 * 60 * 60_000;
 export const MAX_HOPS = 64;
 const MAX_REPORTS_PER_SEGMENT = 12;
 export const MAX_REPORTS = 4000;
-// Observations lose half their weight every half hour, so a road that reopens is seen as open.
-const HALF_LIFE_MS = 30 * 60_000;
-const MIN_CONSENSUS_WEIGHT = 0.5;
+// Observations lose half their weight every 90 minutes, so a newer "clear" outvotes an older
+// "blocked" and a road that reopens is seen as open. A lone report counts for about three hours.
+const HALF_LIFE_MS = 90 * 60_000;
+const MIN_CONSENSUS_WEIGHT = 0.25;
 const MAX_CLOCK_SKEW_MS = 10 * 60_000;
+
+// Order-independent digest of a set of ids: two 32-bit FNV-1a hashes, XOR-ed over the set.
+function fnv(text: string, seed: number) {
+  let hash = seed >>> 0;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619) >>> 0;
+  return hash;
+}
+const hashA = (id: string) => fnv(id, 2166136261);
+const hashB = (id: string) => fnv(id, 3735928559);
+
+export type Digest = { count: number; a: number; b: number };
+export const sameDigest = (x: Digest, y: Digest) => x.count === y.count && x.a === y.a && x.b === y.b;
 
 export const coarsenTime = (at: number) => Math.floor(at / TIME_BUCKET_MS) * TIME_BUCKET_MS;
 
@@ -115,6 +128,19 @@ export function consensusOf(segment: string, reports: Iterable<RoadReport>, now:
 export class ReportStore {
   private byId = new Map<string, RoadReport>();
   private bySegment = new Map<string, Set<string>>();
+  // Bumped on every change, so callers can cache what they derive from the store.
+  revision = 0;
+  private digestA = 0;
+  private digestB = 0;
+
+  digest(): Digest {
+    return { count: this.byId.size, a: this.digestA >>> 0, b: this.digestB >>> 0 };
+  }
+
+  private toggle(id: string) {
+    this.digestA ^= hashA(id);
+    this.digestB ^= hashB(id);
+  }
 
   get size() {
     return this.byId.size;
@@ -153,10 +179,12 @@ export class ReportStore {
         continue;
       }
       this.byId.set(report.id, report);
+      this.toggle(report.id);
       const ids = this.bySegment.get(report.segment) ?? new Set<string>();
       ids.add(report.id);
       this.bySegment.set(report.segment, ids);
       added.push(report);
+      this.revision += 1;
       this.trimSegment(report.segment);
     }
     if (this.byId.size > MAX_REPORTS) this.trimOldest(this.byId.size - MAX_REPORTS);
@@ -186,7 +214,9 @@ export class ReportStore {
   private remove(id: string) {
     const report = this.byId.get(id);
     if (!report) return;
+    this.revision += 1;
     this.byId.delete(id);
+    this.toggle(id);
     const ids = this.bySegment.get(report.segment);
     ids?.delete(id);
     if (ids?.size === 0) this.bySegment.delete(report.segment);

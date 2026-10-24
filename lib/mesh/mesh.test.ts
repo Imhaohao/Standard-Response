@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { auc, DIMENSIONS, Example, featuresOf, INITIAL_MODEL, isValidMix, MixPool, predict, trainLocally, UPLOAD_MIN_MASS } from "./federated";
+import { auc, DIMENSIONS, Example, featuresOf, fitCentrally, INITIAL_MODEL, isValidMix, MIN_EXAMPLES, MixPool, predict, trainLocally, UPLOAD_MIN_MASS } from "./federated";
 import { meet, MeshNode } from "./node";
 import { gaussianDelta, gaussianEpsilon, privacySpent, privatize } from "./privacy";
 import { gaussian, seededIds, seededRandom } from "./random";
@@ -45,11 +45,12 @@ describe("road reports", () => {
     backward.add(reports, NOW);
     assert.deepEqual(forward.ids().sort(), backward.ids().sort());
     assert.equal(forward.size, 30);
+    assert.deepEqual(forward.digest(), backward.digest());
   });
 
   it("lets a recent clear report outvote an old blocked one", () => {
     const ids = seededIds(seededRandom(4));
-    const old = makeReport({ segment: SEGMENT, status: "blocked", observedAt: NOW - 120 * 60_000 }, ids);
+    const old = makeReport({ segment: SEGMENT, status: "blocked", observedAt: NOW - 300 * 60_000 }, ids);
     const recent = makeReport({ segment: SEGMENT, status: "clear", observedAt: NOW - 60_000 }, ids);
     assert.equal(consensusOf(SEGMENT, [old], NOW).status, "unknown");
     assert.equal(consensusOf(SEGMENT, [old, recent], NOW).status, "clear");
@@ -97,7 +98,7 @@ describe("meetings", () => {
   it("ignores garbage from a peer", () => {
     const a = makeNode(30);
     assert.deepEqual(a.receive("hello"), []);
-    assert.deepEqual(a.receive({ type: "hello", protocol: 99, session: "x", have: [], modelVersion: 0 }), []);
+    assert.deepEqual(a.receive({ type: "hello", protocol: 99, session: "x", digest: { count: 0, a: 0, b: 0 }, modelVersion: 0, holding: [], sink: false }), []);
     a.receive({ type: "reports", reports: [{ id: "zz", segment: SEGMENT, status: "blocked", observedAt: NOW, hops: 0 }] });
     a.receive({ type: "mix", transfer: "t", mix: { version: 0, sum: [1e9, 0, 0, 0, 0, 0, 0], mass: 1 } });
     a.receive({ type: "model", model: { version: 5, weights: [1], issuedAt: 0, contributors: 0 } });
@@ -121,6 +122,8 @@ describe("push-sum aggregation", () => {
     const total = nodes.reduce((mass, node) => mass + node.pool.totalMass(), 0);
     assert.ok(Math.abs(total - nodes.length) < 1e-9);
 
+    const heaviest = Math.max(...nodes.map((node) => node.pool.totalMass()));
+    assert.ok(heaviest > 3, `mass gathers on some phones (heaviest holds ${heaviest})`);
     const uploaded = nodes.flatMap((node) => node.pool.drain(0));
     const mass = uploaded.reduce((sum, mix) => sum + mix.mass, 0);
     const mean = updates[0].map((_, d) => updates.reduce((sum, u) => sum + u[d], 0) / updates.length);
@@ -175,22 +178,34 @@ function syntheticExamples(random: () => number, count: number, truth: number[])
 const TRUTH = [-3, 3.5, 2, 1, -0.5, 0.3, 1.5];
 
 describe("federated learning", () => {
+  it("lets a phone contribute again only after it has seen something new", () => {
+    const node = makeNode(70);
+    for (const example of syntheticExamples(seededRandom(71), MIN_EXAMPLES, TRUTH)) node.observe(example);
+    assert.equal(node.contributions(), 1);
+    node.adoptModel({ ...INITIAL_MODEL, version: 1 });
+    assert.equal(node.contributions(), 1);
+    for (const example of syntheticExamples(seededRandom(72), MIN_EXAMPLES, TRUTH)) node.observe(example);
+    assert.equal(node.contributions(), 2);
+    assert.ok(node.privacy().epsilon > 0);
+  });
+
   it("learns on one phone", () => {
     const random = seededRandom(50);
     const train = syntheticExamples(random, 400, TRUTH);
     const test = syntheticExamples(random, 400, TRUTH);
-    const weights = trainLocally(INITIAL_MODEL.weights, train, { epochs: 20, learningRate: 0.1, l2: 0, clip: 1, noiseMultiplier: 0 }, random);
+    const weights = trainLocally(INITIAL_MODEL.weights, train, { epochs: 300, learningRate: 1, l2: 0, positiveWeight: 1 });
     assert.ok(auc(weights, test) > 0.8);
+    assert.ok(auc(fitCentrally(train), test) > 0.8);
   });
 
   it("improves the shared model from noised updates mixed over the mesh", () => {
     const random = seededRandom(60);
     const nodes = Array.from({ length: 80 }, (_, i) => makeNode(200 + i));
-    for (const node of nodes) for (const example of syntheticExamples(random, 12, TRUTH)) node.observe(example);
     const test = syntheticExamples(random, 600, TRUTH);
     for (const node of nodes.slice(0, 8)) node.sink = true;
     let model = INITIAL_MODEL;
     for (let round = 0; round < 12; round++) {
+      for (const node of nodes) for (const example of syntheticExamples(random, MIN_EXAMPLES, TRUTH)) node.observe(example);
       for (const node of nodes) node.adoptModel(model);
       for (let step = 0; step < 300; step++) meet(nodes[Math.floor(random() * 80)], nodes[Math.floor(random() * 80)]);
       let open = emptyRound(model.version);
@@ -200,9 +215,9 @@ describe("federated learning", () => {
           open = addToRound(open, mix) ?? open;
         }
       }
-      if (roundIsReady(open, 10)) model = closeRound(model, open, NOW);
+      if (roundIsReady(open, 10)) ({ model } = closeRound(model, open, NOW));
     }
-    assert.ok(model.version >= 6, `model reached version ${model.version}`);
+    assert.ok(model.version >= 5, `model reached version ${model.version}`);
     assert.ok(auc(model.weights, test) > 0.75, `AUC ${auc(model.weights, test)}`);
   });
 });

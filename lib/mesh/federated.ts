@@ -10,10 +10,12 @@ import { IdSource, Random } from "./random";
 // phone; only a clipped, noised change to the weights does.
 //
 // Aggregation happens between phones. Each contribution is a (sum, mass) pair with mass 1. When
-// two phones meet, each sends the other half of what it holds, so mass is conserved and the
-// ratio sum/mass stays the average of everything mixed in (push-sum gossip, Kempe et al. 2003).
-// A phone with internet uploads what it holds once its mass reaches UPLOAD_MIN_MASS and resets to
-// zero. The government ends up with sums over many phones' worth of mass and never one update.
+// two phones meet, the one holding less of a version sends the other half of it, so mass is
+// conserved, the ratio sum/mass stays the average of everything mixed in (push-sum gossip, Kempe
+// et al. 2003), and mass gathers on a few phones instead of spreading thin. A gateway (a phone
+// with internet whose owner agreed to upload for others) counts as heaviest, so mass flows to it.
+// A gateway uploads what it holds once its mass reaches UPLOAD_MIN_MASS and resets to zero. The
+// government ends up with sums over many phones' worth of mass and never one update.
 
 export const FEATURE_NAMES = [
   "bias",
@@ -34,7 +36,8 @@ export type FeatureInput = {
   nearbyBlockedShare: number;
 };
 
-export function featuresOf(input: FeatureInput): number[] {
+// The features before standardisation.
+export function rawFeaturesOf(input: FeatureInput): number[] {
   const toFire = Math.max(-240, Math.min(input.minutesToFire, 600));
   return [
     1,
@@ -45,6 +48,19 @@ export function featuresOf(input: FeatureInput): number[] {
     Math.min(Math.max(input.minutesSinceWarning, 0), 480) / 180,
     Math.min(Math.max(input.nearbyBlockedShare, 0), 1),
   ];
+}
+
+// Every feature but the bias is centred and scaled by its mean and spread over every street in the
+// map from the warning to five hours after it (scripts/mesh/feature-scale.ts recomputes them from
+// the road graph and the fire scenario, both public). Scaling on the phone, before clipping and
+// noise, matters: noise is the same size in every direction of the weights, so a feature that is
+// rarely nonzero would otherwise carry a signal far below the noise. Centring also separates the
+// bias from road class and the clock, which plain gradient steps otherwise confuse.
+export const FEATURE_CENTER = [0, 0.18, 0.149, 0.553, 0.433, 0.833, 0.144];
+export const FEATURE_SCALE = [1, 0.363, 0.356, 0.497, 0.299, 0.505, 0.271];
+
+export function featuresOf(input: FeatureInput): number[] {
+  return rawFeaturesOf(input).map((value, i) => (i === 0 ? 1 : (value - FEATURE_CENTER[i]) / FEATURE_SCALE[i]));
 }
 
 export type GlobalModel = { version: number; weights: number[]; issuedAt: number; contributors: number };
@@ -63,42 +79,99 @@ export function dot(a: readonly number[], b: readonly number[]) {
 export const predict = (weights: readonly number[], x: readonly number[]) => sigmoid(dot(weights, x));
 
 export type TrainingParams = {
+  // A phone contributes to at most this many model versions, which bounds its total privacy loss.
+  maxContributions: number;
   epochs: number;
   learningRate: number;
   l2: number;
+  positiveWeight: number;
   clip: number;
   noiseMultiplier: number;
 };
 
-export const DEFAULT_TRAINING: TrainingParams = { epochs: 5, learningRate: 0.3, l2: 1e-3, clip: 1, noiseMultiplier: 1.5 };
+export const DEFAULT_TRAINING: TrainingParams = {
+  maxContributions: 6,
+  epochs: 3,
+  learningRate: 0.5,
+  l2: 1e-3,
+  positiveWeight: 10,
+  clip: 0.5,
+  noiseMultiplier: 1.5,
+};
 
 // Minimum examples before a phone takes part, so a one-observation phone doesn't add pure noise.
 export const MIN_EXAMPLES = 4;
 
-function shuffled<T>(items: T[], random: Random) {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+// Gradient of the weighted mean logistic loss. Blocked roads are a few percent of what phones
+// see, so each blocked observation counts `positiveWeight` times. For a logistic model that mostly
+// moves the intercept, so the ranking of streets (what the agency uses) is unchanged, while the
+// fire terms get enough signal to rise above the privacy noise.
+export function meanGradient(weights: readonly number[], examples: Example[], l2: number, positiveWeight = 1) {
+  const gradient = Array(weights.length).fill(0);
+  let total = 0;
+  for (const { x, y } of examples) {
+    const weight = y === 1 ? positiveWeight : 1;
+    const error = (predict(weights, x) - y) * weight;
+    for (let i = 0; i < gradient.length; i++) gradient[i] += error * x[i];
+    total += weight;
   }
-  return copy;
+  return gradient.map((g, i) => g / Math.max(total, 1) + l2 * weights[i]);
 }
 
-// Plain SGD on the logistic loss from the global weights; returns the new weights.
-export function trainLocally(weights: readonly number[], examples: Example[], params: TrainingParams, random: Random) {
-  const w = [...weights];
+// A few full-batch gradient steps from the global weights. Full-batch steps keep an update's size
+// tied to how badly the model fits this phone's data, so phones that only ever saw clear roads
+// stop pushing once the model agrees with them, instead of pulling it toward "nothing is ever
+// blocked" (client drift under label skew, which per-example SGD with clipping makes worse).
+export function trainLocally(
+  weights: readonly number[],
+  examples: Example[],
+  params: Pick<TrainingParams, "epochs" | "learningRate" | "l2" | "positiveWeight">,
+) {
+  let w = [...weights];
   for (let epoch = 0; epoch < params.epochs; epoch++) {
-    for (const { x, y } of shuffled(examples, random)) {
-      const error = predict(w, x) - y;
-      for (let i = 0; i < w.length; i++) w[i] -= params.learningRate * (error * x[i] + params.l2 * w[i]);
+    const gradient = meanGradient(w, examples, params.l2, params.positiveWeight);
+    w = w.map((value, i) => value - params.learningRate * gradient[i]);
+  }
+  return w;
+}
+
+function solve(matrix: number[][], vector: number[]) {
+  const n = vector.length;
+  const a = matrix.map((row, i) => [...row, vector[i]]);
+  for (let col = 0; col < n; col++) {
+    let pivot = col;
+    for (let row = col + 1; row < n; row++) if (Math.abs(a[row][col]) > Math.abs(a[pivot][col])) pivot = row;
+    [a[col], a[pivot]] = [a[pivot], a[col]];
+    for (let row = 0; row < n; row++) {
+      if (row === col || a[col][col] === 0) continue;
+      const factor = a[row][col] / a[col][col];
+      for (let k = col; k <= n; k++) a[row][k] -= factor * a[col][k];
     }
+  }
+  return a.map((row, i) => (row[i] === 0 ? 0 : row[n] / row[i]));
+}
+
+// Logistic regression fitted centrally by Newton's method. Only for measuring: it needs every
+// example in one place, which is exactly what the phones never allow.
+export function fitCentrally(examples: Example[], l2 = 1e-3, iterations = 12) {
+  let w: number[] = Array(DIMENSIONS).fill(0);
+  for (let it = 0; it < iterations && examples.length > 0; it++) {
+    const gradient = meanGradient(w, examples, l2);
+    const hessian = Array.from({ length: DIMENSIONS }, (_, i) => Array.from({ length: DIMENSIONS }, (_, j) => (i === j ? l2 : 0)));
+    for (const { x } of examples) {
+      const p = predict(w, x);
+      const weight = (p * (1 - p)) / examples.length;
+      for (let i = 0; i < DIMENSIONS; i++) for (let j = 0; j < DIMENSIONS; j++) hessian[i][j] += weight * x[i] * x[j];
+    }
+    const step = solve(hessian, gradient);
+    w = w.map((value, i) => value - step[i]);
   }
   return w;
 }
 
 // What leaves the phone: the change to the weights, clipped and noised on the phone.
 export function privateUpdate(model: GlobalModel, examples: Example[], params: TrainingParams, random: Random) {
-  const trained = trainLocally(model.weights, examples, params, random);
+  const trained = trainLocally(model.weights, examples, params);
   const delta = trained.map((value, i) => value - model.weights[i]);
   return privatize(delta, params.clip, params.noiseMultiplier, random);
 }
@@ -166,7 +239,6 @@ export function isValidModel(value: unknown): value is GlobalModel {
 }
 
 const RECENT_TRANSFERS = 512;
-const KEEP_VERSIONS = 3;
 
 // What one phone holds for each model version, plus the transfers it has already applied.
 export class MixPool {
@@ -214,11 +286,15 @@ export class MixPool {
     return true;
   }
 
-  // Keeps half of every version and returns the other half, each with a fresh transfer id.
-  splitHalf(newId: IdSource): { transfer: string; mix: Mix }[] {
+  holding(): { version: number; mass: number }[] {
+    return [...this.states.values()].map(({ version, mass }) => ({ version, mass }));
+  }
+
+  // Keeps half of each chosen version and returns the other half, each with a fresh transfer id.
+  splitHalf(newId: IdSource, give: (version: number, mass: number) => boolean = () => true): { transfer: string; mix: Mix }[] {
     const out: { transfer: string; mix: Mix }[] = [];
     for (const state of this.states.values()) {
-      if (state.mass <= 1e-9) continue;
+      if (state.mass <= 1e-9 || !give(state.version, state.mass)) continue;
       for (let i = 0; i < state.sum.length; i++) state.sum[i] /= 2;
       state.mass /= 2;
       out.push({ transfer: newId(), mix: { version: state.version, sum: [...state.sum], mass: state.mass } });
@@ -233,8 +309,8 @@ export class MixPool {
     return ready;
   }
 
-  // Old versions are still worth uploading (the server discounts staleness), but only a few are kept.
-  prune(currentVersion: number) {
-    for (const version of this.states.keys()) if (version < currentVersion - KEEP_VERSIONS) this.states.delete(version);
+  // Mass for versions the server would refuse as too stale is dropped (see rounds.ts).
+  prune(currentVersion: number, maxStaleness: number) {
+    for (const version of this.states.keys()) if (version < currentVersion - maxStaleness) this.states.delete(version);
   }
 }
