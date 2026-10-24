@@ -11,3 +11,7 @@ The readiness survey add-on is decentralized data collection for preparedness, s
 ## 2026-10-24 14:24
 
 - The Vercel app (`rollcall-blush.vercel.app`) is still built against `oceanic-panda-520`, not `robust-penguin-834`. `/prepare` and `/prepare/county` crash there with "Could not find public function for 'prepare:counts'", because the old deployment never got `convex/prepare.ts`. `robust-penguin-834` has it and answers. Setting `NEXT_PUBLIC_CONVEX_URL` (and `NEXT_PUBLIC_CONVEX_SITE_URL`) on Vercel to `robust-penguin-834` and redeploying fixes it; every other page there is on the old deployment too.
+
+## 2026-10-24 14:52
+
+- Vercel now points at `robust-penguin-834`. I published one simulated readiness campaign there (`scripts/prepare/simulate.ts --publish`, seed 1: 2,036 uploads, none refused) so `/prepare/county` has counts and shared models. It's synthetic and only touches `prepareModels`, `prepareRounds` and `prepareTallies`. `npx convex run prepare:clear` empties them.
