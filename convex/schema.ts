@@ -503,4 +503,43 @@ export default defineSchema({
   // The traffic forecast the Langevin crowd model runner (scripts/mesh/traffic-forecast.ts) publishes
   // for the agency view. Simulated traffic of the synthetic town, with ranges over ensemble members.
   meshTrafficForecasts: defineTable(trafficForecastFields).index("by_issuedAt", ["issuedAt"]),
+
+  // Readiness survey add-on (lib/prepare, convex/prepare.ts). Separate from the core flow and the
+  // mesh: nothing else reads these. Households' answers never arrive here, only mixes of five or
+  // more households' noised model updates and randomized-response counts. No phone, person or
+  // uploader id is stored.
+  // Each shared model, one row per task and version. `first`/`second` are the server optimizer's
+  // state and never leave the server.
+  prepareModels: defineTable({
+    task: v.string(),
+    version: v.number(),
+    weights: v.array(v.number()),
+    issuedAt: v.number(),
+    contributors: v.number(),
+    // The share of households asked to train this version (lib/prepare/tasks.ts).
+    sampleRate: v.number(),
+    first: v.array(v.number()),
+    second: v.array(v.number()),
+    round: v.optional(v.object({ mass: v.number(), uploads: v.number(), staleMass: v.number() })),
+  }).index("by_task_version", ["task", "version"]),
+
+  // One per task: the round collecting mixes for that task's current model.
+  prepareRounds: defineTable({
+    task: v.string(),
+    baseVersion: v.number(),
+    sum: v.array(v.number()),
+    mass: v.number(),
+    uploads: v.number(),
+    staleMass: v.number(),
+  }).index("by_task", ["task"]),
+
+  // One per survey campaign: the summed counts, area by area (layout in lib/prepare/tally.ts), and
+  // how many mixes of any kind the county refused.
+  prepareTallies: defineTable({
+    campaign: v.string(),
+    sum: v.array(v.number()),
+    mass: v.number(),
+    uploads: v.number(),
+    refused: v.number(),
+  }).index("by_campaign", ["campaign"]),
 });

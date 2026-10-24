@@ -1,0 +1,692 @@
+{
+ "label": "Simulation, not a prediction. Synthetic answers on Track D's synthetic population; rates assumed in lib/prepare/synthetic.ts.",
+ "settings": {
+  "hours": 2160,
+  "meetChance": 0.25,
+  "neighbours": 12,
+  "gatewayShare": 0.05,
+  "modelFetchChance": 0.1,
+  "training": {
+   "maxContributions": 3,
+   "epochs": 1,
+   "learningRate": 1,
+   "l2": 0.001,
+   "positiveWeight": 1,
+   "clip": 1,
+   "noiseMultiplier": 1.2
+  },
+  "rates": {
+   "participate": 0.4,
+   "participateLowIncomeCut": 0.15,
+   "consent": {
+    "water": 0.85,
+    "money": 0.55,
+    "health": 0.7
+   },
+   "tested": 0.25,
+   "testedIfChanged": 0.6,
+   "pipeUnknown": 0.35,
+   "builtUnknown": 0.06,
+   "insuranceUnknown": 0.2,
+   "well": 0.03
+  },
+  "areas": 28,
+  "areaIndexSize": 28
+ },
+ "runs": [
+  {
+   "seed": 1,
+   "households": 11855,
+   "takingPart": 4394,
+   "uploads": 2036,
+   "meanMassPerUpload": 6.1,
+   "reachedCounty": 0.968,
+   "refused": 0,
+   "privacy": {
+    "medianEpsilonPerTopic": 2.77,
+    "maxEpsilonPerTopic": 9.51
+   },
+   "models": {
+    "water": {
+     "version": 10,
+     "householdsWorth": 401.1,
+     "labelledHouseholds": 1105,
+     "auc": {
+      "federated": 0.733,
+      "centralOnSameData": 0.774,
+      "oracle": 0.778
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -1.88,
+       "central": -1.43
+      },
+      {
+       "name": "private well",
+       "federated": 0.79,
+       "central": 0.47
+      },
+      {
+       "name": "built before 1950",
+       "federated": 0.2,
+       "central": 0.58
+      },
+      {
+       "name": "built 1950 to 1985",
+       "federated": -0.03,
+       "central": 0.31
+      },
+      {
+       "name": "build year unknown",
+       "federated": -0.36,
+       "central": 0.26
+      },
+      {
+       "name": "lead or galvanized pipe",
+       "federated": 0.1,
+       "central": 0.36
+      },
+      {
+       "name": "pipe unknown",
+       "federated": -0.07,
+       "central": 0.21
+      },
+      {
+       "name": "fire damage on the block",
+       "federated": 0.4,
+       "central": 0.65
+      },
+      {
+       "name": "water changed lately",
+       "federated": 0.3,
+       "central": 0.46
+      }
+     ],
+     "meanPredicted": 0.159,
+     "trueShare": 0.243
+    },
+    "money": {
+     "version": 14,
+     "householdsWorth": 563.4,
+     "labelledHouseholds": 2426,
+     "auc": {
+      "federated": 0.757,
+      "centralOnSameData": 0.775,
+      "oracle": 0.777
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -1.15,
+       "central": -0.8
+      },
+      {
+       "name": "income under $35k",
+       "federated": 0.93,
+       "central": 0.78
+      },
+      {
+       "name": "income $35k to $75k",
+       "federated": 0.56,
+       "central": 0.5
+      },
+      {
+       "name": "income $75k to $150k",
+       "federated": 0.47,
+       "central": 0.26
+      },
+      {
+       "name": "rents",
+       "federated": 1.04,
+       "central": 0.27
+      },
+      {
+       "name": "no car",
+       "federated": 0.33,
+       "central": 0.29
+      },
+      {
+       "name": "no insurance for a stay",
+       "federated": 0.54,
+       "central": 0.29
+      },
+      {
+       "name": "paid by the hour",
+       "federated": 0.3,
+       "central": 0.27
+      },
+      {
+       "name": "people at home",
+       "federated": 0.55,
+       "central": 0.2
+      }
+     ],
+     "meanPredicted": 0.326,
+     "trueShare": 0.346
+    }
+   },
+   "tallies": [
+    {
+     "item": "noStoredWater",
+     "town": {
+      "estimate": 0.611,
+      "low": 0.584,
+      "high": 0.637,
+      "truthAmongShared": 0.609,
+      "truthEveryone": 0.609
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.146,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "failedWaterTest",
+     "town": {
+      "estimate": 0.246,
+      "low": 0.199,
+      "high": 0.293,
+      "truthAmongShared": 0.283,
+      "truthEveryone": 0.286
+     },
+     "areaCoverage": 0.88,
+     "meanHalfWidth": 0.215,
+     "areasWithAnswers": 26
+    },
+    {
+     "item": "cantAffordWeek",
+     "town": {
+      "estimate": 0.328,
+      "low": 0.295,
+      "high": 0.36,
+      "truthAmongShared": 0.321,
+      "truthEveryone": 0.346
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.174,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "noStayInsurance",
+     "town": {
+      "estimate": 0.525,
+      "low": 0.492,
+      "high": 0.559,
+      "truthAmongShared": 0.545,
+      "truthEveryone": 0.539
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.183,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "poweredDevice",
+     "town": {
+      "estimate": 0.039,
+      "low": 0.015,
+      "high": 0.064,
+      "truthAmongShared": 0.052,
+      "truthEveryone": 0.057
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.093,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "coldMedicine",
+     "town": {
+      "estimate": 0.08,
+      "low": 0.055,
+      "high": 0.106,
+      "truthAmongShared": 0.081,
+      "truthEveryone": 0.081
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.106,
+     "areasWithAnswers": 28
+    }
+   ],
+   "participationBias": {
+    "rawCount": 0.328,
+    "modelOverEveryone": 0.326,
+    "truth": 0.346
+   }
+  },
+  {
+   "seed": 2,
+   "households": 11855,
+   "takingPart": 4416,
+   "uploads": 2002,
+   "meanMassPerUpload": 6.1,
+   "reachedCounty": 0.969,
+   "refused": 0,
+   "privacy": {
+    "medianEpsilonPerTopic": 2.77,
+    "maxEpsilonPerTopic": 9.51
+   },
+   "models": {
+    "water": {
+     "version": 10,
+     "householdsWorth": 402,
+     "labelledHouseholds": 1097,
+     "auc": {
+      "federated": 0.683,
+      "centralOnSameData": 0.776,
+      "oracle": 0.777
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -1.51,
+       "central": -1.36
+      },
+      {
+       "name": "private well",
+       "federated": 0.47,
+       "central": 0.25
+      },
+      {
+       "name": "built before 1950",
+       "federated": -0.31,
+       "central": 0.38
+      },
+      {
+       "name": "built 1950 to 1985",
+       "federated": -0.43,
+       "central": 0.07
+      },
+      {
+       "name": "build year unknown",
+       "federated": -0.04,
+       "central": 0.05
+      },
+      {
+       "name": "lead or galvanized pipe",
+       "federated": 0.46,
+       "central": 0.4
+      },
+      {
+       "name": "pipe unknown",
+       "federated": -0.53,
+       "central": 0.05
+      },
+      {
+       "name": "fire damage on the block",
+       "federated": 0.39,
+       "central": 0.71
+      },
+      {
+       "name": "water changed lately",
+       "federated": 0.61,
+       "central": 0.37
+      }
+     ],
+     "meanPredicted": 0.23,
+     "trueShare": 0.25
+    },
+    "money": {
+     "version": 13,
+     "householdsWorth": 523.1,
+     "labelledHouseholds": 2442,
+     "auc": {
+      "federated": 0.738,
+      "centralOnSameData": 0.782,
+      "oracle": 0.783
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -0.74,
+       "central": -0.73
+      },
+      {
+       "name": "income under $35k",
+       "federated": 1.19,
+       "central": 0.73
+      },
+      {
+       "name": "income $35k to $75k",
+       "federated": 1.71,
+       "central": 0.46
+      },
+      {
+       "name": "income $75k to $150k",
+       "federated": 0.01,
+       "central": 0.17
+      },
+      {
+       "name": "rents",
+       "federated": 0.14,
+       "central": 0.32
+      },
+      {
+       "name": "no car",
+       "federated": 0.34,
+       "central": 0.3
+      },
+      {
+       "name": "no insurance for a stay",
+       "federated": 0.3,
+       "central": 0.34
+      },
+      {
+       "name": "paid by the hour",
+       "federated": -0.11,
+       "central": 0.31
+      },
+      {
+       "name": "people at home",
+       "federated": 0.09,
+       "central": 0.29
+      }
+     ],
+     "meanPredicted": 0.369,
+     "trueShare": 0.345
+    }
+   },
+   "tallies": [
+    {
+     "item": "noStoredWater",
+     "town": {
+      "estimate": 0.622,
+      "low": 0.595,
+      "high": 0.648,
+      "truthAmongShared": 0.612,
+      "truthEveryone": 0.611
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.147,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "failedWaterTest",
+     "town": {
+      "estimate": 0.297,
+      "low": 0.249,
+      "high": 0.345,
+      "truthAmongShared": 0.293,
+      "truthEveryone": 0.293
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.235,
+     "areasWithAnswers": 27
+    },
+    {
+     "item": "cantAffordWeek",
+     "town": {
+      "estimate": 0.336,
+      "low": 0.303,
+      "high": 0.368,
+      "truthAmongShared": 0.343,
+      "truthEveryone": 0.345
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.177,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "noStayInsurance",
+     "town": {
+      "estimate": 0.498,
+      "low": 0.465,
+      "high": 0.531,
+      "truthAmongShared": 0.529,
+      "truthEveryone": 0.533
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.182,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "poweredDevice",
+     "town": {
+      "estimate": 0.052,
+      "low": 0.027,
+      "high": 0.077,
+      "truthAmongShared": 0.052,
+      "truthEveryone": 0.057
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.095,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "coldMedicine",
+     "town": {
+      "estimate": 0.084,
+      "low": 0.059,
+      "high": 0.11,
+      "truthAmongShared": 0.08,
+      "truthEveryone": 0.079
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.111,
+     "areasWithAnswers": 28
+    }
+   ],
+   "participationBias": {
+    "rawCount": 0.336,
+    "modelOverEveryone": 0.369,
+    "truth": 0.345
+   }
+  },
+  {
+   "seed": 3,
+   "households": 11855,
+   "takingPart": 4542,
+   "uploads": 2039,
+   "meanMassPerUpload": 6.2,
+   "reachedCounty": 0.969,
+   "refused": 0,
+   "privacy": {
+    "medianEpsilonPerTopic": 2.77,
+    "maxEpsilonPerTopic": 9.51
+   },
+   "models": {
+    "water": {
+     "version": 9,
+     "householdsWorth": 362.4,
+     "labelledHouseholds": 1134,
+     "auc": {
+      "federated": 0.761,
+      "centralOnSameData": 0.765,
+      "oracle": 0.77
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -1.06,
+       "central": -1.35
+      },
+      {
+       "name": "private well",
+       "federated": 0.8,
+       "central": 0.28
+      },
+      {
+       "name": "built before 1950",
+       "federated": 0.39,
+       "central": 0.55
+      },
+      {
+       "name": "built 1950 to 1985",
+       "federated": 0.13,
+       "central": 0
+      },
+      {
+       "name": "build year unknown",
+       "federated": 0.19,
+       "central": 0.23
+      },
+      {
+       "name": "lead or galvanized pipe",
+       "federated": 0.47,
+       "central": 0.33
+      },
+      {
+       "name": "pipe unknown",
+       "federated": 0.09,
+       "central": 0.08
+      },
+      {
+       "name": "fire damage on the block",
+       "federated": 1.47,
+       "central": 0.6
+      },
+      {
+       "name": "water changed lately",
+       "federated": 0.43,
+       "central": 0.36
+      }
+     ],
+     "meanPredicted": 0.331,
+     "trueShare": 0.254
+    },
+    "money": {
+     "version": 13,
+     "householdsWorth": 524.4,
+     "labelledHouseholds": 2499,
+     "auc": {
+      "federated": 0.763,
+      "centralOnSameData": 0.779,
+      "oracle": 0.781
+     },
+     "weights": [
+      {
+       "name": "bias",
+       "federated": -1.73,
+       "central": -0.73
+      },
+      {
+       "name": "income under $35k",
+       "federated": 1.02,
+       "central": 0.77
+      },
+      {
+       "name": "income $35k to $75k",
+       "federated": 0.74,
+       "central": 0.44
+      },
+      {
+       "name": "income $75k to $150k",
+       "federated": 0.01,
+       "central": 0.15
+      },
+      {
+       "name": "rents",
+       "federated": 0.11,
+       "central": 0.24
+      },
+      {
+       "name": "no car",
+       "federated": -0.16,
+       "central": 0.09
+      },
+      {
+       "name": "no insurance for a stay",
+       "federated": 0.6,
+       "central": 0.36
+      },
+      {
+       "name": "paid by the hour",
+       "federated": 0.24,
+       "central": 0.25
+      },
+      {
+       "name": "people at home",
+       "federated": 0.34,
+       "central": 0.14
+      }
+     ],
+     "meanPredicted": 0.215,
+     "trueShare": 0.33
+    }
+   },
+   "tallies": [
+    {
+     "item": "noStoredWater",
+     "town": {
+      "estimate": 0.611,
+      "low": 0.585,
+      "high": 0.638,
+      "truthAmongShared": 0.615,
+      "truthEveryone": 0.611
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.144,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "failedWaterTest",
+     "town": {
+      "estimate": 0.27,
+      "low": 0.223,
+      "high": 0.316,
+      "truthAmongShared": 0.287,
+      "truthEveryone": 0.288
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.217,
+     "areasWithAnswers": 26
+    },
+    {
+     "item": "cantAffordWeek",
+     "town": {
+      "estimate": 0.318,
+      "low": 0.285,
+      "high": 0.35,
+      "truthAmongShared": 0.32,
+      "truthEveryone": 0.33
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.175,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "noStayInsurance",
+     "town": {
+      "estimate": 0.516,
+      "low": 0.483,
+      "high": 0.549,
+      "truthAmongShared": 0.523,
+      "truthEveryone": 0.533
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.18,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "poweredDevice",
+     "town": {
+      "estimate": 0.072,
+      "low": 0.047,
+      "high": 0.097,
+      "truthAmongShared": 0.055,
+      "truthEveryone": 0.058
+     },
+     "areaCoverage": 0.96,
+     "meanHalfWidth": 0.109,
+     "areasWithAnswers": 28
+    },
+    {
+     "item": "coldMedicine",
+     "town": {
+      "estimate": 0.071,
+      "low": 0.046,
+      "high": 0.096,
+      "truthAmongShared": 0.079,
+      "truthEveryone": 0.08
+     },
+     "areaCoverage": 1,
+     "meanHalfWidth": 0.102,
+     "areasWithAnswers": 28
+    }
+   ],
+   "participationBias": {
+    "rawCount": 0.318,
+    "modelOverEveryone": 0.215,
+    "truth": 0.33
+   }
+  }
+ ]
+}

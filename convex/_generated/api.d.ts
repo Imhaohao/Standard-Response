@@ -33,6 +33,7 @@ import type * as model from "../model.js";
 import type * as nominations from "../nominations.js";
 import type * as offers from "../offers.js";
 import type * as plans from "../plans.js";
+import type * as prepare from "../prepare.js";
 import type * as requests from "../requests.js";
 import type * as riders from "../riders.js";
 import type * as roadGraph from "../roadGraph.js";
@@ -77,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   nominations: typeof nominations;
   offers: typeof offers;
   plans: typeof plans;
+  prepare: typeof prepare;
   requests: typeof requests;
   riders: typeof riders;
   roadGraph: typeof roadGraph;
