@@ -24,6 +24,8 @@ export const TL: Lines = {
   askNeighbor: "Mayroon po bang iba sa kalye ninyo na hindi makakaalis? Kung mayroon, ano po ang address nila?",
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
   goodbye: "Salamat po. Manatili po kayo malapit sa telepono. Paalam po.",
+  transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",
+  transferIn: "Magandang araw po, ako na po ang tutulong sa inyo sa Tagalog.",
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",
   emergency: "Kung kaya po, tumawag na kayo sa 911 ngayon. Minarkahan ko po kayong urgent para sa dispatcher.",
   languageBarrier:

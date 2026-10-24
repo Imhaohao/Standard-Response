@@ -24,6 +24,8 @@ export const ZH: Lines = {
   askNeighbor: "您的街上还有其他可能无法离开的人吗？如果有，他们的地址是什么？",
   leaveNow: "请现在就离开，带上您的药和手机充电器。",
   goodbye: "谢谢。请守在电话旁。再见。",
+  transferOut: "好的，我帮您转接，请稍等两秒。",
+  transferIn: "您好，接下来由我用中文为您服务。",
   repeatPrompt: "抱歉，您能再说一遍吗？",
   emergency: "如果可以，请现在就拨打911。我已经向调度员标记您为紧急。",
   languageBarrier:

@@ -30,6 +30,10 @@ export type Lines = {
   askNeighbor: string;
   leaveNow: string;
   goodbye: string;
+  // A language switch plays as a hand-off between two agents: transferOut in the old language and
+  // voice, a short pause, then transferIn in the new one before the conversation picks back up.
+  transferOut: string;
+  transferIn: string;
   repeatPrompt: string;
   emergency: string;
   // Said once when nobody can understand each other; the call then ends and a person follows up.

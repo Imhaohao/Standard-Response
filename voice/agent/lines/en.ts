@@ -23,6 +23,8 @@ export const EN: Lines = {
   askNeighbor: "Is there anyone else on your street who might not be able to leave? If so, what's their address?",
   leaveNow: "Please leave now, and take your medications and phone charger.",
   goodbye: "Thank you. Stay by the phone. Goodbye.",
+  transferOut: "Okay, let me transfer you. Give me two seconds.",
+  transferIn: "Hi, I'll help you in English from here.",
   repeatPrompt: "Sorry, could you say that again?",
   emergency: "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
   languageBarrier:

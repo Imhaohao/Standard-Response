@@ -17,6 +17,8 @@ const TURN_GAP_MS = 250;
 // If Claude hasn't answered by then, a short backchannel covers the wait.
 const BACKCHANNEL_AFTER_MS = 300;
 const BARGE_IN_MIN_WORDS = 2;
+// Quiet between the old-language agent's "let me transfer you" and the new one coming on.
+const TRANSFER_PAUSE_MS = 1500;
 
 
 type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
@@ -168,11 +170,20 @@ class CallSession implements LiveCall {
       clearTimeout(backchannel);
       this.syncLanguage();
       if (turn.ignored) this.afterNoise(backchanneled);
+      else if (turn.transfer) void this.speakTransfer(turn, { spokeAt, heardAt: () => heardAt }, turn.transfer);
       else this.speakTurn(turn, { spokeAt, heardAt: () => heardAt }, backchanneled);
     } finally {
       this.thinking = false;
       if (this.heardSoFar.trim() !== "") void this.takeTurn();
     }
+  }
+
+  // A language switch plays as a transfer: the old voice signs off, a pause, then the new voice.
+  private async speakTransfer(turn: AgentTurn, timing: TurnTiming, transfer: NonNullable<AgentTurn["transfer"]>) {
+    this.speech.say([transfer.line], transfer.language, () => this.logLine("agent", transfer.line, Date.now() - timing.spokeAt));
+    await this.speech.whenSilent();
+    await new Promise((resolve) => setTimeout(resolve, TRANSFER_PAUSE_MS));
+    if (!this.ended) this.speakTurn(turn, null);
   }
 
   private speakTurn(turn: AgentTurn, timing: TurnTiming | null, dropAcknowledgment = false) {

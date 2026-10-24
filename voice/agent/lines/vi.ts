@@ -24,6 +24,8 @@ export const VI: Lines = {
   askNeighbor: "Trên phố của quý vị còn ai khác có thể không ra ngoài được không ạ? Nếu có, địa chỉ của họ là gì?",
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
   goodbye: "Cảm ơn quý vị. Xin ở gần điện thoại. Tạm biệt.",
+  transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",
+  transferIn: "Xin chào, từ đây tôi sẽ giúp quý vị bằng tiếng Việt.",
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
   emergency: "Nếu có thể, xin quý vị gọi 911 ngay bây giờ. Tôi đã đánh dấu quý vị là khẩn cấp cho nhân viên điều phối.",
   languageBarrier:

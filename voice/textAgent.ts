@@ -1,4 +1,4 @@
-import { Conversation } from "./agent/conversation";
+import { AgentTurn, Conversation } from "./agent/conversation";
 import type { AgentRecord } from "./agent/record";
 import { languageOf, RequestStatus } from "./agent/script";
 
@@ -86,7 +86,7 @@ export async function handleTurn(body: TurnRequest) {
   const { conversation } = session;
   const turn = text !== "" && !conversation.done ? await conversation.hear(text) : null;
   return {
-    reply: [...opening, turn?.acknowledgment ?? "", ...(turn?.sentences ?? [])].filter(Boolean).join(" "),
+    reply: replyText(opening, turn),
     stage: conversation.stage,
     record: conversation.record,
     done: conversation.done,
@@ -94,4 +94,9 @@ export async function handleTurn(body: TurnRequest) {
     nominations: session.nominations,
     guardBlocked: turn?.guardBlocked ?? false,
   };
+}
+
+function replyText(opening: string[], turn: AgentTurn | null) {
+  if (!turn) return opening.join(" ");
+  return [...opening, turn.transfer?.line ?? "", turn.acknowledgment, ...turn.sentences].filter(Boolean).join(" ");
 }

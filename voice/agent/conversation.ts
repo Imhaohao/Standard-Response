@@ -56,6 +56,8 @@ export type AgentTurn = {
   guardBlocked: boolean;
   // Background noise or talk not meant for the agent: nothing was said back and nothing changed.
   ignored: boolean;
+  // Set when the resident switched language: said in the old language and voice before a pause.
+  transfer?: { line: string; language: Language };
 };
 
 export type ConversationOptions = {
@@ -138,7 +140,9 @@ export class Conversation {
       return this.say("", [LINES[this.language].repeatPrompt], false);
     }
     if (isNoise(heard)) return this.ignore();
+    const previousLanguage = this.language;
     const switched = this.switchLanguageIfNeeded(heard.spokenLanguage);
+    const transfer = switched ? { line: LINES[previousLanguage].transferOut, language: previousLanguage } : undefined;
     if (!switched && this.shouldHandOff(heard)) return this.handOffToPerson();
     if (heard.spokenLanguage === "other") return this.say("", [LINES[this.language].repeatPrompt], false);
     this.changedThisTurn = false;
@@ -147,19 +151,22 @@ export class Conversation {
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
 
     // Asking us to repeat, or to switch language, isn't a failed answer, so it doesn't use up a try.
-    if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, []);
+    if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, [], transfer);
     const transition = this.advance(heard);
     this.moveTo(transition.step);
-    return this.reply(heard, urgent, transition.lines ?? []);
+    return this.reply(heard, urgent, transition.lines ?? [], transfer);
   }
 
-  private reply(heard: Interpretation, urgent: string[], extra: string[]): AgentTurn {
+  // After a transfer the new agent opens with transferIn, so there's no acknowledgment to lead with.
+  private reply(heard: Interpretation, urgent: string[], extra: string[], transfer?: AgentTurn["transfer"]): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const ack = guardAcknowledgment(heard.acknowledgment, status, this.language);
     const ride = heard.asksAboutRide && !this.done ? [this.rideLine()] : [];
     const closing = this.done ? this.closingLines() : [this.question()];
-    const sentences = [...urgent, ...extra, ...ride, ...closing].filter((line) => line !== "");
-    return this.say(this.freshAcknowledgment(ack.text), sentences, ack.blocked);
+    const greeting = transfer ? [LINES[this.language].transferIn] : [];
+    const sentences = [...greeting, ...urgent, ...extra, ...ride, ...closing].filter((line) => line !== "");
+    const turn = this.say(transfer ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked);
+    return transfer ? { ...turn, transfer } : turn;
   }
 
   // The same acknowledgment twice in a row, or "got it", sounds like a machine not listening.
