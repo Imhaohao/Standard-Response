@@ -7,6 +7,7 @@ import { AgentRecord, FIELDS } from "../agent/record";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { Transcriber } from "./cartesia";
+import { interrupts, isBackchannel } from "./interruption";
 import { isOutboundFlowMode, outboundFlowFor } from "./outboundFlows";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
 import { CallSpeech } from "./speech";
@@ -29,7 +30,9 @@ const TRAILING_OFF = /(\.\.\.|…|[,、，:;\-–—])$/;
 const MAX_REREADS = 2;
 // If Claude hasn't answered by then, a short backchannel covers the wait.
 const BACKCHANNEL_AFTER_MS = 300;
-const BARGE_IN_MIN_WORDS = 2;
+// A listening noise ("mm-hm", "yeah") said under the agent's voice takes no turn, unless the agent
+// finished within this long of it: then it was the answer to what the agent was asking.
+const OVERLAP_ANSWER_MS = 1200;
 // Quiet between the old-language agent's "let me transfer you" and the new one coming on.
 const TRANSFER_PAUSE_MS = 1500;
 // How long a quiet line waits, by what the call is waiting for:
@@ -56,8 +59,6 @@ function turnGap(text: string) {
   if (TRAILING_OFF.test(trimmed)) return UNFINISHED_TURN_GAP_MS;
   return SENTENCE_END.test(trimmed) ? TURN_GAP_MS : UNMARKED_TURN_GAP_MS;
 }
-
-const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 function waitingAfter(turn: AgentTurn, holding: boolean): Waiting {
   if (turn.done) return "goodbye";
@@ -100,6 +101,8 @@ class CallSession implements LiveCall {
   private quietTimer: NodeJS.Timeout | null = null;
   private rereads = 0;
   private thinking = false;
+  // The resident stopped the agent mid-turn and hasn't been answered yet.
+  private cutOff = false;
   private residentSpoke = false;
   private lastBackchannel = "";
   private reachedMachine = false;
@@ -168,7 +171,7 @@ class CallSession implements LiveCall {
   private listen() {
     this.transcriber?.close();
     this.transcriber = new Transcriber(this.language, {
-      onSpeech: (text, isFinal) => this.onSpeech(text, isFinal),
+      onSpeech: (text, isFinal, voicedMs) => this.onSpeech(text, isFinal, voicedMs),
       onError: (message) => console.error(`[call ${this.callSid}] ${message}`),
     });
   }
@@ -181,11 +184,36 @@ class CallSession implements LiveCall {
     this.speech.markPlayed();
   }
 
-  private onSpeech(text: string, isFinal: boolean) {
+  // Talk under the agent's voice stops it only when the resident is really talking (see
+  // interruption.ts); a finished transcript that didn't stop it waits for the agent to finish.
+  private onSpeech(text: string, isFinal: boolean, voicedMs: number) {
     this.lastSpeechAt = Date.now();
     this.restartQuietTimer();
-    if (this.speech.speaking && (isFinal || wordCount(text) >= BARGE_IN_MIN_WORDS)) this.speech.bargeIn();
-    if (isFinal) this.heardSoFar = `${this.heardSoFar} ${text}`;
+    if (this.speech.speaking) {
+      if (interrupts(text, voicedMs, this.language)) {
+        this.speech.bargeIn();
+        this.cutOff = true;
+      } else if (isFinal) return void this.heardUnderVoice(text);
+    }
+    if (isFinal) this.hear(text);
+    else this.waitForTurnEnd();
+  }
+
+  private async heardUnderVoice(text: string) {
+    const heardAt = Date.now();
+    await this.speech.whenSilent();
+    if (this.ended) return;
+    if (isBackchannel(text, this.language) && Date.now() - heardAt > OVERLAP_ANSWER_MS) return;
+    this.hear(text);
+  }
+
+  private hear(text: string) {
+    this.heardSoFar = `${this.heardSoFar} ${text}`;
+    this.waitForTurnEnd();
+  }
+
+  // Each word heard pushes the end of the resident's turn back.
+  private waitForTurnEnd() {
     const soFar = this.heardSoFar.trim();
     if (soFar === "") return;
     if (this.turnTimer) clearTimeout(this.turnTimer);
@@ -238,7 +266,9 @@ class CallSession implements LiveCall {
   private answer(utterance: string, turn: AgentTurn, timing: TurnTiming, backchanneled: boolean) {
     this.logLine("resident", utterance);
     this.syncLanguage();
-    if (turn.ignored) this.afterNoise();
+    const cutOff = this.cutOff;
+    this.cutOff = false;
+    if (turn.ignored) this.afterNoise(cutOff);
     else if (turn.transfer) void this.speakTransfer(turn, timing, turn.transfer);
     else this.speakTurn(turn, timing, backchanneled);
   }
@@ -300,8 +330,14 @@ class CallSession implements LiveCall {
   }
 
   // Noise stays unanswered. The quiet clock picks up where it was, so if the resident really is
-  // silent they get a check-in rather than the same question again.
-  private afterNoise() {
+  // silent they get a check-in rather than the same question again. If it cut the agent off,
+  // though, the question it was asking may never have been heard, so it asks it again.
+  private afterNoise(cutOff: boolean) {
+    const conversation = this.conversation;
+    if (cutOff && conversation && !conversation.done && !this.speech.speaking) {
+      const question = conversation.question();
+      this.speech.say([question], this.language, () => this.logLine("agent", question));
+    }
     void this.speech.whenSilent().then(() => this.restartQuietTimer());
   }
 

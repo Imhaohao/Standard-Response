@@ -18,7 +18,8 @@ type TranscriptMessage = { type: "transcript"; is_final: boolean; text: string }
 type ErrorMessage = { type: "error"; message?: string; title?: string };
 
 export type TranscriberEvents = {
-  onSpeech: (text: string, isFinal: boolean) => void;
+  // voicedMs: how much of the audio behind this transcript was someone speaking.
+  onSpeech: (text: string, isFinal: boolean, voicedMs: number) => void;
   onError: (message: string) => void;
 };
 
@@ -54,10 +55,11 @@ export class Transcriber {
     if (message.type === "transcript") {
       const transcript = message as TranscriptMessage;
       const speech = transcript.text.replace(SOUND_TAGS, " ").replace(/\s+/g, " ");
-      const phantom = isPhantom(speech, this.voice.voicedMs);
-      if (phantom) console.log(`[stt] dropped "${speech.trim()}": ${this.voice.voicedMs}ms of voice behind it`);
+      const { voicedMs } = this.voice;
+      const phantom = isPhantom(speech, voicedMs);
+      if (phantom) console.log(`[stt] dropped "${speech.trim()}": ${voicedMs}ms of voice behind it`);
       if (transcript.is_final) this.voice.reset();
-      if (!phantom && speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final);
+      if (!phantom && speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final, voicedMs);
     } else if (message.type === "error") {
       const error = message as ErrorMessage;
       this.events.onError(`stt: ${error.title ?? ""} ${error.message ?? ""}`);
