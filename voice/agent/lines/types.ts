@@ -70,6 +70,9 @@ export type Lines = {
   // What a resident waiting for a ride can do meanwhile, one at a time: when they ask what to do,
   // and when the line goes quiet on hold. Never a promise that anyone is coming.
   holdSteps: string[];
+  // Said in place of the status line when the resident heard it in the last few turns and it hasn't
+  // changed, so a second "when are you coming?" isn't answered with the whole template again.
+  statusUnchanged: string;
   goodbye: string;
   // A language switch plays as a hand-off between two agents: transferOut in the old language and
   // voice, a short pause, then transferIn in the new one before the conversation picks back up.

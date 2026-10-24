@@ -61,7 +61,7 @@ const CLOSE: OutlineStage = {
   stage: "close",
   goal: "they know what happens next, and when to call this number back",
 };
-const OUTLINE: Record<Step, OutlineStage> = {
+export const OUTLINE: Record<Step, OutlineStage> = {
   ask_address: OPEN,
   confirm_address: OPEN,
   can_leave: NEEDS,
@@ -213,9 +213,12 @@ export class Conversation {
     return this.say("", opening, false);
   }
 
-  // A status change arrived mid-call: play the template, then pick the conversation back up.
+  // A status change arrived mid-call: play the template, then pick the conversation back up. Three
+  // status changes in a row re-asked the head-count question after each one, so a question already
+  // asked twice with no answer since is left for the resident to answer.
   announce(template: string): AgentTurn {
-    return this.say("", this.done ? [template] : [template, this.question()], false);
+    const resume = this.done || this.timesAskedSinceResident() >= MAX_ASKS_WITHOUT_ANSWER ? [] : [this.question()];
+    return this.say("", [template, ...resume], false);
   }
 
   async hear(utterance: string): Promise<AgentTurn> {
@@ -315,7 +318,7 @@ export class Conversation {
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const said = answer.blocked ? (this.holding ? [this.holdAnswer()] : []) : this.freshReply(answer.text);
+    const said = answer.blocked ? (this.holding ? [this.rideUpdate()] : []) : this.freshReply(answer.text);
     const lines = [...greeting, ...this.feelingLines(heard, status, urgent), ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
@@ -328,10 +331,13 @@ export class Conversation {
     return [text];
   }
 
+  // "I don't know who Paulina is either" after "I don't know who Paulina is from this call" is the
+  // same answer again, so replies are compared by their opening words, not only exactly.
   private isFreshReply(text: string) {
     const normalized = normalizeAck(text);
-    const answered = this.repliesSaid.get(normalized);
-    return normalized !== "" && (answered === undefined || answered === normalizeAck(this.lastResidentLine()));
+    if (normalized === "") return false;
+    const asked = normalizeAck(this.lastResidentLine());
+    return [...this.repliesSaid].every(([said, answered]) => answered === asked || !sameGist(said, normalized));
   }
 
   // Whether reply() will say something for Claude's reply: its words, or the status in their place.
@@ -362,9 +368,11 @@ export class Conversation {
     return { text: this.freshAcknowledgment(guarded.text), blocked: guarded.blocked, isEcho: false };
   }
 
+  // Asked to say it again, they hear the status in full; asked about the ride again, they hear that
+  // nothing has changed. A real caller hung up after the full status three times in four turns.
   private rideLines(heard: Interpretation) {
-    const repeatOnHold = this.holding && heard.wantsRepeat;
-    return heard.asksAboutRide || repeatOnHold ? [this.rideLine()] : [];
+    if (this.holding && heard.wantsRepeat) return [this.rideLine()];
+    return heard.asksAboutRide ? [this.rideUpdate()] : [];
   }
 
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
@@ -372,7 +380,7 @@ export class Conversation {
   private whatToDoLines(heard: Interpretation) {
     if (!heard.asksWhatToDo) return [];
     if (this.record.canLeave === "yes" && !needsRide(this.record)) return [LINES[this.language].leaveNow];
-    return [this.nextHoldStep(true) ?? this.rideLine()];
+    return [this.nextHoldStep(true) ?? this.rideUpdate()];
   }
 
   // What ends a turn: the goodbye, a moment's wait the resident asked for, or the next question,
@@ -698,15 +706,37 @@ export class Conversation {
     if (this.changedThisTurn) return { step: "hold", lines: [LINES[this.language].readbackFixed] };
     const urgent = heard.emergency !== "none" || heard.neighborAddresses.length > 0;
     const answered = urgent || heard.asksAboutRide || heard.asksWhatToDo || this.replyWillPlay(heard);
-    const brief = heardNothing(heard) && wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
-    return { step: "hold", lines: answered || brief ? [] : [this.holdAnswer()] };
+    return { step: "hold", lines: answered || this.brief(heard) ? [] : [this.holdAnswer()] };
   }
 
-  // Where the ride stands, unless the caller just heard exactly that; then something to do meanwhile.
+  // "Oh," or "okay" with nothing in it. A reply Claude wrote for it that was already said doesn't count.
+  private brief(heard: Interpretation) {
+    const short = wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
+    return short && (heard.wantsRepeat || (answeredNothing(heard) && !heard.wantsTime));
+  }
+
+  // Where the ride stands, unless the caller just heard it; then something to do meanwhile.
   private holdAnswer() {
-    const ride = this.rideLine();
-    if (!this.lastAgentLine().includes(ride)) return ride;
-    return this.nextHoldStep(false) ?? ride;
+    if (!this.rideJustSaid()) return this.rideLine();
+    return this.nextHoldStep(false) ?? LINES[this.language].statusUnchanged;
+  }
+
+  // The status in full, or that it hasn't changed when they heard it in the last few agent turns.
+  private rideUpdate() {
+    return this.rideJustSaid() ? LINES[this.language].statusUnchanged : this.rideLine();
+  }
+
+  private rideJustSaid() {
+    const said = [this.rideLine(), LINES[this.language].statusUnchanged];
+    const recent = this.history.filter((line) => line.speaker === "agent").slice(-RECENT_AGENT_TURNS);
+    return recent.some((line) => said.some((ride) => line.text.includes(ride)));
+  }
+
+  // Agent turns since the resident last spoke that asked the current question, in either wording.
+  private timesAskedSinceResident() {
+    const asks = [this.question(), this.questionAgain()].filter((ask) => ask !== "");
+    const since = this.history.slice(this.history.findLastIndex((line) => line.speaker === "resident") + 1);
+    return since.filter((line) => asks.some((ask) => line.text.includes(ask))).length;
   }
 
   // The next of the steps for waiting. Once all are said: from the start again when asked, else null.
@@ -801,12 +831,26 @@ export class Conversation {
 }
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
+// How far back a status line still counts as just heard.
+const RECENT_AGENT_TURNS = 2;
+const MAX_ASKS_WITHOUT_ANSWER = 2;
 const UNSURE = /^\s*(i don'?t know|i'?m not sure|not sure|no s[eé]\b|no estoy segur)/i;
 const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
 const firstWord = (normalized: string) => normalized.split(" ")[0];
+
+// Words, or characters for languages written without spaces.
+const tokensOf = (normalized: string) => (normalized.includes(" ") ? normalized.split(" ") : [...normalized]);
+const GIST_SHARE = 0.8;
+
+// Two replies say the same thing when most of the shorter one is the other's opening.
+function sameGist(a: string, b: string) {
+  const [shorter, longer] = [tokensOf(a), tokensOf(b)].sort((x, y) => x.length - y.length);
+  const shared = shorter.findIndex((token, index) => token !== longer[index]);
+  return (shared === -1 ? shorter.length : shared) >= GIST_SHARE * shorter.length;
+}
 
 // A "correction" that says again what is already recorded confirms it: the caller is restating, and
 // asking "What should I change?" again looped the call.

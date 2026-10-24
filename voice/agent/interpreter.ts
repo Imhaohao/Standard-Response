@@ -143,7 +143,7 @@ The household record has these fields and allowed values:
 - peopleCount: people physically in the home right now, including the speaker: a whole number
 - pets: whether there are pets: true, false
 - mobility: the most limited mobility of anyone in the home right now, from least to most limited: walks, walker, manual_wheelchair, power_wheelchair, bedbound
-- medical: medical needs of people in the home, comma-separated from: oxygen, dialysis, other
+- medical: medical needs of people in the home, comma-separated from: oxygen, dialysis, other. Speech-to-text often mishears oxygen as "autism", "auction", "oxen" or "ox and"; when the agent asked about oxygen in the recent turns and the resident "needs" one of these, it is oxygen (guessed), never other.
 - assistanceRequired: help needed getting out of the home: none, one_person_assist, two_person_lift
 
 Rules for changes:
@@ -158,6 +158,7 @@ Rules for changes:
 - An emergency in the same answer doesn't replace the answer: set the fields it gives as well.
 - assistanceRequired is about physical help getting out of the home. Set it only when they describe needing a person to help them move or lift them. "I can't get out on my own" or "I have no car" alone says nothing about it.
 - For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address. Digits said one at a time make one number: "four five East Mariposa" is 45 East Mariposa, "two six zero nine" is 2609. If the record has a street with no house number and they give the number, list the full address with both (for example "2585 Catherine Road").
+- Speech-to-text on a phone line often turns a word into one that sounds like it. Read every answer against the agent's last question and the recent turns, not word by word: when a word makes no sense there but sounds like something the agent just asked about or an allowed value, read it as that word and list the field in guessed so the read-back checks it. After a question about oxygen, "one person who desperately needs autism" or "she's on auction" means oxygen (nobody needs autism), but "my son has autism" makes sense and is medical other. A head count answered "we're all ate" is 8. When no sound-alike fits, leave the field out so the agent asks again. Never say the misheard word back in ack or reply.
 - guessed: the fields in set that you are guessing at. Usually empty.
 
 Other outputs:

@@ -44,6 +44,7 @@ export const EN: Lines = {
   passedOn: (place) => `Thanks, I've passed on ${place}.`,
   needAddress: "To put you on the rescue list, I need the address.",
   leaveNow: "Please leave now, and take your medications and phone charger.",
+  statusUnchanged: "Nothing has changed since I last told you. I'll tell you the moment it does.",
   holdSteps: [
     "While you wait, put your medications, glasses, ID and phone charger in one bag.",
     "Put on sturdy shoes, and keep everyone who is leaving with you in the same room.",

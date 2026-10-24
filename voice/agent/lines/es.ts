@@ -46,6 +46,7 @@ export const ES: Lines = {
   passedOn: (place) => `Gracias, ya pasé ${place} a los despachadores.`,
   needAddress: "Para ponerle en la lista de rescate, necesito la dirección.",
   leaveNow: "Por favor salga ahora, y lleve sus medicinas y el cargador del teléfono.",
+  statusUnchanged: "Nada ha cambiado desde lo que le dije. Le aviso en cuanto cambie.",
   holdSteps: [
     "Mientras espera, ponga sus medicinas, lentes, identificación y cargador del teléfono en una bolsa.",
     "Póngase zapatos firmes, y mantenga en el mismo cuarto a todas las personas que van a salir con usted.",

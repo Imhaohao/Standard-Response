@@ -45,6 +45,7 @@ export const ZH: Lines = {
   passedOn: (place) => `谢谢，我已把${place}转告调度员。`,
   needAddress: "要把您列入救援名单，我需要地址。",
   leaveNow: "请现在就离开，带上您的药和手机充电器。",
+  statusUnchanged: "和我刚才说的一样，还没有变化。一有变化，我马上告诉您。",
   holdSteps: [
     "等待的时候，请把药品、眼镜、证件和手机充电器放进同一个包里。",
     "请穿上结实的鞋子，让要和您一起离开的人都待在同一个房间里。",

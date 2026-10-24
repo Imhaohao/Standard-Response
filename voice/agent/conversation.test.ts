@@ -116,8 +116,13 @@ describe("answers that don't answer", () => {
     assert.deepEqual(asked.sentences, [EN.holdSteps[0]]);
     const quiet = conversation.respond("okay", heard({ addressedToAgent: true }));
     assert.deepEqual(quiet.sentences, []);
+    // The full status was said on reaching hold, two agent turns ago.
     const blocked = conversation.respond("are they coming?", heard({ reply: "They'll be there soon." }));
-    assert.deepEqual(blocked.sentences, [conversation.rideLine()]);
+    assert.deepEqual(blocked.sentences, [EN.statusUnchanged]);
+    conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
+    conversation.respond("is my street closed?", heard({ reply: "I don't know whether streets are closed." }));
+    const later = conversation.respond("are they coming yet?", heard({ reply: "They'll be there soon." }));
+    assert.deepEqual(later.sentences, [conversation.rideLine()]);
   });
 
   it("never leaves a caller on hold with only an acknowledgment, or a reply it already gave", () => {
@@ -408,5 +413,42 @@ describe("which kind of wheelchair", () => {
     assert.equal(conversation.step, "chair_kind");
     conversation.respond("hmm", heard({ answer: "unclear" }));
     assert.equal(conversation.step, "assistance");
+  });
+});
+
+// Each case is a line real callers heard over and over on robust-penguin-834, 2026-10-24.
+describe("lines the caller just heard", () => {
+  it("answers a second ride question with no change instead of the whole status again", () => {
+    const { conversation } = atHold();
+    const full = conversation.rideLine();
+    const asked = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
+    assert.deepEqual(asked.sentences, [EN.statusUnchanged]);
+    const again = conversation.respond("so when?", heard({ asksAboutRide: true }));
+    assert.ok(!again.sentences.includes(full));
+    const repeat = conversation.respond("say that again?", heard({ wantsRepeat: true }));
+    assert.ok(repeat.sentences.includes(full));
+  });
+
+  it("re-asks the open question after one status change, not after every one", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    const first = conversation.announce("Grace is driving to you now.");
+    assert.deepEqual(first.sentences, ["Grace is driving to you now.", EN.askHousehold]);
+    const second = conversation.announce("Howard is driving to you now.");
+    assert.deepEqual(second.sentences, ["Howard is driving to you now."]);
+    conversation.respond("five of us", heard({ updates: { peopleCount: 5 } }));
+    const third = conversation.announce("Your driver is at your home now.");
+    assert.equal(third.sentences.length, 2);
+  });
+
+  it("drops a reply that only rewords one already given, and says nothing to a bare 'oh'", () => {
+    const { conversation } = atHold();
+    const reply = "I don't know who Paulina is from this call.";
+    const asked = conversation.respond("Where's Paulina?", heard({ reply }));
+    assert.ok(asked.sentences.includes(reply));
+    const oh = conversation.respond("Oh,", heard({ reply: "I don't know who Paulina is either." }));
+    assert.deepEqual(oh.sentences, []);
+    const other = conversation.respond("Who is Howard?", heard({ reply: "I don't know who Howard is." }));
+    assert.ok(other.sentences.includes("I don't know who Howard is."));
   });
 });
