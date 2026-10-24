@@ -18,6 +18,7 @@ type Lines = {
   greetInbound: string;
   greetCallback: (name?: string) => string;
   askAddress: string;
+  askHouseNumber: (street: string) => string;
   confirmAddress: (address: string) => string;
   addressRetry: string;
   addressEscalated: string;
@@ -56,6 +57,7 @@ const EN: Lines = {
   greetInbound: "This is the Altadena evacuation line. I can help get you a ride out.",
   greetCallback: (name) => `Hello${name ? ` ${name}` : ""}, this is the Altadena evacuation line with an update.`,
   askAddress: "What address are you at right now?",
+  askHouseNumber: (street) => `What's the house number on ${street}?`,
   confirmAddress: (address) => `I have ${address}. Is that right?`,
   addressRetry: "Sorry, I didn't catch that. Can you tell me the street address where you are now?",
   addressEscalated: "I've flagged your address for a dispatcher to confirm. If you can, also call 911.",
@@ -106,6 +108,7 @@ const ES: Lines = {
   greetInbound: "Esta es la línea de evacuación de Altadena. Puedo ayudarle a conseguir transporte para salir.",
   greetCallback: (name) => `Hola${name ? ` ${name}` : ""}, le llamamos de la línea de evacuación de Altadena con una actualización.`,
   askAddress: "¿En qué dirección está usted ahora mismo?",
+  askHouseNumber: (street) => `¿Cuál es el número de la casa en ${street}?`,
   confirmAddress: (address) => `Tengo ${address}. ¿Es correcto?`,
   addressRetry: "Perdón, no le entendí. ¿Me puede decir la dirección donde está ahora?",
   addressEscalated: "Marqué su dirección para que un despachador la confirme. Si puede, llame también al 911.",

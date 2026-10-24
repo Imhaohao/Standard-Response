@@ -74,7 +74,8 @@ Rules for changes:
 - A wheelchair is manual_wheelchair unless they say it is electric or powered.
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure.
-- For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address.
+- assistanceRequired is about physical help getting out of the home. Set it only when they describe needing a person to help them move or lift them. "I can't get out on my own" or "I have no car" alone says nothing about it.
+- For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address. If the record has a street with no house number and they give the number, list the full address with both (for example "2585 Catherine Road").
 - confidence is 0 to 1. Use below 0.6 when you are guessing.
 
 Other outputs:

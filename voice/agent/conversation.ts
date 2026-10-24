@@ -66,6 +66,8 @@ export type ConversationOptions = {
 };
 
 const MAX_TRIES_PER_STEP = 2;
+
+const hasHouseNumber = (address: string | undefined) => address !== undefined && /\d/.test(address);
 const MAX_READBACKS = 3;
 const HISTORY_TURNS = 6;
 
@@ -208,13 +210,13 @@ export class Conversation {
       if (!this.record.address && this.knownAddress) this.applyUpdates({ address: this.knownAddress }, { address: 0.95 });
       return { step: "can_leave" };
     }
-    if (heard.updates.address) return { step: "confirm_address" };
+    if (heard.updates.address) return { step: hasHouseNumber(this.record.address) ? "confirm_address" : "ask_address" };
     if (heard.answer === "no") return { step: "ask_address" };
     return this.addressRetry();
   }
 
   askAddress(heard: Interpretation): Transition {
-    if (heard.updates.address) return { step: "confirm_address" };
+    if (heard.updates.address && hasHouseNumber(this.record.address)) return { step: "confirm_address" };
     return this.addressRetry();
   }
 
@@ -263,7 +265,8 @@ export class Conversation {
     if (heard.answer === "no" && this.record.mobility === undefined) {
       this.applyUpdates({ mobility: "walks" }, { mobility: 0.8 });
     }
-    const answered = confirmedOnFile || !isEmpty(heard.updates) || this.record.mobility !== undefined;
+    // A correction to something else (say, the head count) doesn't answer this question.
+    const answered = confirmedOnFile || this.record.mobility !== undefined;
     if (!answered) return this.retryOr("readback");
     const needsAssistanceQuestion = hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined;
     return { step: needsAssistanceQuestion ? "assistance" : "readback" };
@@ -297,6 +300,13 @@ export class Conversation {
 
   private question(): string {
     return QUESTIONS[this.step](this);
+  }
+
+  // A street with no house number can't be driven to, so the agent asks for the number.
+  askAddressQuestion() {
+    const lines = LINES[this.language];
+    const street = this.record.address;
+    return street && !hasHouseNumber(street) ? lines.askHouseNumber(street) : lines.askAddress;
   }
 
   addressQuestion() {
@@ -343,7 +353,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
 };
 
 const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
-  ask_address: (c) => LINES[c.language].askAddress,
+  ask_address: (c) => c.askAddressQuestion(),
   confirm_address: (c) => c.addressQuestion(),
   can_leave: (c) => LINES[c.language].askCanLeave,
   has_car: (c) => LINES[c.language].askHasCar,
