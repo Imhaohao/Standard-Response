@@ -44,16 +44,22 @@ def runs_of(results: list[dict], name: str) -> list[dict]:
 def build_results(main: list[dict]) -> dict:
     seeds = len(main)
     heuristic, ortools = runs_of(main, "heuristic_outreach"), runs_of(main, "ortools_outreach")
+    alns = runs_of(main, "alns_outreach")
     heuristic_911, today = runs_of(main, "heuristic_911"), runs_of(main, "today_911")
     dispatch = comparison(heuristic, ortools, "heuristic", "ortools")
     outreach = comparison(heuristic_911, heuristic, "today911Requests", "ourOutreachRequests")
     combined = comparison(today, ortools, "today", "ours")
     dispatch["headline"] = headline(dispatch, "heuristic", "ortools", seeds, "Dispatch only, identical requests at identical times")
+    dispatch_alns = comparison(heuristic, alns, "heuristic", "alns")
+    dispatch_alns["headline"] = headline(dispatch_alns, "heuristic", "alns", seeds, "Dispatch only (ALNS), identical requests at identical times")
+    alns_vs_ortools = comparison(ortools, alns, "ortools", "alns")
+    alns_vs_ortools["headline"] = headline(alns_vs_ortools, "ortools", "alns", seeds, "ALNS against OR-Tools, identical requests at identical times")
     outreach["headline"] = headline(outreach, "today911Requests", "ourOutreachRequests", seeds, "Outreach only, heuristic dispatcher on both sides")
     combined["headline"] = headline(combined, "today", "ours", seeds, "Combined, today's process against outreach plus the optimizer")
     today_block = policy_block(today)
     return {
-        "dispatchOnly": dispatch, "outreachOnly": outreach, "combined": combined,
+        "dispatchOnly": dispatch, "dispatchOnlyAlns": dispatch_alns, "alnsVsOrtools": alns_vs_ortools,
+        "outreachOnly": outreach, "combined": combined,
         "todayProcess": {"metrics": today_block, "headline": todays_headline(today_block, seeds)},
     }
 
@@ -61,7 +67,7 @@ def build_results(main: list[dict]) -> dict:
 def integrity_summary(main: list[dict]) -> dict:
     flat = [run for result in main for run in result.values()]
     paired_streams = all(
-        r["heuristic_outreach"]["streamDigest"] == r["ortools_outreach"]["streamDigest"]
+        r["heuristic_outreach"]["streamDigest"] == r["ortools_outreach"]["streamDigest"] == r["alns_outreach"]["streamDigest"]
         and r["heuristic_911"]["streamDigest"] == r["today_911"]["streamDigest"] for r in main
     )
     return {
@@ -103,7 +109,7 @@ def parse_args():
     parser.add_argument("--out", default=str(RESULTS_FILE))
     parser.add_argument("--no-exploration", action="store_true")
     parser.add_argument("--households", type=int, default=Config.households)
-    parser.add_argument("--solver-limit", type=float, default=Config.solver_time_limit_s, help="OR-Tools seconds per re-plan")
+    parser.add_argument("--solver-limit", type=float, default=Config.solver_time_limit_s, help="OR-Tools and ALNS seconds per re-plan")
     return parser.parse_args()
 
 
@@ -127,7 +133,7 @@ def main():
     with open(args.out, "w") as handle:
         json.dump(results, handle, indent=2, allow_nan=False)
     print(f"wrote {args.out} in {time.time() - started:.0f}s")
-    for name in ("dispatchOnly", "outreachOnly", "combined"):
+    for name in ("dispatchOnly", "dispatchOnlyAlns", "alnsVsOrtools", "outreachOnly", "combined"):
         print(results["results"][name]["headline"])
     print(results["results"]["todayProcess"]["headline"])
     print(results["whereWeDontHelp"])

@@ -47,6 +47,7 @@ def test_dispatch_only_policies_get_identical_request_streams(night_results):
     for results in night_results.values():
         assert results["heuristic_outreach"]["streamDigest"] == results["ortools_outreach"]["streamDigest"]
         assert results["heuristic_outreach"]["requests"] == results["ortools_outreach"]["requests"]
+        assert results["heuristic_outreach"]["streamDigest"] == results["alns_outreach"]["streamDigest"]
         assert results["heuristic_911"]["streamDigest"] == results["today_911"]["streamDigest"]
 
 
@@ -125,7 +126,7 @@ def test_quick_style_run_writes_the_documented_json(tmp_path, monkeypatch):
     data = json.loads(out.read_text())
     assert data["label"] == "Simulation, not a prediction"
     assert {"generatedAt", "seeds", "population", "assumptions", "results", "sensitivity", "whereWeDontHelp", "exploration"} <= set(data)
-    assert set(data["results"]) == {"dispatchOnly", "outreachOnly", "combined", "todayProcess"}
+    assert set(data["results"]) == {"dispatchOnly", "dispatchOnlyAlns", "alnsVsOrtools", "outreachOnly", "combined", "todayProcess"}
     metric = data["results"]["dispatchOnly"]["difference"]["pickupsOnTime"]
     assert {"median", "p5", "p95"} <= set(metric)
     assert data["integrity"]["dispatchOnlyStreamsIdentical"] is True

@@ -6,6 +6,7 @@ import time
 
 import simpy
 
+import alns
 import heuristic
 import solver
 
@@ -16,13 +17,14 @@ from .streams import Stream, emergency_stream, outreach_stream, stream_digest
 from .today_policy import TodayPolicy
 from .world import World
 
-SOLVERS = {"heuristic": heuristic.solve, "ortools": solver.solve}
+SOLVERS = {"heuristic": heuristic.solve, "ortools": solver.solve, "alns": alns.solve}
 STREAM_BUILDERS = {"outreach": outreach_stream, "emergency": emergency_stream}
 
 # policy name -> (arrival process, dispatcher)
 POLICIES = {
     "heuristic_outreach": ("outreach", "heuristic"),
     "ortools_outreach": ("outreach", "ortools"),
+    "alns_outreach": ("outreach", "alns"),
     "heuristic_911": ("emergency", "heuristic"),
     "today_911": ("emergency", "today"),
 }

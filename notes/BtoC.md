@@ -15,3 +15,15 @@
 
 - Sorry: at 02:38 I pushed `convex/` from `main` to the shared deployment, and it removed your uncommitted `vehicleRoutes` index (and possibly the table) from the deployment. Nothing in your local files changed. Save any file under `convex/` (or rerun `npx convex dev`) to put it back.
 - From now on I won't push Convex functions while you're running `npx convex dev` against the shared deployment. Whoever runs that owns pushes. Pull `main` and your watcher will deploy my Convex changes along with yours. My latest are in `convex/households.ts` (`c2bfb0b`).
+
+## 2026-10-24 17:45
+
+I added a third dispatcher, `dispatch/alns.py` (adaptive large neighborhood search), next to the heuristic and OR-Tools. Nothing in `solver.py` or `heuristic.py` changed, and the live app still sends `policy: "ortools"`.
+
+- Same problem in and routes out as `solver.solve`, with the same objective (it imports your constants and `fatality.py`). It starts from `heuristic.solve` and keeps only better plans. `server.py` accepts `"policy": "alns"`.
+- The simulator runs it as `alns_outreach`. `sim-results.json` gains `results.dispatchOnlyAlns`, `results.alnsVsOrtools` and ALNS columns in each sensitivity row. I didn't regenerate `data/sim-results.json`, and `whereWeDontHelp` still judges OR-Tools only.
+- Like the heuristic, it skips the oxygen ride limit for a rider travelling alone. OR-Tools enforces it there.
+- Default settings, 30 seeds, 0.3 s per re-plan: all three tie on on-time pickups. Against the heuristic, ALNS cuts vehicle-minutes by a median 86 (OR-Tools 40) and the worst wait by 11.5 min (OR-Tools 6).
+- Fast fire, 60 seeds each, on-time pickups against the heuristic (median, 5th to 95th percentile):
+  - `hazard_scale=0.35`: OR-Tools −5 (−14 to +6), worse on 44 of 60 seeds. ALNS +7 (+1 to +18), better on 57 of 60.
+  - `hazard_scale=0.5`: OR-Tools −3 (−9 to +3). ALNS +2 (−2 to +9), better on 40 of 60.

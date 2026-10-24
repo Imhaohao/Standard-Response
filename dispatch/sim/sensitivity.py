@@ -11,7 +11,7 @@ FACTORS = [
     ("hazardSpeed", "Hazard speed (fire arrival times multiplied by this; smaller is faster)", "hazard_scale", [0.35, 0.5, 0.7, 1.0]),
     ("call911Lead", "How early 911 callers phone (scale on the 20 min median lead before the fire arrives)", "lead_911_scale", [0.5, 1.0, 2.0, 3.0]),
 ]
-SENSITIVITY_POLICIES = ["heuristic_outreach", "ortools_outreach", "today_911"]
+SENSITIVITY_POLICIES = ["heuristic_outreach", "ortools_outreach", "alns_outreach", "today_911"]
 
 
 def sensitivity_tasks(base: Config, seeds: list[int]) -> list[tuple[str, float, int, Config]]:
@@ -26,6 +26,7 @@ def sensitivity_tasks(base: Config, seeds: list[int]) -> list[tuple[str, float, 
 def level_entry(key: str, label: str, level: float, runs: list[dict]) -> dict:
     heuristic = [r["heuristic_outreach"] for r in runs]
     ortools = [r["ortools_outreach"] for r in runs]
+    alns = [r["alns_outreach"] for r in runs]
     today = [r["today_911"] for r in runs]
     return {
         "factor": key,
@@ -37,6 +38,9 @@ def level_entry(key: str, label: str, level: float, runs: list[dict]) -> dict:
             "heuristic": policy_block(heuristic)["pickupsOnTime"],
             "ortools": policy_block(ortools)["pickupsOnTime"],
             "ortoolsRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in ortools]),
+            "alnsPickupsOnTimeDifference": comparison(heuristic, alns, "heuristic", "alns")["difference"]["pickupsOnTime"],
+            "alns": policy_block(alns)["pickupsOnTime"],
+            "alnsRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in alns]),
         },
         "combined": {
             "pickupsOnTimeDifference": comparison(today, ortools, "today", "ours")["difference"]["pickupsOnTime"],

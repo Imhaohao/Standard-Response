@@ -16,10 +16,11 @@ import sys
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import alns
 import heuristic
 import solver
 
-POLICIES = {"ortools": solver.solve, "heuristic": heuristic.solve}
+POLICIES = {"ortools": solver.solve, "heuristic": heuristic.solve, "alns": alns.solve}
 MAX_BODY_BYTES = 20_000_000
 TOKEN = os.environ.get("SOLVER_TOKEN", "")
 
