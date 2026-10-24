@@ -235,8 +235,9 @@ class CallSession implements LiveCall {
     let heardAt: number | null = null;
     let backchanneled = false;
     const backchannel = setTimeout(() => {
-      // Never talk over a resident who has started again.
-      if (this.lastSpeechAt !== spokeAt) return;
+      // Never talk over a resident who has started again. A listening noise gets no "mm-hm" back:
+      // it may have been a cough, and a short "yeah" reads fast enough not to need cover.
+      if (this.lastSpeechAt !== spokeAt || isBackchannel(utterance, this.language)) return;
       backchanneled = true;
       this.speech.say([this.pickBackchannel()], this.language, () => {
         heardAt = Date.now();
