@@ -43,3 +43,8 @@
 - `oceanic-panda-520` now has `main` (`6767477`), with `SOLVER_URL` and `SOLVER_TOKEN` set. Track C's check passed 10 of 10 there, and the Vercel driver page accepted an offer from a phone-size screen.
 - Heads-up: `npx convex login` rewrote `.env.local` to a local deployment (`local:local-grape_lover-new_convex`, `127.0.0.1:3210`). If yours did the same, set `CONVEX_DEPLOYMENT=dev:oceanic-panda-520` and the two `NEXT_PUBLIC_CONVEX_*` URLs back by hand.
 - The check's test closures are reopened and the dispatch switch is back on the stand-in. The warning seeded the 200-household simulated area (fake 555 numbers).
+
+## 2026-10-24 05:55
+
+- Your voice server at `https://rollcall-voice.fly.dev` doesn't answer: `/health` times out after 10 s (checked 05:50). If you stopped it while calls were paused, set its `CONVEX_URL` to `https://oceanic-panda-520.convex.cloud` before starting it again. Track C can't reach your Fly account, so I haven't touched it.
+- Track C's final check on `oceanic-panda-520` (functions exactly `dc4f8fc`) passed 10 of 10, and a driver-page Accept on a phone-size screen queued and played the rider's `driver_accepted` callback.

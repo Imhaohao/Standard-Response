@@ -161,17 +161,17 @@ def check_frozen_runs(world: World, report: Report):
     if not before:
         report.check(False, "Accepted runs stay frozen", "no accepted pickups within 120 s")
         return
-    time.sleep(15)
-    start_version = world.status()["latestPlan"]["version"]
-    time.sleep(15)
+    start = world.status()["state"]["replans"]
+    # A re-plan that changes nothing writes no plan, so count re-plan runs. Wait for at least two.
+    wait_for(lambda: world.status()["state"]["replans"] - start >= 2, 90)
     after = {o["_id"]: o for o in world.offers()}
     moved = [a for a in before if a in after and after[a]["vehicleId"] != before[a]["vehicleId"]]
     reordered = [a for a in before if a in after and after[a]["stopOrder"] != before[a]["stopOrder"]]
-    plans = world.status()["latestPlan"]["version"] - start_version
+    replans = world.status()["state"]["replans"] - start
     report.check(
-        not moved and not reordered,
+        replans >= 2 and not moved and not reordered,
         "Accepted runs stay frozen across re-plans",
-        f"{len(before)} accepted pickups watched over {plans} new plans: {len(moved)} moved vehicle, {len(reordered)} reordered",
+        f"{len(before)} accepted pickups watched over {replans} re-plans: {len(moved)} moved vehicle, {len(reordered)} reordered",
     )
 
 
@@ -332,11 +332,20 @@ def _fell_back(world: World):
     return state if state and state.get("lastSolver") == "heuristic" and state.get("lastFallbackReason") else None
 
 
+def _sheltered(world: World):
+    return sum(s.get("occupied") or 0 for s in world.client.query("vehicles:shelters"))
+
+
 def check_completed(world: World, report: Report):
-    done = wait_for(lambda: [r for r in world.requests().values() if r["status"] == "arrived"] or None, 180)
-    trail = world.client.query("plans:auditTrail", {"limit": 400})
-    closed = sum(1 for a in trail if a["kind"] == "status" and a["message"].endswith("to closed"))
-    report.check(bool(done) or closed > 0, "Pickups complete and riders reach the shelter", f"{len(done or [])} riders on board now, {closed} dropped at the shelter in the recent audit trail")
+    before = _sheltered(world)
+    onboard = wait_for(lambda: [r for r in world.requests().values() if r["status"] == "arrived"] or None, 180)
+    # Riders on board are counted at the shelter when their van drops them off.
+    after = wait_for(lambda: _sheltered(world) if _sheltered(world) > before else None, 300) or before
+    report.check(
+        bool(onboard) and after > before,
+        "Pickups complete and riders reach the shelter",
+        f"{len(onboard or [])} riders on board; shelter count rose from {before} to {after} people while watching",
+    )
 
 
 CHECKS = {
