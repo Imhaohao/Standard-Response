@@ -1,4 +1,4 @@
-# Rollcall (working name)
+# Standard Response
 
 Evacuation calling and dispatch for Cal Hacks 13.0. `PLAN.md` has the plan, the four tracks and the contract. This repo holds the shared Convex contract, stand-ins for every backend piece, and the call floor.
 

@@ -67,7 +67,7 @@ function ThreadList({ threads, current, onPick }: { threads: Thread[]; current: 
   );
 }
 
-function RollcallMark() {
+function ProductMark() {
   return (
     <span className="type-small flex items-center gap-1.5 px-1 font-bold text-ink-muted">
       <span className="grid size-5 place-items-center rounded-full bg-ink text-canvas">
@@ -88,7 +88,7 @@ function Bubble({ text, startsRun }: { text: Thread["texts"][number]; startsRun:
       transition={{ type: "spring", duration: 0.35, bounce: 0 }}
       className={`flex max-w-[82%] flex-col gap-1 ${fromUs ? "self-start items-start" : "self-end items-end"} ${startsRun ? "mt-1" : ""}`}
     >
-      {fromUs && startsRun && <RollcallMark />}
+      {fromUs && startsRun && <ProductMark />}
       <p className={`type-body rounded-2xl px-3.5 py-2 ${surface}`}>{text.body}</p>
     </motion.li>
   );
