@@ -16,7 +16,7 @@ export function SegmentedControl<Value extends string>({
   iconOnly?: boolean;
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className="inline-flex shrink-0 items-center gap-0.5 rounded-xl bg-panel-raised p-0.5">
+    <div role="group" aria-label={ariaLabel} className="inline-flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-xl bg-panel-raised p-0.5">
       {options.map(({ value: optionValue, label, Icon }) => {
         const active = optionValue === value;
         return (

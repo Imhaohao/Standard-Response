@@ -212,8 +212,8 @@ export function PhonePanel() {
       <AppBar>
         <Tag>Simulated: SMS registration hasn&apos;t cleared</Tag>
       </AppBar>
-      <main className="flex min-h-0 flex-1 gap-6 p-4">
-        <section aria-label="Text threads" className="card flex w-80 shrink-0 flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:flex-row md:gap-6">
+        <section aria-label="Text threads" className="card flex max-h-56 shrink-0 flex-col overflow-hidden md:max-h-none md:w-80">
           <h2 className="type-small flex min-h-10 items-center border-b border-panel-raised px-3 font-bold">Texts ({threads.length})</h2>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <ThreadList threads={threads} current={thread?.householdId} onPick={setSelected} />

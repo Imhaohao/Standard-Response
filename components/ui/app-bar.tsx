@@ -69,7 +69,7 @@ export function AppBar({ children }: { children?: ReactNode }) {
         <span className="type-small hidden truncate text-ink-muted sm:inline">{AREA_NAME}</span>
       </div>
       <ScreenNav />
-      {children && <div className="ml-auto flex flex-wrap items-center gap-3">{children}</div>}
+      {children && <div className="ml-auto flex max-w-full flex-wrap items-center gap-3">{children}</div>}
     </header>
   );
 }
