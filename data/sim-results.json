@@ -1,0 +1,2023 @@
+{
+  "generatedAt": "2026-10-24T10:02:13+00:00",
+  "label": "Simulation, not a prediction",
+  "seeds": 100,
+  "runtimeSeconds": 186,
+  "population": {
+    "source": "data/population.json (Track D synthetic population; each seed samples a subset)",
+    "households": 600,
+    "note": "The simulator evaluates a policy on a fictional night. It does not validate predictions about real households."
+  },
+  "assumptions": [
+    {
+      "name": "Optimizer time limit per re-plan",
+      "value": "0.3 s",
+      "why": "keeps 100 seeds under about 15 minutes; the production service uses 3 s, so the optimizer here is slightly weaker than deployed"
+    },
+    {
+      "name": "Re-plan cadence",
+      "value": "on arrival (debounced 90 s), when a vehicle frees up, and at least every 5 min",
+      "why": "mirrors the plan's debounced event-driven loop"
+    },
+    {
+      "name": "Solver objective weights (imported from solver.py)",
+      "value": "WAIT_COST_PER_WEIGHT_SECOND=1, LATENESS_COST_PER_SECOND=10, CHANGED_OFFER_COST=600, DROP_COST_SCALE=1000000",
+      "why": "read from the solver module at run time, so this list always matches the objective that produced the numbers"
+    },
+    {
+      "name": "Planning window",
+      "value": "the 40 pending requests with the earliest deadlines go to each dispatcher",
+      "why": "both dispatchers get the same window; only the first trip of each route is committed, and a short solver budget cannot handle 100+ requests"
+    },
+    {
+      "name": "Frozen runs",
+      "value": "each idle vehicle commits to the first trip of its returned route",
+      "why": "an accepted run is never moved or extended; later trips are re-planned from the run's end"
+    },
+    {
+      "name": "Driver cancellation",
+      "value": "3% per committed pickup",
+      "why": "small stand-in rate; the request goes back to the open pool"
+    },
+    {
+      "name": "Dialer rate",
+      "value": "1 new call per second, unlimited phone lines",
+      "why": "the plan says about 1 per second"
+    },
+    {
+      "name": "Answered call length",
+      "value": "2 to 4 min, uniform",
+      "why": "from the plan"
+    },
+    {
+      "name": "Unanswered ring",
+      "value": "30 s",
+      "why": "a ring or voicemail ends well before a conversation would"
+    },
+    {
+      "name": "Retries after no answer",
+      "value": "2 min after the first miss, then 3 min after that (5 min total)",
+      "why": "the plan says retry at 2 and 5 minutes"
+    },
+    {
+      "name": "Text reply",
+      "value": "about 45% of households can reply; delay is lognormal with median 6 min; text gives up after 15 min",
+      "why": "stand-in; the door-check queue takes everyone left"
+    },
+    {
+      "name": "Door checks",
+      "value": "6 teams, deadline-first, travel on the road graph plus 6 to 10 min per visit",
+      "why": "from the plan (about 8 min a visit)"
+    },
+    {
+      "name": "Call accuracy",
+      "value": "a reached household reports its true need",
+      "why": "perfect accuracy is optimistic; call accuracy is evaluated separately by Track D"
+    },
+    {
+      "name": "Answer probability",
+      "value": "per-household answersPhone, scaled by the answer-rate setting",
+      "why": "stand-in persona draw as in convex/seed.ts"
+    },
+    {
+      "name": "911 callers",
+      "value": "55% of households that need a ride call 911",
+      "why": "assumption for today's process; the Eaton Fire case shows long gaps before calls"
+    },
+    {
+      "name": "911 call timing",
+      "value": "fire arrival minus a lognormal lead (median 20 min, clipped 5 to 90 min)",
+      "why": "people call when the fire is visibly near; assumption"
+    },
+    {
+      "name": "911 call takers",
+      "value": "2 takers, 2 to 4 min per call",
+      "why": "a queue models 'we have a lot of calls in that area'"
+    },
+    {
+      "name": "Radio delay before a unit moves",
+      "value": "2 to 6 min, uniform",
+      "why": "assumption for today's process"
+    },
+    {
+      "name": "Today's dispatch rule",
+      "value": "first come first served, nearest idle unit, one rider per trip, no need matching",
+      "why": "an incompatible unit arrives, cannot load the rider, and the request goes back in line without that unit"
+    },
+    {
+      "name": "Deadline",
+      "value": "fire arrival at the home minus 10 min",
+      "why": "same as deadlineFor in convex/model.ts"
+    },
+    {
+      "name": "Primary metric",
+      "value": "pickups finished by the deadline",
+      "why": "a pickup finished after the deadline but before the fire arrives counts as late; after that, never picked up"
+    },
+    {
+      "name": "Hazard closures",
+      "value": "a road closes when the fire front reaches its midpoint",
+      "why": "the same front timing that sets household deadlines; recomputed every 10 min"
+    },
+    {
+      "name": "Travel times",
+      "value": "free-flow edge seconds from OpenStreetMap; a leg's time is fixed when it starts",
+      "why": "closures affect legs that start after them; riders already aboard are never stranded"
+    },
+    {
+      "name": "Unload time",
+      "value": "120 s per arrival at the shelter",
+      "why": "same constant as the solver"
+    },
+    {
+      "name": "Shelter",
+      "value": "Pasadena Convention Center, capacity treated as unlimited",
+      "why": "1200 is far above the number of riders"
+    },
+    {
+      "name": "Fleet",
+      "value": "8 vehicles (base fleet from convex/seed.ts)",
+      "why": "vans, one bus, one ambulance; shift length 8 h"
+    },
+    {
+      "name": "Population",
+      "value": "600 households sampled per seed from data/population.json when it exists (about 10% need a ride), otherwise 200 stand-in households from convex/seed.ts (about half need a ride)",
+      "why": "demo-scale zone: eight vehicles cannot serve the 11,855-household file in full, so each night uses a sampled zone"
+    },
+    {
+      "name": "Seeds",
+      "value": "each seed redraws the sampled population, vehicle start points, calls and cancellations",
+      "why": "ranges therefore reflect population and behavior variation"
+    }
+  ],
+  "metricDefinitions": {
+    "pickupsOnTime": "Riders who needed a ride and finished boarding by their deadline (fire arrival minus 10 min). Primary metric. Higher is better.",
+    "pickupsLate": "Boarded after the deadline but before the fire arrived. Higher is better.",
+    "ridersNeverPickedUp": "Riders who needed a ride and were not aboard before the fire arrived, including ones no policy ever surfaced. Lower is better.",
+    "requests": "Riders that reached the dispatcher before the fire arrived.",
+    "worstWaitMinutes": "Longest time from a request surfacing to that rider finishing boarding, among riders picked up. Lower is better.",
+    "accessibleWaitMinutes": "Mean wait for wheelchair and bedbound riders who were picked up (missing when none were). Lower is better.",
+    "vehicleMinutes": "Total minutes vehicles spent on committed runs. Lower is better for the same pickups.",
+    "needers": "Households in the night that truly needed a ride."
+  },
+  "metricsWhereLowerIsBetter": [
+    "accessibleWaitMinutes",
+    "ridersNeverPickedUp",
+    "vehicleMinutes",
+    "worstWaitMinutes"
+  ],
+  "integrity": {
+    "dispatchOnlyStreamsIdentical": true,
+    "compatibilityViolations": 0,
+    "capacityViolations": 0
+  },
+  "results": {
+    "dispatchOnly": {
+      "difference": {
+        "pickupsOnTime": {
+          "median": -2.0,
+          "p5": -6.05,
+          "p95": 0.0,
+          "n": 100
+        },
+        "pickupsLate": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.0,
+          "n": 100
+        },
+        "ridersNeverPickedUp": {
+          "median": 0.5,
+          "p5": 0.0,
+          "p95": 3.0,
+          "n": 100
+        },
+        "requests": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 0.0,
+          "n": 100
+        },
+        "worstWaitMinutes": {
+          "median": 2.95,
+          "p5": -25.72,
+          "p95": 36.58,
+          "n": 100
+        },
+        "accessibleWaitMinutes": {
+          "median": -8.4,
+          "p5": -15.38,
+          "p95": -3.06,
+          "n": 100
+        },
+        "vehicleMinutes": {
+          "median": -14.58,
+          "p5": -68.47,
+          "p95": 43.72,
+          "n": 100
+        },
+        "needers": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 0.0,
+          "n": 100
+        }
+      },
+      "differenceMeaning": "ortools minus heuristic, per seed",
+      "policies": {
+        "heuristic": {
+          "pickupsOnTime": {
+            "median": 63.5,
+            "p5": 50.95,
+            "p95": 74.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 0.0,
+            "p5": 0.0,
+            "p95": 1.0,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 2.0,
+            "n": 100
+          },
+          "requests": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 125.4,
+            "p5": 98.42,
+            "p95": 162.58,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 63.7,
+            "p5": 51.47,
+            "p95": 76.43,
+            "n": 100
+          },
+          "vehicleMinutes": {
+            "median": 949.39,
+            "p5": 788.46,
+            "p95": 1126.77,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        },
+        "ortools": {
+          "pickupsOnTime": {
+            "median": 61.0,
+            "p5": 48.95,
+            "p95": 69.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 3.05,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 5.0,
+            "n": 100
+          },
+          "requests": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 132.05,
+            "p5": 103.46,
+            "p95": 162.05,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 54.84,
+            "p5": 43.36,
+            "p95": 69.68,
+            "n": 100
+          },
+          "vehicleMinutes": {
+            "median": 936.79,
+            "p5": 771.81,
+            "p95": 1121.09,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        }
+      },
+      "headline": "Dispatch only, identical requests at identical times: change in on-time pickups, ortools minus heuristic, median -2.0 (5th to 95th percentile -6.0 to +0.0) across 100 paired seeds. On-time pickups, median: heuristic 63.5 (5th to 95th percentile 51.0 to 74.0), ortools 61.0 (5th to 95th percentile 49.0 to 69.0)."
+    },
+    "outreachOnly": {
+      "difference": {
+        "pickupsOnTime": {
+          "median": 53.0,
+          "p5": 43.95,
+          "p95": 64.0,
+          "n": 100
+        },
+        "pickupsLate": {
+          "median": -9.0,
+          "p5": -16.05,
+          "p95": -5.0,
+          "n": 100
+        },
+        "ridersNeverPickedUp": {
+          "median": -43.5,
+          "p5": -55.0,
+          "p95": -33.9,
+          "n": 100
+        },
+        "requests": {
+          "median": 29.0,
+          "p5": 21.0,
+          "p95": 36.1,
+          "n": 100
+        },
+        "worstWaitMinutes": {
+          "median": 101.65,
+          "p5": 77.56,
+          "p95": 143.01,
+          "n": 100
+        },
+        "accessibleWaitMinutes": {
+          "median": 46.9,
+          "p5": 35.74,
+          "p95": 59.7,
+          "n": 100
+        },
+        "vehicleMinutes": {
+          "median": 447.18,
+          "p5": 293.84,
+          "p95": 621.04,
+          "n": 100
+        },
+        "needers": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 0.0,
+          "n": 100
+        }
+      },
+      "differenceMeaning": "ourOutreachRequests minus today911Requests, per seed",
+      "policies": {
+        "today911Requests": {
+          "pickupsOnTime": {
+            "median": 9.0,
+            "p5": 5.95,
+            "p95": 14.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 9.0,
+            "p5": 5.0,
+            "p95": 16.05,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 44.0,
+            "p5": 33.95,
+            "p95": 55.05,
+            "n": 100
+          },
+          "requests": {
+            "median": 35.0,
+            "p5": 26.0,
+            "p95": 43.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 24.22,
+            "p5": 16.07,
+            "p95": 33.42,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 17.09,
+            "p5": 14.49,
+            "p95": 21.0,
+            "n": 100
+          },
+          "vehicleMinutes": {
+            "median": 505.02,
+            "p5": 351.19,
+            "p95": 629.42,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        },
+        "ourOutreachRequests": {
+          "pickupsOnTime": {
+            "median": 63.5,
+            "p5": 50.95,
+            "p95": 74.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 0.0,
+            "p5": 0.0,
+            "p95": 1.0,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 2.0,
+            "n": 100
+          },
+          "requests": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 125.4,
+            "p5": 98.42,
+            "p95": 162.58,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 63.7,
+            "p5": 51.47,
+            "p95": 76.43,
+            "n": 100
+          },
+          "vehicleMinutes": {
+            "median": 949.39,
+            "p5": 788.46,
+            "p95": 1126.77,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        }
+      },
+      "headline": "Outreach only, heuristic dispatcher on both sides: change in on-time pickups, ourOutreachRequests minus today911Requests, median +53.0 (5th to 95th percentile +44.0 to +64.0) across 100 paired seeds. On-time pickups, median: today911Requests 9.0 (5th to 95th percentile 6.0 to 14.0), ourOutreachRequests 63.5 (5th to 95th percentile 51.0 to 74.0)."
+    },
+    "combined": {
+      "difference": {
+        "pickupsOnTime": {
+          "median": 56.0,
+          "p5": 45.0,
+          "p95": 64.0,
+          "n": 100
+        },
+        "pickupsLate": {
+          "median": -5.0,
+          "p5": -10.05,
+          "p95": 0.05,
+          "n": 100
+        },
+        "ridersNeverPickedUp": {
+          "median": -52.0,
+          "p5": -62.0,
+          "p95": -38.95,
+          "n": 100
+        },
+        "requests": {
+          "median": 29.0,
+          "p5": 21.0,
+          "p95": 36.1,
+          "n": 100
+        },
+        "worstWaitMinutes": {
+          "median": 106.99,
+          "p5": 70.03,
+          "p95": 139.41,
+          "n": 100
+        },
+        "accessibleWaitMinutes": {
+          "median": 34.74,
+          "p5": 21.96,
+          "p95": 49.32,
+          "n": 91
+        },
+        "vehicleMinutes": {
+          "median": 512.63,
+          "p5": 248.47,
+          "p95": 741.42,
+          "n": 100
+        },
+        "needers": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 0.0,
+          "n": 100
+        }
+      },
+      "differenceMeaning": "ours minus today, per seed",
+      "policies": {
+        "today": {
+          "pickupsOnTime": {
+            "median": 5.0,
+            "p5": 1.95,
+            "p95": 10.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 6.0,
+            "p5": 1.0,
+            "p95": 11.0,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 54.0,
+            "p5": 39.9,
+            "p95": 65.1,
+            "n": 100
+          },
+          "requests": {
+            "median": 35.0,
+            "p5": 26.0,
+            "p95": 43.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 24.63,
+            "p5": 16.33,
+            "p95": 40.67,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 20.04,
+            "p5": 16.6,
+            "p95": 30.22,
+            "n": 91
+          },
+          "vehicleMinutes": {
+            "median": 428.89,
+            "p5": 246.9,
+            "p95": 634.65,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        },
+        "ours": {
+          "pickupsOnTime": {
+            "median": 61.0,
+            "p5": 48.95,
+            "p95": 69.0,
+            "n": 100
+          },
+          "pickupsLate": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 3.05,
+            "n": 100
+          },
+          "ridersNeverPickedUp": {
+            "median": 1.0,
+            "p5": 0.0,
+            "p95": 5.0,
+            "n": 100
+          },
+          "requests": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          },
+          "worstWaitMinutes": {
+            "median": 132.05,
+            "p5": 103.46,
+            "p95": 162.05,
+            "n": 100
+          },
+          "accessibleWaitMinutes": {
+            "median": 54.84,
+            "p5": 43.36,
+            "p95": 69.68,
+            "n": 100
+          },
+          "vehicleMinutes": {
+            "median": 936.79,
+            "p5": 771.81,
+            "p95": 1121.09,
+            "n": 100
+          },
+          "needers": {
+            "median": 65.0,
+            "p5": 51.95,
+            "p95": 75.0,
+            "n": 100
+          }
+        }
+      },
+      "headline": "Combined, today's process against outreach plus the optimizer: change in on-time pickups, ours minus today, median +56.0 (5th to 95th percentile +45.0 to +64.0) across 100 paired seeds. On-time pickups, median: today 5.0 (5th to 95th percentile 1.9 to 10.0), ours 61.0 (5th to 95th percentile 49.0 to 69.0)."
+    },
+    "todayProcess": {
+      "metrics": {
+        "pickupsOnTime": {
+          "median": 5.0,
+          "p5": 1.95,
+          "p95": 10.0,
+          "n": 100
+        },
+        "pickupsLate": {
+          "median": 6.0,
+          "p5": 1.0,
+          "p95": 11.0,
+          "n": 100
+        },
+        "ridersNeverPickedUp": {
+          "median": 54.0,
+          "p5": 39.9,
+          "p95": 65.1,
+          "n": 100
+        },
+        "requests": {
+          "median": 35.0,
+          "p5": 26.0,
+          "p95": 43.0,
+          "n": 100
+        },
+        "worstWaitMinutes": {
+          "median": 24.63,
+          "p5": 16.33,
+          "p95": 40.67,
+          "n": 100
+        },
+        "accessibleWaitMinutes": {
+          "median": 20.04,
+          "p5": 16.6,
+          "p95": 30.22,
+          "n": 91
+        },
+        "vehicleMinutes": {
+          "median": 428.89,
+          "p5": 246.9,
+          "p95": 634.65,
+          "n": 100
+        },
+        "needers": {
+          "median": 65.0,
+          "p5": 51.95,
+          "p95": 75.0,
+          "n": 100
+        }
+      },
+      "headline": "Today's process alone (911, first come first served, nearest unit) finished 5.0 (5th to 95th percentile 1.9 to 10.0) on-time pickups and left 54.0 (5th to 95th percentile 39.9 to 65.1) riders unpicked, out of 65 (5th to 95th percentile 52 to 75) riders who needed a ride, across 100 seeds."
+    }
+  },
+  "sensitivity": [
+    {
+      "factor": "fleetSize",
+      "factorLabel": "Fleet size (vehicles)",
+      "level": 4,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -8.0,
+          "p5": -19.05,
+          "p95": -3.95,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 59.5,
+          "p5": 51.0,
+          "p95": 68.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 49.5,
+          "p5": 44.9,
+          "p95": 57.1,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 9.0,
+          "p5": 3.95,
+          "p95": 18.15,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 47.0,
+          "p5": 42.8,
+          "p95": 53.1,
+          "n": 20
+        },
+        "today": {
+          "median": 3.0,
+          "p5": 0.95,
+          "p95": 5.05,
+          "n": 20
+        },
+        "ours": {
+          "median": 49.5,
+          "p5": 44.9,
+          "p95": 57.1,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 57.5,
+          "p5": 47.0,
+          "p95": 63.2,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 9.0,
+          "p5": 3.95,
+          "p95": 18.15,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "fleetSize",
+      "factorLabel": "Fleet size (vehicles)",
+      "level": 6,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -3.5,
+          "p5": -9.05,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 69.05,
+          "n": 20
+        },
+        "ortools": {
+          "median": 59.0,
+          "p5": 50.95,
+          "p95": 62.25,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 2.0,
+          "p5": 0.0,
+          "p95": 8.15,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 54.0,
+          "p5": 45.85,
+          "p95": 60.2,
+          "n": 20
+        },
+        "today": {
+          "median": 4.0,
+          "p5": 2.0,
+          "p95": 8.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 59.0,
+          "p5": 50.95,
+          "p95": 62.25,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 53.5,
+          "p5": 43.85,
+          "p95": 63.1,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 2.0,
+          "p5": 0.0,
+          "p95": 8.15,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "fleetSize",
+      "factorLabel": "Fleet size (vehicles)",
+      "level": 8,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -1.5,
+          "p5": -6.0,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 61.5,
+          "p5": 52.0,
+          "p95": 65.1,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 55.0,
+          "p5": 47.8,
+          "p95": 59.1,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 61.5,
+          "p5": 52.0,
+          "p95": 65.1,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "fleetSize",
+      "factorLabel": "Fleet size (vehicles)",
+      "level": 12,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -0.5,
+          "p5": -2.0,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.5,
+          "p5": 52.95,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 62.5,
+          "p5": 52.95,
+          "p95": 68.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 2.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 53.0,
+          "p5": 45.95,
+          "p95": 61.05,
+          "n": 20
+        },
+        "today": {
+          "median": 9.0,
+          "p5": 2.95,
+          "p95": 12.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 62.5,
+          "p5": 52.95,
+          "p95": 68.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 45.0,
+          "p5": 39.9,
+          "p95": 55.1,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 2.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "answerRate",
+      "factorLabel": "Answer rate (scale on each household's answer probability)",
+      "level": 0.3,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -2.0,
+          "p5": -6.05,
+          "p95": 0.1,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 56.0,
+          "p5": 43.75,
+          "p95": 64.05,
+          "n": 20
+        },
+        "ortools": {
+          "median": 53.5,
+          "p5": 42.8,
+          "p95": 63.0,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 7.5,
+          "p5": 0.95,
+          "p95": 16.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 46.0,
+          "p5": 33.85,
+          "p95": 56.05,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 53.5,
+          "p5": 42.8,
+          "p95": 63.0,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 7.5,
+          "p5": 0.95,
+          "p95": 16.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "answerRate",
+      "factorLabel": "Answer rate (scale on each household's answer probability)",
+      "level": 0.6,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -3.0,
+          "p5": -8.0,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 62.0,
+          "p5": 51.85,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 57.5,
+          "p5": 51.8,
+          "p95": 64.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 2.0,
+          "p5": 0.0,
+          "p95": 6.1,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 52.0,
+          "p5": 45.0,
+          "p95": 59.0,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 57.5,
+          "p5": 51.8,
+          "p95": 64.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 2.0,
+          "p5": 0.0,
+          "p95": 6.1,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "answerRate",
+      "factorLabel": "Answer rate (scale on each household's answer probability)",
+      "level": 1.0,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -2.0,
+          "p5": -6.0,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.0,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 54.5,
+          "p5": 47.85,
+          "p95": 60.05,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.0,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "hazardSpeed",
+      "factorLabel": "Hazard speed (fire arrival times multiplied by this; smaller is faster)",
+      "level": 0.35,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -7.0,
+          "p5": -15.2,
+          "p95": 2.05,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 38.5,
+          "p5": 30.85,
+          "p95": 46.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 31.0,
+          "p5": 23.95,
+          "p95": 37.25,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 24.0,
+          "p5": 14.85,
+          "p95": 34.0,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 26.0,
+          "p5": 18.85,
+          "p95": 31.25,
+          "n": 20
+        },
+        "today": {
+          "median": 5.0,
+          "p5": 3.95,
+          "p95": 8.0,
+          "n": 20
+        },
+        "ours": {
+          "median": 31.0,
+          "p5": 23.95,
+          "p95": 37.25,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 52.0,
+          "p5": 42.95,
+          "p95": 60.05,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 24.0,
+          "p5": 14.85,
+          "p95": 34.0,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "hazardSpeed",
+      "factorLabel": "Hazard speed (fire arrival times multiplied by this; smaller is faster)",
+      "level": 0.5,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -12.0,
+          "p5": -17.1,
+          "p95": -4.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 55.0,
+          "p5": 47.95,
+          "p95": 63.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 45.0,
+          "p5": 36.9,
+          "p95": 51.1,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 12.5,
+          "p5": 4.0,
+          "p95": 18.3,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 38.5,
+          "p5": 30.9,
+          "p95": 43.3,
+          "n": 20
+        },
+        "today": {
+          "median": 6.5,
+          "p5": 2.95,
+          "p95": 9.0,
+          "n": 20
+        },
+        "ours": {
+          "median": 45.0,
+          "p5": 36.9,
+          "p95": 51.1,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 50.5,
+          "p5": 39.95,
+          "p95": 60.0,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 12.5,
+          "p5": 4.0,
+          "p95": 18.3,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "hazardSpeed",
+      "factorLabel": "Hazard speed (fire arrival times multiplied by this; smaller is faster)",
+      "level": 0.7,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -6.0,
+          "p5": -12.3,
+          "p95": -2.9,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 68.1,
+          "n": 20
+        },
+        "ortools": {
+          "median": 55.0,
+          "p5": 48.85,
+          "p95": 60.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 4.0,
+          "p5": 0.95,
+          "p95": 9.1,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 49.0,
+          "p5": 43.95,
+          "p95": 53.05,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.15,
+          "n": 20
+        },
+        "ours": {
+          "median": 55.0,
+          "p5": 48.85,
+          "p95": 60.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.85,
+          "p95": 58.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 4.0,
+          "p5": 0.95,
+          "p95": 9.1,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "hazardSpeed",
+      "factorLabel": "Hazard speed (fire arrival times multiplied by this; smaller is faster)",
+      "level": 1.0,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -1.0,
+          "p5": -5.05,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 55.0,
+          "p5": 47.95,
+          "p95": 60.05,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "call911Lead",
+      "factorLabel": "How early 911 callers phone (scale on the 20 min median lead before the fire arrives)",
+      "level": 0.5,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -1.5,
+          "p5": -4.0,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 60.0,
+          "p5": 52.0,
+          "p95": 66.15,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 60.0,
+          "p5": 51.95,
+          "p95": 66.15,
+          "n": 20
+        },
+        "today": {
+          "median": 0.0,
+          "p5": 0.0,
+          "p95": 1.05,
+          "n": 20
+        },
+        "ours": {
+          "median": 60.0,
+          "p5": 52.0,
+          "p95": 66.15,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 61.0,
+          "p5": 51.9,
+          "p95": 67.05,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 4.05,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "call911Lead",
+      "factorLabel": "How early 911 callers phone (scale on the 20 min median lead before the fire arrives)",
+      "level": 1.0,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -1.0,
+          "p5": -4.1,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.1,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 55.0,
+          "p5": 46.85,
+          "p95": 62.0,
+          "n": 20
+        },
+        "today": {
+          "median": 6.0,
+          "p5": 2.95,
+          "p95": 9.1,
+          "n": 20
+        },
+        "ours": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.1,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 51.5,
+          "p5": 41.95,
+          "p95": 59.15,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "call911Lead",
+      "factorLabel": "How early 911 callers phone (scale on the 20 min median lead before the fire arrives)",
+      "level": 2.0,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -1.0,
+          "p5": -4.1,
+          "p95": 0.0,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 62.0,
+          "p5": 52.0,
+          "p95": 67.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 37.0,
+          "p5": 32.65,
+          "p95": 43.15,
+          "n": 20
+        },
+        "today": {
+          "median": 23.0,
+          "p5": 16.95,
+          "p95": 28.15,
+          "n": 20
+        },
+        "ours": {
+          "median": 62.0,
+          "p5": 52.0,
+          "p95": 67.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 34.5,
+          "p5": 29.85,
+          "p95": 42.0,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    },
+    {
+      "factor": "call911Lead",
+      "factorLabel": "How early 911 callers phone (scale on the 20 min median lead before the fire arrives)",
+      "level": 3.0,
+      "seeds": 20,
+      "dispatchOnly": {
+        "pickupsOnTimeDifference": {
+          "median": -2.0,
+          "p5": -6.0,
+          "p95": 0.05,
+          "n": 20
+        },
+        "heuristic": {
+          "median": 63.0,
+          "p5": 52.0,
+          "p95": 70.0,
+          "n": 20
+        },
+        "ortools": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.05,
+          "n": 20
+        },
+        "ortoolsRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "combined": {
+        "pickupsOnTimeDifference": {
+          "median": 31.5,
+          "p5": 26.8,
+          "p95": 37.0,
+          "n": 20
+        },
+        "today": {
+          "median": 28.0,
+          "p5": 22.95,
+          "p95": 34.05,
+          "n": 20
+        },
+        "ours": {
+          "median": 61.0,
+          "p5": 52.0,
+          "p95": 66.05,
+          "n": 20
+        },
+        "todayRidersNeverPickedUp": {
+          "median": 33.0,
+          "p5": 25.95,
+          "p95": 39.2,
+          "n": 20
+        },
+        "oursRidersNeverPickedUp": {
+          "median": 1.0,
+          "p5": 0.0,
+          "p95": 3.1,
+          "n": 20
+        }
+      },
+      "needers": {
+        "median": 64.0,
+        "p5": 52.95,
+        "p95": 70.1,
+        "n": 20
+      }
+    }
+  ],
+  "sensitivitySeeds": 20,
+  "whereWeDontHelp": "With 4 vehicles our full process still leaves a median 9 of 64 riders unpicked (5th to 95th percentile 4 to 18); a dispatcher cannot send vans that do not exist. Dispatch only, the optimizer finished fewer on-time pickups than the heuristic at: fleetSize=4, hazardSpeed=0.5, hazardSpeed=0.7. It showed no clear difference at: fleetSize=6, fleetSize=8, fleetSize=12, answerRate=0.3, answerRate=0.6, answerRate=1.0, hazardSpeed=0.35, hazardSpeed=1.0, call911Lead=0.5, call911Lead=1.0, call911Lead=2.0, call911Lead=3.0.",
+  "exploration": {
+    "label": "Exploration, assumption-driven, not a finding",
+    "question": "What happens if everyone leaves at once?",
+    "seeds": 20,
+    "residents": {
+      "median": 10593.0,
+      "p5": 10593.0,
+      "p95": 10593.0,
+      "n": 20
+    },
+    "assumptions": [
+      {
+        "name": "Residents",
+        "value": "every household in data/population.json that has a car and no ride need drives one car (stand-in population: 20 cars per household)",
+        "why": "the whole area, not the sampled demo zone, because the question is about everyone"
+      },
+      {
+        "name": "Congestion cap",
+        "value": "volume over capacity is capped at 4.0",
+        "why": "stops the fourth-power BPR curve from producing absurd times when a single route is hugely overloaded"
+      },
+      {
+        "name": "Departure model",
+        "value": "dX = mu(t) dt + sigma dW, leave when X reaches 1",
+        "why": "drift-diffusion with two classes"
+      },
+      {
+        "name": "Evacuation-keen share",
+        "value": 0.4,
+        "why": "stand-in; the plan cites Berkeley's survey of California evacuees for the two classes, shape not fitted here"
+      },
+      {
+        "name": "Keen drift and noise",
+        "value": "0.1 per min, 0.1",
+        "why": "typical keen resident leaves in about 10 minutes"
+      },
+      {
+        "name": "Reluctant drift and noise",
+        "value": "0.01 per min, 0.08",
+        "why": "typical reluctant resident would wait well over an hour on their own"
+      },
+      {
+        "name": "Fire pressure",
+        "value": "drift rises by up to 0.06 per min as the fire nears (scale 30 min)",
+        "why": "people leave faster as the fire gets close"
+      },
+      {
+        "name": "Forced departure",
+        "value": "everyone still home leaves at their deadline (fire arrival minus 10 min)",
+        "why": "keeps the model from stranding anyone"
+      },
+      {
+        "name": "Effect of a call",
+        "value": "a reached resident's drift rises by 0.05 per min from minute 5",
+        "why": "an assumption explored in simulation, not a finding"
+      },
+      {
+        "name": "Reached by a call",
+        "value": "probability equals the household's answer probability",
+        "why": "single attempt"
+      },
+      {
+        "name": "Destination",
+        "value": "every car drives the free-flow shortest path to the shelter",
+        "why": "a stand-in for real exit routes"
+      },
+      {
+        "name": "Edge capacity",
+        "value": "600 vehicles per hour per lane",
+        "why": "residential street assumption"
+      },
+      {
+        "name": "Congestion",
+        "value": "BPR curve, 5 minute bins, 3 fixed-point iterations",
+        "why": "time on an edge depends on the volume entering in that bin"
+      }
+    ],
+    "scenarios": {
+      "ownPace": {
+        "departedByMinute15": {
+          "median": 0.37,
+          "p5": 0.36,
+          "p95": 0.37,
+          "n": 20
+        },
+        "departedByMinute30": {
+          "median": 0.46,
+          "p5": 0.45,
+          "p95": 0.47,
+          "n": 20
+        },
+        "departedByMinute60": {
+          "median": 0.65,
+          "p5": 0.64,
+          "p95": 0.65,
+          "n": 20
+        },
+        "departedByMinute120": {
+          "median": 0.89,
+          "p5": 0.88,
+          "p95": 0.89,
+          "n": 20
+        },
+        "meanTripMinutes": {
+          "median": 12.42,
+          "p5": 12.12,
+          "p95": 12.69,
+          "n": 20
+        },
+        "p95TripMinutes": {
+          "median": 30.1,
+          "p5": 29.21,
+          "p95": 31.62,
+          "n": 20
+        },
+        "freeFlowMeanTripMinutes": {
+          "median": 6.45,
+          "p5": 6.45,
+          "p95": 6.45,
+          "n": 20
+        },
+        "peakBinSlowdownFactor": {
+          "median": 3.29,
+          "p5": 3.19,
+          "p95": 3.46,
+          "n": 20
+        },
+        "worstVolumeToCapacity": {
+          "median": 15.44,
+          "p5": 12.64,
+          "p95": 18.58,
+          "n": 20
+        },
+        "peakDepartureMinute": {
+          "median": 10.0,
+          "p5": 10.0,
+          "p95": 10.0,
+          "n": 20
+        }
+      },
+      "withCalls": {
+        "departedByMinute15": {
+          "median": 0.47,
+          "p5": 0.46,
+          "p95": 0.48,
+          "n": 20
+        },
+        "departedByMinute30": {
+          "median": 0.87,
+          "p5": 0.87,
+          "p95": 0.88,
+          "n": 20
+        },
+        "departedByMinute60": {
+          "median": 0.94,
+          "p5": 0.94,
+          "p95": 0.95,
+          "n": 20
+        },
+        "departedByMinute120": {
+          "median": 0.98,
+          "p5": 0.98,
+          "p95": 0.98,
+          "n": 20
+        },
+        "meanTripMinutes": {
+          "median": 24.09,
+          "p5": 23.08,
+          "p95": 25.22,
+          "n": 20
+        },
+        "p95TripMinutes": {
+          "median": 45.41,
+          "p5": 42.96,
+          "p95": 46.68,
+          "n": 20
+        },
+        "freeFlowMeanTripMinutes": {
+          "median": 6.45,
+          "p5": 6.45,
+          "p95": 6.45,
+          "n": 20
+        },
+        "peakBinSlowdownFactor": {
+          "median": 2.77,
+          "p5": 2.52,
+          "p95": 3.15,
+          "n": 20
+        },
+        "worstVolumeToCapacity": {
+          "median": 37.08,
+          "p5": 27.55,
+          "p95": 44.67,
+          "n": 20
+        },
+        "peakDepartureMinute": {
+          "median": 5.0,
+          "p5": 5.0,
+          "p95": 5.0,
+          "n": 20
+        }
+      },
+      "everyoneAtOnce": {
+        "departedByMinute15": {
+          "median": 1.0,
+          "p5": 1.0,
+          "p95": 1.0,
+          "n": 20
+        },
+        "departedByMinute30": {
+          "median": 1.0,
+          "p5": 1.0,
+          "p95": 1.0,
+          "n": 20
+        },
+        "departedByMinute60": {
+          "median": 1.0,
+          "p5": 1.0,
+          "p95": 1.0,
+          "n": 20
+        },
+        "departedByMinute120": {
+          "median": 1.0,
+          "p5": 1.0,
+          "p95": 1.0,
+          "n": 20
+        },
+        "meanTripMinutes": {
+          "median": 17.37,
+          "p5": 16.55,
+          "p95": 18.13,
+          "n": 20
+        },
+        "p95TripMinutes": {
+          "median": 40.39,
+          "p5": 39.24,
+          "p95": 41.18,
+          "n": 20
+        },
+        "freeFlowMeanTripMinutes": {
+          "median": 6.45,
+          "p5": 6.45,
+          "p95": 6.45,
+          "n": 20
+        },
+        "peakBinSlowdownFactor": {
+          "median": 3.26,
+          "p5": 1.86,
+          "p95": 3.51,
+          "n": 20
+        },
+        "worstVolumeToCapacity": {
+          "median": 33.2,
+          "p5": 31.62,
+          "p95": 34.54,
+          "n": 20
+        },
+        "peakDepartureMinute": {
+          "median": 5.0,
+          "p5": 0.0,
+          "p95": 5.0,
+          "n": 20
+        }
+      }
+    },
+    "scenarioMeaning": {
+      "ownPace": "Drift-diffusion departures, no phone calls.",
+      "withCalls": "Same draws, but residents we reach get a drift boost (an assumption).",
+      "everyoneAtOnce": "Every resident leaves within 10 minutes of the warning."
+    },
+    "headline": "Exploration only: if every resident left within 10 minutes, the median trip to the shelter took 17 minutes against 6 with empty roads, and the busiest road segment ran at 33.2 times its capacity (drift-diffusion departures at their own pace: 12 minutes, 15.4 times). Median over 20 seeds; every input is an assumption."
+  }
+}
