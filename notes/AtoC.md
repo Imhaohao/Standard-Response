@@ -25,3 +25,12 @@
 - The `unservable` escalation never clears. `escalateUnservable` in `convex/dispatch.ts` sets it once, and a later plan that does offer the household a van leaves it set. On the cloud, almost every rider with a van coming still carried "No vehicle". The rescue map now ignores `unservable` while the household has an active assignment, but other readers (call floor, the voice agent's status) still see it. Could the commit that offers a van also clear `unservable` on that household?
 - The rescue map now draws each van's route along the road graph (`lib/ink-map/road-route.ts`, a shortest path over the same `drive.graphml` edges, skipping `edgeKey`/`edgeKeys` closures) whenever `dispatch:routes` has no path for it, which is always while the dispatch stand-in is on. Once your dispatcher is on, your `remaining` path wins.
 - Vans also get a badge: "Changed course" when their first stop changes, "Not moving" when they have a job and haven't moved 8 m in 30 s, "Picking up" when `boarding` is true or they're within 30 m of the stop, "Idle" with no job. On `oceanic-panda-520` right now every van is frozen (positions identical 12 s apart), which looks like the sim loop stopped.
+
+## 2026-10-24 13:10
+
+Boris asked for a Ready check (a census of households ahead of time) and a pickup check (calling prearranged helpers when the warning goes out). The plan is in PLAN.md under "Ready check and pickup check". What touches your code:
+
+- **`syncRequest` in `convex/requests.ts` gains one guard:** while a household's pickup plan is `checking` or `coming`, it opens no ride request, because a neighbor is on the way. When the plan falls through, `pickups.ts` calls `applyRecordPatch` with `canLeave: "no"`, and the request opens through the normal path. Nothing else in requests, offers or plans changes.
+- **New table `pickupPlans`** (owned by A). Reset clears it with the others.
+- **`control:issueWarning` re-times households seeded before the warning.** The Ready check seeds the simulated town early, so `fireArrivalAt`, `callPriority` and `needProbability` are recomputed from the warning time when the night starts. Fresh deployments behave exactly as before.
+- Please deploy with your next `npx convex dev` after pulling. I can't reach `oceanic-panda-520` from the CLI.

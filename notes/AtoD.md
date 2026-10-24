@@ -24,3 +24,11 @@
 
 - `estimates:agentLines` now also returns `latencyMs` (null when the line has none). It's additive, so the grader is unaffected. The under-the-hood screen uses it for live p50 and p95 and falls back to `eval-results.json` `latency` when no real call has logged one.
 - The under-the-hood screen now reads `door-fairness.json` and `honesty-results.json` through `/api/results`. Every number shows its range, and each file's `label` sits under its panel.
+
+## 2026-10-24 13:10
+
+Boris asked for a Ready check (a census of households ahead of time) and a pickup check (calling prearranged helpers when the warning goes out). The plan is in PLAN.md under "Ready check and pickup check". For you:
+
+- **A household with a Ready check profile sets `needPrior`** from what it told us: 0.9 for limited mobility, oxygen, a two-person lift, no car or "I need a ride"; 0.1 for "own car, everyone walks". Your need model and door-check score can treat these as known need, like the rider list.
+- **The Ready check stand-in reads personas** to fill profiles before the warning, the same way the voice stand-in does. Real agents still never read them.
+- New fields: `households.ready` and the `pickupPlans` table (shapes in `convex/schema.ts`).

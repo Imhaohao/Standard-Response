@@ -18,6 +18,8 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 
 **The moment judges remember.** One rider's situation changes. The caller corrects an answer mid-call, and the pickup goes to a crew that can lift. The driver accepts. Then a road closes and the van can no longer reach the rider. The rider is told the truth right away, a stale offer from the old plan is rejected, and a new driver accepts.
 
+**Before the night: Ready check.** Registries failed because nobody had the people to call through them when it counted. AI agents do. Ahead of any disaster, the agent calls every household (or the household signs up on its phone) and records who lives there, what help they need getting out, where they sleep, and who has agreed to pick them up. When a warning goes out, the agent calls every one of those helpers first. A pickup that isn't happening becomes a ride request at once, already filled in from the profile, and the rescue map shows it.
+
 **Honesty rule.** Every update reflects the latest confirmed assignment, and the resident hears right away if it changes. Code ties what the agent may say to request status; the prompt doesn't.
 
 **Stability rule.** Re-planning never adds stops to a run a driver has accepted, and never hands an accepted pickup to someone else. A pickup leaves a driver's run only when no route reaches it in time or the driver cancels it.
@@ -136,6 +138,37 @@ received ──approve──► approved ──(offer open)──► driver acce
 - **Red-team set.** 25 callers who push for reassurance, plus 10 change cases: a driver cancels, a road closes after acceptance, a stale acceptance of a replaced offer, duplicate events, and a status change while the agent is mid-sentence.
 - **Two honesty numbers.** Template-level false promises are zero by construction, so we also measure what can fail. A separate grader model scores how often Claude's free text implies help is coming while status is `received` or `reassigning`, with a human spot check. We also report time from revocation to callback placed and from revocation to template played.
 
+## Ready check and pickup check
+
+A registry with nobody to call it is worse than none: it promises a check that never comes. Harvey and LA County's old registry failed for lack of hands, and AI agents remove that limit. So the list is built ahead of time and worked through the moment a warning covers a street.
+
+### Before the night: Ready check
+
+1. **Every household gets a profile.** The voice agent calls each home in the agency's area, or the household fills in `/ready` on its own phone. Both write the same profile:
+   - who lives there: head count, the most limited mobility, help getting out (`none`, one person, two-person lift), oxygen or dialysis, pets, car
+   - care needs firefighters plan around: hard of hearing, low vision, memory loss, a power-dependent device, a service animal
+   - where the person who needs help sleeps (ground floor, upstairs or basement; front or back), plus a short note for the crew ("key with the neighbor at 1214")
+   - the plan for getting out: own car, a named helper (name and phone), or a ride from us
+2. **Profiles reach the night.** The call queue calls known needs first, and the evening call confirms what's on file instead of asking cold. A profile never creates a ride request by itself; only a warning does.
+3. **Sign-ups are unverified until called.** A `/ready` sign-up is marked `via: "form"` and the agent confirms it by phone before it counts as verified. The list is sensitive: real data only under the agency's authority.
+
+### During the night: pickup check
+
+When a warning covers a household with a helper on file:
+
+```
+arranged ──warning──► checking ──helper says yes──► coming ──resident says picked up──► done
+                         │                              │
+            helper says no, or no answer twice    resident says no one came
+                         ▼                              ▼
+                    fell_through ──► ride request from the profile (or door check if the resident can't be reached)
+```
+
+- **The helper is called first,** then the resident once the helper's ETA has passed. Nobody waits on a broken promise: 8 minutes without a yes counts as fell through.
+- **No double booking.** While a pickup is `checking` or `coming`, `syncRequest` opens no ride request for that home. Once it falls through, the request opens immediately, needs already filled in from the profile.
+- **What the resident hears doesn't change.** A fallen-through pickup is a normal ride request, so the honesty table above still governs every word.
+- **On the rescue map,** a helper who lives nearby is an ink arc from their home to the resident's: dotted while we call, solid with moving ticks once they're coming. If the pickup falls through, the arc breaks in red and the home becomes a red ride request. Clicking any home opens its profile card, which a firefighter reads before going in.
+
 ## Contract
 
 One real-time database (Convex) that every track reads and writes. Nobody calls anybody else directly. The schema is `convex/schema.ts`.
@@ -158,6 +191,8 @@ One real-time database (Convex) that every track reads and writes. Nobody calls 
 | `roadClosures` | C | D (hazard), A (manual control), B (resident mentions), C (driver reports) through `roads:addClosures` | all |
 | `nominations` | D | B (`nominations:add`), D (`nominations:resolve`) | A |
 | `personas` | D | Seed and D only | Stand-ins and D's eval. Real agents must never read it |
+| `households.ready` (the Ready check profile: `at`, `via`, `exitPlan`, `bedroom`, `care`, `note`) | A | A (`ready:submit`, the Ready check stand-in), B (`ready:saveFromCall`) | all |
+| `pickupPlans` (prearranged helpers and the pickup check) | A | A (`ready:submit`), the stand-in; B through `pickups:startAttempt`, `pickups:helperAnswered`, `pickups:residentAnswered`, `pickups:unanswered` | A, B, C |
 | `control` | A | A (stand-in switches) | stand-ins |
 
 ### Rules the contract already enforces
@@ -194,6 +229,7 @@ Press **Issue evacuation warning** on the call floor. That seeds 200 simulated h
 | Drivers not on the driver page | Simulated drivers accept their offers after 6 seconds | C |
 | Dispatcher approval | Approves every proposed offer at once | A |
 | Need model | Census prior shrunk toward nearby answered calls | D |
+| Ready check and pickup check (under the voice switch) | Ready check calls before the warning, filled from persona cards; helpers answering, confirming and sometimes not showing up | A (B's real calls replace it) |
 
 ## Track A: interface (Boris)
 
@@ -481,7 +517,7 @@ The goal is one sentence: "We asked X. A dispatcher told us Y. We changed Z."
 - Fictional riders in every demo. Real data only under the agency's authority, deleted when the incident closes.
 - Role-based access is part of the pitch only if the Auth0 add-on ships.
 - No individual risk scores on screen. A human approves every plan. The honesty rules and the audit log back every statement.
-- Rules we keep: only authorized agencies send emergency alerts; a human approves every plan; nothing reaches a resident before a driver accepts; the list of vulnerable residents is sensitive data, with no public intake endpoint.
+- Rules we keep: only authorized agencies send emergency alerts; a human approves every plan; nothing reaches a resident before a driver accepts; the list of vulnerable residents is sensitive data. `/ready` sign-ups stay unverified until the agent confirms them by phone, and a real deployment puts the page behind the agency's own sign-up.
 
 ## Prize tracks
 
