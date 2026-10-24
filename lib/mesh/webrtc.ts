@@ -7,7 +7,10 @@ import { Link } from "./transport";
 
 const ICE_GATHER_TIMEOUT_MS = 5000;
 const CONNECT_TIMEOUT_MS = 25_000;
-const UNREACHABLE = "The phones couldn't reach each other. Put both on the same Wi-Fi or one phone's hotspot, then try again.";
+// On macOS a browser without the Local Network permission can't announce its mDNS names, so this
+// is the usual cause on a laptop (checked: Chrome's *.local names never resolve there, the Mac's own do).
+const UNREACHABLE =
+  "The phones couldn't reach each other. Put both on the same Wi-Fi or one phone's hotspot, then try again. On a Mac, allow your browser under Privacy & Security, Local Network.";
 const CHANNEL = "rollcall-mesh";
 const PREFIX = "RCM1:";
 
