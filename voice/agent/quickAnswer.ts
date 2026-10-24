@@ -54,6 +54,7 @@ const reading = (language: Language, overrides: Partial<Interpretation>): Interp
   wantsToEnd: false,
   wantsTime: false,
   asksWhatToDo: false,
+  policyQuestion: "",
   neighborAddresses: [],
   spokenLanguage: language,
   acknowledgment: "",

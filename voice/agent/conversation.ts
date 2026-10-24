@@ -1,4 +1,6 @@
 import type { Doc } from "../../convex/_generated/dataModel";
+import { findApprovedAnswer } from "./answerLookup";
+import { withApprovedAnswer } from "./approvedAnswers";
 import { guardAcknowledgment } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
 import { quickReading } from "./quickAnswer";
@@ -232,11 +234,13 @@ export class Conversation {
 
   // Claude's reading of one utterance. It changes nothing, so a phone call can throw it away and
   // read again when the resident turns out to still be talking. Null when the interpreter failed.
+  // A policy question Claude heard ("can my dog come?") then gets the agency's approved answer.
   async understand(utterance: string): Promise<Interpretation | null> {
     const quick = quickReading(utterance, this.step, this.language);
     if (quick) return quick;
     try {
-      return await interpret(this.turnContext(utterance));
+      const heard = await interpret(this.turnContext(utterance));
+      return withApprovedAnswer(heard, await findApprovedAnswer(heard.policyQuestion));
     } catch (error) {
       console.error("[agent] interpreter failed", error);
       return null;

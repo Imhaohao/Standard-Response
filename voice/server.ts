@@ -2,6 +2,7 @@ import http from "node:http";
 import { WebSocketServer } from "ws";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
+import { loadApprovedAnswers } from "./agent/answerLookup";
 import { startCallbackRunner } from "./callbackRunner";
 import { startCallPlanRunner } from "./callPlanRunner";
 import { convex } from "./convex";
@@ -118,6 +119,7 @@ server.on("upgrade", (req, socket, head) => {
 server.listen(env.port, () => {
   console.log(`[voice] listening on :${env.port}`);
   watchHazard();
+  void loadApprovedAnswers();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   startDialer();
   startCallPlanRunner();

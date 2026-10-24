@@ -22,6 +22,7 @@ function heard(overrides: Partial<Interpretation> = {}): Interpretation {
     wantsToEnd: false,
     wantsTime: false,
     asksWhatToDo: false,
+    policyQuestion: "",
     neighborAddresses: [],
     spokenLanguage: "en",
     acknowledgment: "",

@@ -35,6 +35,9 @@ export const env = {
     projectId: process.env.MOSS_PROJECT_ID ?? "",
     projectKey: process.env.MOSS_PROJECT_KEY ?? "",
     enabled: optional("VOICE_KNOWLEDGE", "on") === "on",
+    // Approved answers (voice/agent/answerLookup.ts): the relevance floor from 0 to 1. Below it the
+    // agent says it doesn't know rather than guess.
+    answerMinScore: numberFrom("MOSS_MIN_SCORE", 0.7),
   },
   twilio: {
     accountSid: () => required("TWILIO_ACCOUNT_SID"),
