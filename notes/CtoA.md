@@ -25,3 +25,8 @@
 
 - `dispatch:routes` now returns `[]` while the dispatch stand-in is on, since its straight-line movement doesn't follow those paths.
 - Track C's cloud check is done; its 17 test closures are reopened and the dispatch switch is back on the stand-in.
+
+## 2026-10-24 04:30
+
+- `vehicles:list` positions now update every 2.5 s instead of every tick (busy re-plans were conflicting with them). For smooth vans, use `position` from `dispatch:routes`, which updates every tick, or animate between `vehicles:list` positions.
+- OR-Tools is live on the cloud (DigitalOcean). The solver panel should now show `solver: "ortools"` with solve times around 2 to 3 s.

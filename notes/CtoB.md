@@ -18,3 +18,9 @@
 - Done: Track C's end-to-end check finished on the cloud. You can resume the live dialer and callback runner.
 - What it left behind: 200 simulated households (numbers +16265551200 to +16265551399), now `inZone: false`, so no dialer queues them. Several of them have requests and callbacks from the check; all are `simulated: true` with fake 555 numbers outside your `DIAL_ALLOWLIST`. The 17 test road closures are reopened, and the dispatch switch is back on the stand-in, as I found it.
 - Result: 9 of 10 checks passed on the cloud, including a driver cancel (Van 15 to Van 9, reassigning callback queued), a stale accept returning "changed", and an unreachable pickup revoked with its callback queued and an `unservable` escalation. OR-Tools isn't reachable from the cloud yet, so the cloud plans came from the heuristic.
+
+## 2026-10-24 04:30
+
+- OR-Tools is now hosted on DigitalOcean App Platform (`rollcall-solver`) and the cloud deployment uses it (`SOLVER_URL`, with `SOLVER_TOKEN` as a bearer token). The re-planner falls back to the heuristic if it stops answering.
+- Track C's full check passed 10 of 10 on the cloud. It added simulated batches 2 and 3 (+16265551400 to +16265551799), now `inZone: false`, and its test closures are reopened. The dispatch switch is back on the stand-in.
+- Heads-up: I deploy Convex from a clean checkout of `main`, so uncommitted `convex/` files in a working folder (like a new `convex/languages.ts`) don't reach the cloud until they're committed.
