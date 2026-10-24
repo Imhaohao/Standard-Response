@@ -1,65 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Cube, Cursor, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
 import { FireClock } from "@/lib/ink-map/hazard";
-import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
-import { formatElapsed, useNow } from "@/lib/time";
+import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
 
-const SCREENS = [
-  { href: "/", label: "Call floor" },
-  { href: "/map", label: "Rescue map" },
-  { href: "/system", label: "Under the hood" },
-  { href: "/phone", label: "Simulated phone" },
-  { href: "/driver", label: "Driver page" },
-] as const;
-
-function ScreenNav() {
-  const pathname = usePathname();
-  return (
-    <nav aria-label="Screens">
-      <ul className="flex flex-wrap gap-1">
-        {SCREENS.map((screen) => {
-          const current = pathname === screen.href;
-          return (
-            <li key={screen.href}>
-              <Link
-                href={screen.href}
-                aria-current={current ? "page" : undefined}
-                className={`type-small inline-flex h-7 items-center px-2 font-semibold focus-visible:outline-2 focus-visible:outline-on-panel ${
-                  current ? "bg-on-panel text-panel" : "text-on-panel-muted hover:bg-panel-raised hover:text-on-panel"
-                }`}
-              >
-                {screen.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
-
 export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
-  const now = useNow();
-  return (
-    <header className="pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="size-3 shrink-0 bg-signal" aria-hidden />
-        <span className="type-heading">{PRODUCT_NAME}</span>
-        <span className="type-small hidden truncate text-on-panel-muted sm:inline">{AREA_NAME}</span>
-      </div>
-      <ScreenNav />
-      {issuedAt && (
-        <div className="ml-auto flex items-baseline gap-2">
-          <span className="type-small text-on-panel-muted">Since the warning</span>
-          <span className="type-figure text-lg tabular-nums">{formatElapsed(now - issuedAt)}</span>
-        </div>
-      )}
-    </header>
-  );
+  return <AppBar>{issuedAt && <WarningClock issuedAt={issuedAt} />}</AppBar>;
 }
 
 export type MapTool = "look" | "zone" | "closure";
