@@ -71,3 +71,13 @@ Hold (after the questions, waiting for a driver) now always answers, which chang
 - **No silent or acknowledgment-only turns on hold.** If Claude's reply would be dropped as a repeat, or the turn has only an acknowledgment, the code adds the status line, or the next `holdSteps` line when the status line was the last thing said.
 - Phone-only: a quiet line on hold gets a check-in every 30 seconds (the three steps, then `stillThere`), and after six quiet stretches in a row, the goodbye.
 - Request and response shapes are unchanged.
+
+## 2026-10-24 16:50
+
+Repetition fixes from the real calls on `robust-penguin-834` change some `POST /turn` replies:
+
+- **New line `statusUnchanged`** ("Nothing has changed since I last told you. I'll tell you the moment it does." / "Nada ha cambiado desde lo que le dije. Le aviso en cuanto cambie."). It replaces the full status line when the resident asks about the ride again within two agent turns of hearing it. Please don't grade it as a missing status line; asking to repeat ("say that again?") still gets the full one.
+- **Status changes** (`announce`) re-ask the open question once, not after each change, so the second of two back-to-back changes ends on the template.
+- **On hold**, a reply that only rewords one already given is dropped, and a bare "Oh," or "okay" gets no sentence at all.
+- **Interpreter prompt** reads transcripts against the recent questions: "desperately need autism" after the oxygen question is now `medical=oxygen` (guessed), and the misheard word is never said back.
+- Request and response shapes are unchanged.
