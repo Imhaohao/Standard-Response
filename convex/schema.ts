@@ -261,6 +261,11 @@ export default defineSchema({
     version: v.number(),
     solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools")),
     solveMs: v.number(),
+    // Track C: the size of the problem this plan solved, for the solver panel.
+    requestCount: v.optional(v.number()),
+    vehicleCount: v.optional(v.number()),
+    // Why the heuristic ran instead of OR-Tools ("solver service unreachable"), when it did.
+    fallbackReason: v.optional(v.string()),
     changes: v.array(
       v.object({
         kind: v.union(v.literal("offer"), v.literal("replace"), v.literal("revoke")),
@@ -284,6 +289,8 @@ export default defineSchema({
     proposedAt: v.number(),
     offeredAt: v.optional(v.number()),
     respondedAt: v.optional(v.number()),
+    // When Track C last recomputed etaMinutes from the vehicle's position.
+    etaUpdatedAt: v.optional(v.number()),
   })
     .index("by_requestId", ["requestId"])
     .index("by_vehicleId", ["vehicleId"])
@@ -307,6 +314,9 @@ export default defineSchema({
   roadClosures: defineTable({
     // OSM edge id as "u-v-key" once Track C snaps the path to the road graph.
     edgeKey: v.optional(v.string()),
+    // Every directed edge this closure shuts, both directions, once Track C has snapped it.
+    edgeKeys: v.optional(v.array(v.string())),
+    streets: v.optional(v.array(v.string())),
     path: v.array(point),
     source: closureSource,
     confirmed: v.boolean(),
@@ -368,6 +378,37 @@ export default defineSchema({
     // Counts from the last run: households estimated, door checks scored, closures added, matches.
     stats: v.optional(v.record(v.string(), v.number())),
   }),
+
+  // Track C singleton: the re-planner's lock and what its last run did.
+  dispatchState: defineTable({
+    replanStartedAt: v.optional(v.number()),
+    lastReplanAt: v.number(),
+    // Closures already planned around. A new one triggers a re-plan right away.
+    closuresSeen: v.number(),
+    lastSolver: v.optional(v.union(v.literal("heuristic"), v.literal("ortools"))),
+    lastSolveMs: v.optional(v.number()),
+    lastFallbackReason: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+    replans: v.number(),
+  }),
+
+  // Track C: the road path each vehicle is driving now. The rescue map can draw these.
+  vehicleRoutes: defineTable({
+    vehicleId: v.id("vehicles"),
+    target: v.union(
+      v.object({ kind: v.literal("pickup"), assignmentId: v.id("assignments") }),
+      v.object({ kind: v.literal("shelter"), shelterId: v.id("shelters") }),
+    ),
+    path: v.array(point),
+    legSeconds: v.array(v.number()),
+    // Road seconds already driven along `path`.
+    progressSeconds: v.number(),
+    // Closures this path was computed around. When it changes, the path is recomputed.
+    closuresSeen: v.number(),
+    // Boarding: the vehicle waits at the pickup until then.
+    dwellUntil: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_vehicleId", ["vehicleId"]),
 
   // Singleton row. Operator controls plus one switch per stand-in.
   control: defineTable({

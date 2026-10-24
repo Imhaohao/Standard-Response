@@ -60,7 +60,8 @@ async function proposeForWaiting(ctx: MutationCtx, autoApprove: boolean) {
   await writePlan(ctx, { solver: "stand_in", solveMs: Date.now() - started, offers, replace: [], revoke: [] }, autoApprove);
 }
 
-async function standInDrivers(ctx: MutationCtx, now: number) {
+// Simulated drivers accept their offers after a few seconds. The real dispatcher keeps using this.
+export async function standInDrivers(ctx: MutationCtx, now: number) {
   const offered = await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", "offered")).take(200);
   for (const assignment of offered) {
     if (now - (assignment.offeredAt ?? now) < DRIVER_ACCEPTS_AFTER_MS) continue;

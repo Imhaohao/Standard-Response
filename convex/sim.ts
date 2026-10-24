@@ -188,6 +188,7 @@ export const tick = internalMutation({
     if (control.simulateNeedModel) await standInNeedModel(ctx, now);
     if (control.autoApprove) await approveLeftovers(ctx);
     if (control.simulateDispatch) await standInDispatch(ctx, control, now, TICK_MS);
+    else await ctx.scheduler.runAfter(0, internal.fleet.tick, { tickMs: TICK_MS });
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation });
     return null;
   },

@@ -127,15 +127,19 @@ export const escalate = mutation({
   args: { householdId: v.id("households"), kind: escalation },
   returns: v.null(),
   handler: async (ctx, { householdId, kind }) => {
-    const household = await ctx.db.get("households", householdId);
-    if (!household) throw new Error(`Household ${householdId} not found`);
-    await ctx.db.patch("households", householdId, { escalation: kind });
-    await ctx.db.insert("events", {
-      kind: "dispatch",
-      message: `${household.address} escalated: ${kind.replace("_", " ")}`,
-      householdId,
-      at: Date.now(),
-    });
+    await escalateHousehold(ctx, householdId, kind);
     return null;
   },
 });
+
+export async function escalateHousehold(ctx: MutationCtx, householdId: Id<"households">, kind: typeof escalation.type) {
+  const household = await ctx.db.get("households", householdId);
+  if (!household) throw new Error(`Household ${householdId} not found`);
+  await ctx.db.patch("households", householdId, { escalation: kind });
+  await ctx.db.insert("events", {
+    kind: "dispatch",
+    message: `${household.address} escalated: ${kind.replace("_", " ")}`,
+    householdId,
+    at: Date.now(),
+  });
+}

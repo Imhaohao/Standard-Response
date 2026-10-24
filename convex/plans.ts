@@ -21,6 +21,9 @@ export const proposal = v.object({
   replace: v.array(v.id("assignments")),
   // Accepted pickups no route reaches in time. The rider is told right away.
   revoke: v.array(v.id("assignments")),
+  requestCount: v.optional(v.number()),
+  vehicleCount: v.optional(v.number()),
+  fallbackReason: v.optional(v.string()),
 });
 
 export type Proposal = typeof proposal.type;
@@ -77,7 +80,8 @@ export async function writePlan(ctx: MutationCtx, plan: Proposal, autoApprove: b
     changes.push({ kind: "offer", requestId: item.requestId, vehicleId: item.vehicleId });
     if (autoApprove) await approveAssignment(ctx, assignmentId);
   }
-  await ctx.db.insert("plans", { version, solver: plan.solver, solveMs: plan.solveMs, changes, createdAt: now });
+  const { solver, solveMs, requestCount, vehicleCount, fallbackReason } = plan;
+  await ctx.db.insert("plans", { version, solver, solveMs, requestCount, vehicleCount, fallbackReason, changes, createdAt: now });
   await audit(ctx, "plan", `New plan with ${changes.length} change${changes.length === 1 ? "" : "s"}`, { planVersion: version });
   return version;
 }
