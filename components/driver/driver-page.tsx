@@ -101,13 +101,21 @@ function Chip({ Icon, count, label, emphasis = false }: NeedItem) {
   );
 }
 
-// The close-up: this house, on this street. The roof goes red and a pin sits on it, because at
-// close range an oblique view hides the one building the driver is looking for.
+// The house, drawn as a house. Most of the homes in the burn scar have no footprint left in the
+// map data, so the marker has to say "a building, here" on its own rather than relying on a roof
+// underneath it to go red.
 function PickupPin({ at }: { at: LatLng }) {
   return (
     <GeoAnchor at={at}>
-      <circle r={20} fill="var(--signal)" fillOpacity={0.14} />
-      <circle r={9} fill="var(--signal)" stroke="var(--map-paper)" strokeWidth={2.5} />
+      <circle r={30} fill="var(--signal)" fillOpacity={0.1} />
+      <path
+        d="M -15 1 L 0 -12 L 15 1 L 15 14 L -15 14 Z"
+        fill="var(--signal)"
+        stroke="var(--map-paper)"
+        strokeWidth={3}
+        strokeLinejoin="round"
+      />
+      <rect x={-4} y={3} width={8} height={11} fill="var(--map-paper)" />
     </GeoAnchor>
   );
 }
