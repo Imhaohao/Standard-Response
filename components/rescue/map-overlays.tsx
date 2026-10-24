@@ -41,6 +41,16 @@ function RequestPin({ person, focused }: { person: Person; focused: boolean }) {
   );
 }
 
+// A household nobody has confirmed is out: a small ink square, the same mark as the dark roof in the
+// homes legend, so a door that still needs a knock shows at town scale too.
+function StillHomeMark({ at }: { at: Point }) {
+  return (
+    <Anchor point={at}>
+      <rect x={-4.5} y={-4.5} width={9} height={9} fill={INK} stroke={PAPER} strokeWidth={2} />
+    </Anchor>
+  );
+}
+
 // The little round badge on a van's corner: the one thing worth knowing about it right now.
 const STATE_BADGE: Partial<Record<VanState, { icon: ReactNode; spin?: boolean; label: string }>> = {
   rerouting: { icon: <ArrowsClockwise weight="bold" size={11} color="white" x={-5.5} y={-5.5} />, spin: true, label: "Changed course" },
@@ -150,6 +160,7 @@ type OverlayProps = {
   people: Person[];
   vans: Van[];
   focusId: string | null;
+  stillHome: Point[];
   vanFocusId: string | null;
   onVanHover: (id: string | null) => void;
 };
@@ -159,7 +170,7 @@ function lookedAtVan(people: Person[], focusId: string | null, vanFocusId: strin
   return vanFocusId ?? people.find((person) => person._id === focusId)?.assignment?.vehicleId ?? null;
 }
 
-export function MapOverlays({ tool, draft, people, vans, focusId, vanFocusId, onVanHover }: OverlayProps) {
+export function MapOverlays({ tool, draft, people, vans, focusId, stillHome, vanFocusId, onVanHover }: OverlayProps) {
   const focusedVan = lookedAtVan(people, focusId, vanFocusId);
   // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
   const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
@@ -171,6 +182,9 @@ export function MapOverlays({ tool, draft, people, vans, focusId, vanFocusId, on
       <Closures />
       {routes.map((van) => (
         <VanRoute key={van.vehicle._id} van={van} focused={van.vehicle._id === focusedVan} faded={focusedVan !== null && van.vehicle._id !== focusedVan} />
+      ))}
+      {stillHome.map((at, index) => (
+        <StillHomeMark key={index} at={at} />
       ))}
       {vans.map((van) => (
         <VanMark key={van.vehicle._id} van={van} onHover={onVanHover} />

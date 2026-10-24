@@ -38,7 +38,7 @@ export function RescueMap() {
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
   const board = useRescueBoard(data ?? null, toLocal);
-  const { homes, withOpenRequest, highlights } = useRoofs(data ?? null, board.people, toLocal);
+  const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data ?? null, board.people, toLocal);
   const { focus, flyTarget, focusProps } = usePersonFocus();
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
@@ -63,7 +63,7 @@ export function RescueMap() {
         controls={<ZoomControls className="absolute right-[21.75rem] bottom-24" />}
       >
         {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes} />}
-        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
+        <MapOverlays tool={tool} draft={draft} people={board.people} vans={board.vans} focusId={focus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
       </MapStage>
 
       <div className="pointer-events-none absolute inset-0 flex flex-col">
@@ -102,9 +102,11 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
   const coverage = useQuery(api.households.coverage);
   const homes = useMemo(() => coverage ?? [], [coverage]);
   const withOpenRequest = useMemo(() => new Set<string>(people.map((person) => person.householdId)), [people]);
-  const marks = useMemo(() => [...homeMarks(homes, withOpenRequest, toLocal), ...requestMarks(people)], [homes, withOpenRequest, toLocal, people]);
+  const occupancy = useMemo(() => homeMarks(homes, withOpenRequest, toLocal), [homes, withOpenRequest, toLocal]);
+  const marks = useMemo(() => [...occupancy, ...requestMarks(people)], [occupancy, people]);
   const highlights = useBuildingHighlights(data, marks);
-  return { homes, withOpenRequest, highlights };
+  const stillHome = useMemo(() => occupancy.filter((mark) => mark.occupancy === "stillHome").map((mark) => mark.point), [occupancy]);
+  return { homes, withOpenRequest, highlights, stillHome };
 }
 
 // Drawing a warning zone (click its corners, Enter to save) or a road closure (two clicks).
