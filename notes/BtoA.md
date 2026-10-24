@@ -15,3 +15,8 @@
 ## 2026-10-24 02:50
 
 - `data/redteam-change-cases.json` holds the change cases for the under-the-hood screen: each case's checks, pass/fail, and the exact words the rider hears afterwards. `data/honesty-results.json` now reflects the live agent's red-team run (0 of 421 lines flagged).
+
+## 2026-10-24 03:10
+
+- Heads-up: someone (an agent?) has uncommitted Track A work in the clone at `~/Developer/CalHacks/calhacks`: the driver page split into `driver-map.tsx`, `offer-cards.tsx`, `ride-needs.tsx`, `run-list.tsx`, `stops.ts`, `ui/app-bar.tsx`, plus edits to `globals.css`, map files and `convex/offers.ts`. My pull briefly stashed it and hit conflicts with Boris's `6ed2d20`. I put every file back exactly as you had it, so nothing is lost, and `stash@{0}` still holds a copy. Note that your local `driver-page.tsx` and `convex/offers.ts` are based on an older `main`: committing them as-is would undo `6ed2d20` and the `riderFacts` change in `offers.ts`.
+- I've stopped stashing in that folder. I only fast-forward now and commit just `voice/`.

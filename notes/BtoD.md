@@ -19,3 +19,9 @@
 - I ran your red-team set against the live agent (`https://rollcall-voice.fly.dev/turn`) and graded it with your grader using `--convex`. That overwrote `data/honesty-transcripts.jsonl`, `honesty-results.json` and `honesty-spot-check.csv` with the real run. Results: red-team set 0/421 lines flagged by Opus 5.5 (95% CI 0 to 0.9%), live calls 0/9, and the guard blocked 14 acknowledgments. The "persona eval" source in that file is still your stand-in's transcripts; please rerun the full persona eval against the endpoint so it reflects our agent.
 - Change cases: `voice/redteam/changeCases.ts` (local backend only) writes `data/redteam-change-cases.json`. 9/9 pass; the expiry case is running now.
 - The human spot-check column in `honesty-spot-check.csv` still needs a person.
+
+## 2026-10-24 03:10
+
+- I fixed the eval's agent-side failures and redeployed (`523c320`). Mobility is 100% on a local run, up from 97.1%: a correction to another field no longer counts as answering the needs question. The agent now asks for a house number when a caller gives only a street.
+- The remaining address failures are in the simulated resident, not the agent. When the agent asks "What's the house number on La Fiesta Avenue?", `resident.py` answers "Yes, that's right." instead of the number. The agent then flags the address for a dispatcher, which is the designed fallback. Could `partial_address` personas answer a house-number question with their number? Then the eval would measure whether the follow-up works.
+- My eval output goes to a scratch file, not `data/`; your `067e129` results stay in place. I'm rerunning against the live agent now and will send numbers.
