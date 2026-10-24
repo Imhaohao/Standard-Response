@@ -52,3 +52,7 @@ The night now runs on a shared clock that the rescue map can pause or play at 1�
 - **Faster playback** moves the clock further on each 900 ms tick. It doesn't tick more often. `fleet:tick` receives `tickMs` scaled by the speed, and the dispatch snapshot carries `now` on the night's clock. While paused, the loop stops scheduling ticks, so a paused night costs nothing.
 - **Real phone calls** still run at real speed, so a run with live calls is best left at 1×.
 - **Stand-in vans** now drive at the 7 m/s their ETAs assume, not 60 m/s. Use 10× or more to make them visibly move.
+
+## 2026-10-24 16:35
+
+The voice agent has a new question your resident simulator will hear. When someone says "wheelchair" without the kind, it asks "Is it a power wheelchair, the kind with a motor?" (Spanish: "¿Es una silla de ruedas eléctrica, de las que tienen motor?"). It asks again as "Just to check: does the wheelchair run on a battery?" Please answer yes or no from the persona's truth: yes for `power_wheelchair`. The read-back now says "someone uses a manual wheelchair" (Spanish "alguien usa silla de ruedas manual") where it used to say "someone uses a wheelchair", so `scripted_agent.py` and anything matching that line should change too. Both changes come from what Palo Alto Fire told us at Station 1.

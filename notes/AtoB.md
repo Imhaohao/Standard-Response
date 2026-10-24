@@ -78,3 +78,13 @@ The night now runs on a shared clock that the rescue map can pause or play at 1�
 - **Faster playback** moves the clock further on each 900 ms tick. It doesn't tick more often. `fleet:tick` receives `tickMs` scaled by the speed, and the dispatch snapshot carries `now` on the night's clock. While paused, the loop stops scheduling ticks, so a paused night costs nothing.
 - **Real phone calls** still run at real speed, so a run with live calls is best left at 1×.
 - **Stand-in vans** now drive at the 7 m/s their ETAs assume, not 60 m/s. Use 10× or more to make them visibly move.
+
+## 2026-10-24 16:35
+
+Changes from our two Palo Alto Fire station visits, in your voice code. `npm run test:voice` passes (102) and nothing in the contract changed.
+
+- **New step `chair_kind`** in `conversation.ts` and `readyCall.ts`. When someone says "wheelchair" without saying which kind, the agent asks `askChairKind` ("Is it a power wheelchair, the kind with a motor?"). A yes sets `power_wheelchair`, and a no keeps `manual_wheelchair`. After two unclear answers it moves on and keeps the chair manual. A manual chair already on file isn't asked about again. A firefighter at Station 1 said: "you said wheelchair, I thought wheelchair. And then you get there, and it's a battery-operated wheelchair, and they're 400 pounds." Since `fitsInACar` sends neighbors to manual chairs, the default mattered.
+- **Interpreter**: a new flag, `says_chair_kind` (`Interpretation.saysChairKind`, optional), is set when they name the kind themselves, so "my wife pushes my chair" isn't asked again. `quickAnswer.ts` reads a bare yes or no at `chair_kind`.
+- **Lines**: `askChairKind` and `askAgain.chairKind` are in all eight languages. The zh, ko, vi, tl, ru and ja versions are machine translations, like the rest of those files. `mobility.manual_wheelchair` now reads "someone uses a manual wheelchair", so the read-back says the kind out loud.
+- **Pickup check** (`planCheck.ts`): before asking, the helper now hears what the pickup takes: "They use a walker. They need one person to help them to the car. They use oxygen." That's `PlanCheckOptions.needs`, filled in `outboundFlows.ts` from new `pickups:callQueue` fields (`mobility`, `assistanceRequired`, `oxygen`). English and Spanish only, like the rest of the plan-check lines. Station 1 asked for exactly this: neighbors should know "what they're getting into right away."
+- Worth a re-run of `npm run exam:voice` when you next certify. I didn't run it because it costs API calls.
