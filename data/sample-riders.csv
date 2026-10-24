@@ -1,9 +1,41 @@
 rider_id,name,address,lat,lng,phone,language,mobility,assistance
-R-1001,Carmen Ortiz,"1182 Mariposa St, Altadena",34.1951,-118.1583,+16265550101,es,walker,none
-R-1002,Walter Briggs,"905 Lincoln Ave, Altadena",34.1872,-118.1517,+16265550102,en,manual_wheelchair,one_person_assist
-R-1003,Lucille Haynes,"640 Calaveras St, Altadena",34.1915,-118.1622,+16265550103,en,power_wheelchair,none
-R-1004,Tomás Reyes,"1320 Woodbury Rd, Altadena",34.1846,-118.1458,+16265550104,es,walks,none
-R-1005,Bernice Cole,"771 Palm St, Altadena",34.1823,-118.1601,+16265550105,en,bedbound,two_person_lift
-R-1006,Harold Kim,"1048 Ventura St, Altadena",34.1887,-118.1549,+16265550106,en,walker,one_person_assist
-R-1007,Rosario Méndez,"512 Figueroa Dr, Altadena",34.1797,-118.1644,+16265550107,es,manual_wheelchair,none
-R-1008,Clarence Odum,"1455 Altadena Dr, Altadena",34.1979,-118.1431,+16265550108,en,walks,none
+R-1001,Carmen Ortiz,"486 West Mariposa Street, Altadena",34.195227,-118.157957,+16265550101,es,walker,none
+R-1002,Walter Briggs,"2609 North Lincoln Avenue, Altadena",34.190571,-118.159083,+16265550102,en,manual_wheelchair,one_person_assist
+R-1003,Lucille Haynes,"796 West Altadena Drive, Altadena",34.199253,-118.16291,+16265550103,en,manual_wheelchair,one_person_assist
+R-1004,Tomás Reyes,"2829 North Marengo Avenue, Altadena",34.193476,-118.141127,+16265550104,es,walker,none
+R-1005,Bernice Cole,"45 East Mariposa Street, Altadena",34.192195,-118.147375,+16265550105,en,walker,one_person_assist
+R-1006,Harold Kim,"3100 Olive Avenue, Altadena",34.198198,-118.152871,+16265550106,en,walker,one_person_assist
+R-1007,Rosario Méndez,"280 Marathon Road, Altadena",34.198138,-118.139487,+16265550107,es,manual_wheelchair,none
+R-1008,Clarence Odum,"521 West Harriet Street, Altadena",34.19378,-118.159473,+16265550108,en,power_wheelchair,none
+R-1009,Mei-Ling Chen,"78 West Terrace Street, Altadena",34.194016,-118.149465,+16265550109,en,walks,none
+R-1010,Darnell Washington,"116 East Palm Street, Altadena",34.19572,-118.144147,+16265550110,en,walker,none
+R-1011,Josefina Flores,"143 West Harriet Street, Altadena",34.191471,-118.15216,+16265550111,en,walker,none
+R-1012,Raymond Takahashi,"118 West Poppyfields Drive, Altadena",34.198819,-118.14815,+16265550112,en,power_wheelchair,one_person_assist
+R-1013,Esperanza Gutiérrez,"3037 Ewing Street, Altadena",34.196818,-118.145067,+16265550113,es,,
+R-1014,Kwame Mensah,"3445 North Fair Oaks Avenue, Altadena",34.203735,-118.143412,+16265550114,en,power_wheelchair,none
+R-1015,Hyun-woo Park,"3024 Glen Avenue, Altadena",34.196857,-118.151066,+16265550115,en,bedbound,two_person_lift
+R-1016,Gloria Jefferson,"3135 Ewing Street, Altadena",34.198442,-118.144209,+16265550116,en,walker,none
+R-1017,Leon Price,"148 West Palm Street, Altadena",34.197413,-118.149482,+16265550117,en,power_wheelchair,none
+R-1018,Shirley Holloway,"410 Punahou Street, Altadena",34.197817,-118.136778,+16265550118,en,,
+R-1019,Arturo Navarro,"3237 Lincoln Avenue, Altadena",34.201171,-118.159411,+16265550119,es,bedbound,two_person_lift
+R-1020,Yolanda Banks,"3043 Santa Anita Avenue, Altadena",34.196715,-118.135203,+16265550120,es,manual_wheelchair,one_person_assist
+R-1021,Odessa Pruitt,"71 West Las Flores Drive, Altadena",34.199944,-118.146526,+16265550121,en,walker,none
+R-1022,Felipe Salazar,"206 Marathon Road, Altadena",34.198729,-118.140817,+16265550122,es,power_wheelchair,none
+R-1023,Mae Whitfield,"2515 North El Sol Avenue, Altadena",34.18891,-118.167221,+16265550123,en,manual_wheelchair,one_person_assist
+R-1024,Rogelio Ramírez,"721 Ventura Street, Altadena",34.192997,-118.164165,+16265550124,es,bedbound,two_person_lift
+R-1025,Ruth Goldberg,"252 East Montana Street, Altadena",34.180073,-118.145504,+16265550125,en,manual_wheelchair,none
+R-1026,Alma Castillo,"445 West Mariposa Street, Altadena",34.195412,-118.156916,+16265550126,es,walker,none
+R-1027,Gustavo Herrera,"429 West Terrace Street, Altadena",34.196515,-118.155629,+16265550127,es,walks,none
+R-1028,Wen Liu,"955 La Canada Verdugo Road, Altadena",34.18653,-118.170846,+16265550128,en,power_wheelchair,none
+R-1029,Beatrice Fontaine,"974 La Canada Verdugo Road, Altadena",34.185641,-118.171651,+16265550129,en,walker,none
+R-1030,Ming Zhou,"843 Florecita Way, Altadena",34.201773,-118.162925,+16265550130,en,power_wheelchair,one_person_assist
+R-1031,Juanita Delgado,"2817 Saint James Place, Altadena",34.193219,-118.136152,+16265550131,es,manual_wheelchair,one_person_assist
+R-1032,Earl Simmons,"261 East Montana Street, Altadena",34.180548,-118.145352,+16265550132,en,walker,none
+R-1033,Dolores Aguilar,"486 Devirian Place, Altadena",34.196008,-118.157606,+16265550133,es,walker,none
+R-1034,Vernon Brooks,"814 West Altadena Drive, Altadena",34.199393,-118.163389,+16265550134,en,,
+R-1035,Ana Morales,"68 West Laurel Drive, Altadena",34.200232,-118.14631,+16265550135,es,walks,none
+R-1036,Hattie Tate,"3277 Tonia Avenue, Altadena",34.200233,-118.141735,+16265550136,en,walker,one_person_assist
+R-1037,Ignacio Villanueva,"444 Alameda Street, Altadena",34.184345,-118.141413,+16265550137,es,manual_wheelchair,none
+R-1038,Pearl Greene,"2482 Catherine Road, Altadena",34.187366,-118.135243,+16265550138,en,walker,one_person_assist
+R-1039,Samuel Okafor,"3223 Grandeur Avenue, Altadena",34.200099,-118.151418,+16265550139,en,manual_wheelchair,one_person_assist
+R-1040,Consuelo Vega,"133 East Pine Street, Altadena",34.194965,-118.144155,+16265550140,en,manual_wheelchair,none

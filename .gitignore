@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Local Convex backend state
 .convex/
+
+# Track D Python environment
+modeling/.venv/
+__pycache__/
+modeling/cache/
