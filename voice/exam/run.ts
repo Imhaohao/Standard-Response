@@ -87,7 +87,7 @@ function report(graded: Graded[], options: Options) {
   return {
     label: "Voice exam after the CritiCall dispatcher test. Scripted callers adapted from released 911 calls, not real riders.",
     generatedAt: new Date().toISOString(),
-    agentModel: process.env.VOICE_MODEL || "claude-opus-5-5 (fast mode)",
+    agentModel: process.env.VOICE_MODEL || "claude-haiku-5-5",
     passBar: PASS_BAR,
     overallScore: Number(overall.toFixed(3)),
     verdict: passed ? "PASS" : "FAIL",
