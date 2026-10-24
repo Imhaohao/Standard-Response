@@ -47,3 +47,7 @@ next-env.d.ts
 modeling/.venv/
 __pycache__/
 modeling/cache/
+
+# Track A map bake cache and browser screenshots
+scripts/map/.cache/
+.playwright-mcp/
