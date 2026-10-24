@@ -9,6 +9,8 @@ import { scriptFor } from "./scripts";
 import { callPriorityFor, located, metersBetween, Point } from "./model";
 import { approveLeftovers, standInCallbacks, standInDispatch } from "./dispatchStandIn";
 import { needModelRunnerLive } from "./estimates";
+import { expireStaleChecks, startPickupChecks } from "./pickups";
+import { standInPickupChecks } from "./pickupSim";
 
 // Stand-ins. Each block below fakes one teammate's service so the whole pipeline runs
 // before the real piece exists. Flip its switch in `control` once the real one writes.
@@ -204,7 +206,10 @@ export const tick = internalMutation({
 });
 
 async function runStandIns(ctx: MutationCtx, control: Doc<"control">, now: number) {
+  await startPickupChecks(ctx, now);
+  await expireStaleChecks(ctx, now);
   if (control.simulateVoice) {
+    await standInPickupChecks(ctx, now);
     await standInVoiceAgent(ctx, now);
     if (control.dialerRunning) await standInDialer(ctx, control, now);
     await standInTextFollowUp(ctx, now);

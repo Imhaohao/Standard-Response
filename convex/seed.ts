@@ -192,3 +192,17 @@ export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number) {
   await seedFleet(ctx, mulberry32(13), warningAt);
   return true;
 }
+
+// The Ready check seeds the town before any warning. When the warning comes, every simulated home's
+// fire arrival and call priority are measured from it instead.
+export async function retimeSimulatedArea(ctx: MutationCtx, warningAt: number) {
+  const households = await ctx.db.query("households").take(1000);
+  for (const household of households) {
+    if (!household.simulated || household.lat === undefined || household.lng === undefined) continue;
+    const fireArrivalAt = fireArrivalFor({ lat: household.lat, lng: household.lng }, warningAt);
+    await ctx.db.patch("households", household._id, {
+      fireArrivalAt,
+      callPriority: callPriorityFor(household.needProbability, fireArrivalAt, warningAt),
+    });
+  }
+}

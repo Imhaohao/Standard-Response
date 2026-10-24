@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
-import { seedFleetIfEmpty, seedSimulatedArea } from "./seed";
+import { retimeSimulatedArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
+import { startPickupChecks } from "./pickups";
 import { startCall } from "./calls";
 import { TICK_MS } from "./sim";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
@@ -46,10 +47,13 @@ export const issueWarning = mutation({
     const control = await controlRow(ctx);
     if (control.warningIssuedAt) return null;
     const now = Date.now();
-    if (!(await ctx.db.query("households").first())) await seedSimulatedArea(ctx, now);
+    if (await ctx.db.query("households").first()) await retimeSimulatedArea(ctx, now);
+    else await seedSimulatedArea(ctx, now);
     await seedFleetIfEmpty(ctx, now);
     const tickGeneration = control.tickGeneration + 1;
-    await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration });
+    const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
+    await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration });
+    await startPickupChecks(ctx, now);
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation: tickGeneration });
     return null;
@@ -142,6 +146,7 @@ const TABLES = [
   "roadClosures",
   "zones",
   "personas",
+  "pickupPlans",
   "households",
   "vehicles",
   "shelters",
@@ -160,6 +165,9 @@ export const reset = mutation({
       ...DEFAULTS,
       warningIssuedAt: undefined,
       tickGeneration: control.tickGeneration + 1,
+      readyCheckRunning: false,
+      readyCheckStartedAt: undefined,
+      readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1,
     });
     await ctx.scheduler.runAfter(0, internal.control.clearTables, {});
     return null;

@@ -170,6 +170,8 @@ function riderFacts(household: Doc<"households"> | null) {
     assistanceRequired: household.assistanceRequired,
     medical: household.medical,
     pets: household.pets,
+    // Track A: where they sleep, care needs and a note for the crew, from the Ready check.
+    ready: household.ready,
   };
 }
 

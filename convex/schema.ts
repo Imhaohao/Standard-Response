@@ -123,6 +123,46 @@ export const closureSource = v.union(
   v.literal("manual"),
 );
 
+// Ready check (Track A): what a household told us before any disaster.
+export const bedroomFloor = v.union(v.literal("ground"), v.literal("upstairs"), v.literal("basement"));
+export const bedroomSide = v.union(v.literal("front"), v.literal("back"));
+export const careNeed = v.union(
+  v.literal("hearing"),
+  v.literal("sight"),
+  v.literal("memory"),
+  v.literal("power_device"),
+  v.literal("service_animal"),
+);
+export const exitPlan = v.union(v.literal("own_car"), v.literal("helper"), v.literal("needs_ride"));
+export const readySource = v.union(v.literal("call"), v.literal("form"), v.literal("agency"));
+
+export const readyProfile = v.object({
+  at: v.number(),
+  via: readySource,
+  // A sign-up from /ready stays unverified until the agent confirms it by phone.
+  verified: v.boolean(),
+  exitPlan,
+  // Where the person who needs help sleeps, so a crew knows where to go first.
+  bedroom: v.optional(v.object({ floor: bedroomFloor, side: v.optional(bedroomSide) })),
+  care: v.array(careNeed),
+  note: v.optional(v.string()),
+});
+
+export const pickupStatus = v.union(
+  v.literal("arranged"),
+  v.literal("checking"),
+  v.literal("coming"),
+  v.literal("done"),
+  v.literal("fell_through"),
+);
+
+export const pickupFailure = v.union(
+  v.literal("helper_declined"),
+  v.literal("helper_unreachable"),
+  v.literal("helper_never_came"),
+  v.literal("resident_unreachable"),
+);
+
 export const point = v.object({ lat: v.number(), lng: v.number() });
 
 export const load = v.object({
@@ -192,6 +232,10 @@ export default defineSchema({
     callPriority: v.number(),
     // Track D door-check score. Higher is knocked on sooner.
     doorPriority: v.optional(v.number()),
+    // Track A: the Ready check profile, filled before any warning.
+    ready: v.optional(readyProfile),
+    // Track A: Ready check calls nobody answered.
+    readyMisses: v.optional(v.number()),
     simulated: v.boolean(),
   })
     .index("by_callStatus_and_callPriority", ["callStatus", "callPriority"])
@@ -447,6 +491,31 @@ export default defineSchema({
     riders: v.array(v.object({ requestId: v.id("requests"), shelterId: v.optional(v.id("shelters")), load })),
   }).index("by_vehicleId", ["vehicleId"]),
 
+  // Track A: a helper who agreed ahead of time to pick a household up. The pickup check calls them
+  // the moment a warning covers the household, and a broken promise becomes a ride request.
+  pickupPlans: defineTable({
+    householdId: v.id("households"),
+    helperName: v.string(),
+    helperPhone: v.string(),
+    // "neighbor", "daughter": said on the call so the helper knows who is asking.
+    relation: v.optional(v.string()),
+    // Set when the helper lives in the area: the rescue map draws the pickup from their home.
+    helperHouseholdId: v.optional(v.id("households")),
+    status: pickupStatus,
+    reason: v.optional(pickupFailure),
+    // Which call is ringing right now, if any. The rescue map shows the phone ringing.
+    ringing: v.optional(v.union(v.literal("helper"), v.literal("resident"))),
+    helperAttempts: v.number(),
+    residentAttempts: v.number(),
+    lastAttemptAt: v.optional(v.number()),
+    checkStartedAt: v.optional(v.number()),
+    helperEtaAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    simulated: v.boolean(),
+  })
+    .index("by_householdId", ["householdId"])
+    .index("by_status", ["status"]),
+
   // Singleton row. Operator controls plus one switch per stand-in.
   control: defineTable({
     warningIssuedAt: v.optional(v.number()),
@@ -461,6 +530,10 @@ export default defineSchema({
     hazard: v.optional(hazard),
     // Set once householdCounts:backfill has filled the call-floor count aggregates.
     householdCountsReadyAt: v.optional(v.number()),
+    // Track A: the Ready check campaign, before any warning. Bumping the generation stops a run.
+    readyCheckStartedAt: v.optional(v.number()),
+    readyCheckRunning: v.optional(v.boolean()),
+    readyCheckGeneration: v.optional(v.number()),
   }),
 
   // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.

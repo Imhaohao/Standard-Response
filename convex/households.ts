@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
-import { assistanceRequired, callStatus, canLeave, mobility, medicalNeed, outcome } from "./schema";
+import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
@@ -165,6 +165,12 @@ export const coverage = query({
       outcome,
       callStatus,
       needProbability: v.number(),
+      // Track A: the Ready check, for the rescue map's census panel.
+      exitPlan: v.optional(exitPlan),
+      readyMisses: v.number(),
+      mobility: v.optional(mobility),
+      assistanceRequired: v.optional(assistanceRequired),
+      oxygen: v.boolean(),
     }),
   ),
   handler: async (ctx) => {
@@ -176,6 +182,11 @@ export const coverage = query({
       outcome: h.outcome,
       callStatus: h.callStatus,
       needProbability: h.needProbability,
+      exitPlan: h.ready?.exitPlan,
+      readyMisses: h.readyMisses ?? 0,
+      mobility: h.mobility,
+      assistanceRequired: h.assistanceRequired,
+      oxygen: h.medical?.includes("oxygen") ?? false,
     }));
   },
 });

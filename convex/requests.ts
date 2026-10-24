@@ -5,6 +5,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { auditKind, escalation, requestStatus } from "./schema";
 import { deadlineFor, rideNeedFor, vehicleCanServe } from "./model";
 import { closeAssignmentsFor, liveAssignmentsFor, replaceAssignment, revokeAssignment } from "./offers";
+import { helperCovers } from "./pickupCover";
 
 export type RequestStatus = Doc<"requests">["status"];
 
@@ -80,6 +81,8 @@ export async function syncRequest(ctx: MutationCtx, householdId: Id<"households"
     return;
   }
   const fields = { ...need, deadlineAt: deadlineFor(household.fireArrivalAt), updatedAt: Date.now() };
+  // A neighbor on the way means no van yet; a ride already open keeps its van.
+  if (!open && (await helperCovers(ctx, householdId))) return;
   if (!open) {
     await ctx.db.insert("requests", { householdId, status: "received", ...fields });
     return;
