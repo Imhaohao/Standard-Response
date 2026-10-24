@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { callPhase, callStage } from "./schema";
+import { callPhase, callStage, requestStatus } from "./schema";
 import { outcomeFor } from "./model";
 
 const MAX_VOICE_ATTEMPTS = 2;
@@ -82,9 +82,16 @@ export const setStage = mutation({
   },
 });
 
-// Voice server: one finalized utterance from either side.
+// Voice server: one finalized utterance from either side. Agent lines carry the request status
+// they were spoken under (the honesty grader reads it) and the turn latency.
 export const say = mutation({
-  args: { callId: v.id("calls"), speaker: v.union(v.literal("agent"), v.literal("resident")), text: v.string() },
+  args: {
+    callId: v.id("calls"),
+    speaker: v.union(v.literal("agent"), v.literal("resident")),
+    text: v.string(),
+    requestStatus: v.optional(requestStatus),
+    latencyMs: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("transcriptLines", { ...args, at: Date.now() });

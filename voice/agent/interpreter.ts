@@ -1,0 +1,175 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { env } from "../env";
+import type { AgentRecord, Confidence, Field } from "./record";
+import { FIELDS } from "./record";
+import type { Language } from "./script";
+
+// Claude's whole job on a call: turn one messy utterance into structured changes plus a short
+// acknowledgment. It never decides what to ask next or what may be promised; the state machine does.
+
+export type Emergency = "none" | "medical" | "flames";
+export type Answer = "yes" | "no" | "unclear";
+
+export type Interpretation = {
+  updates: AgentRecord;
+  confidence: Confidence;
+  answer: Answer | null;
+  emergency: Emergency;
+  asksAboutRide: boolean;
+  wantsRepeat: boolean;
+  neighborAddresses: string[];
+  spokenLanguage: Language;
+  acknowledgment: string;
+};
+
+export type TurnContext = {
+  language: Language;
+  stage: string;
+  question: string;
+  record: AgentRecord;
+  recentTurns: { speaker: "agent" | "resident"; text: string }[];
+  utterance: string;
+};
+
+const enumOf = (values: readonly string[]) => ({ type: "string", enum: values });
+
+const objectOf = (properties: Record<string, object>) => ({
+  type: "object",
+  properties,
+  required: Object.keys(properties),
+  additionalProperties: false,
+});
+
+// Changes come back as a short list rather than an object of nullable fields: fewer output tokens
+// per turn, which is most of the latency.
+const OUTPUT_SCHEMA = objectOf({
+  changes: {
+    type: "array",
+    items: objectOf({ field: enumOf(FIELDS), value: { type: "string" }, confidence: { type: "number" } }),
+  },
+  answer: enumOf(["yes", "no", "unclear", "none"]),
+  emergency: enumOf(["none", "medical", "flames"]),
+  asksAboutRide: { type: "boolean" },
+  wantsRepeat: { type: "boolean" },
+  neighborAddresses: { type: "array", items: { type: "string" } },
+  spokenLanguage: enumOf(["en", "es"]),
+  acknowledgment: { type: "string" },
+});
+
+const SYSTEM = `You interpret one thing a resident just said on an evacuation phone call run by a paratransit agency. A wildfire evacuation warning covers their street. You return structured data only.
+
+The household record has these fields and allowed values:
+- address: street address where they are now
+- canLeave: can everyone in the home leave on their own right now: yes, no, unsure
+- hasCar: whether they have a car or a ride out: true, false
+- peopleCount: people physically in the home right now, including the speaker: a whole number
+- pets: whether there are pets: true, false
+- mobility: the most limited mobility of anyone in the home right now, from least to most limited: walks, walker, manual_wheelchair, power_wheelchair, bedbound
+- medical: medical needs of people in the home, comma-separated from: oxygen, dialysis, other
+- assistanceRequired: help needed getting out of the home: none, one_person_assist, two_person_lift
+
+Rules for changes:
+- List a field only when this utterance gives or changes it. List nothing else.
+- Corrections matter most. If the resident changes or takes back something already in the record, list the new value. "My husband uses a wheelchair, but he isn't here" means the wheelchair user is not in the home: lower peopleCount and set mobility to what the people present need. "It's just me... no wait, my son is here, he can't get out of bed" raises peopleCount and sets mobility to bedbound.
+- A wheelchair is manual_wheelchair unless they say it is electric or powered.
+- "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
+- Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure.
+- For address, write the street address as spoken, cleaned up (for example "1182 Mariposa St"). List it only when they give an address different from the one in the record; a plain "yes, I'm here" sets answer to yes and lists no address.
+- confidence is 0 to 1. Use below 0.6 when you are guessing.
+
+Other outputs:
+- answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise.
+- emergency: medical if someone is hurt, can't breathe or has a medical emergency now; flames if they can see fire, flames or embers at or next to the home; otherwise none.
+- asksAboutRide: true if they ask whether someone is coming, when help arrives, or for any reassurance about a ride.
+- wantsRepeat: true if they didn't hear or understand the question.
+- neighborAddresses: addresses or locations of other people who might not be able to leave, if they mention any.
+- spokenLanguage: the language the resident is speaking.
+- acknowledgment: at most 6 words in spokenLanguage that show you heard them, such as "Okay, two people." or "Entendido." Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never ask a question. Empty string if nothing fits.`;
+
+const client = new Anthropic();
+
+const CHOICES: Partial<Record<Field, readonly string[]>> = {
+  canLeave: ["yes", "no", "unsure"],
+  mobility: ["walks", "walker", "manual_wheelchair", "power_wheelchair", "bedbound"],
+  assistanceRequired: ["none", "one_person_assist", "two_person_lift"],
+};
+const MEDICAL = new Set(["oxygen", "dialysis", "other"]);
+const BOOLEAN_FIELDS = new Set<Field>(["hasCar", "pets"]);
+
+// Turns one listed change into a typed record value, or undefined when the value isn't allowed.
+function valueFor(field: Field, raw: string): unknown {
+  const value = raw.trim();
+  const choices = CHOICES[field];
+  if (choices) return choices.includes(value) ? value : undefined;
+  if (BOOLEAN_FIELDS.has(field)) return value === "true" ? true : value === "false" ? false : undefined;
+  if (field === "peopleCount") {
+    const count = Number.parseInt(value, 10);
+    return Number.isFinite(count) && count >= 1 ? count : undefined;
+  }
+  if (field === "medical") return value.split(",").map((item) => item.trim()).filter((item) => MEDICAL.has(item));
+  return value === "" ? undefined : value;
+}
+
+type RawChange = { field: Field; value: string; confidence: number };
+
+function recordFrom(changes: RawChange[]) {
+  const updates: Record<string, unknown> = {};
+  const confidence: Confidence = {};
+  for (const change of changes) {
+    if (!FIELDS.includes(change.field)) continue;
+    const value = valueFor(change.field, String(change.value));
+    if (value === undefined) continue;
+    updates[change.field] = value;
+    confidence[change.field] = Math.min(Math.max(Number(change.confidence) || 0.5, 0), 1);
+  }
+  return { updates: updates as AgentRecord, confidence };
+}
+
+const answerFrom = (raw: unknown): Answer | null => (raw === "yes" || raw === "no" || raw === "unclear" ? raw : null);
+const emergencyFrom = (raw: unknown): Emergency => (raw === "medical" || raw === "flames" ? raw : "none");
+const languageFrom = (raw: unknown, fallback: Language): Language => (raw === "es" || raw === "en" ? raw : fallback);
+
+function parse(text: string, fallbackLanguage: Language): Interpretation {
+  const raw = JSON.parse(text) as Record<string, unknown>;
+  const { updates, confidence } = recordFrom(Array.isArray(raw.changes) ? (raw.changes as RawChange[]) : []);
+  return {
+    updates,
+    confidence,
+    answer: answerFrom(raw.answer),
+    emergency: emergencyFrom(raw.emergency),
+    asksAboutRide: raw.asksAboutRide === true,
+    wantsRepeat: raw.wantsRepeat === true,
+    neighborAddresses: Array.isArray(raw.neighborAddresses) ? (raw.neighborAddresses as string[]) : [],
+    spokenLanguage: languageFrom(raw.spokenLanguage, fallbackLanguage),
+    acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",
+  };
+}
+
+function promptFor(turn: TurnContext) {
+  const history = turn.recentTurns.map((line) => `${line.speaker}: ${line.text}`).join("\n");
+  return [
+    `Call language: ${turn.language}. Current step: ${turn.stage}.`,
+    `Record so far: ${JSON.stringify(turn.record)}`,
+    history ? `Recent turns:\n${history}` : "",
+    `Agent's last question: ${turn.question}`,
+    `Resident just said: ${turn.utterance}`,
+  ]
+    .filter((part) => part !== "")
+    .join("\n\n");
+}
+
+export async function interpret(turn: TurnContext): Promise<Interpretation> {
+  const response = await client.messages.create({
+    model: env.anthropicModel,
+    max_tokens: 1024,
+    system: SYSTEM,
+    messages: [{ role: "user", content: promptFor(turn) }],
+    output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA } },
+    ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
+  });
+  const text = response.content.find((block) => block.type === "text");
+  if (response.stop_reason === "refusal" || !text || text.type !== "text") {
+    throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
+  }
+  return parse(text.text, turn.language);
+}

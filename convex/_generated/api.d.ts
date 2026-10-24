@@ -28,6 +28,7 @@ import type * as seed from "../seed.js";
 import type * as sim from "../sim.js";
 import type * as texts from "../texts.js";
 import type * as vehicles from "../vehicles.js";
+import type * as voice from "../voice.js";
 
 import type {
   ApiFromModules,
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   sim: typeof sim;
   texts: typeof texts;
   vehicles: typeof vehicles;
+  voice: typeof voice;
 }>;
 
 /**

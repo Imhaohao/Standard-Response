@@ -55,6 +55,29 @@ client.mutation("roads:addClosures", {"closures": [{"path": [{"lat": 34.19, "lng
 client.mutation("doorChecks:setPriorities", {"scores": [{"householdId": hid, "doorPriority": 4.2}]})
 ```
 
+## Voice server (Track B)
+
+`voice/` is the call server: Twilio Media Streams in, Cartesia speech-to-text, Claude, Cartesia voice out. It talks only to Convex. It calls real riders (`simulated: false`, the CSV import); the voice stand-in keeps handling the simulated households.
+
+```bash
+npm run dev:voice    # http://localhost:8080, reads .env.local
+```
+
+| Variable | What it is |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Claude, which interprets each thing a resident says |
+| `CARTESIA_API_KEY`, `CARTESIA_VOICE_EN`, `CARTESIA_VOICE_ES` | Speech in both directions, and the English and Spanish voices |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | Telephony |
+| `VOICE_PUBLIC_URL` | Public https URL of this server; Twilio calls back here |
+| `DIAL_ALLOWLIST` | Comma-separated numbers the dialer may ring. Every other number is skipped, so a fictional rider list never rings a stranger |
+| `VOICE_MODEL` | Defaults to `claude-haiku-5-5` |
+
+Endpoints: `POST /turn` (the same agent over text, for the persona eval), `POST /twilio/inbound`, `/twilio/status`, `/twilio/amd`, and the `/media` WebSocket. `POST /turn` takes `{ sessionId, language, text, address?, requestStatus? }` and returns `{ reply, stage, record, done, escalations, nominations, guardBlocked }`. Send an empty `text` first to hear the opening.
+
+**Who decides what.** Claude (`voice/agent/interpreter.ts`) turns one utterance into field changes, a yes/no answer, emergency flags and an acknowledgment of six words or fewer. The state machine (`voice/agent/conversation.ts`) decides what to ask next. Everything said about a ride is a fixed template keyed by request status (`voice/agent/script.ts`). A code guard (`voice/agent/honesty.ts`) replaces any acknowledgment that sounds like a promise while no driver has accepted.
+
+**Cartesia.** Ink speech-to-text (`ink-whisper`, English and Spanish) and Sonic text-to-speech, both on 8 kHz μ-law, so Twilio audio passes through without transcoding. Each sentence is its own text-to-speech context: a barge-in cancels the rest, and a status change cuts in at the next sentence boundary.
+
 ## Stand-ins
 
 `convex/sim.ts` and `convex/dispatchStandIn.ts` fake each backend track so the whole pipeline runs today. When your real service starts writing, flip its switch to **Real** in the call floor's Stand-ins panel. The stand-in then stops touching those records. `PLAN.md` lists every switch and its owner.

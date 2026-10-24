@@ -193,6 +193,8 @@ export default defineSchema({
     text: v.string(),
     // Request status when an agent line was spoken. The honesty grader reads this.
     requestStatus: v.optional(requestStatus),
+    // Agent lines on real calls: ms from the resident finishing to the agent's first audio.
+    latencyMs: v.optional(v.number()),
     at: v.number(),
   }).index("by_callId", ["callId"]),
 

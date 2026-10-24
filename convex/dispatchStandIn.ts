@@ -116,8 +116,10 @@ export async function standInCallbacks(ctx: MutationCtx, now: number) {
   const pending = await ctx.db.query("callbacks").withIndex("by_state", (q) => q.eq("state", "pending")).take(50);
   for (const callback of pending) {
     if (now - callback.createdAt < CALLBACK_PLAYS_AFTER_MS) continue;
-    await ctx.db.patch("callbacks", callback._id, { state: "played", placedAt: callback.createdAt, playedAt: now });
     const household = await ctx.db.get("households", callback.householdId);
+    // Real riders (imported from the CSV) get their callback from the voice server.
+    if (household && !household.simulated) continue;
+    await ctx.db.patch("callbacks", callback._id, { state: "played", placedAt: callback.createdAt, playedAt: now });
     const told = callback.announces === "driver_accepted" ? "told a driver accepted" : "told their driver can't reach them";
     await ctx.db.insert("events", {
       kind: "dispatch",
