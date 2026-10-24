@@ -12,6 +12,7 @@ import type * as apify from "../apify.js";
 import type * as apifyPayload from "../apifyPayload.js";
 import type * as callbacks from "../callbacks.js";
 import type * as calls from "../calls.js";
+import type * as clock from "../clock.js";
 import type * as control from "../control.js";
 import type * as dispatch from "../dispatch.js";
 import type * as dispatchCheck from "../dispatchCheck.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   apifyPayload: typeof apifyPayload;
   callbacks: typeof callbacks;
   calls: typeof calls;
+  clock: typeof clock;
   control: typeof control;
   dispatch: typeof dispatch;
   dispatchCheck: typeof dispatchCheck;
