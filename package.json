@@ -14,16 +14,19 @@
     "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
     "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts",
     "test:prepare": "tsx --test lib/prepare/*.test.ts",
-    "test:voice": "tsx --test voice/agent/*.test.ts voice/phone/*.test.ts",
+    "test:voice": "tsx --test voice/agent/*.test.ts voice/phone/*.test.ts voice/knowledge/*.test.ts",
     "test:workflow": "vitest run tests/workflow --environment edge-runtime",
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
-    "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts"
+    "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts",
+    "knowledge:generate": "tsx --env-file=.env.local voice/knowledge/generate.ts",
+    "knowledge:index": "tsx --env-file=.env.local voice/knowledge/upload.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
     "@auth0/nextjs-auth0": "^4.33.0",
     "@convex-dev/aggregate": "^0.3.4",
     "@convex-dev/workflow": "^0.4.10",
+    "@inferedge/moss": "1.0.0-beta.8",
     "@phosphor-icons/react": "^2.1.10",
     "convex": "^1.48.0",
     "convex-helpers": "^0.1.129",

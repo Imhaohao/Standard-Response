@@ -51,3 +51,6 @@ modeling/cache/
 # Track A map bake cache and browser screenshots
 scripts/map/.cache/
 .playwright-mcp/
+
+# Moss index cache and the downloaded 911 call transcripts (voice/knowledge)
+/.cache/

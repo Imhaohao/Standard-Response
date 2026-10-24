@@ -176,8 +176,8 @@ Other outputs:
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
-const SYSTEM = forEachHazard(systemFor);
-const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
+export const SYSTEM = forEachHazard(systemFor);
+export const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
 
 // Made on the first turn, so the state machine can be loaded (and tested) without a key.
 let client: Anthropic | null = null;
