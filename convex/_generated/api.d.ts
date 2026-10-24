@@ -30,6 +30,7 @@ import type * as households from "../households.js";
 import type * as languages from "../languages.js";
 import type * as mesh from "../mesh.js";
 import type * as model from "../model.js";
+import type * as neighborPickups from "../neighborPickups.js";
 import type * as nominations from "../nominations.js";
 import type * as offers from "../offers.js";
 import type * as pickupCover from "../pickupCover.js";
@@ -82,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   languages: typeof languages;
   mesh: typeof mesh;
   model: typeof model;
+  neighborPickups: typeof neighborPickups;
   nominations: typeof nominations;
   offers: typeof offers;
   pickupCover: typeof pickupCover;
