@@ -133,6 +133,7 @@ def refresh_parity(path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--endpoint", help="Track B's text agent base URL; omit to use the scripted stand-in")
+    parser.add_argument("--agent-label", help="say what the endpoint runs, e.g. \"main at f9ac035, run locally; not deployed\"")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--no-model", action="store_true", help="lexical grader only")
@@ -148,7 +149,8 @@ def main() -> None:
     cards = al.build_cards(personas)
     (DATA / "alignment-cards.json").write_text(json.dumps(cards, indent=1, ensure_ascii=False))
     if args.endpoint:
-        agent, label, concurrency = HttpAgent(args.endpoint), f"Track B text agent at {args.endpoint}", args.concurrency
+        agent, concurrency = HttpAgent(args.endpoint), args.concurrency
+        label = f"Track B text agent at {args.endpoint}" + (f" ({args.agent_label})" if args.agent_label else "")
     else:
         agent, label, concurrency = ScriptedAgent(), "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.", 1
 
