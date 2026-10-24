@@ -51,3 +51,14 @@ What changes for the persona eval and the honesty grader (all through `POST /tur
 - **Hand-off wording.** `languageBarrier` now says a person on our team was told about the call, not that the call is being passed to one, and plays in the call language plus English (it used to play up to three languages).
 - **Interpreter prompt.** Claude now gets a short set of call-taker principles and the call stage with its goal. Answers to "are you a robot?" now say it is the line's automated assistant.
 - Phone-only: transcripts that look like speech-to-text inventing words from silence ("Thank you.", "감사합니다.", a looped word) are dropped when the audio behind them carried almost no voice.
+
+## 2026-10-24 16:40
+
+The voice exam (`npm run exam:voice`, README "Voice exam") drove changes to lines your resident simulator matches (`modeling/rollcall_d/resident.py` `QUESTION_PATTERNS`):
+
+- New needs line when mobility was already heard on the call: "Does anyone there need oxygen?" / "¿Alguien ahí necesita oxígeno?". It has no pattern yet, so `classify` returns `unknown`; it belongs under `needs`.
+- New household line when pets are already known: "How many people are with you right now?" (still matches `how many people`).
+- `askHousehold` and `askNeedsOnFile` are now two sentences ("... right now? Are there any pets?", "Is that still right? Does anyone need oxygen?"); your patterns still match.
+- The inbound greeting no longer says "I can help get you a ride out", and `askAgain.address` no longer starts with "Sorry, I didn't catch that." (still matches `street address`).
+- A bare "yes", "no", "just me", "okay" on hold or "hello?" is now read in code without Claude (`voice/agent/quickAnswer.ts`), so those turns return in milliseconds over `POST /turn`.
+- `POST /turn` request and response shapes are unchanged.
