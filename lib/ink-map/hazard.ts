@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
 import { useNow } from "@/lib/time";
@@ -56,6 +56,7 @@ export type FireClock = {
 export function useFireClock(hazard: Hazard | null, issuedAt: number | undefined): FireClock {
   const now = useNow(400);
   const [override, setOverride] = useState<number | null>(null);
+  const follow = useCallback(() => setOverride(null), []);
   const last = hazard?.field.fronts[hazard.field.fronts.length - 1]?.minutes ?? 0;
   const elapsed = issuedAt === undefined ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
   return {
@@ -63,6 +64,6 @@ export function useFireClock(hazard: Hazard | null, issuedAt: number | undefined
     last,
     scrubbing: override !== null,
     scrub: setOverride,
-    follow: () => setOverride(null),
+    follow,
   };
 }

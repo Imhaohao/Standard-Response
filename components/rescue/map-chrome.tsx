@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwise, ArrowCounterClockwise, Check, Cube, Cursor, Icon, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowCounterClockwise, Check, Cube, Cursor, Fire, FireExtinguisher, Icon, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { FireClock } from "@/lib/ink-map/hazard";
 import { AppBar, WarningClock } from "../ui/app-bar";
@@ -12,13 +12,14 @@ export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
   return <AppBar>{issuedAt && <WarningClock issuedAt={issuedAt} />}</AppBar>;
 }
 
-export type MapTool = "look" | "zone" | "closure";
+export type MapTool = "look" | "zone" | "closure" | "ignite";
 type MapMode = "ink" | "paper";
 
 const TOOLS = [
   { value: "look", label: "Look around", Icon: Cursor },
   { value: "zone", label: "Draw warning zone", Icon: Path },
   { value: "closure", label: "Close a road", Icon: RoadHorizon },
+  { value: "ignite", label: "Start a fire", Icon: Fire },
 ] as const;
 
 const MODES = [
@@ -94,12 +95,24 @@ export function DrawingHint({
   onSave: () => void;
 }) {
   if (tool === "closure") return <HintSurface><span className="pr-2">{status || "Click a street to close it"}</span></HintSurface>;
+  if (tool === "ignite") return <HintSurface><span className="pr-2">Click a house to start a fire there</span></HintSurface>;
   if (tool === "look") return status ? <HintSurface><span className="pr-2">{status}</span></HintSurface> : null;
   return (
     <HintSurface>
       <span className="pr-2">{zoneInstruction(zone)}</span>
       {zone && zone.corners.length > 0 && <HintAction Icon={ArrowCounterClockwise} label="Undo corner" onClick={onUndo} />}
       {zone && zone.corners.length >= 3 && <HintAction Icon={Check} label="Save zone" onClick={onSave} />}
+    </HintSurface>
+  );
+}
+
+// While a rehearsal fire stands in for the scenario, the way back to the scenario stays in reach.
+export function SimulatedFireHint({ onClear }: { onClear: () => void }) {
+  return (
+    <HintSurface>
+      <Fire weight="fill" className="size-4 shrink-0 text-signal" aria-hidden />
+      <span className="pr-2">Simulated fire, clock started when you lit it</span>
+      <HintAction Icon={FireExtinguisher} label="Put it out" onClick={onClear} />
     </HintSurface>
   );
 }

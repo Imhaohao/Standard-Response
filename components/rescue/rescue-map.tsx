@@ -17,10 +17,10 @@ import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FireSpreadLayer } from "./fire-spread-layer";
 import { FleetPanel } from "./fleet-panel";
-import { DrawingHint, FireScrubber, MapToolbar, MapTopBar } from "./map-chrome";
+import { DrawingHint, FireScrubber, MapToolbar, MapTopBar, SimulatedFireHint } from "./map-chrome";
 import { ContextAction, ContextSpot, MapContextMenu } from "./map-context-menu";
 import { MapOverlays } from "./map-overlays";
-import { homeMarks, requestMarks } from "./marks";
+import { Home, homeMarks, requestMarks } from "./marks";
 import { HomesPanel } from "./homes-panel";
 import { NeedPanel } from "./need-panel";
 import { Person, useRescueBoard } from "./use-rescue-board";
@@ -32,29 +32,28 @@ import { PickupLayer } from "./pickup-layer";
 import { ReadyPanel } from "./ready-panel";
 import { useMapClick, useMapFocus } from "./use-map-focus";
 import { usePickups } from "./use-pickups";
+import { useSimulatedFire } from "./use-simulated-fire";
 
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 
 export function RescueMap() {
   const data = useInkMapData();
-  const hazard = useHazard(data?.origin);
-  const danger = useDangerZones(data?.origin);
   const [forecastShown, setForecastShown] = useState(true);
   const control = useQuery(api.control.get);
-  const clock = useFireClock(hazard, control?.warningIssuedAt);
 
   const [mode, setMode] = useState<SurfaceMode>("ink");
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
   const board = useRescueBoard(data ?? null, toLocal);
   const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data ?? null, board.people, toLocal);
+  const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data?.origin, control?.warningIssuedAt, homes, toLocal);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(toLocal);
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
   const drawing = useDrawingTools(data ?? null, toLatLng);
   const { tool, setTool, startFrom } = drawing;
-  const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome);
+  const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome, ignite);
   const [spot, setSpot] = useState<ContextSpot | null>(null);
   const closeMenu = useCallback(() => setSpot(null), []);
   const startFromSpot = useCallback(
@@ -120,6 +119,7 @@ export function RescueMap() {
           </div>
           <div className="flex items-end gap-3 p-3 pt-0">
             <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
+              {simulated.lit && <SimulatedFireHint onClear={simulated.putOut} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>
             <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
@@ -146,4 +146,28 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
   const highlights = useBuildingHighlights(data, marks);
   const stillHome = useMemo(() => occupancy.filter((mark) => mark.occupancy === "stillHome").map((mark) => mark.point), [occupancy]);
   return { homes, withOpenRequest, highlights, stillHome };
+}
+
+// The scenario's fire, or the one the dispatcher lit at a house to rehearse, which replaces it here
+// until it is put out. The forecast is for the scenario's fire, so it is hidden while a lit one burns.
+function useFireOnScreen(origin: LatLng | undefined, warningIssuedAt: number | undefined, homes: Home[], toLocal: (point: LatLng) => Point) {
+  const scenario = useHazard(origin);
+  const forecast = useDangerZones(origin);
+  const simulated = useSimulatedFire(scenario, homes, toLocal);
+  const hazard = simulated.hazard ?? scenario;
+  const clock = useFireClock(hazard, simulated.startedAt ?? warningIssuedAt);
+  const { follow } = clock;
+  const { ignite: igniteAt, clear: clearFire } = simulated;
+  const ignite = useCallback(
+    (point: Point) => {
+      igniteAt(point);
+      follow();
+    },
+    [igniteAt, follow],
+  );
+  const putOut = useCallback(() => {
+    clearFire();
+    follow();
+  }, [clearFire, follow]);
+  return { hazard, danger: simulated.hazard ? null : forecast, clock, simulated: { lit: simulated.hazard !== null, putOut }, ignite };
 }

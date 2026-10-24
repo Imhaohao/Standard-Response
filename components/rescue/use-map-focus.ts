@@ -81,7 +81,9 @@ function emphasis(selection: Selection | null, hoveredPerson: Person | null, hov
   };
 }
 
-// Clicking the map opens a house card while nothing is being drawn; a drawing tool owns the click otherwise.
-export function useMapClick(tool: string, draw: (point: Point) => void, pickHome: (point: Point) => void) {
+// Clicking the map opens a house card while nothing is being drawn, lights a fire with the fire tool,
+// and a drawing tool owns the click otherwise.
+export function useMapClick(tool: string, draw: (point: Point) => void, pickHome: (point: Point) => void, ignite: (point: Point) => void) {
+  if (tool === "ignite") return ignite;
   return tool === "look" ? pickHome : draw;
 }
