@@ -35,7 +35,7 @@ Four tracks build in parallel. Track A is all of the UI. Tracks B, C and D are b
 | Track | Owner | Builds | Setup it owns |
 | --- | --- | --- | --- |
 | A: interface | Boris | Every screen: call floor, rescue map, driver page, under-the-hood screen, simulated phone panel | None |
-| B: voice and calls | To pick | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks | Twilio, Cartesia and Anthropic keys; hosting the call server |
+| B: voice and calls | Brendan | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks | Twilio, Cartesia and Anthropic keys; hosting the call server |
 | C: dispatch and simulator | To pick | Road graph, closures, the OR-Tools solver, the heuristic, vehicle movement, the simulator | The shared Convex cloud deployment; deploying the app; hosting the solver service |
 | D: modeling and evaluation | To pick | Hazard scenario, door-check queue, address matching, synthetic population, persona cards, the persona eval and grader | None. B and C put every key and URL D needs in the shared env file |
 
@@ -219,7 +219,7 @@ Every screen, built against the stand-ins. No setup.
 
 **After the gate:** the full under-the-hood screen and the Auth0 add-on (dispatcher login, role-based access to the at-risk list, step-up authentication once per session so approval stays one click).
 
-## Track B: voice and calls
+## Track B: voice and calls (Brendan)
 
 Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; places the calls in `callbacks`.
 
@@ -361,7 +361,7 @@ These need an owner each at the next sync.
 - **Practitioner conversation (highest priority).** An Access Services dispatcher or manager, a paratransit driver, or an emergency manager. Ask how an assignment would reach a driver today, who is allowed to approve, and what would make them distrust this.
 - **Advocates.** Disability Rights California, an LA independent living center, LA County CERT. Ask each one question: what would make you trust or distrust an AI agent calling people during an evacuation? Their answer shapes the "if you can leave safely" script.
 - **Usability tests.** 5 to 10 older adults playing persona cards, recorded with permission.
-- **Pitch, demo rehearsal and the Devpost video.**
+- **Pitch script, demo rehearsal and the Devpost video (Brendan, alongside Track B).** The pitch runs from a `/present` page in this app, so slides can show the live rescue map and call floor. Brendan owns `app/present/`; Track A keeps the shared components and tokens it reuses working.
 - **Notability notes,** only if they're kept as we go.
 
 ## Timeline
@@ -525,7 +525,7 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 ## Open decisions
 
 - Product name
-- Owners for Tracks B, C and D, and for the team work outside the tracks
+- Owners for Tracks C and D, and for the rest of the team work outside the tracks
 - Whether Cartesia's speech-to-text holds up on 8 kHz phone audio
 - Which neighbor-question and "can't leave" wording residents and advocates find natural
 - Who plays the driver at the table (they need to be free for the whole judging window)
