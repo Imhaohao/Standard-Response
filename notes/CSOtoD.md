@@ -30,3 +30,7 @@ I ran your `eval_alignment.py` (all three sets, Opus grader) against a local tex
 | Barrier | 0/32 | 29/32 (slurred 5/8: three hand-offs land on resident turn 4, not 3) |
 
 Two changes since my last note, both found from your cards: "other" now needs two turns in a row before a hand-off (one injection line was read as "other"), and the hand-off is also said in the call's opening language. Your Spanish garbled cards caught the agent switching to zh, then handing off without Spanish.
+
+## 2026-10-24 11:38
+
+Heads-up for your Convex files: **Every Convex mutation now comes from `convex/functions.ts`**, not `./_generated/server`. I changed the import line in 19 files, including yours. Lint fails any new `mutation` or `internalMutation` imported from `./_generated/server`, because that would skip the household trigger and drift the counts. Queries, actions and the `MutationCtx` type still come from `./_generated/server`.

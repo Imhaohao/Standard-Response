@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
+import { mutation } from "./functions";
 
 // Track D's door-check score. Send any subset of households, as often as you like.
 export const setPriorities = mutation({

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { seedSimulatedArea } from "./seed";
 
 // Track C's end-to-end check (dispatch/verify_dispatch.py) on a deployment that already holds a

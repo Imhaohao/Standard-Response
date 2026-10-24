@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, MutationCtx, query, QueryCtx } from "./_generated/server";
+import { MutationCtx, query, QueryCtx } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { DEFAULT_TRAINING, GlobalModel, INITIAL_MODEL, isValidMix, Mix, UPLOAD_MIN_MASS } from "../lib/mesh/federated";
 import { coarsenTime, consensusOf, isValidReport, REPORT_TTL_MS, RoadReport } from "../lib/mesh/reports";
 import { addToRound, closeRound, emptyRound, freshOptimizerState, OpenRound, roundIsReady } from "../lib/mesh/rounds";

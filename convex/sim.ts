@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, MutationCtx } from "./_generated/server";
+import { MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 import { applyRecordPatch, nextToCall } from "./households";

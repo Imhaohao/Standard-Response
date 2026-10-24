@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query, MutationCtx } from "./_generated/server";
+import { query, MutationCtx } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { startCall } from "./calls";

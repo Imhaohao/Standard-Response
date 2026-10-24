@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, MutationCtx } from "./_generated/server";
+import { query, MutationCtx } from "./_generated/server";
+import { mutation } from "./functions";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
 import { callPriorityFor, insidePolygon, located, Point } from "./model";

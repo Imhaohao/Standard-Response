@@ -22,8 +22,10 @@ import type * as estimates from "../estimates.js";
 import type * as events from "../events.js";
 import type * as fatalityRisk from "../fatalityRisk.js";
 import type * as fleet from "../fleet.js";
+import type * as functions from "../functions.js";
 import type * as hazards from "../hazards.js";
 import type * as heuristic from "../heuristic.js";
+import type * as householdCounts from "../householdCounts.js";
 import type * as households from "../households.js";
 import type * as languages from "../languages.js";
 import type * as mesh from "../mesh.js";
@@ -64,8 +66,10 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   fatalityRisk: typeof fatalityRisk;
   fleet: typeof fleet;
+  functions: typeof functions;
   hazards: typeof hazards;
   heuristic: typeof heuristic;
+  householdCounts: typeof householdCounts;
   households: typeof households;
   languages: typeof languages;
   mesh: typeof mesh;
@@ -112,4 +116,7 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  householdsByOutcome: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"householdsByOutcome">;
+  householdsByCallStatus: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"householdsByCallStatus">;
+};

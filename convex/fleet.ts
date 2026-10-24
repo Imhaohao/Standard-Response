@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, MutationCtx } from "./_generated/server";
+import { MutationCtx } from "./_generated/server";
+import { internalMutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { metersBetween, Point } from "./model";
 import { completeAssignment } from "./offers";

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, mutation, query, MutationCtx } from "./_generated/server";
+import { internalAction, query, MutationCtx } from "./_generated/server";
+import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { liveAssignmentsFor, liveAssignmentsForVehicle } from "./offers";

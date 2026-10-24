@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
-import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
+import { query, MutationCtx, QueryCtx } from "./_generated/server";
+import { mutation } from "./functions";
 
 // Track D's model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
 // It never reads `personas`: the models see only what a real agency would know.

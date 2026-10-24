@@ -459,6 +459,8 @@ export default defineSchema({
     autoApprove: v.boolean(),
     tickGeneration: v.number(),
     hazard: v.optional(hazard),
+    // Set once householdCounts:backfill has filled the call-floor count aggregates.
+    householdCountsReadyAt: v.optional(v.number()),
   }),
 
   // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.

@@ -10,6 +10,24 @@ const eslintConfig = defineConfig([
       complexity: ["error", 15],
     },
   },
+  {
+    files: ["convex/**/*.ts"],
+    ignores: ["convex/functions.ts", "convex/householdCounts.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "./_generated/server",
+              importNames: ["mutation", "internalMutation"],
+              message: "Import mutation and internalMutation from ./functions so table triggers (household counts) run.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

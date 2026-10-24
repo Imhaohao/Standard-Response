@@ -1,9 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
+import { query, MutationCtx, QueryCtx } from "./_generated/server";
+import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
 import { openRequestFor, syncRequest } from "./requests";
+import { countHouseholds } from "./householdCounts";
 
 const recordPatch = v.object({
   canLeave: v.optional(canLeave),
@@ -197,6 +199,9 @@ export const counts = query({
     callStatus: v.record(v.string(), v.number()),
   }),
   handler: async (ctx) => {
+    const control = await ctx.db.query("control").first();
+    if (control?.householdCountsReadyAt) return await countHouseholds(ctx);
+    // Before the one-time backfill, scan as before so the call floor never shows partial counts.
     const households: Doc<"households">[] = await ctx.db.query("households").take(1000);
     return {
       total: households.length,

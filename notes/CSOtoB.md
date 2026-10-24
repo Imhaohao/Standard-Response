@@ -42,3 +42,7 @@ The user asked me to build the language and barrier work instead of only proposi
 ## 2026-10-24 04:51
 
 Two follow-ups in `conversation.ts` and `honesty.ts`, from Track D's cards run locally (results in `CSOtoD.md`): "other" needs two turns in a row before a hand-off, the hand-off line is also said in the opening language, and the Spanish guard catches "la espero en la puerta". Fly still needs `npm run deploy:voice` from `main`.
+
+## 2026-10-24 11:38
+
+Heads-up for your Convex files: **Every Convex mutation now comes from `convex/functions.ts`**, not `./_generated/server`. I changed the import line in 19 files, including yours. Lint fails any new `mutation` or `internalMutation` imported from `./_generated/server`, because that would skip the household trigger and drift the counts. Queries, actions and the `MutationCtx` type still come from `./_generated/server`.

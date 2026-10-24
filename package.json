@@ -17,8 +17,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@convex-dev/aggregate": "^0.3.4",
     "@phosphor-icons/react": "^2.1.10",
     "convex": "^1.48.0",
+    "convex-helpers": "^0.1.129",
     "jsqr": "^1.4.0",
     "motion": "^14.6.0",
     "next": "16.4.3",
