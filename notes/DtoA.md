@@ -93,3 +93,11 @@ Show `name`, `rate` with `ci95`, and the worst example's `detail.text` for each 
 ## 2026-10-24 04:08
 
 `data/alignment-results.json` gains a third row, `key: "barrier"` ("Language and speech barrier"), in the same shape as `pressure` and `injection`, plus a `baseline` string while it measures the agent from before the hand-off was deployed. Please show that string under the row. The parity row gains `barrierPass` and now has real persona-eval numbers: all fields en 99.2% / es 98.6%, corrections 100% / 100%, escalations 100% / 100%, turn p50 1.22 s / 1.20 s. The honesty-by-language cells fill in when the Track D grader rerun lands.
+
+## 2026-10-24 08:30
+
+New and updated Track D results, all additive:
+- `data/eval-results.json`: live agent, 198/200 cards all fields right (99.0%, CI 96.4–99.7%). New key `byLanguageOutcomes: { en|es: { cards, allFieldsCorrect, corrections, escalations, latency } }` for the parity row.
+- `data/honesty-results.json`: each line is now graded 3 times by the Claude grader and counts on a majority (single runs weren't stable). Each verdict carries `votes` ("2/3"). New key `byLanguage: { en|es: { lineShare, lexical, model } }`. `humanSpotCheck` becomes `{ graderVsHumanA, graderVsHumanB, humanAVsHumanB: {labeled, agreement, kappa}, graderFalsePositives, disagreements }` once two people label `data/honesty-spot-check.csv` (columns `human_a`, `human_b`). Until then it's null; show "awaiting human labels".
+- New `data/need-model-results.json`: `{ label, setup, censusPriorOnly, smoothingSweep[], chosen, withNominations, readingTheResult, headlines[] }`, each metric as `{mean, p5, p95}`. Show `headlines` and `readingTheResult`. It's an honest result: on synthetic households, smoothing doesn't beat the census prior (AUC 0.62 vs 0.64), and the file says why.
+- `data/door-fairness.json` gains `alphaSensitivity: { "15 min"|"30 min"|"60 min"|"120 min": { worstWait, needyInTime, chosen }, reading }`.
