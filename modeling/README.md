@@ -26,7 +26,7 @@ Each pass reads `estimates:inputs` once and writes only what changed:
 | Door-check order | `doorChecks:setPriorities` | `p·u/τ + α·wait`. α is set once per incident so 30 minutes waiting equals the 90th-percentile need-and-urgency term |
 | Address matching | `households:setLocation`, `nominations:resolve`, `nominations:matchAddress` | House number and street must both agree (English and Spanish spoken numbers); anything weaker is flagged with a reason |
 
-On start the runner switches off the "Need model" stand-in, Track D's own switch. The models never read `personas`.
+On start the runner switches off the "Need model" stand-in, Track D's own switch. If the runner stops, or after a `--once` pass, the stand-in covers again once the last pass is 15 s old (`RUNNER_STALE_MS` in `convex/estimates.ts`), so the incident is never left without a need model. The models never read `personas`.
 
 ## Data builders (run once; outputs are committed)
 

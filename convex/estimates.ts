@@ -18,6 +18,15 @@ async function ensureState(ctx: MutationCtx) {
   return (await ctx.db.get("modelState", id))!;
 }
 
+// The runner passes every ~5 s. Once its last pass is older than this, the need-model stand-in covers
+// for it, so stopping the runner (or a `--once` pass) never leaves the incident without a need model.
+export const RUNNER_STALE_MS = 15_000;
+
+export async function needModelRunnerLive(ctx: QueryCtx, now: number) {
+  const lastRunAt = (await stateRow(ctx))?.lastRunAt;
+  return lastRunAt !== undefined && now - lastRunAt < RUNNER_STALE_MS;
+}
+
 export const state = query({
   args: {},
   returns: v.object({
@@ -131,12 +140,19 @@ export const inputs = query({
 });
 
 // Agent lines from real calls with the request status when each was spoken, for the implied-reassurance grader.
+// Lines from simulated calls are the stand-in's script, not the voice agent, so they're left out.
 export const agentLines = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
     const lines = await ctx.db.query("transcriptLines").order("desc").take(Math.min(limit, 5000));
-    return lines
-      .filter((line) => line.speaker === "agent")
-      .map((line) => ({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, at: line.at }));
+    const simulated = new Map<string, boolean>();
+    const out = [];
+    for (const line of lines) {
+      if (line.speaker !== "agent") continue;
+      if (!simulated.has(line.callId)) simulated.set(line.callId, (await ctx.db.get("calls", line.callId))?.simulated ?? true);
+      if (simulated.get(line.callId)) continue;
+      out.push({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, at: line.at });
+    }
+    return out;
   },
 });
