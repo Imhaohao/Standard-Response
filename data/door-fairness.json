@@ -1,0 +1,489 @@
+{
+ "label": "Door-team simulation on the real west Altadena road graph with synthetic households. Simulated; a policy test, not a forecast.",
+ "generatedAt": "2026-10-24T02:19:06-0700",
+ "setup": {
+  "teams": 6,
+  "homesOnList": 400,
+  "knockMinutes": 4,
+  "seeds": 30,
+  "listOpens": "homes join over minutes 15-45 as the reach ladder runs out",
+  "alpha": "set once, as in the live runner: 30 minutes on the list equals the 90th-percentile need-and-urgency term at the start"
+ },
+ "metrics": {
+  "worstWait": "longest any home waited, minutes",
+  "p95Wait": "95th percentile wait",
+  "meanWait": "average wait",
+  "needyInTime": "% of homes that truly need help checked before their hazard deadline",
+  "isolatedWorst": "longest wait among homes with no answered neighbor within 500 m",
+  "slowAreaWorst": "longest wait in the north fifth (answers at half the rate in that scenario)"
+ },
+ "ranges": "mean, and 5th to 95th percentile across seeds",
+ "results": {
+  "baseline": {
+   "score": {
+    "worstWait": {
+     "mean": 294.4,
+     "p5": 258.4,
+     "p95": 315.4
+    },
+    "p95Wait": {
+     "mean": 258.2,
+     "p5": 227.3,
+     "p95": 276.4
+    },
+    "meanWait": {
+     "mean": 124.2,
+     "p5": 110.9,
+     "p95": 132.1
+    },
+    "needyInTime": {
+     "mean": 88.7,
+     "p5": 77.9,
+     "p95": 96.8
+    },
+    "slowAreaWorst": {
+     "mean": 292.0,
+     "p5": 258.4,
+     "p95": 315.4
+    }
+   },
+   "score_no_aging": {
+    "worstWait": {
+     "mean": 304.2,
+     "p5": 276.3,
+     "p95": 328.1
+    },
+    "p95Wait": {
+     "mean": 259.9,
+     "p5": 232.3,
+     "p95": 278.3
+    },
+    "meanWait": {
+     "mean": 124.2,
+     "p5": 112.7,
+     "p95": 132.3
+    },
+    "needyInTime": {
+     "mean": 89.3,
+     "p5": 79.2,
+     "p95": 99.0
+    },
+    "slowAreaWorst": {
+     "mean": 300.9,
+     "p5": 276.3,
+     "p95": 320.2
+    }
+   },
+   "nearest": {
+    "worstWait": {
+     "mean": 285.7,
+     "p5": 258.2,
+     "p95": 303.6
+    },
+    "p95Wait": {
+     "mean": 239.5,
+     "p5": 214.0,
+     "p95": 257.1
+    },
+    "meanWait": {
+     "mean": 109.9,
+     "p5": 98.3,
+     "p95": 116.0
+    },
+    "needyInTime": {
+     "mean": 68.2,
+     "p5": 51.2,
+     "p95": 84.8
+    },
+    "slowAreaWorst": {
+     "mean": 285.7,
+     "p5": 258.2,
+     "p95": 303.6
+    }
+   },
+   "random": {
+    "worstWait": {
+     "mean": 389.7,
+     "p5": 344.6,
+     "p95": 416.6
+    },
+    "p95Wait": {
+     "mean": 359.5,
+     "p5": 317.7,
+     "p95": 385.2
+    },
+    "meanWait": {
+     "mean": 184.7,
+     "p5": 163.1,
+     "p95": 199.1
+    },
+    "needyInTime": {
+     "mean": 44.4,
+     "p5": 31.5,
+     "p95": 57.7
+    },
+    "slowAreaWorst": {
+     "mean": 381.4,
+     "p5": 344.6,
+     "p95": 410.9
+    }
+   }
+  },
+  "30% of nominations wrong": {
+   "score": {
+    "worstWait": {
+     "mean": 294.0,
+     "p5": 264.1,
+     "p95": 312.6
+    },
+    "p95Wait": {
+     "mean": 259.0,
+     "p5": 231.9,
+     "p95": 276.4
+    },
+    "meanWait": {
+     "mean": 124.3,
+     "p5": 112.6,
+     "p95": 132.2
+    },
+    "needyInTime": {
+     "mean": 89.9,
+     "p5": 82.6,
+     "p95": 97.4
+    },
+    "slowAreaWorst": {
+     "mean": 290.8,
+     "p5": 264.1,
+     "p95": 305.9
+    }
+   },
+   "score_no_aging": {
+    "worstWait": {
+     "mean": 302.2,
+     "p5": 271.9,
+     "p95": 324.6
+    },
+    "p95Wait": {
+     "mean": 258.4,
+     "p5": 231.1,
+     "p95": 272.7
+    },
+    "meanWait": {
+     "mean": 124.4,
+     "p5": 112.1,
+     "p95": 132.2
+    },
+    "needyInTime": {
+     "mean": 89.9,
+     "p5": 81.3,
+     "p95": 97.4
+    },
+    "slowAreaWorst": {
+     "mean": 298.2,
+     "p5": 271.1,
+     "p95": 320.2
+    }
+   },
+   "nearest": {
+    "worstWait": {
+     "mean": 287.0,
+     "p5": 259.6,
+     "p95": 305.6
+    },
+    "p95Wait": {
+     "mean": 239.2,
+     "p5": 215.6,
+     "p95": 254.8
+    },
+    "meanWait": {
+     "mean": 110.1,
+     "p5": 98.9,
+     "p95": 117.8
+    },
+    "needyInTime": {
+     "mean": 69.1,
+     "p5": 57.0,
+     "p95": 81.7
+    },
+    "slowAreaWorst": {
+     "mean": 286.6,
+     "p5": 258.5,
+     "p95": 305.6
+    }
+   },
+   "random": {
+    "worstWait": {
+     "mean": 387.6,
+     "p5": 345.4,
+     "p95": 414.6
+    },
+    "p95Wait": {
+     "mean": 359.1,
+     "p5": 319.0,
+     "p95": 382.2
+    },
+    "meanWait": {
+     "mean": 183.8,
+     "p5": 162.2,
+     "p95": 196.1
+    },
+    "needyInTime": {
+     "mean": 43.2,
+     "p5": 30.4,
+     "p95": 58.5
+    },
+    "slowAreaWorst": {
+     "mean": 379.0,
+     "p5": 322.8,
+     "p95": 409.6
+    }
+   }
+  },
+  "north fifth answers at half the rate": {
+   "score": {
+    "worstWait": {
+     "mean": 473.4,
+     "p5": 438.8,
+     "p95": 501.2
+    },
+    "p95Wait": {
+     "mean": 428.0,
+     "p5": 396.5,
+     "p95": 455.2
+    },
+    "meanWait": {
+     "mean": 190.6,
+     "p5": 179.6,
+     "p95": 201.7
+    },
+    "needyInTime": {
+     "mean": 49.3,
+     "p5": 36.5,
+     "p95": 61.0
+    },
+    "slowAreaWorst": {
+     "mean": 468.9,
+     "p5": 438.0,
+     "p95": 495.2
+    }
+   },
+   "score_no_aging": {
+    "worstWait": {
+     "mean": 486.6,
+     "p5": 448.9,
+     "p95": 514.4
+    },
+    "p95Wait": {
+     "mean": 427.8,
+     "p5": 393.7,
+     "p95": 468.7
+    },
+    "meanWait": {
+     "mean": 190.0,
+     "p5": 179.4,
+     "p95": 202.9
+    },
+    "needyInTime": {
+     "mean": 50.1,
+     "p5": 38.1,
+     "p95": 63.4
+    },
+    "slowAreaWorst": {
+     "mean": 481.7,
+     "p5": 448.9,
+     "p95": 514.4
+    }
+   },
+   "nearest": {
+    "worstWait": {
+     "mean": 467.8,
+     "p5": 437.6,
+     "p95": 496.9
+    },
+    "p95Wait": {
+     "mean": 402.2,
+     "p5": 368.8,
+     "p95": 433.1
+    },
+    "meanWait": {
+     "mean": 172.2,
+     "p5": 163.9,
+     "p95": 180.4
+    },
+    "needyInTime": {
+     "mean": 46.2,
+     "p5": 36.1,
+     "p95": 57.9
+    },
+    "slowAreaWorst": {
+     "mean": 467.6,
+     "p5": 437.6,
+     "p95": 496.9
+    }
+   },
+   "random": {
+    "worstWait": {
+     "mean": 651.6,
+     "p5": 607.8,
+     "p95": 689.4
+    },
+    "p95Wait": {
+     "mean": 608.8,
+     "p5": 572.1,
+     "p95": 641.3
+    },
+    "meanWait": {
+     "mean": 316.4,
+     "p5": 292.9,
+     "p95": 335.3
+    },
+    "needyInTime": {
+     "mean": 25.0,
+     "p5": 14.6,
+     "p95": 36.5
+    },
+    "slowAreaWorst": {
+     "mean": 649.7,
+     "p5": 601.9,
+     "p95": 689.4
+    }
+   }
+  },
+  "isolated pocket: nobody answers within 900 m of the northwest edge": {
+   "score": {
+    "worstWait": {
+     "mean": 416.7,
+     "p5": 384.3,
+     "p95": 449.8
+    },
+    "p95Wait": {
+     "mean": 375.1,
+     "p5": 343.8,
+     "p95": 403.9
+    },
+    "meanWait": {
+     "mean": 159.0,
+     "p5": 147.0,
+     "p95": 170.8
+    },
+    "needyInTime": {
+     "mean": 79.1,
+     "p5": 68.8,
+     "p95": 87.8
+    },
+    "isolatedWorst": {
+     "mean": 366.8,
+     "p5": 319.5,
+     "p95": 421.0
+    },
+    "slowAreaWorst": {
+     "mean": 413.1,
+     "p5": 377.9,
+     "p95": 444.9
+    }
+   },
+   "score_no_aging": {
+    "worstWait": {
+     "mean": 428.6,
+     "p5": 392.2,
+     "p95": 461.7
+    },
+    "p95Wait": {
+     "mean": 378.3,
+     "p5": 341.3,
+     "p95": 412.9
+    },
+    "meanWait": {
+     "mean": 158.7,
+     "p5": 146.3,
+     "p95": 170.7
+    },
+    "needyInTime": {
+     "mean": 79.6,
+     "p5": 70.0,
+     "p95": 88.9
+    },
+    "isolatedWorst": {
+     "mean": 361.7,
+     "p5": 318.5,
+     "p95": 434.5
+    },
+    "slowAreaWorst": {
+     "mean": 425.7,
+     "p5": 392.2,
+     "p95": 457.1
+    }
+   },
+   "nearest": {
+    "worstWait": {
+     "mean": 412.8,
+     "p5": 383.2,
+     "p95": 446.9
+    },
+    "p95Wait": {
+     "mean": 357.5,
+     "p5": 320.5,
+     "p95": 387.1
+    },
+    "meanWait": {
+     "mean": 143.3,
+     "p5": 132.0,
+     "p95": 155.9
+    },
+    "needyInTime": {
+     "mean": 60.3,
+     "p5": 48.2,
+     "p95": 73.4
+    },
+    "isolatedWorst": {
+     "mean": 394.9,
+     "p5": 362.2,
+     "p95": 431.4
+    },
+    "slowAreaWorst": {
+     "mean": 411.9,
+     "p5": 370.2,
+     "p95": 446.9
+    }
+   },
+   "random": {
+    "worstWait": {
+     "mean": 555.4,
+     "p5": 496.8,
+     "p95": 598.6
+    },
+    "p95Wait": {
+     "mean": 515.2,
+     "p5": 460.4,
+     "p95": 554.2
+    },
+    "meanWait": {
+     "mean": 266.5,
+     "p5": 242.3,
+     "p95": 291.2
+    },
+    "needyInTime": {
+     "mean": 32.6,
+     "p5": 19.6,
+     "p95": 45.3
+    },
+    "isolatedWorst": {
+     "mean": 527.7,
+     "p5": 458.3,
+     "p95": 591.4
+    },
+    "slowAreaWorst": {
+     "mean": 552.2,
+     "p5": 489.1,
+     "p95": 598.6
+    }
+   }
+  }
+ },
+ "headlines": [
+  "baseline: our order checks 89% of truly needy homes before their deadline (nearest-first 68%, random 44%); worst wait 294 min (nearest-first 286, random 390, ours without aging 304).",
+  "30% of nominations wrong: our order checks 90% of truly needy homes before their deadline (nearest-first 69%, random 43%); worst wait 294 min (nearest-first 287, random 388, ours without aging 302).",
+  "north fifth answers at half the rate: our order checks 49% of truly needy homes before their deadline (nearest-first 46%, random 25%); worst wait 473 min (nearest-first 468, random 652, ours without aging 487).",
+  "isolated pocket: nobody answers within 900 m of the northwest edge: our order checks 79% of truly needy homes before their deadline (nearest-first 60%, random 33%); worst wait 417 min (nearest-first 413, random 555, ours without aging 429)."
+ ]
+}

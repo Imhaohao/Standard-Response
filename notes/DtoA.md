@@ -43,3 +43,7 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 
 - `data/population.json` (11,855 synthetic households) and `data/population-meta.json` have landed. If the under-the-hood screen mentions the simulator's ground truth, use the meta `label`: "Real ACS PUMS household records reweighted to real block-group and tract totals; not real people."
 - `data/eval-results.json` was regenerated against population-based personas (still the scripted stand-in, still with `caveat`).
+
+## 2026-10-24 05:10
+
+`data/door-fairness.json` has landed (door-check fairness tests, post-gate item 1). Shape: `{ label, setup, metrics: {name: description}, ranges, results: { <scenario>: { score|score_no_aging|nearest|random: { worstWait|p95Wait|meanWait|needyInTime|isolatedWorst?|slowAreaWorst?: {mean, p5, p95} } } }, headlines: [string] }`. `headlines` are sentences computed from the numbers, ready for the under-the-hood screen. Show the range (p5–p95) next to every mean and keep `label` visible ("simulated; a policy test, not a forecast"). The honest read: our order checks far more truly needy homes before their deadline than nearest-first (89% vs 68% at baseline), with a worst-case wait within about 3% of nearest-first. With 6 teams and 400 homes, capacity sets the worst case.
