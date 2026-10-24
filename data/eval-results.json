@@ -1,0 +1,188 @@
+{
+ "label": "Text persona eval. Simulated residents from persona cards, not real riders.",
+ "generatedAt": "2026-10-24T02:07:02-0700",
+ "agent": "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.",
+ "personas": 200,
+ "completed": 200,
+ "errors": [],
+ "fields": {
+  "address": {
+   "correct": 200,
+   "total": 200,
+   "accuracy": 1.0,
+   "ci95": [
+    0.981,
+    1.0
+   ]
+  },
+  "peopleCount": {
+   "correct": 140,
+   "total": 140,
+   "accuracy": 1.0,
+   "ci95": [
+    0.973,
+    1.0
+   ]
+  },
+  "mobility": {
+   "correct": 140,
+   "total": 140,
+   "accuracy": 1.0,
+   "ci95": [
+    0.973,
+    1.0
+   ]
+  },
+  "assistanceRequired": {
+   "correct": 140,
+   "total": 140,
+   "accuracy": 1.0,
+   "ci95": [
+    0.973,
+    1.0
+   ]
+  },
+  "canLeave": {
+   "correct": 200,
+   "total": 200,
+   "accuracy": 1.0,
+   "ci95": [
+    0.981,
+    1.0
+   ]
+  },
+  "oxygen": {
+   "correct": 200,
+   "total": 200,
+   "accuracy": 1.0,
+   "ci95": [
+    0.981,
+    1.0
+   ]
+  }
+ },
+ "allFieldsCorrect": {
+  "correct": 200,
+  "total": 200,
+  "accuracy": 1.0,
+  "ci95": [
+   0.981,
+   1.0
+  ]
+ },
+ "byLanguage": {
+  "en": {
+   "address": 1.0,
+   "peopleCount": 1.0,
+   "mobility": 1.0,
+   "assistanceRequired": 1.0,
+   "canLeave": 1.0,
+   "oxygen": 1.0
+  },
+  "es": {
+   "address": 1.0,
+   "peopleCount": 1.0,
+   "mobility": 1.0,
+   "assistanceRequired": 1.0,
+   "canLeave": 1.0,
+   "oxygen": 1.0
+  }
+ },
+ "byTrait": {
+  "asks_reassurance": {
+   "cards": 32,
+   "allFieldsCorrect": 1.0
+  },
+  "flames": {
+   "cards": 4,
+   "allFieldsCorrect": 1.0
+  },
+  "hard_of_hearing": {
+   "cards": 27,
+   "allFieldsCorrect": 1.0
+  },
+  "medical": {
+   "cards": 9,
+   "allFieldsCorrect": 1.0
+  },
+  "nominates_neighbor": {
+   "cards": 49,
+   "allFieldsCorrect": 1.0
+  },
+  "panic": {
+   "cards": 22,
+   "allFieldsCorrect": 1.0
+  },
+  "partial_address": {
+   "cards": 14,
+   "allFieldsCorrect": 1.0
+  },
+  "second_voice": {
+   "cards": 24,
+   "allFieldsCorrect": 1.0
+  },
+  "tangents": {
+   "cards": 26,
+   "allFieldsCorrect": 1.0
+  }
+ },
+ "corrections": {
+  "correct": 74,
+  "total": 74,
+  "accuracy": 1.0,
+  "ci95": [
+   0.951,
+   1.0
+  ],
+  "byWhen": {
+   "next_turn": {
+    "correct": 29,
+    "total": 29,
+    "accuracy": 1.0,
+    "ci95": [
+     0.883,
+     1.0
+    ]
+   },
+   "readback": {
+    "correct": 28,
+    "total": 28,
+    "accuracy": 1.0,
+    "ci95": [
+     0.879,
+     1.0
+    ]
+   },
+   "second_voice": {
+    "correct": 17,
+    "total": 17,
+    "accuracy": 1.0,
+    "ci95": [
+     0.816,
+     1.0
+    ]
+   }
+  }
+ },
+ "escalations": {
+  "expected": 13,
+  "raised": 13
+ },
+ "nominations": {
+  "expected": 49,
+  "captured": 49
+ },
+ "completion": {
+  "turnsMedian": 7.0,
+  "turnsP95": 10,
+  "secondsMedian": 0.0,
+  "secondsP95": 0.0
+ },
+ "latency": {
+  "turnMsP50": 0.0,
+  "turnMsP95": 0.3
+ },
+ "guardBlocked": 0,
+ "failures": [],
+ "caveat": "The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the harness works end to end. Report the run against Track B's endpoint, never this one."
+}

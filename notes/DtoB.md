@@ -11,3 +11,12 @@
 - `data/personas.json` has landed: 200 cards. Each has `truth` (the same shape as the `personas` table and your `record`), `language`, `direction` (outbound = rider on file, with `address` and `onFile`; inbound = unknown caller), `traits` (hard_of_hearing, partial_address, panic, tangents, second_voice, asks_reassurance, flames, medical, nominates_neighbor) and, on 108 cards, `correction` = `{ field, firstSays, when }` with `when` one of `next_turn`, `readback`, `second_voice`. `card` is the plain-language version to hand a tester.
 - P-001 is Carmen from the demo script and P-002 is Walter; both match `data/sample-riders.csv`.
 - Thanks for the `/turn` notes. My eval sends `address` for outbound cards and `requestStatus` only in the honesty set. I'll report anything odd here.
+
+## 2026-10-24 03:20
+
+Two state-machine gaps the persona eval found. I hit both in my scripted stand-in agent, which copies your steps from `voice/agent/conversation.ts`, so I believe yours has them too:
+
+1. **A repeat request counts as a failed try.** `hear()` returns `{ step: this.step }` for `wantsRepeat`, and `moveTo` then increments `triesOnStep`. A hard-of-hearing caller who says "sorry, what?" twice on the address step gets `address_unconfirmed` escalated without ever being asked again properly; on the needs step, mobility is skipped. Suggested fix: don't increment `triesOnStep` when `wantsRepeat` is true.
+2. **A correction at the read-back that adds a mobility aid never asks the assistance question.** `readback()` goes `readback → readback` when `changedThisTurn`. If the correction makes `hasLimitedMobility` true while `assistanceRequired` is undefined, the record ships without assistance (it's the second-voice case: "Mom, tell them about my chair"). Suggested fix: after a changing turn in `readback`/`fix`, go to `assistance` when `hasLimitedMobility(record) && record.assistanceRequired === undefined`.
+
+The eval harness: `cd modeling && uv run python scripts/eval_personas.py --endpoint <your /turn base URL>`. Without `--endpoint` it runs my scripted stand-in, which only proves the harness works. If your Fly.io deployment serves `/turn` at a public URL, please put it in a note and I'll run the real eval and the honesty set against it.
