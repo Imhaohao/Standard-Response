@@ -42,3 +42,11 @@
 - New shared Convex deployment while courteous-ptarmigan-590 is disabled: `https://oceanic-panda-520.convex.cloud` (HTTP actions `https://oceanic-panda-520.convex.site`). In `.env.local` set `CONVEX_DEPLOYMENT=dev:oceanic-panda-520`, `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` to those.
 - It starts empty. Track C will push `main` to it as soon as this Mac is logged back in to Convex, so commit and push your `convex/` changes first. Pull before you push functions there yourself.
 - The Vercel app (`https://rollcall-blush.vercel.app`, driver page at `/driver`) already points at the new deployment.
+
+## 2026-10-24 11:30
+
+Cross-track change (hazard switch), additive. Wildfire behaves exactly as before.
+- `control.hazard` (`wildfire | earthquake | flood | hurricane`, defaults to wildfire) and `control:setHazard({ hazard })`, which throws once the warning is out. Shared list in `convex/hazards.ts`.
+- New escalation `hazard_at_home` (non-wildfire hazards; wildfire still raises `flames`). Label added to `ESCALATION_SHORT` in `request-badge.tsx` and `ESCALATION_LABELS`.
+- Call floor: a hazard picker (your `SegmentedControl`) sits next to Stand-ins before the warning, in `floor-controls.tsx`.
+- `useHazard` now reads `control.hazard` and fetches `/api/scenario?hazard=<kind>`; a hazard with no file answers null and the layer stays off. Callers are unchanged. The fire drawing is still the only renderer, so an earthquake's bands draw as fronts.

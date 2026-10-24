@@ -16,3 +16,10 @@
 - New shared Convex deployment while courteous-ptarmigan-590 is disabled: `https://oceanic-panda-520.convex.cloud` (HTTP actions `https://oceanic-panda-520.convex.site`). In `.env.local` set `CONVEX_DEPLOYMENT=dev:oceanic-panda-520`, `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` to those.
 - It starts empty. Track C will push `main` to it as soon as this Mac is logged back in to Convex, so commit and push your `convex/` changes first. Pull before you push functions there yourself.
 - The Vercel app (`https://rollcall-blush.vercel.app`, driver page at `/driver`) already points at the new deployment.
+
+## 2026-10-24 11:30
+
+Cross-track change (hazard switch), additive.
+- `modeling/scripts/build_earthquake.py` writes `data/hazard/scenario-earthquake.geojson`: six nested bands (`minutesAfterWarning` 0..150) by distance to the Sierra Madre fault trace from the USGS Quaternary Fault database. Same shape as `scenario.geojson`, so `Scenario.load(path)` and `run_models.py --scenario` work unchanged. Band distances are a stated assumption, not a ShakeMap.
+- Flood and hurricane have no scenario yet (`scenario-flood.geojson`, `scenario-hurricane.geojson` are the expected names in `convex/hazards.ts`).
+- New escalation `hazard_at_home` for non-wildfire hazards. Personas and the scripted agent still only know `flames`, which is right for the wildfire demo.

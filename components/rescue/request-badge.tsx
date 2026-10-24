@@ -17,6 +17,7 @@ export const ESCALATION_SHORT: Record<NonNullable<OpenRequest["escalation"]>, st
   address_unconfirmed: "Address?",
   medical: "Medical",
   flames: "Sees flames",
+  hazard_at_home: "Danger at home",
   unservable: "No vehicle",
   language_barrier: "Language",
 };

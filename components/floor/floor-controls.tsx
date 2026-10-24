@@ -4,8 +4,10 @@ import { useMutation } from "convex/react";
 import { FunctionReturnType } from "convex/server";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { ArrowCounterClockwise, Minus, Pause, PhoneIncoming, Play, Plus, SlidersHorizontal } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
+import { Hazard } from "@/convex/hazards";
+import { SegmentedControl } from "../rescue/segmented-control";
 import { AnimatedNumber } from "../ui/animated-number";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -138,10 +140,30 @@ function StandIns({ control }: { control: ControlState }) {
   );
 }
 
+const HAZARD_OPTIONS = [
+  { value: "wildfire", label: "Wildfire", Icon: Fire },
+  { value: "earthquake", label: "Earthquake", Icon: Pulse },
+  { value: "flood", label: "Flood", Icon: Waves },
+  { value: "hurricane", label: "Hurricane", Icon: Hurricane },
+] as const satisfies readonly { value: Hazard; label: string; Icon: unknown }[];
+
+// Chosen before the warning: it sets the agent's safety line and the scenario the maps draw.
+function HazardPicker({ hazard }: { hazard: Hazard }) {
+  const setHazard = useMutation(api.control.setHazard);
+  return <SegmentedControl options={HAZARD_OPTIONS} value={hazard} onChange={(next) => void setHazard({ hazard: next })} ariaLabel="Hazard" />;
+}
+
 export function FloorControls({ control }: { control: ControlState | undefined }) {
   const surge = useMutation(api.control.inboundSurge);
   if (!control) return null;
-  if (!control.warningIssuedAt) return <StandIns control={control} />;
+  if (!control.warningIssuedAt) {
+    return (
+      <>
+        <HazardPicker hazard={control.hazard} />
+        <StandIns control={control} />
+      </>
+    );
+  }
   return (
     <>
       <div className="flex items-center gap-2 bg-panel-raised/60 pr-2">

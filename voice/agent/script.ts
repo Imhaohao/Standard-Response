@@ -11,6 +11,7 @@ import { TL } from "./lines/tl";
 import { RU } from "./lines/ru";
 import { JA } from "./lines/ja";
 import type { Language } from "../../convex/languages";
+import { currentHazard } from "../hazard";
 
 // Everything the agent may say that isn't Claude's short acknowledgment. Status lines are fixed
 // templates: Claude never writes an ETA, a driver's name, or a promise.
@@ -20,6 +21,12 @@ export { languageOf } from "../../convex/languages";
 export type RequestStatus = Doc<"requests">["status"];
 
 export const LINES: Record<Language, Lines> = { en: EN, es: ES, zh: ZH, ko: KO, vi: VI, tl: TL, ru: RU, ja: JA };
+
+// Ends a line that leaves the resident waiting with what to do if the hazard reaches them first.
+export function withSafety(line: string, language: Language) {
+  const lines = LINES[language];
+  return `${line}${lines.sentenceGap ?? " "}${lines.safety[currentHazard()]}`;
+}
 
 function readbackParts(record: AgentRecord, lines: Lines) {
   const leaving = record.canLeave === "yes" && record.hasCar !== false && !record.mobility;
@@ -65,8 +72,8 @@ export function statusLine(ride: RideStatus, language: Language): string | null 
   if (!ride) return null;
   const lines = LINES[language];
   const { status, driver } = ride;
-  if (status === "reassigning") return lines.reassigning;
+  if (status === "reassigning") return withSafety(lines.reassigning, language);
   if (status === "arrived" || status === "closed") return lines.arrived(driver?.shelterName);
-  if (!driver || status === "received" || status === "approved") return lines.waiting;
+  if (!driver || status === "received" || status === "approved") return withSafety(lines.waiting, language);
   return status === "en_route" ? lines.enRoute(driver.name, etaWords(driver, lines)) : acceptedLine(driver, lines);
 }

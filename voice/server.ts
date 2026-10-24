@@ -6,6 +6,7 @@ import { startCallbackRunner } from "./callbackRunner";
 import { convex } from "./convex";
 import { startDialer } from "./dialer";
 import { env } from "./env";
+import { watchHazard } from "./hazard";
 import { handleMediaStream } from "./phone/callSession";
 import { callEnded, liveByCallSid, onCallEnded } from "./phone/registry";
 import { signatureIsValid, streamTwiml } from "./phone/twilio";
@@ -99,6 +100,7 @@ server.on("upgrade", (req, socket, head) => {
 
 server.listen(env.port, () => {
   console.log(`[voice] listening on :${env.port}`);
+  watchHazard();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   startDialer();
   startCallbackRunner();

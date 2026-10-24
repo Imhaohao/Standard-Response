@@ -27,7 +27,7 @@ export const TL: Lines = {
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",
   emergency: "Kung kaya po, tumawag na kayo sa 911 ngayon. Minarkahan ko po kayong urgent para sa dispatcher.",
   languageBarrier:
-    "Ipapasa ko po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon. Kung umabot ang apoy sa bahay ninyo, tumawag po kayo sa 911.",
+    "Ipapasa ko po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   voicemail:
     "Ito po ang evacuation line ng Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
   people: (count) => (count === 1 ? "isang tao" : `${count} katao`),
@@ -56,9 +56,15 @@ export const TL: Lines = {
   backchannels: ["Opo.", "Nakuha ko po.", "Mm-hm, opo."],
   neutralAck: "Nakuha ko po.",
   waiting:
-    "Nasa listahan po kayo ng sasagipin bilang mataas na prayoridad. Wala pa pong driver na tumatanggap. Tatawagan ko po kayo kapag may tumanggap na. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon. Kung umabot ang apoy sa bahay ninyo, tumawag po kayo sa 911.",
+    "Nasa listahan po kayo ng sasagipin bilang mataas na prayoridad. Wala pa pong driver na tumatanggap. Tatawagan ko po kayo kapag may tumanggap na. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   reassigning:
-    "Hindi na po kayo maaabot ng driver ninyo. Nasa pinakaunang puwesto pa rin po kayo sa listahan. Tatawagan ko po kayo kapag may bagong driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon. Kung umabot ang apoy sa bahay ninyo, tumawag po kayo sa 911.",
+    "Hindi na po kayo maaabot ng driver ninyo. Nasa pinakaunang puwesto pa rin po kayo sa listahan. Tatawagan ko po kayo kapag may bagong driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
+  safety: {
+    wildfire: "Kung umabot ang apoy sa bahay ninyo, tumawag po kayo sa 911.",
+    earthquake: "Kung may naipit o may naaamoy kayong gas, tumawag po kayo sa 911.",
+    flood: "Kung pumasok ang tubig sa bahay ninyo, umakyat po kayo sa pinakamataas na palapag at tumawag sa 911.",
+    hurricane: "Kung pumasok ang tubig o nasira ang bahay ninyo, tumawag po kayo sa 911.",
+  },
   vehicle: {
     stretcher_van: "van na may stretcher",
     wheelchair_van: "van na accessible sa wheelchair",

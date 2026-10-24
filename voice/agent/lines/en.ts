@@ -26,7 +26,7 @@ export const EN: Lines = {
   repeatPrompt: "Sorry, could you say that again?",
   emergency: "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
   languageBarrier:
-    "I'm passing your call to a person on our team. If you can leave safely, leave now. If fire reaches your home, call 911.",
+    "I'm passing your call to a person on our team. If you can leave safely, leave now.",
   voicemail:
     "This is the Altadena evacuation line. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
   people: (count) => (count === 1 ? "one person" : `${count} people`),
@@ -55,9 +55,15 @@ export const EN: Lines = {
   backchannels: ["Okay.", "Got it.", "Mm-hm, okay."],
   neutralAck: "Okay.",
   waiting:
-    "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
+    "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now.",
   reassigning:
-    "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911.",
+    "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now.",
+  safety: {
+    wildfire: "If fire reaches your home, call 911.",
+    earthquake: "If anyone is trapped or you smell gas, call 911.",
+    flood: "If water comes into your home, go to the highest floor and call 911.",
+    hurricane: "If water comes in or your home is damaged, call 911.",
+  },
   vehicle: {
     stretcher_van: "van that carries a stretcher",
     wheelchair_van: "wheelchair-accessible van",

@@ -1,6 +1,8 @@
 "use client";
 
+import { useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
 import { useNow } from "@/lib/time";
 import { createProjection } from "./data";
@@ -10,18 +12,21 @@ export type Hazard = { field: FireField; label: string; basis: string };
 
 type ScenarioFile = ScenarioGeoJson & { metadata?: { label?: string; basis?: string } };
 
-// Track D's scenario, in the map's own metres. Loaded once per session.
+// Track D's scenario for the operator's hazard, in the map's own metres. Reloaded when the hazard changes.
 export function useHazard(origin: LatLng | undefined): Hazard | null {
-  const [file, setFile] = useState<ScenarioFile | null>(null);
+  const kind = useQuery(api.control.get)?.hazard;
+  const [loaded, setLoaded] = useState<{ kind: string; file: ScenarioFile | null } | null>(null);
   useEffect(() => {
+    if (!kind) return;
     let live = true;
-    void fetch("/api/scenario")
+    void fetch(`/api/scenario?hazard=${kind}`)
       .then((response) => response.json() as Promise<ScenarioFile | null>)
-      .then((data) => live && data && setFile(data));
+      .then((data) => live && setLoaded({ kind, file: data }));
     return () => {
       live = false;
     };
-  }, []);
+  }, [kind]);
+  const file = loaded && loaded.kind === kind ? loaded.file : null;
 
   return useMemo(() => {
     if (!origin || !file?.features?.length) return null;

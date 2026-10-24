@@ -1,15 +1,15 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { guardAcknowledgment } from "./honesty";
-import { canSpeak, interpret, Interpretation, TurnContext } from "./interpreter";
+import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
-import { Language, LINES, readback, RideStatus, statusLine } from "./script";
+import { Language, LINES, readback, RideStatus, statusLine, withSafety } from "./script";
 
 // The deterministic half of the agent. It decides what to ask next and what may be said about a
 // ride. Claude (interpreter.ts) only reads the resident's words and writes a short acknowledgment.
 // Phone calls and the text endpoint (POST /turn) run this same class.
 
 export type Stage = Doc<"calls">["stage"];
-export type Escalation = "medical" | "flames" | "address_unconfirmed" | "language_barrier";
+export type Escalation = Exclude<Emergency, "none"> | "address_unconfirmed" | "language_barrier";
 
 type Step =
   | "ask_address"
@@ -195,7 +195,7 @@ export class Conversation {
     this.escalateOnce("language_barrier");
     this.moveTo("done");
     const languages = [...new Set<Language>([this.language, this.openingLanguage, "en"])];
-    return this.say("", languages.map((language) => LINES[language].languageBarrier), false);
+    return this.say("", languages.map((language) => withSafety(LINES[language].languageBarrier, language)), false);
   }
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {

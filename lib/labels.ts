@@ -69,6 +69,7 @@ export const ESCALATION_LABELS: Record<NonNullable<Doc<"households">["escalation
   address_unconfirmed: "Address not confirmed",
   medical: "Medical emergency",
   flames: "Sees flames",
+  hazard_at_home: "Danger at the home now",
   unservable: "No vehicle can reach in time",
   language_barrier: "Needs an interpreter or a visit",
 };

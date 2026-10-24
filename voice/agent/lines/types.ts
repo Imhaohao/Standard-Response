@@ -1,3 +1,4 @@
+import type { Hazard } from "../../../convex/hazards";
 import type { AgentRecord } from "../record";
 
 type Mobility = NonNullable<AgentRecord["mobility"]>;
@@ -32,6 +33,7 @@ export type Lines = {
   repeatPrompt: string;
   emergency: string;
   // Said once when nobody can understand each other; the call then ends and a person follows up.
+  // languageBarrier, waiting and reassigning are always followed by the current hazard's safety line.
   languageBarrier: string;
   voicemail: string;
   people: (count: number) => string;
@@ -47,6 +49,8 @@ export type Lines = {
   listSeparator: string;
   // Ends the read-back summary. Defaults to ".".
   sentenceEnd?: string;
+  // Space between two whole sentences. Defaults to " "; Chinese and Japanese use none.
+  sentenceGap?: string;
   textPrompt: string;
   textThanks: string;
   // Fills a pause while Claude is thinking. Must not acknowledge any content.
@@ -55,6 +59,8 @@ export type Lines = {
   neutralAck: string;
   waiting: string;
   reassigning: string;
+  // What to do if the hazard reaches the home before a driver does.
+  safety: Record<Hazard, string>;
   vehicle: Record<VehicleKind, string>;
   // Only called for a crew of two or more.
   crew: (size: number) => string;

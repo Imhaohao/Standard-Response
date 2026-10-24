@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { startCall } from "./calls";
 import { TICK_MS } from "./sim";
+import { DEFAULT_HAZARD, hazard } from "./hazards";
 
 const DEFAULTS = {
   dialerRunning: false,
@@ -31,7 +32,8 @@ export const get = query({
   args: {},
   handler: async (ctx) => {
     const row = await ctx.db.query("control").first();
-    return row ?? { ...DEFAULTS, warningIssuedAt: undefined };
+    if (!row) return { ...DEFAULTS, warningIssuedAt: undefined, hazard: DEFAULT_HAZARD };
+    return { ...row, hazard: row.hazard ?? DEFAULT_HAZARD };
   },
 });
 
@@ -49,6 +51,19 @@ export const issueWarning = mutation({
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration });
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation: tickGeneration });
+    return null;
+  },
+});
+
+// The hazard is fixed once the warning goes out: calls already made used its safety line.
+export const setHazard = mutation({
+  args: { hazard },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const control = await controlRow(ctx);
+    if (control.warningIssuedAt) throw new Error("Reset before changing the hazard");
+    await ctx.db.patch("control", control._id, { hazard: args.hazard });
+    await logControl(ctx, `Hazard set to ${args.hazard}`);
     return null;
   },
 });

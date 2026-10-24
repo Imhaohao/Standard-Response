@@ -28,7 +28,7 @@ export const ES: Lines = {
   repeatPrompt: "Perdón, ¿me lo puede repetir?",
   emergency: "Si puede, llame al 911 ahora mismo. Le marqué como urgente para el despachador.",
   languageBarrier:
-    "Voy a pasar su llamada a una persona de nuestro equipo. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
+    "Voy a pasar su llamada a una persona de nuestro equipo. Si puede salir con seguridad, salga ahora.",
   voicemail:
     "Le llamamos de la línea de evacuación de Altadena. Hay una advertencia de evacuación en su calle. Volveremos a llamar en dos minutos. Si necesita transporte, devuelva la llamada a este número.",
   people: (count) => (count === 1 ? "una persona" : `${count} personas`),
@@ -57,9 +57,15 @@ export const ES: Lines = {
   backchannels: ["Muy bien.", "Entendido.", "Ajá, muy bien."],
   neutralAck: "Entendido.",
   waiting:
-    "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
+    "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora.",
   reassigning:
-    "Su conductor ya no puede llegar a usted. Sigue en primer lugar de la lista. Le llamaré en cuanto un nuevo conductor acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
+    "Su conductor ya no puede llegar a usted. Sigue en primer lugar de la lista. Le llamaré en cuanto un nuevo conductor acepte. Si puede salir con seguridad, salga ahora.",
+  safety: {
+    wildfire: "Si el fuego llega a su casa, llame al 911.",
+    earthquake: "Si alguien está atrapado o huele a gas, llame al 911.",
+    flood: "Si el agua entra en su casa, suba al piso más alto y llame al 911.",
+    hurricane: "Si entra agua o su casa sufre daños, llame al 911.",
+  },
   vehicle: {
     stretcher_van: "una camioneta con camilla",
     wheelchair_van: "una camioneta con acceso para silla de ruedas",

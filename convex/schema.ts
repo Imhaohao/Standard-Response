@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { hazard } from "./hazards";
 
 // The shared contract. Every track reads and writes these tables.
 // The owner column in PLAN.md "Contract" says who may change each table.
@@ -65,6 +66,7 @@ export const escalation = v.union(
   v.literal("address_unconfirmed"),
   v.literal("medical"),
   v.literal("flames"),
+  v.literal("hazard_at_home"),
   v.literal("unservable"),
   v.literal("language_barrier"),
 );
@@ -456,6 +458,7 @@ export default defineSchema({
     simulateDrivers: v.boolean(),
     autoApprove: v.boolean(),
     tickGeneration: v.number(),
+    hazard: v.optional(hazard),
   }),
 
   // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.

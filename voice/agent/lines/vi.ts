@@ -27,7 +27,7 @@ export const VI: Lines = {
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
   emergency: "Nếu có thể, xin quý vị gọi 911 ngay bây giờ. Tôi đã đánh dấu quý vị là khẩn cấp cho nhân viên điều phối.",
   languageBarrier:
-    "Tôi sẽ chuyển cuộc gọi của quý vị cho một người trong nhóm của chúng tôi. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+    "Tôi sẽ chuyển cuộc gọi của quý vị cho một người trong nhóm của chúng tôi. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   voicemail:
     "Đây là đường dây sơ tán của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
   people: (count) => (count === 1 ? "một người" : `${count} người`),
@@ -56,9 +56,15 @@ export const VI: Lines = {
   backchannels: ["Vâng.", "Tôi hiểu rồi.", "Vâng, tôi hiểu."],
   neutralAck: "Vâng, tôi hiểu rồi.",
   waiting:
-    "Quý vị đang nằm trong danh sách cứu hộ với mức ưu tiên cao. Chưa có tài xế nào nhận chuyến. Khi có tài xế nhận, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+    "Quý vị đang nằm trong danh sách cứu hộ với mức ưu tiên cao. Chưa có tài xế nào nhận chuyến. Khi có tài xế nhận, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   reassigning:
-    "Tài xế của quý vị không thể đến chỗ quý vị nữa. Quý vị vẫn đứng đầu danh sách. Khi có tài xế mới nhận chuyến, tôi sẽ gọi cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ. Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+    "Tài xế của quý vị không thể đến chỗ quý vị nữa. Quý vị vẫn đứng đầu danh sách. Khi có tài xế mới nhận chuyến, tôi sẽ gọi cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
+  safety: {
+    wildfire: "Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
+    earthquake: "Nếu có người bị mắc kẹt hoặc quý vị ngửi thấy mùi gas, hãy gọi 911.",
+    flood: "Nếu nước tràn vào nhà, hãy lên tầng cao nhất và gọi 911.",
+    hurricane: "Nếu nước tràn vào hoặc nhà quý vị bị hư hại, hãy gọi 911.",
+  },
   vehicle: {
     stretcher_van: "xe van chở cáng",
     wheelchair_van: "xe van có lối lên cho xe lăn",

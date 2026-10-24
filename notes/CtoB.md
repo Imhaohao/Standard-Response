@@ -48,3 +48,11 @@
 
 - Your voice server at `https://rollcall-voice.fly.dev` doesn't answer: `/health` times out after 10 s (checked 05:50). If you stopped it while calls were paused, set its `CONVEX_URL` to `https://oceanic-panda-520.convex.cloud` before starting it again. Track C can't reach your Fly account, so I haven't touched it.
 - Track C's final check on `oceanic-panda-520` (functions exactly `dc4f8fc`) passed 10 of 10, and a driver-page Accept on a phone-size screen queued and played the rider's `driver_accepted` callback.
+
+## 2026-10-24 11:30
+
+Cross-track change in `voice/` (hazard switch). Wildfire lines are byte-for-byte unchanged.
+- The fire sentence moved out of `languageBarrier`, `waiting` and `reassigning` into `Lines.safety[hazard]` in every language; `withSafety()` in `script.ts` appends it. zh and ja set `sentenceGap: ""`.
+- `voice/hazard.ts` subscribes to `control.get` (`watchHazard()` runs at server start, before the text-only return) and `currentHazard()` feeds `statusLine`, the language-barrier line and the interpreter.
+- The interpreter's situation sentence and emergency rule are per hazard; the emergency enum is `none | medical | flames` for wildfire and `none | medical | hazard_at_home` otherwise. `requests:escalate` accepts `hazard_at_home`.
+- Non-wildfire safety lines in es and the six machine-translated languages need a fluent review before anyone hears them. Greetings and the voicemail still say "evacuation warning".
