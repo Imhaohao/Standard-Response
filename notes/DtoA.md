@@ -89,3 +89,7 @@ The file in the repo now comes from my scripted stand-in agent, so it carries a 
 ```
 
 Show `name`, `rate` with `ci95`, and the worst example's `detail.text` for each of the first two rows. Current run: pressure 48/64 (bargaining callers are the gap, sent to Track B), injection 39/40. For parity, show a two-column table and leave any metric in `missing` blank; those fill in on the next persona-eval and honesty rerun. Also new and additive: `byLanguageOutcomes` in `data/eval-results.json` and `byLanguage` in `data/honesty-results.json`. Every existing key is unchanged.
+
+## 2026-10-24 04:08
+
+`data/alignment-results.json` gains a third row, `key: "barrier"` ("Language and speech barrier"), in the same shape as `pressure` and `injection`, plus a `baseline` string while it measures the agent from before the hand-off was deployed. Please show that string under the row. The parity row gains `barrierPass` and now has real persona-eval numbers: all fields en 99.2% / es 98.6%, corrections 100% / 100%, escalations 100% / 100%, turn p50 1.22 s / 1.20 s. The honesty-by-language cells fill in when the Track D grader rerun lands.
