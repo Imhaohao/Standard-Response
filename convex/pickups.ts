@@ -4,6 +4,8 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { applyRecordPatch } from "./households";
 import { resolveFollowUpFor } from "./calls";
+import { askNearbyDriver } from "./neighborPickups";
+import { syncRequest } from "./requests";
 import { pickupFailure, pickupStatus } from "./schema";
 
 // The pickup check. When a warning covers a household with a helper on file, the helper is called
@@ -32,6 +34,14 @@ const FAILURE_EVENTS: Record<Failure, (helper: string, place: string) => string>
   resident_unreachable: (helper, place) => `${helper} said they'd pick up ${place}, but nobody answers there. Added to the door-check list`,
 };
 
+// A neighbor we asked had no arrangement to begin with, and the ride request never closed.
+const RECRUIT_FAILURE_EVENTS: Record<Failure, (helper: string, place: string) => string> = {
+  helper_declined: (helper, place) => `${helper} can't pick up ${place}. Their ride request stays open`,
+  helper_unreachable: (helper, place) => `Couldn't reach ${helper} about ${place}. Their ride request stays open`,
+  helper_never_came: (helper, place) => `${helper} never reached ${place}. Their ride request stays open`,
+  resident_unreachable: FAILURE_EVENTS.resident_unreachable,
+};
+
 async function logPickup(ctx: MutationCtx, plan: Plan, message: string) {
   await ctx.db.insert("events", { kind: "dispatch", message, householdId: plan.householdId, at: Date.now() });
 }
@@ -48,8 +58,9 @@ const streetOf = (address: string) => address.replace(/^\s*\d+[A-Za-z]?\s+/, "")
 export async function fellThrough(ctx: MutationCtx, plan: Plan, reason: Failure) {
   const place = await placeOf(ctx, plan);
   await ctx.db.patch("pickupPlans", plan._id, { status: "fell_through", reason, ringing: undefined, updatedAt: Date.now() });
-  await logPickup(ctx, plan, FAILURE_EVENTS[reason](plan.helperName, place));
+  await logPickup(ctx, plan, (plan.recruited ? RECRUIT_FAILURE_EVENTS : FAILURE_EVENTS)[reason](plan.helperName, place));
   if (reason === "resident_unreachable") await resolveFollowUpFor(ctx, plan.householdId, "door_check");
+  else if (plan.recruited) await askNearbyDriver(ctx, plan.householdId);
   else await applyRecordPatch(ctx, plan.householdId, { canLeave: "no" }, { canLeave: 1 });
 }
 
@@ -63,6 +74,8 @@ async function markComing(ctx: MutationCtx, plan: Plan, etaMinutes: number | und
 async function markDone(ctx: MutationCtx, plan: Plan) {
   await ctx.db.patch("pickupPlans", plan._id, { status: "done", ringing: undefined, updatedAt: Date.now() });
   await ctx.db.patch("households", plan.householdId, { outcome: "leaving", callStatus: "complete" });
+  // A neighbor's pickup leaves a ride request open behind it; nobody needs that van now.
+  await syncRequest(ctx, plan.householdId);
   await logPickup(ctx, plan, `${plan.helperName} picked up ${await placeOf(ctx, plan)}`);
 }
 
@@ -178,6 +191,7 @@ export const callQueue = query({
           helperName: plan.helperName,
           helperPhone: plan.helperPhone,
           relation: plan.relation,
+          recruited: plan.recruited ?? false,
           helperAttempts: plan.helperAttempts,
           residentAttempts: plan.residentAttempts,
           lastAttemptAt: plan.lastAttemptAt,

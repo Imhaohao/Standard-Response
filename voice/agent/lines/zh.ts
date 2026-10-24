@@ -3,14 +3,14 @@ import type { Lines } from "./types";
 
 export const ZH: Lines = {
   greetOutbound: (address, name) =>
-    `${name ? `${name}，` : ""}您好，这里是阿尔塔迪纳残障接送撤离热线。您所在的街道已发布撤离警告。请问您现在是在${address}吗？`,
-  greetInbound: "这里是阿尔塔迪纳撤离热线。我可以帮您安排车辆出去。",
-  greetCallback: (name) => `${name ? `${name}，` : ""}您好，这里是阿尔塔迪纳撤离热线，有最新情况通知您。`,
+    `${name ? `${name}，` : ""}您好，这里是911，来电是关于阿尔塔迪纳的撤离。您所在的街道已发布撤离警告。请问您现在是在${address}吗？`,
+  greetInbound: "这里是911，负责阿尔塔迪纳的撤离。我可以帮您安排车辆出去。",
+  greetCallback: (name) => `${name ? `${name}，` : ""}您好，这里是911，回电通知您最新情况。`,
   askAddress: "请问您现在在哪个地址？",
   askHouseNumber: (street) => `请问您在${street}的门牌号是多少？`,
   confirmAddress: (address) => `我记下的是${address}。对吗？`,
-  addressEscalated: "我已标记您的地址，请调度员来确认。如果可以，也请拨打911。",
-  addressMissing: "我没能听清您的地址，已请调度员跟进联系您。如果可以，也请拨打911。",
+  addressEscalated: "我已标记您的地址，请调度员来确认。调度员会拨打这个号码联系您。",
+  addressMissing: "我没能听清您的地址，已请调度员回拨这个号码联系您。",
   askCanLeave: "您家里所有人现在都能自己离开吗？",
   askHasCar: "您有车，或者有人可以开车送您出去吗？",
   askHousehold: "现在有几个人和您在一起？有宠物吗？",
@@ -45,11 +45,11 @@ export const ZH: Lines = {
   transferOut: "好的，我帮您转接，请稍等两秒。",
   transferIn: "您好，接下来由我用中文为您服务。",
   repeatPrompt: "抱歉，您能再说一遍吗？",
-  emergency: "如果可以，请现在就拨打911。我已经向调度员标记您为紧急。",
+  emergency: "我已把您标记为紧急，调度员现在已接手您的来电。",
   languageBarrier:
     "我已经把您的来电告诉了我们团队的一位工作人员。如果您能安全离开，请现在就离开。",
   voicemail:
-    "这里是阿尔塔迪纳撤离热线。您所在的街道已发布撤离警告。我们两分钟后会再打电话。如果您需要车辆出去，请回拨这个号码。",
+    "这里是911，来电是关于阿尔塔迪纳的撤离。您所在的街道已发布撤离警告。我们两分钟后会再打电话。如果您需要车辆出去，请回拨这个号码。",
   people: (count) => (count === 1 ? "一个人" : `${count}个人`),
   pets: "带着宠物",
   noCar: "没有车",
@@ -73,7 +73,7 @@ export const ZH: Lines = {
   listSeparator: "，",
   sentenceEnd: "。",
   textPrompt:
-    "阿尔塔迪纳撤离热线：您所在的街道已发布撤离警告。如果您能自己离开，请回复1；如果需要车辆接送，请回复2；如果需要能上轮椅的车辆，请回复3。您也可以写下和您在一起的人。",
+    "911，阿尔塔迪纳撤离：您所在的街道已发布撤离警告。如果您能自己离开，请回复1；如果需要车辆接送，请回复2；如果需要能上轮椅的车辆，请回复3。您也可以写下和您在一起的人。",
   textThanks: "谢谢。我们已收到您的回复。",
   backchannels: ["嗯。", "嗯嗯。", "我看一下。"],
   waiting:
@@ -81,10 +81,10 @@ export const ZH: Lines = {
   reassigning:
     "您的司机已无法赶到您那里。您仍然排在名单最前面。一有新司机接受，我就给您打电话。如果您能安全离开，请现在就离开。",
   safety: {
-    wildfire: "如果大火烧到您家，请拨打911。",
-    earthquake: "如果有人被困，或者您闻到煤气味，请拨打911。",
-    flood: "如果水进入您家，请到最高的楼层，并拨打911。",
-    hurricane: "如果有水进屋或房子受损，请拨打911。",
+    wildfire: "如果大火烧到您家，请立刻回拨这个号码。",
+    earthquake: "如果有人被困，或者您闻到煤气味，请立刻回拨这个号码。",
+    flood: "如果水进入您家，请到最高的楼层，并回拨这个号码。",
+    hurricane: "如果有水进屋或房子受损，请立刻回拨这个号码。",
   },
   vehicle: {
     stretcher_van: "可运送担架的厢式车",

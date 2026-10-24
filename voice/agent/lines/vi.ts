@@ -3,14 +3,14 @@ import type { Lines } from "./types";
 
 export const VI: Lines = {
   greetOutbound: (address, name) =>
-    `Xin chào${name ? ` ${name}` : ""}, đây là đường dây sơ tán xe đưa đón của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Hiện giờ quý vị có đang ở ${address} không ạ?`,
-  greetInbound: "Đây là đường dây sơ tán của Altadena. Tôi có thể giúp quý vị tìm xe để đi ra ngoài.",
-  greetCallback: (name) => `Xin chào${name ? ` ${name}` : ""}, đây là đường dây sơ tán của Altadena, có thông tin mới cho quý vị.`,
+    `Xin chào${name ? ` ${name}` : ""}, đây là 911, gọi về việc sơ tán ở Altadena. Phố của quý vị đang có cảnh báo sơ tán. Hiện giờ quý vị có đang ở ${address} không ạ?`,
+  greetInbound: "Đây là 911 về việc sơ tán ở Altadena. Tôi có thể giúp quý vị tìm xe để đi ra ngoài.",
+  greetCallback: (name) => `Xin chào${name ? ` ${name}` : ""}, đây là 911, gọi lại với thông tin mới cho quý vị.`,
   askAddress: "Hiện giờ quý vị đang ở địa chỉ nào ạ?",
   askHouseNumber: (street) => `Số nhà của quý vị trên ${street} là số mấy ạ?`,
   confirmAddress: (address) => `Tôi ghi là ${address}. Có đúng không ạ?`,
-  addressEscalated: "Tôi đã đánh dấu địa chỉ của quý vị để nhân viên điều phối xác nhận. Nếu có thể, quý vị cũng hãy gọi 911.",
-  addressMissing: "Tôi chưa nghe rõ địa chỉ của quý vị, nên đã nhờ nhân viên điều phối liên lạc lại với quý vị. Nếu có thể, quý vị cũng hãy gọi 911.",
+  addressEscalated: "Tôi đã đánh dấu địa chỉ của quý vị để nhân viên điều phối xác nhận. Họ sẽ gọi cho quý vị theo số này.",
+  addressMissing: "Tôi chưa nghe rõ địa chỉ của quý vị, nên đã nhờ nhân viên điều phối gọi lại cho quý vị theo số này.",
   askCanLeave: "Mọi người trong nhà có thể tự ra ngoài ngay bây giờ không ạ?",
   askHasCar: "Quý vị có xe, hoặc có ai lái xe đưa quý vị đi không ạ?",
   askHousehold: "Hiện có mấy người ở cùng quý vị, và có thú cưng không ạ?",
@@ -45,11 +45,11 @@ export const VI: Lines = {
   transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",
   transferIn: "Xin chào, từ đây tôi sẽ giúp quý vị bằng tiếng Việt.",
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",
-  emergency: "Nếu có thể, xin quý vị gọi 911 ngay bây giờ. Tôi đã đánh dấu quý vị là khẩn cấp cho nhân viên điều phối.",
+  emergency: "Tôi đã đánh dấu quý vị là khẩn cấp, và nhân viên điều phối đang nhận cuộc gọi của quý vị.",
   languageBarrier:
     "Tôi đã báo cho một người trong nhóm của chúng tôi về cuộc gọi của quý vị. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   voicemail:
-    "Đây là đường dây sơ tán của Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
+    "Đây là 911, gọi về việc sơ tán ở Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
   people: (count) => (count === 1 ? "một người" : `${count} người`),
   pets: "có thú cưng",
   noCar: "không có xe",
@@ -71,7 +71,7 @@ export const VI: Lines = {
   atAddress: (address) => `tại ${address}`,
   listSeparator: ", ",
   textPrompt:
-    "Đường dây sơ tán Altadena: phố của quý vị đang có cảnh báo sơ tán. Trả lời 1 nếu quý vị có thể tự rời đi, 2 nếu cần xe đưa đi, 3 nếu cần xe có chỗ cho xe lăn. Quý vị cũng có thể ghi rõ những ai đang ở cùng quý vị.",
+    "911, sơ tán ở Altadena: phố của quý vị đang có cảnh báo sơ tán. Trả lời 1 nếu quý vị có thể tự rời đi, 2 nếu cần xe đưa đi, 3 nếu cần xe có chỗ cho xe lăn. Quý vị cũng có thể ghi rõ những ai đang ở cùng quý vị.",
   textThanks: "Cảm ơn quý vị. Chúng tôi đã nhận được câu trả lời.",
   backchannels: ["Vâng.", "Dạ.", "Để tôi xem."],
   waiting:
@@ -79,10 +79,10 @@ export const VI: Lines = {
   reassigning:
     "Tài xế của quý vị không thể đến chỗ quý vị nữa. Quý vị vẫn đứng đầu danh sách. Khi có tài xế mới nhận chuyến, tôi sẽ gọi cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   safety: {
-    wildfire: "Nếu lửa lan đến nhà quý vị, hãy gọi 911.",
-    earthquake: "Nếu có người bị mắc kẹt hoặc quý vị ngửi thấy mùi gas, hãy gọi 911.",
-    flood: "Nếu nước tràn vào nhà, hãy lên tầng cao nhất và gọi 911.",
-    hurricane: "Nếu nước tràn vào hoặc nhà quý vị bị hư hại, hãy gọi 911.",
+    wildfire: "Nếu lửa lan đến nhà quý vị, hãy gọi lại số này ngay.",
+    earthquake: "Nếu có người bị mắc kẹt hoặc quý vị ngửi thấy mùi gas, hãy gọi lại số này ngay.",
+    flood: "Nếu nước tràn vào nhà, hãy lên tầng cao nhất và gọi lại số này.",
+    hurricane: "Nếu nước tràn vào hoặc nhà quý vị bị hư hại, hãy gọi lại số này ngay.",
   },
   vehicle: {
     stretcher_van: "xe van chở cáng",

@@ -42,6 +42,7 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     helperName: plan.helperName,
     residentName: plan.residentName,
     address: plan.address,
+    recruited: plan.recruited,
     effects: planEffects(plan._id, role, plan.householdId),
   });
 }

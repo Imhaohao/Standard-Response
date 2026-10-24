@@ -106,7 +106,7 @@ const PARSERS: Record<ReadyField, (raw: string) => unknown> = {
 };
 const FIELDS = Object.keys(PARSERS) as ReadyField[];
 
-const SYSTEM = `You interpret one thing a resident just said on a calm phone call from the Altadena evacuation line. There is no emergency and no warning: we are calling every household ahead of time to note who might need help if there is ever an evacuation. You return structured data only.
+const SYSTEM = `You interpret one thing a resident just said on a calm phone call from 911 in Altadena. There is no emergency and no warning: we are calling every household ahead of time to note who might need help if there is ever an evacuation. You return structured data only.
 
 Profile fields and allowed values:
 - residentName: the speaker's name, if they give it

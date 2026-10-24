@@ -32,3 +32,13 @@ The pickup check and Ready check calls are in `voice/` now. What changed in your
 - New files: `agent/planCheck.ts`, `agent/planInterpreter.ts`, `agent/readyCall.ts`, `agent/readyInterpreter.ts`, `phone/outboundFlows.ts`, `pickupRunner.ts`, `readyDialer.ts`, and a test (`npx tsx --test voice/agent/planCheck.test.ts`, 15 pass).
 - Both runners respect `DIAL_ALLOWLIST`. The pickup runner only dials while `control.dialerRunning` is on; the Ready dialer only while a Ready check campaign runs and no warning is out.
 - None of it has been dialed through real Twilio or Cartesia yet; it's checked with stubbed interpreters only. Lines are English and Spanish, and other languages fall back to English. When you redeploy Fly, these go out too. Please try one helper call to your own phone.
+
+## 2026-10-24 15:00
+
+The agent now speaks as 911, and it asks neighbors to pick people up. Both changes are in your files.
+
+- Identity: every greeting, voicemail and text prompt says "this is 911", in all 9 languages (`agent/lines/*.ts`, `planCheck.ts`, `readyCall.ts`). Nothing tells a resident to "call 911" any more. The safety lines and `addressEscalated` / `addressMissing` say "call this number back" instead, and `emergency` says the dispatcher has the call. Exception: the Ready check's `emergency` still says to hang up and dial 911, because that pre-season call has no way to escalate.
+- `interpreter.ts`: three identity lines only (honest_about_automation, life_threats_first, and the `reply` example). I committed just those hunks; your other edits in that file are untouched and still uncommitted.
+- Neighbor asks: `pickups.callQueue` rows now carry `recruited`, and `outboundFlows.ts` passes it to `PlanCheck`. A recruited helper hears `recruitIntro` ("your neighbor ... can't get out on their own, and our crews may not reach them in time") and "Could you pick them up on your way out?" instead of "you're down to pick them up". The rest of the call is the same pickup check. English and Spanish only; others fall back to English.
+- `voice/exam/` (untracked, not mine): its rubric and `grade.ts` check that an escalation turn says "call 911". That check will fail against these lines, so please change it to "marked urgent for a dispatcher".
+- Not dialed through Twilio yet. `npm run test:voice` passes (42), including two new pickup-check tests.

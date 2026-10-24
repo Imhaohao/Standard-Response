@@ -501,6 +501,8 @@ export default defineSchema({
     relation: v.optional(v.string()),
     // Set when the helper lives in the area: the rescue map draws the pickup from their home.
     helperHouseholdId: v.optional(v.id("households")),
+    // A neighbor driving out whom 911 asked during the warning, with no arrangement beforehand.
+    recruited: v.optional(v.boolean()),
     status: pickupStatus,
     reason: v.optional(pickupFailure),
     // Which call is ringing right now, if any. The rescue map shows the phone ringing.

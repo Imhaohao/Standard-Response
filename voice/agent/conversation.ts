@@ -47,7 +47,7 @@ const STAGE_OF: Record<Step, Stage> = {
 type OutlineStage = { stage: string; goal: string };
 const OPEN: OutlineStage = {
   stage: "open",
-  goal: "they know this is the evacuation line, that a warning covers them, and where they are right now",
+  goal: "they know this is 911, that a warning covers them, and where they are right now",
 };
 const NEEDS: OutlineStage = {
   stage: "action and needs",
@@ -56,7 +56,7 @@ const NEEDS: OutlineStage = {
 const CHECK: OutlineStage = { stage: "check", goal: "the resident confirms the facts in their own words" };
 const CLOSE: OutlineStage = {
   stage: "close",
-  goal: "they know what happens next, when to call 911, and that they can call back",
+  goal: "they know what happens next, and when to call this number back",
 };
 const OUTLINE: Record<Step, OutlineStage> = {
   ask_address: OPEN,

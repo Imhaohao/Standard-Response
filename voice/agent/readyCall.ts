@@ -54,7 +54,7 @@ type ReadyLines = {
 
 const EN_READY: ReadyLines = {
   intro:
-    "This is the Altadena evacuation line. We're calling every household ahead of fire season so that if there's ever an evacuation, we already know who might need help. It takes about two minutes. Is now okay?",
+    "This is 911 in Altadena, and there's no emergency. We're calling every household ahead of fire season so that if there's ever an evacuation, we already know who might need help. It takes about two minutes. Is now okay?",
   notNow: "No problem. Thanks for your time. Goodbye.",
   confirmAddress: (address) => `First, I have ${address} on file. Is that right?`,
   askAddress: "What's the right address?",
@@ -74,9 +74,9 @@ const EN_READY: ReadyLines = {
   goodbye: "Thank you, that's everything. If there's ever an evacuation, we'll already have this on file. Goodbye.",
   sorry: "Sorry, I didn't catch that.",
   noRideToday: "Today's call only puts your details on file. If there's ever a warning, you can call this number.",
-  emergency: "If this is an emergency, please hang up and call 911.",
+  emergency: "This call can only take your details. If this is an emergency, hang up and dial 911 so a dispatcher can send help.",
   voicemail:
-    "This is the Altadena evacuation line. We're calling every household ahead of fire season to note who might need help in an evacuation. We'll try you again later.",
+    "This is 911 in Altadena, and there's no emergency. We're calling every household ahead of fire season to note who might need help in an evacuation. We'll try you again later.",
   dialysis: "on dialysis",
   sleeps: (floor, side) => `sleeps ${{ ground: "on the ground floor", upstairs: "upstairs", basement: "in the basement" }[floor]}${side ? ` at the ${side}` : ""}`,
   care: {
@@ -94,7 +94,7 @@ const EN_READY: ReadyLines = {
 
 const ES_READY: ReadyLines = {
   intro:
-    "Le llamamos de la línea de evacuación de Altadena. Estamos llamando a cada hogar antes de la temporada de incendios para que, si alguna vez hay una evacuación, ya sepamos quién podría necesitar ayuda. Toma unos dos minutos. ¿Es buen momento?",
+    "Le llamamos del 911 en Altadena, y no hay ninguna emergencia. Estamos llamando a cada hogar antes de la temporada de incendios para que, si alguna vez hay una evacuación, ya sepamos quién podría necesitar ayuda. Toma unos dos minutos. ¿Es buen momento?",
   notNow: "No hay problema. Gracias por su tiempo. Adiós.",
   confirmAddress: (address) => `Primero, tengo ${address} registrada. ¿Es correcto?`,
   askAddress: "¿Cuál es la dirección correcta?",
@@ -114,9 +114,9 @@ const ES_READY: ReadyLines = {
   goodbye: "Gracias, eso es todo. Si alguna vez hay una evacuación, ya tendremos esto registrado. Adiós.",
   sorry: "Perdón, no le entendí.",
   noRideToday: "Esta llamada solo registra sus datos. Si alguna vez hay un aviso, puede llamar a este número.",
-  emergency: "Si es una emergencia, cuelgue y llame al 911.",
+  emergency: "Esta llamada solo registra sus datos. Si es una emergencia, cuelgue y marque el 911 para que un despachador le mande ayuda.",
   voicemail:
-    "Le llamamos de la línea de evacuación de Altadena. Estamos llamando a cada hogar antes de la temporada de incendios para saber quién podría necesitar ayuda en una evacuación. Volveremos a llamar más tarde.",
+    "Le llamamos del 911 en Altadena, y no hay ninguna emergencia. Estamos llamando a cada hogar antes de la temporada de incendios para saber quién podría necesitar ayuda en una evacuación. Volveremos a llamar más tarde.",
   dialysis: "con diálisis",
   sleeps: (floor, side) => `duerme ${{ ground: "en la planta baja", upstairs: "arriba", basement: "en el sótano" }[floor]}${side ? (side === "front" ? " al frente" : " atrás") : ""}`,
   care: {

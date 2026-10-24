@@ -2,14 +2,14 @@ import type { Lines } from "./types";
 
 export const EN: Lines = {
   greetOutbound: (address, name) =>
-    `Hello${name ? ` ${name}` : ""}, this is the Altadena paratransit evacuation line. An evacuation warning covers your street. Are you at ${address} right now?`,
-  greetInbound: "This is the Altadena evacuation line. I can help get you a ride out.",
-  greetCallback: (name) => `Hello${name ? ` ${name}` : ""}, this is the Altadena evacuation line with an update.`,
+    `Hello${name ? ` ${name}` : ""}, this is 911 calling about the evacuation in Altadena. An evacuation warning covers your street. Are you at ${address} right now?`,
+  greetInbound: "This is 911 for the Altadena evacuation. I can help get you a ride out.",
+  greetCallback: (name) => `Hello${name ? ` ${name}` : ""}, this is 911 calling back with an update.`,
   askAddress: "What address are you at right now?",
   askHouseNumber: (street) => `What's the house number on ${street}?`,
   confirmAddress: (address) => `I have ${address}. Is that right?`,
-  addressEscalated: "I've flagged your address for a dispatcher to confirm. If you can, also call 911.",
-  addressMissing: "I couldn't catch your address, so I've asked a dispatcher to follow up with you. If you can, also call 911.",
+  addressEscalated: "I've flagged your address for a dispatcher to confirm. They'll call you on this number.",
+  addressMissing: "I couldn't catch your address, so I've asked a dispatcher to call you back on this number.",
   askCanLeave: "Can everyone in your home leave on their own right now?",
   askHasCar: "Do you have a car or someone who can drive you out?",
   askHousehold: "How many people are with you right now, and are there any pets?",
@@ -44,11 +44,11 @@ export const EN: Lines = {
   transferOut: "Okay, let me transfer you. Give me two seconds.",
   transferIn: "Hi, I'll help you in English from here.",
   repeatPrompt: "Sorry, could you say that again?",
-  emergency: "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
+  emergency: "I've marked you urgent, and a dispatcher has your call now.",
   languageBarrier:
     "I've flagged your call for a person on our team. If you can leave safely, leave now.",
   voicemail:
-    "This is the Altadena evacuation line. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
+    "This is 911 calling about the evacuation in Altadena. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
   people: (count) => (count === 1 ? "one person" : `${count} people`),
   pets: "with pets",
   noCar: "no car",
@@ -70,7 +70,7 @@ export const EN: Lines = {
   atAddress: (address) => `at ${address}`,
   listSeparator: ", ",
   textPrompt:
-    "Altadena evacuation line: an evacuation warning covers your street. Reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle. You can also write who is with you.",
+    "911, Altadena evacuation: an evacuation warning covers your street. Reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle. You can also write who is with you.",
   textThanks: "Thank you. We have your answer.",
   backchannels: ["Mm-hm.", "Mm.", "Alright.", "Let me see."],
   waiting:
@@ -78,10 +78,10 @@ export const EN: Lines = {
   reassigning:
     "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now.",
   safety: {
-    wildfire: "If fire reaches your home, call 911.",
-    earthquake: "If anyone is trapped or you smell gas, call 911.",
-    flood: "If water comes into your home, go to the highest floor and call 911.",
-    hurricane: "If water comes in or your home is damaged, call 911.",
+    wildfire: "If fire reaches your home, call this number back right away.",
+    earthquake: "If anyone is trapped or you smell gas, call this number back right away.",
+    flood: "If water comes into your home, go to the highest floor and call this number back.",
+    hurricane: "If water comes in or your home is damaged, call this number back right away.",
   },
   vehicle: {
     stretcher_van: "van that carries a stretcher",

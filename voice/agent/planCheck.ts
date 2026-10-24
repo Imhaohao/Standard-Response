@@ -6,12 +6,16 @@ import { interpretPlanAnswer, PlanHeard, PlanInterpret, PlanRole } from "./planI
 import { Language, LINES, withSafety } from "./script";
 
 // The pickup check, one short call. The helper hears "can you get to them now?" and, on a yes,
-// "about how many minutes?"; the resident later hears "has your helper picked you up?". Claude
+// "about how many minutes?"; the resident later hears "has your helper picked you up?". A neighbor
+// who never agreed to anything is asked "could you pick them up on your way out?" instead. Claude
 // only reads the answer. Two unclear answers count as no, because a van is the safer default.
 
 type PlanCheckLines = {
   helperIntro: (helperName: string, residentName: string | undefined, address: string) => string;
+  // A neighbor driving out who has no arrangement with the resident.
+  recruitIntro: (residentName: string | undefined, address: string) => string;
   askComing: string;
+  askCanPickUp: string;
   askMinutes: string;
   helperComing: (residentName: string | undefined) => string;
   helperNotComing: string;
@@ -28,41 +32,47 @@ type PlanCheckLines = {
 export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en: PlanCheckLines } = {
   en: {
     helperIntro: (helperName, residentName, address) =>
-      `Hi ${helperName}, this is the Altadena evacuation line calling for ${residentName ?? "your neighbor"} at ${address}. An evacuation warning now covers their street, and you're down to pick them up.`,
+      `Hi ${helperName}, this is 911 calling for ${residentName ?? "your neighbor"} at ${address}. An evacuation warning now covers their street, and you're down to pick them up.`,
+    recruitIntro: (residentName, address) =>
+      `Hi, this is 911 calling about the evacuation in Altadena. ${residentName ? `Your neighbor ${residentName}` : "A neighbor of yours"} at ${address} can't get out on their own, and our crews may not reach them in time.`,
     askComing: "Can you get to them now?",
+    askCanPickUp: "Could you pick them up on your way out?",
     askMinutes: "About how many minutes until you're there?",
     helperComing: (residentName) =>
       `Thank you. We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
     helperNotComing: "Thanks for telling us. We'll find them another way.",
-    residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's the Altadena evacuation line.`,
+    residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's 911 calling about your pickup.`,
     askPickedUp: (helperName) => `Has ${helperName} picked you up?`,
     pickedUp: "Good, I'm glad you're on your way. Goodbye.",
     findingVehicle: "We're finding you a vehicle now. I'll call you back as soon as a driver has said yes.",
     sorry: "Sorry, I didn't catch that.",
-    helperEmergency: "If you're in danger, please call 911 right now.",
+    helperEmergency: "If you're in danger, leave now, and don't go to them.",
     helperVoicemail: (residentName, address) =>
-      `This is the Altadena evacuation line calling about ${residentName ?? "your neighbor"} at ${address}. We'll try you again in a couple of minutes.`,
+      `This is 911 calling about ${residentName ?? "your neighbor"} at ${address}. We'll try you again in a couple of minutes.`,
     residentVoicemail: (helperName) =>
-      `This is the Altadena evacuation line checking that ${helperName} picked you up. We'll call back in a couple of minutes. If you still need a ride, call this number.`,
+      `This is 911 checking that ${helperName} picked you up. We'll call back in a couple of minutes. If you still need a ride, call this number.`,
   },
   es: {
     helperIntro: (helperName, residentName, address) =>
-      `Hola ${helperName}, le llamamos de la línea de evacuación de Altadena por ${residentName ?? "su vecino"}, en ${address}. Ahora hay un aviso de evacuación en su calle, y usted quedó en recogerle.`,
+      `Hola ${helperName}, le llamamos del 911 por ${residentName ?? "su vecino"}, en ${address}. Ahora hay un aviso de evacuación en su calle, y usted quedó en recogerle.`,
+    recruitIntro: (residentName, address) =>
+      `Hola, le llamamos del 911 por la evacuación en Altadena. ${residentName ? `Su vecino ${residentName}` : "Un vecino suyo"}, en ${address}, no puede salir por su cuenta, y es posible que nuestros equipos no lleguen a tiempo.`,
     askComing: "¿Puede ir por esa persona ahora?",
+    askCanPickUp: "¿Podría pasar por esa persona cuando salga?",
     askMinutes: "¿Más o menos en cuántos minutos llega?",
     helperComing: (residentName) =>
       `Gracias. Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
     helperNotComing: "Gracias por avisarnos. Buscaremos otra manera.",
-    residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos de la línea de evacuación de Altadena.`,
+    residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos del 911 por su transporte.`,
     askPickedUp: (helperName) => `¿Ya le recogió ${helperName}?`,
     pickedUp: "Qué bien, me alegra que ya haya salido. Adiós.",
     findingVehicle: "Estamos buscándole un vehículo ahora. Le llamo en cuanto un conductor diga que sí.",
     sorry: "Perdón, no le entendí.",
-    helperEmergency: "Si está en peligro, llame al 911 ahora mismo.",
+    helperEmergency: "Si está en peligro, salga ahora y no vaya por esa persona.",
     helperVoicemail: (residentName, address) =>
-      `Le llamamos de la línea de evacuación de Altadena por ${residentName ?? "su vecino"}, en ${address}. Volveremos a llamar en un par de minutos.`,
+      `Le llamamos del 911 por ${residentName ?? "su vecino"}, en ${address}. Volveremos a llamar en un par de minutos.`,
     residentVoicemail: (helperName) =>
-      `Le llamamos de la línea de evacuación de Altadena para confirmar que ${helperName} le recogió. Volveremos a llamar en un par de minutos. Si todavía necesita transporte, llame a este número.`,
+      `Le llamamos del 911 para confirmar que ${helperName} le recogió. Volveremos a llamar en un par de minutos. Si todavía necesita transporte, llame a este número.`,
   },
 };
 
@@ -82,6 +92,8 @@ export type PlanCheckOptions = {
   helperName: string;
   residentName?: string;
   address: string;
+  // The helper is a neighbor we found during the warning, not someone who agreed ahead of time.
+  recruited?: boolean;
   effects: PlanCheckEffects;
   interpret?: PlanInterpret;
 };
@@ -117,15 +129,18 @@ export class PlanCheck implements CallFlow {
   }
 
   start(): AgentTurn {
-    const { helperName, residentName, address } = this.options;
-    const intro = this.options.role === "helper"
-      ? this.lines.helperIntro(helperName, residentName, address)
-      : this.lines.residentIntro(residentName);
+    const intro = this.intro();
     return this.say("", [intro, this.question()]);
   }
 
   question(): string {
-    return QUESTIONS[this.step](this.lines, this.options.helperName);
+    return QUESTIONS[this.step](this.lines, this.options);
+  }
+
+  private intro() {
+    const { role, recruited, helperName, residentName, address } = this.options;
+    if (role === "resident") return this.lines.residentIntro(residentName);
+    return recruited ? this.lines.recruitIntro(residentName, address) : this.lines.helperIntro(helperName, residentName, address);
   }
 
   endHold(): AgentTurn {
@@ -238,7 +253,7 @@ export class PlanCheck implements CallFlow {
     write();
   }
 
-  // Only the resident's home is ours to escalate; a helper in trouble is told to call 911.
+  // Only the resident's home is ours to escalate; a helper in trouble is told to leave and not go to them.
   private handleEmergency(heard: PlanHeard): string[] {
     if (heard.emergency === "none" || this.escalated) return [];
     this.escalated = true;
@@ -268,9 +283,9 @@ export class PlanCheck implements CallFlow {
   }
 }
 
-const QUESTIONS: Record<Step, (lines: PlanCheckLines, helperName: string) => string> = {
-  ask_coming: (lines) => lines.askComing,
+const QUESTIONS: Record<Step, (lines: PlanCheckLines, options: PlanCheckOptions) => string> = {
+  ask_coming: (lines, { recruited }) => (recruited ? lines.askCanPickUp : lines.askComing),
   ask_minutes: (lines) => lines.askMinutes,
-  ask_picked_up: (lines, helperName) => lines.askPickedUp(helperName),
+  ask_picked_up: (lines, { helperName }) => lines.askPickedUp(helperName),
   done: () => "",
 };

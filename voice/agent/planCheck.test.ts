@@ -17,7 +17,7 @@ const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
   ...partial,
 });
 
-function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en") {
+function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en", recruited = false) {
   const recorded: Recorded = { helper: [], resident: [], escalations: [], unreached: 0 };
   const effects: PlanCheckEffects = {
     helperAnswered: (coming, eta) => recorded.helper.push([coming, eta]),
@@ -32,6 +32,7 @@ function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" 
     helperName: "Ana",
     residentName: "Walter",
     address: "1182 Mariposa St",
+    recruited,
     effects,
     interpret: async () => heard(queue.shift() ?? {}),
   });
@@ -41,6 +42,23 @@ function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" 
 const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
 
 describe("pickup check, helper call", () => {
+  it("introduces itself as 911 and never tells the helper to call 911", async () => {
+    const { call } = planCall("helper", [{ answer: "no", emergency: "flames" }]);
+    const opening = spoken(call.start());
+    assert.match(opening, /this is 911/);
+    assert.doesNotMatch(spoken(await call.hear("no, and there's fire here")), /call 911/i);
+  });
+
+  it("asks a neighbor found during the warning to pick them up on the way out", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "yes", minutes: 5 }], "en", true);
+    const opening = spoken(call.start());
+    assert.match(opening, /Your neighbor Walter at 1182 Mariposa St can't get out on their own/);
+    assert.match(opening, /Could you pick them up on your way out\?/);
+    assert.doesNotMatch(opening, /you're down to pick them up/);
+    assert.equal((await call.hear("sure, five minutes")).done, true);
+    assert.deepEqual(recorded.helper, [[true, 5]]);
+  });
+
   it("asks for minutes after a plain yes, then reports the helper coming", async () => {
     const { call, recorded } = planCall("helper", [{ answer: "yes" }, { minutes: 12 }]);
     assert.match(spoken(call.start()), /Can you get to them now\?/);
@@ -86,10 +104,10 @@ describe("pickup check, helper call", () => {
     assert.deepEqual(recorded.helper, [[false, undefined]]);
   });
 
-  it("tells a helper in danger to call 911 without escalating the resident's home", async () => {
+  it("tells a helper in danger to leave without escalating the resident's home", async () => {
     const { call, recorded } = planCall("helper", [{ emergency: "flames", answer: "no" }]);
     call.start();
-    assert.match(spoken(await call.hear("there's fire on my street, I can't")), /911/);
+    assert.match(spoken(await call.hear("there's fire on my street, I can't")), /leave now, and don't go to them/);
     assert.deepEqual(recorded.escalations, []);
   });
 
@@ -119,7 +137,7 @@ describe("pickup check, resident call", () => {
     assert.deepEqual(recorded.resident, [false]);
     const text = spoken(last);
     assert.match(text, /finding you a vehicle/);
-    assert.match(text, /call 911/);
+    assert.match(text, /call this number back/);
     assert.doesNotMatch(text, /coming soon|\d+ minutes/);
   });
 

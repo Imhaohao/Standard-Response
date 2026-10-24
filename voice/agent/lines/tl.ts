@@ -3,14 +3,14 @@ import type { Lines } from "./types";
 
 export const TL: Lines = {
   greetOutbound: (address, name) =>
-    `Hello po${name ? ` ${name}` : ""}, ito po ang paratransit evacuation line ng Altadena. May evacuation warning po sa kalye ninyo. Nasa ${address} po ba kayo ngayon?`,
-  greetInbound: "Ito po ang evacuation line ng Altadena. Matutulungan ko po kayong makakuha ng sasakyan palabas.",
-  greetCallback: (name) => `Hello po${name ? ` ${name}` : ""}, ito po ang evacuation line ng Altadena. May update po ako.`,
+    `Hello po${name ? ` ${name}` : ""}, ito po ang 911, tumatawag tungkol sa evacuation sa Altadena. May evacuation warning po sa kalye ninyo. Nasa ${address} po ba kayo ngayon?`,
+  greetInbound: "Ito po ang 911 para sa evacuation sa Altadena. Matutulungan ko po kayong makakuha ng sasakyan palabas.",
+  greetCallback: (name) => `Hello po${name ? ` ${name}` : ""}, ito po ang 911, tumatawag ulit na may update po ako.`,
   askAddress: "Anong address po ninyo ngayon?",
   askHouseNumber: (street) => `Anong house number po sa ${street}?`,
   confirmAddress: (address) => `${address} po ang nakuha ko. Tama po ba?`,
-  addressEscalated: "Minarkahan ko po ang address ninyo para makumpirma ng dispatcher. Kung kaya po, tumawag din kayo sa 911.",
-  addressMissing: "Hindi ko po nakuha ang address ninyo, kaya hiniling ko po sa dispatcher na kontakin kayo. Kung kaya po, tumawag din kayo sa 911.",
+  addressEscalated: "Minarkahan ko po ang address ninyo para makumpirma ng dispatcher. Tatawagan po nila kayo sa numerong ito.",
+  addressMissing: "Hindi ko po nakuha ang address ninyo, kaya hiniling ko po sa dispatcher na tawagan kayo sa numerong ito.",
   askCanLeave: "Makakaalis po ba ang lahat sa bahay ninyo nang kusa ngayon?",
   askHasCar: "Mayroon po ba kayong kotse o kasamang puwedeng magmaneho para sa inyo?",
   askHousehold: "Ilan po kayong magkakasama ngayon, at mayroon po bang alagang hayop?",
@@ -45,11 +45,11 @@ export const TL: Lines = {
   transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",
   transferIn: "Magandang araw po, ako na po ang tutulong sa inyo sa Tagalog.",
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",
-  emergency: "Kung kaya po, tumawag na kayo sa 911 ngayon. Minarkahan ko po kayong urgent para sa dispatcher.",
+  emergency: "Minarkahan ko po kayong urgent, at hawak na po ng dispatcher ang tawag ninyo.",
   languageBarrier:
     "Naipaalam ko na po ang tawag ninyo sa isang tao sa aming team. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   voicemail:
-    "Ito po ang evacuation line ng Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
+    "Ito po ang 911, tumatawag tungkol sa evacuation sa Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
   people: (count) => (count === 1 ? "isang tao" : `${count} katao`),
   pets: "may alagang hayop",
   noCar: "walang kotse",
@@ -71,7 +71,7 @@ export const TL: Lines = {
   atAddress: (address) => `sa ${address}`,
   listSeparator: ", ",
   textPrompt:
-    "Evacuation line ng Altadena: may evacuation warning sa kalye ninyo. Sumagot ng 1 kung makakaalis kayo nang kusa, 2 kung kailangan ninyo ng sasakyan, 3 kung kailangan ninyo ng sasakyang accessible sa wheelchair. Maaari rin ninyong isulat kung sino ang kasama ninyo.",
+    "911, evacuation sa Altadena: may evacuation warning sa kalye ninyo. Sumagot ng 1 kung makakaalis kayo nang kusa, 2 kung kailangan ninyo ng sasakyan, 3 kung kailangan ninyo ng sasakyang accessible sa wheelchair. Maaari rin ninyong isulat kung sino ang kasama ninyo.",
   textThanks: "Salamat po. Natanggap na namin ang sagot ninyo.",
   backchannels: ["Opo.", "Mm-hm, opo.", "Sandali lang po."],
   waiting:
@@ -79,10 +79,10 @@ export const TL: Lines = {
   reassigning:
     "Hindi na po kayo maaabot ng driver ninyo. Nasa pinakaunang puwesto pa rin po kayo sa listahan. Tatawagan ko po kayo kapag may bagong driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   safety: {
-    wildfire: "Kung umabot ang apoy sa bahay ninyo, tumawag po kayo sa 911.",
-    earthquake: "Kung may naipit o may naaamoy kayong gas, tumawag po kayo sa 911.",
-    flood: "Kung pumasok ang tubig sa bahay ninyo, umakyat po kayo sa pinakamataas na palapag at tumawag sa 911.",
-    hurricane: "Kung pumasok ang tubig o nasira ang bahay ninyo, tumawag po kayo sa 911.",
+    wildfire: "Kung umabot ang apoy sa bahay ninyo, tawagan po ninyo agad ulit ang numerong ito.",
+    earthquake: "Kung may naipit o may naaamoy kayong gas, tawagan po ninyo agad ulit ang numerong ito.",
+    flood: "Kung pumasok ang tubig sa bahay ninyo, umakyat po kayo sa pinakamataas na palapag at tawagan po ulit ang numerong ito.",
+    hurricane: "Kung pumasok ang tubig o nasira ang bahay ninyo, tawagan po ninyo agad ulit ang numerong ito.",
   },
   vehicle: {
     stretcher_van: "van na may stretcher",

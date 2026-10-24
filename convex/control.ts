@@ -4,6 +4,7 @@ import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { retimeSimulatedArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { startPickupChecks } from "./pickups";
+import { askNeighborsForWaitingHomes } from "./neighborPickups";
 import { startCall } from "./calls";
 import { TICK_MS } from "./sim";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
@@ -54,6 +55,7 @@ export const issueWarning = mutation({
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration });
     await startPickupChecks(ctx, now);
+    await askNeighborsForWaitingHomes(ctx);
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation: tickGeneration });
     return null;

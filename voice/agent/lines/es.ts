@@ -4,14 +4,14 @@ const capitalized = (sentence: string) => `${sentence.charAt(0).toUpperCase()}${
 
 export const ES: Lines = {
   greetOutbound: (address, name) =>
-    `Hola${name ? ` ${name}` : ""}, le llamamos de la línea de evacuación de paratránsito de Altadena. Hay una advertencia de evacuación en su calle. ¿Está usted en ${address} ahora mismo?`,
-  greetInbound: "Esta es la línea de evacuación de Altadena. Puedo ayudarle a conseguir transporte para salir.",
-  greetCallback: (name) => `Hola${name ? ` ${name}` : ""}, le llamamos de la línea de evacuación de Altadena con una actualización.`,
+    `Hola${name ? ` ${name}` : ""}, le llama el 911 por la evacuación en Altadena. Hay una advertencia de evacuación en su calle. ¿Está usted en ${address} ahora mismo?`,
+  greetInbound: "Habla el 911 por la evacuación en Altadena. Puedo ayudarle a conseguir transporte para salir.",
+  greetCallback: (name) => `Hola${name ? ` ${name}` : ""}, le llama de nuevo el 911 con una actualización.`,
   askAddress: "¿En qué dirección está usted ahora mismo?",
   askHouseNumber: (street) => `¿Cuál es el número de la casa en ${street}?`,
   confirmAddress: (address) => `Tengo ${address}. ¿Es correcto?`,
-  addressEscalated: "Marqué su dirección para que un despachador la confirme. Si puede, llame también al 911.",
-  addressMissing: "No pude entender su dirección, así que le pedí a un despachador que se comunique con usted. Si puede, llame también al 911.",
+  addressEscalated: "Marqué su dirección para que un despachador la confirme. Ellos le llamarán a este número.",
+  addressMissing: "No pude entender su dirección, así que le pedí a un despachador que le llame a este número.",
   askCanLeave: "¿Pueden todos en su casa salir por su cuenta ahora mismo?",
   askHasCar: "¿Tiene carro o alguien que le pueda llevar?",
   askHousehold: "¿Cuántas personas están con usted ahora, y tienen mascotas?",
@@ -46,11 +46,11 @@ export const ES: Lines = {
   transferOut: "Muy bien, le voy a transferir. Deme dos segundos.",
   transferIn: "Hola, desde aquí le atiendo en español.",
   repeatPrompt: "Perdón, ¿me lo puede repetir?",
-  emergency: "Si puede, llame al 911 ahora mismo. Le marqué como urgente para el despachador.",
+  emergency: "Le marqué como urgente y un despachador ya tiene su llamada.",
   languageBarrier:
     "Le avisé a una persona de nuestro equipo sobre su llamada. Si puede salir con seguridad, salga ahora.",
   voicemail:
-    "Le llamamos de la línea de evacuación de Altadena. Hay una advertencia de evacuación en su calle. Volveremos a llamar en dos minutos. Si necesita transporte, devuelva la llamada a este número.",
+    "Le llama el 911 por la evacuación en Altadena. Hay una advertencia de evacuación en su calle. Volveremos a llamar en dos minutos. Si necesita transporte, devuelva la llamada a este número.",
   people: (count) => (count === 1 ? "una persona" : `${count} personas`),
   pets: "con mascotas",
   noCar: "sin carro",
@@ -72,7 +72,7 @@ export const ES: Lines = {
   atAddress: (address) => `en ${address}`,
   listSeparator: ", ",
   textPrompt:
-    "Línea de evacuación de Altadena: hay una advertencia de evacuación en su calle. Responda 1 si puede salir por su cuenta, 2 si necesita transporte, 3 si necesita un vehículo para silla de ruedas. También puede escribir quién está con usted.",
+    "911, evacuación de Altadena: hay una advertencia de evacuación en su calle. Responda 1 si puede salir por su cuenta, 2 si necesita transporte, 3 si necesita un vehículo para silla de ruedas. También puede escribir quién está con usted.",
   textThanks: "Gracias. Ya tenemos su respuesta.",
   backchannels: ["Mm-hm.", "Muy bien.", "A ver.", "Un momento."],
   waiting:
@@ -80,10 +80,10 @@ export const ES: Lines = {
   reassigning:
     "Su conductor ya no puede llegar a usted. Sigue en primer lugar de la lista. Le llamaré en cuanto un nuevo conductor acepte. Si puede salir con seguridad, salga ahora.",
   safety: {
-    wildfire: "Si el fuego llega a su casa, llame al 911.",
-    earthquake: "Si alguien está atrapado o huele a gas, llame al 911.",
-    flood: "Si el agua entra en su casa, suba al piso más alto y llame al 911.",
-    hurricane: "Si entra agua o su casa sufre daños, llame al 911.",
+    wildfire: "Si el fuego llega a su casa, vuelva a llamar a este número de inmediato.",
+    earthquake: "Si alguien está atrapado o huele a gas, vuelva a llamar a este número de inmediato.",
+    flood: "Si el agua entra en su casa, suba al piso más alto y vuelva a llamar a este número.",
+    hurricane: "Si entra agua o su casa sufre daños, vuelva a llamar a este número de inmediato.",
   },
   vehicle: {
     stretcher_van: "una camioneta con camilla",

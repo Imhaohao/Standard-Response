@@ -38,3 +38,13 @@ Boris asked for a Ready check (a census of households ahead of time) and a picku
 ## 2026-10-24 14:30
 
 **Urgent: please run `npx convex dev` from main against `oceanic-panda-520` now.** The rescue map, call floor, driver page and `/ready` on main call new functions (`pickups:board`, `ready:card`, `ready:start`, `ready:submit` and others), plus new schema fields (`households.ready`, `pickupPlans`, three optional `control` fields). Until they're deployed, those screens fail with "Could not find public function" on the shared deployment. My CLI has no access to the project, so I can't push it myself. Everything has been run end to end on a private local backend: the Ready check, the warning, the pickup check, fallen-through pickups opening requests, and all 50 requests reaching the shelter.
+
+## 2026-10-24 15:00
+
+New: 911 asks a neighbor who is driving out to pick up a home that needs a ride (`convex/neighborPickups.ts`). It runs when a household's record shows a ride need (`applyRecordPatch`), when the warning goes out, and again after each "no" (up to 3 neighbors, within 800 m). It skips power wheelchairs, bedbound residents and two-person lifts.
+
+- Contract: `pickupPlans.recruited` (optional boolean). The other fields are unchanged.
+- `helperCovers` ignores recruited plans, so the ride request stays open and dispatch can still send a van. A neighbor is a faster first try, never a reason to hold a van.
+- When the resident confirms a pickup (`markDone`), `syncRequest` now runs and closes the open request. For arranged helpers nothing changes, because they had no request.
+- Simulated households get recruited plans too, and `pickupSim.ts` plays them like any other plan.
+- Not deployed to the shared deployment.

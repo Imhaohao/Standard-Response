@@ -4,6 +4,7 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
+import { askNearbyDriver } from "./neighborPickups";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
 
@@ -54,6 +55,7 @@ export async function applyRecordPatch(
     corrections: [...(household.corrections ?? []), ...corrections],
   });
   await syncRequest(ctx, householdId);
+  await askNearbyDriver(ctx, householdId);
   if (outcome !== household.outcome && outcome !== "unknown") {
     await ctx.db.insert("events", {
       kind: "record",

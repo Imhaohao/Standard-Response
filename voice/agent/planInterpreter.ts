@@ -50,7 +50,7 @@ const outputSchemaFor = (kind: Hazard) => ({
   additionalProperties: false,
 });
 
-const systemFor = (kind: Hazard) => `You interpret one thing a person just said on a short call from an evacuation line. An evacuation warning covers a neighborhood. Either we are calling a helper who agreed ahead of time to pick up a resident, asking whether they can go now and how many minutes it will take, or we are calling the resident, asking whether their helper has picked them up. You return structured data only.
+const systemFor = (kind: Hazard) => `You interpret one thing a person just said on a short call from 911. An evacuation warning covers a neighborhood. Either we are calling a helper, asking whether they can go now and how many minutes it will take, or we are calling the resident, asking whether their helper has picked them up. The helper is someone who agreed ahead of time to pick up the resident, or a neighbor who is driving out and whom we are asking to pick the resident up on the way. You return structured data only.
 
 - answer: yes or no to the agent's last question. "I'm on my way", "leaving now", "sure, ten minutes" are yes. "I can't", "I'm not home", "I'm out of town" are no. For "has your helper picked you up", "she's here", "I'm in the car" are yes, and "not yet", "nobody came" are no. Use unclear when you can't tell, including "maybe", "I'll try" or a question back. When the agent asked how many minutes, answer is no only if they now say they can't come after all; "I'm not sure" or "I don't know" is unclear.
 - minutes: how many minutes until the helper gets there, only when the speaker says a number or a clear time ("ten minutes", "half an hour" is 30, "an hour" is 60). Null otherwise. Never guess one.
