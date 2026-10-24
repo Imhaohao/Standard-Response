@@ -19,6 +19,7 @@ import { ROUND_MASS } from "@/lib/mesh/rounds";
 import { segmentFireMinutes, streetFeatures } from "@/lib/mesh/street-features";
 import { formatClock, useNow } from "@/lib/time";
 import { Figure, Figures } from "./figures";
+import { ForecastStreets, TrafficPanel, useTrafficForecast } from "./traffic-forecast";
 
 const INK = "var(--map-ink)";
 const PAPER = "var(--map-paper)";
@@ -121,7 +122,7 @@ function ModelPanel() {
   const latest = rounds?.models[0];
   const open = rounds?.open;
   return (
-    <Panel title="Shared model">
+    <Panel title="Shared model" className="shrink-0">
       <Figures>
         <Figure label="Version" value={latest?.version ?? 0} />
         <Figure label="Phones' worth of updates in it" value={Math.round(latest?.contributors ?? 0)} />
@@ -155,12 +156,15 @@ export function AgencyView() {
   const model = useQuery(api.mesh.model);
   const estimates = useEstimates(roads, model?.weights, control?.warningIssuedAt);
   const [mode, setMode] = useState<SurfaceMode>("ink");
+  const forecast = useTrafficForecast();
+  const [forecastWindow, setForecastWindow] = useState(0);
 
   if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
       <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} className="absolute inset-0">
+        {forecast && <ForecastStreets forecast={forecast} windowIndex={forecastWindow} />}
         {model && model.version > 0 && <EstimatedStreets estimates={estimates} />}
         {roads && <ReportedStreets roads={roads} />}
       </MapStage>
@@ -177,13 +181,14 @@ export function AgencyView() {
           <div className="pointer-events-auto flex w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
             <UploadsPanel roads={roads} />
           </div>
-          <div className="pointer-events-auto flex w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+          <div className="pointer-events-auto flex max-h-full w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+            <TrafficPanel forecast={forecast} warningIssued={control?.warningIssuedAt !== undefined} windowIndex={forecastWindow} onWindow={setForecastWindow} />
             <ModelPanel />
           </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <div className="flex items-center gap-3 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
-            <span className="type-small">Heavy broken line: reported blocked. Thin line: reported open. Dotted: model estimate, nobody has reported it.</span>
+            <span className="type-small">Heavy broken line: reported blocked. Thin line: reported open. Dotted: model estimate, nobody has reported it. Wide soft band: forecast slow traffic, darker is slower.</span>
             <Button variant="onPanelQuiet" className="!h-8" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
               {mode === "ink" ? "Flat" : "3D"}
             </Button>

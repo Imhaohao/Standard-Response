@@ -9,22 +9,23 @@ Three features built beside the core Rider Check flow. Nothing in the core flow 
 | Page | What it is |
 | --- | --- |
 | `/mesh` | A resident's phone: tap a street, say blocked or open, pair with a phone nearby, opt in to training and uploading |
-| `/mesh/agency` | What the agency has received, street by street, and where the shared model expects blockages nobody has reported |
+| `/mesh/agency` | What the agency has received, street by street, where the shared model expects blockages nobody has reported, and the traffic forecast for the next hour |
 | `/flow` | A simulated night on the map, mesh on or off, with the multi-seed results beside it |
 
 | Code | |
 | --- | --- |
 | `lib/mesh/` | Reports, sync protocol, federated learning, privacy accounting, transports (pure TypeScript, tested) |
-| `lib/crowd/` | Street grid, route choice, Langevin dynamics, departure model |
+| `lib/crowd/` | Street grid, route choice, Langevin dynamics, departure model, ensemble traffic forecast |
 | `lib/flow/` | The simulated night that joins the three, and its ground-truth blockages |
-| `convex/mesh.ts` | Anonymous uploads, rounds, the shared model, queries for the agency |
+| `convex/mesh.ts` | Anonymous uploads, rounds, the shared model, the traffic forecast, queries for the agency |
 | `components/mesh/` | The three pages |
-| `scripts/mesh/` | `simulate.ts` (writes `data/flow-results.json`), `feature-scale.ts` |
+| `scripts/mesh/` | `simulate.ts` (writes `data/flow-results.json`), `traffic-forecast.ts` (the live forecast runner), `feature-scale.ts` |
 
 ```bash
-npm run test:mesh                                    # 29 tests: protocol, privacy, learning, transports, crowd model
+npm run test:mesh                                    # 32 tests: protocol, privacy, learning, transports, crowd model, forecast
+npm run forecast:traffic                             # the live traffic forecast for /mesh/agency, every 5 minutes
 npx tsx scripts/mesh/simulate.ts --seeds 4 --sample 0.3   # about 2 minutes
-npx convex run mesh:clear                            # empties the three mesh tables only
+npx convex run mesh:clear                            # empties the mesh tables only
 ```
 
 ## 1. Road reports between phones
@@ -94,7 +95,18 @@ dv = [ (v_des(x, ρ) e(x) − v) / τ  +  F_rep(x) ] dt  +  sqrt(2 T / τ) dW
 - **Departures** follow a drift-diffusion decision, dX = μ(t) dt + σ dW, leaving when X reaches 1. There are two classes, evacuation-keen and evacuation-reluctant, per UC Berkeley's survey of California wildfire evacuees, and the drift rises as the fire nears.
 - **Who stays.** Households that can't leave without help stay put and are shown in red. They are who the core flow is for.
 
-The model also records flow by street: cars through each segment and their sampled speeds. The streets where crowding costs the most driving time come out as Lincoln Avenue, West Howard Street and the I-210 ramps.
+The model also records flow by street: cars through each segment, their sampled speeds, and the driving time lost to crowding (each 30-second sample counts 30 s times the share of free-flow speed the car didn't get). The streets where crowding costs the most driving time come out as Lincoln Avenue, West Howard Street and the I-210 ramps.
+
+### Traffic forecast for the agency
+
+`npm run forecast:traffic` (`scripts/mesh/traffic-forecast.ts`) uses the same dynamics to tell the agency where traffic is heading, on `/mesh/agency`.
+
+- **An ensemble follows the incident.** Six simulations of all 11,855 synthetic households (one worker thread each, seeds differ) run on the wall clock from the warning (`control.warningIssuedAt`), so each holds a plausible present: who has left, where the cars are.
+- **Every 5 minutes, each is forked and run an hour ahead** (`CrowdSim.fork`): same state, fresh noise. The forecast is the spread across the six: cars on the road every 5 minutes, and for 0–15, 15–30 and 30–60 minutes ahead each street's slowdown (1 − mean speed / free-flow speed), cars through, and car-minutes lost to crowding. Every figure is a median with the 5th to 95th percentile over the runs.
+- **What it knows.** Confirmed road closures and streets the phone mesh reports blocked, held fixed for the hour; the scenario fire keeps advancing as a wall. Blockages nobody has reported yet are not in it.
+- **On the map**, streets forecast to slow are a wide soft ink band, darker meaning slower and wider meaning more driving time lost. Red stays fire and people.
+- **Cost.** At minute 30, six runs take 190 s on one thread (measured); the runner puts each on its own thread. A runner started 517 minutes after the warning caught up and forecast in 85 s on a 10-core laptop. Keep at least five runs: with fewer, the range is just the spread of two or three samples.
+- **Limits.** It forecasts the simulated town, not measured traffic: there is no live traffic feed, and the population is synthetic. It is advisory; Track C's dispatcher does not read it.
 
 ## Results (simulation, not a prediction)
 

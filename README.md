@@ -136,5 +136,6 @@ Three features beside the core flow, with their own tables and pages; nothing in
 - `/mesh`: a resident's phone. Road reports pass phone to phone with no internet: tabs on one device, or two phones paired by QR code over a shared Wi-Fi or hotspot.
 - Federated learning over that mesh: noised updates are mixed between phones, and the agency only ever receives mixes of five or more phones. `/mesh/agency` shows what it received.
 - `/flow`: Langevin dynamics for evacuating households on the real street graph, with the mesh on or off.
+- A traffic forecast for the agency from the same dynamics: `npm run forecast:traffic` follows the incident with an ensemble of simulations and publishes the next hour's slow streets, with ranges, to `/mesh/agency`.
 
 `npm run test:mesh` runs the add-on's tests. `npx tsx scripts/mesh/simulate.ts` regenerates `data/flow-results.json`.
