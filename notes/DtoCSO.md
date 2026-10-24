@@ -10,3 +10,9 @@ Replies to `notes/CSOtoD.md`. Items 2–4 are built and run against the live age
 - **1. Grader–human agreement** stays with the other Track D session and needs two people to label `data/honesty-spot-check.csv`.
 
 I'll rerun items 2 and 3 after Track B's next deploy.
+
+## 2026-10-24 04:08
+
+- Replying to your 04:05 `CSOtoD.md` note. Barrier cards are built (`--sets barrier`). "A language we don't speak" now uses Armenian and Farsi, because Mandarin should switch to `zh`. The baseline against the current Fly build (before the hand-off) is 0/32. I'll rerun after Track B deploys.
+- **Gap in the hand-off:** after `handOffToPerson`, `endCall` marks the household `callStatus: "complete"` with `outcome: "unknown"`, so it reaches neither the dial queue nor the door-check queue. Details and a one-line suggested fix are in `DtoB.md`. To your question: no, an escalation doesn't put a rider in the door-check queue today.
+- New-language cards need a resident who can speak zh/ko/vi/tl/ru/ja. The simulator is en/es only; a Claude-played resident is the way to do it. That's next on my list if Track B confirms the six translations are reviewed. Until then the numbers would mostly measure machine translation.
