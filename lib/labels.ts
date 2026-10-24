@@ -28,13 +28,26 @@ export const STAGES: { key: Stage; label: string }[] = [
 
 export const stageIndex = (stage: Stage) => STAGES.findIndex((s) => s.key === stage);
 
-const LANGUAGES: Record<string, string> = { en: "English", es: "Español" };
-export const languageName = (code: string) => LANGUAGES[code] ?? code;
+// Each call language as its speakers write it, and in English for a crew reading the house card.
+const LANGUAGES: Record<string, { native: string; english: string }> = {
+  en: { native: "English", english: "English" },
+  es: { native: "Español", english: "Spanish" },
+  zh: { native: "中文", english: "Chinese" },
+  ko: { native: "한국어", english: "Korean" },
+  vi: { native: "Tiếng Việt", english: "Vietnamese" },
+  tl: { native: "Tagalog", english: "Tagalog" },
+  ru: { native: "Русский", english: "Russian" },
+  ja: { native: "日本語", english: "Japanese" },
+  hy: { native: "Հայերեն", english: "Armenian" },
+  fa: { native: "فارسی", english: "Persian" },
+};
+export const languageName = (code: string) => LANGUAGES[code]?.native ?? code;
+export const languageInEnglish = (code: string) => LANGUAGES[code]?.english ?? code;
 
 export const MOBILITY_LABELS: Record<NonNullable<Doc<"households">["mobility"]>, string> = {
   walks: "Walks",
   walker: "Walker",
-  manual_wheelchair: "Wheelchair",
+  manual_wheelchair: "Manual wheelchair",
   power_wheelchair: "Power wheelchair",
   bedbound: "Bedbound",
 };

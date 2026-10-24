@@ -2,11 +2,12 @@
 
 import { useQuery } from "convex/react";
 import { FunctionReturnType } from "convex/server";
-import { Heartbeat, PawPrint, Users, UsersThree, X, type Icon } from "@phosphor-icons/react";
+import { Heartbeat, PawPrint, Translate, Users, UsersThree, X, type Icon } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMapStage } from "@/components/map/map-stage";
 import { LatLng } from "@/lib/geo";
+import { languageInEnglish } from "@/lib/labels";
 import { Point } from "@/lib/ink-map/data";
 import { ASSIST_LABELS, EXIT_OPTIONS, InsideFacts, MOBILITY_OPTIONS } from "../ready/profile";
 import { Home } from "./marks";
@@ -44,6 +45,8 @@ function tilesOf(card: Card): Tile[] {
     card.medical?.includes("oxygen") === true && { key: "oxygen", label: "oxygen", glyph: "O₂" },
     card.medical?.includes("dialysis") === true && { key: "dialysis", label: "dialysis", Icon: Heartbeat },
     card.pets === true && { key: "pets", label: "pets", Icon: PawPrint },
+    // A crew at the door needs to know before knocking that nobody inside may speak English.
+    card.language !== "en" && { key: "language", label: languageInEnglish(card.language), Icon: Translate },
   ];
   return candidates.filter((tile): tile is Tile => Boolean(tile));
 }
