@@ -4,8 +4,12 @@ heuristic when this service is slow or down.
     uv run python server.py            # http://127.0.0.1:8799
     POST /solve   problem JSON (see solver.py)  ->  routes JSON
     GET  /health  -> {"ok": true}
+
+Problems carry riders' home coordinates. When SOLVER_TOKEN is set, /solve requires
+"Authorization: Bearer <SOLVER_TOKEN>"; set the same value in Convex (`npx convex env set SOLVER_TOKEN ...`).
 """
 
+import hmac
 import json
 import os
 import sys
@@ -17,6 +21,13 @@ import solver
 
 POLICIES = {"ortools": solver.solve, "heuristic": heuristic.solve}
 MAX_BODY_BYTES = 20_000_000
+TOKEN = os.environ.get("SOLVER_TOKEN", "")
+
+
+def authorized(header: str | None) -> bool:
+    if not TOKEN:
+        return True
+    return hmac.compare_digest(header or "", f"Bearer {TOKEN}")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -37,6 +48,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path != "/solve":
             self._send(404, {"error": "not found"})
+            return
+        if not authorized(self.headers.get("Authorization")):
+            self._send(401, {"error": "missing or wrong token"})
             return
         length = int(self.headers.get("Content-Length", 0))
         if length <= 0 or length > MAX_BODY_BYTES:

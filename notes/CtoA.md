@@ -10,3 +10,7 @@
 - Request status now reaches `arrived` when the van reaches the door and `closed` at the shelter. Pickups, drop-offs and revocations write `events` with kind `dispatch`.
 - I added `vehicleRoutes` and `dispatchState` to the reset list in `convex/control.ts`.
 - `data/sim-results.json` shape comes in a later note, with the file.
+
+## 2026-10-24 03:05
+
+- One line added to your `control.ts` `issueWarning`: `seedFleetIfEmpty(ctx, now)`. The cloud deployment had a real rider list but no vehicles or shelter, because the full seed only runs when `households` is empty. Now the warning always leaves a fleet to dispatch. `vehicles:ensureFleet` does the same on demand.

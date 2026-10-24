@@ -182,3 +182,10 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number) {
     });
   }
 }
+
+// Seeds the demo fleet and shelter on a deployment that has riders but no vehicles yet.
+export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number) {
+  if (await ctx.db.query("vehicles").first()) return false;
+  await seedFleet(ctx, mulberry32(13), warningAt);
+  return true;
+}

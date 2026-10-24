@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { seedFleetIfEmpty } from "./seed";
 
 export const list = query({
   args: {},
@@ -19,4 +20,11 @@ export const setPositions = mutation({
     for (const { vehicleId, lat, lng } of positions) await ctx.db.patch("vehicles", vehicleId, { lat, lng });
     return null;
   },
+});
+
+// A deployment with a real rider list but no fleet yet (riders imported before the warning).
+export const ensureFleet = mutation({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => await seedFleetIfEmpty(ctx, Date.now()),
 });

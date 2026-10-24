@@ -90,6 +90,7 @@ def start_night(world: World, reset: bool):
         world.client.mutation("control:reset")
         time.sleep(4)
     world.client.mutation("control:issueWarning")
+    world.client.mutation("vehicles:ensureFleet")
     world.client.mutation("control:setStandIns", {"simulateDispatch": False, "simulateDrivers": True, "autoApprove": True})
 
 

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { seedSimulatedArea } from "./seed";
+import { seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { startCall } from "./calls";
 import { TICK_MS } from "./sim";
 
@@ -44,6 +44,7 @@ export const issueWarning = mutation({
     if (control.warningIssuedAt) return null;
     const now = Date.now();
     if (!(await ctx.db.query("households").first())) await seedSimulatedArea(ctx, now);
+    await seedFleetIfEmpty(ctx, now);
     const tickGeneration = control.tickGeneration + 1;
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration });
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");

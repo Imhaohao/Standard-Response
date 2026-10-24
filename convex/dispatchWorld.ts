@@ -270,13 +270,18 @@ function failureReason(error: unknown) {
   return "solver service unreachable";
 }
 
+function solverHeaders(): Record<string, string> {
+  const token = process.env.SOLVER_TOKEN;
+  return token ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` } : { "Content-Type": "application/json" };
+}
+
 async function askSolverService(url: string, problem: Problem): Promise<Solution> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SOLVER_TIMEOUT_MS);
   try {
     const response = await fetch(`${url.replace(/\/$/, "")}/solve`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: solverHeaders(),
       body: JSON.stringify(problem),
       signal: controller.signal,
     });
