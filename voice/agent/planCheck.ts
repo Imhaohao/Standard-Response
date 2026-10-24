@@ -148,14 +148,24 @@ export class PlanCheck implements CallFlow {
   }
 
   async hear(utterance: string): Promise<AgentTurn> {
-    this.history.push({ speaker: "resident", text: utterance });
-    let heard: PlanHeard;
+    return (await this.read(utterance))();
+  }
+
+  // Nothing follows the closing line, so anything said after it is ignored.
+  async read(utterance: string): Promise<() => AgentTurn> {
+    if (this.done) return () => silentTurn(this, "close");
+    let heard: PlanHeard | null = null;
     try {
       heard = await this.interpret(this.context(utterance));
     } catch (error) {
       console.error("[plan-check] interpreter failed", error);
-      return this.say("", [LINES[this.language].repeatPrompt, this.question()]);
     }
+    return () => this.act(utterance, heard);
+  }
+
+  private act(utterance: string, heard: PlanHeard | null): AgentTurn {
+    this.history.push({ speaker: "resident", text: utterance });
+    if (!heard) return this.say("", [LINES[this.language].repeatPrompt, this.question()]);
     if (!heard.addressedToAgent && heard.emergency === "none") return this.ignore();
     const urgent = this.handleEmergency(heard);
     if (heard.wantsRepeat) return this.say("", [...urgent, this.question()]);
@@ -242,7 +252,7 @@ export class PlanCheck implements CallFlow {
       language: this.language,
       role: this.options.role,
       question: this.question(),
-      recentTurns: this.history.slice(-HISTORY_TURNS - 1, -1),
+      recentTurns: this.history.slice(-HISTORY_TURNS),
       utterance,
     };
   }

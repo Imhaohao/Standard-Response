@@ -60,6 +60,8 @@ export type AgentTurn = {
   ignored: boolean;
   // Set when the resident switched language: said in the old language and voice before a pause.
   transfer?: { line: string; language: Language };
+  // The resident asked for a moment, so the phone call waits longer before checking in.
+  givesTime?: boolean;
 };
 
 export type ConversationOptions = {
@@ -78,9 +80,13 @@ const MAX_READBACKS = 3;
 // Turns in a row where nothing usable was heard before the call goes to a person.
 const MAX_MISSED_TURNS = 3;
 const MAX_UNKNOWN_LANGUAGE_TURNS = 2;
+// Quiet check-ins in a row before the call ends and the reach ladder calls back.
+const MAX_QUIET_CHECK_INS = 2;
 const HISTORY_TURNS = 6;
 
 type Transition = { step: Step; lines?: string[] };
+// stalled: the turn left the question where it was, so it is asked again in other words.
+type ReplyOptions = { transfer?: AgentTurn["transfer"]; stalled: boolean };
 
 export class Conversation {
   language: Language;
@@ -106,6 +112,11 @@ export class Conversation {
   private reachedHold = false;
   // "Okay" or "mm-hm" on hold needs no reply; the line just stays open.
   private quietOnHold = false;
+  private quietCheckIns = 0;
+  // Nobody can understand each other; nothing said after the hand-off changes the call.
+  private handedOff = false;
+  // The resident stopped answering and the call ended on a check-in, so it doesn't count as answered.
+  lostContact = false;
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
@@ -151,15 +162,37 @@ export class Conversation {
   }
 
   async hear(utterance: string): Promise<AgentTurn> {
-    this.history.push({ speaker: "resident", text: utterance });
-    let heard: Interpretation;
+    return (await this.read(utterance))();
+  }
+
+  async read(utterance: string): Promise<() => AgentTurn> {
+    const heard = await this.understand(utterance);
+    return () => this.respond(utterance, heard);
+  }
+
+  // Claude's reading of one utterance. It changes nothing, so a phone call can throw it away and
+  // read again when the resident turns out to still be talking. Null when the interpreter failed.
+  async understand(utterance: string): Promise<Interpretation | null> {
     try {
-      heard = await interpret(this.turnContext(utterance));
+      return await interpret(this.turnContext(utterance));
     } catch (error) {
       console.error("[agent] interpreter failed", error);
-      return this.say("", [LINES[this.language].repeatPrompt], false);
+      return null;
     }
-    if (isNoise(heard)) return this.ignore();
+  }
+
+  // Acts on what understand() read. A goodbye isn't final: anything the resident adds after it is
+  // heard too, so a late correction still reaches the record.
+  respond(utterance: string, heard: Interpretation | null): AgentTurn {
+    if (this.handedOff || (heard && isNoise(heard))) return this.ignore();
+    if (!heard && this.done) return this.ignore();
+    this.history.push({ speaker: "resident", text: utterance });
+    this.quietCheckIns = 0;
+    if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
+    return this.done ? this.afterGoodbye(heard) : this.answer(heard);
+  }
+
+  private answer(heard: Interpretation): AgentTurn {
     const previousLanguage = this.language;
     const switched = this.switchLanguageIfNeeded(heard.spokenLanguage);
     const transfer = switched ? { line: LINES[previousLanguage].transferOut, language: previousLanguage } : undefined;
@@ -170,28 +203,85 @@ export class Conversation {
     const urgent = this.handleEmergency(heard);
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
 
-    // Asking us to repeat, or to switch language, isn't a failed answer, so it doesn't use up a try.
+    // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
+    // failed answer, so it doesn't use up a try.
     this.quietOnHold = false;
     if (heard.wantsRepeat) this.shortReadback = false;
-    if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, [], transfer);
+    if (switched && heardNothing(heard)) return this.reply(heard, urgent, [], { transfer, stalled: false });
+    const keeps = heard.wantsRepeat || (!this.holding && keepsQuestion(heard));
+    if (keeps) return this.reply(heard, urgent, [], { transfer, stalled: !heard.wantsRepeat });
+    const previousStep = this.step;
     const transition = this.advance(heard);
     this.moveTo(transition.step);
-    return this.reply(heard, urgent, transition.lines ?? [], transfer);
+    const stalled = this.step === previousStep && !this.changedThisTurn;
+    return this.reply(heard, urgent, transition.lines ?? [], { transfer, stalled });
+  }
+
+  // Something said after the goodbye. A correction, "no, wait" or "hold on" reopens the call at what
+  // is still missing, or the read-back; a question gets its answer and the goodbye again; "okay,
+  // bye" says nothing and lets the line close.
+  private afterGoodbye(heard: Interpretation): AgentTurn {
+    this.changedThisTurn = false;
+    this.applyUpdates(heard.updates, heard.confidence);
+    const urgent = this.handleEmergency(heard);
+    for (const address of heard.neighborAddresses) this.effects.nominate(address);
+    if (this.changedThisTurn || heard.wantsTime || heard.answer === "no") {
+      const fixed = this.changedThisTurn ? [LINES[this.language].readbackFixed] : [];
+      this.moveTo(this.nextMissing());
+      return this.reply(heard, urgent, fixed, { stalled: false });
+    }
+    const asked = urgent.length > 0 || heard.asksAboutRide || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
+    return asked ? this.reply(heard, urgent, [], { stalled: false }) : this.say("", [], false);
   }
 
   // After a transfer the new agent opens with transferIn, and a goodbye after hold stands alone,
   // so neither leads with an acknowledgment.
-  private reply(heard: Interpretation, urgent: string[], extra: string[], transfer?: AgentTurn["transfer"]): AgentTurn {
+  private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const ack = guardAcknowledgment(heard.acknowledgment, status, this.language);
-    const repeatOnHold = this.holding && heard.wantsRepeat;
-    const ride = (heard.asksAboutRide || repeatOnHold) && !this.done ? [this.rideLine()] : [];
-    const closing = this.done ? this.closingLines() : [this.question()];
+    // Claude's answer to the resident's own question passes the same guard, and is dropped if blocked.
+    const answer = guardAcknowledgment(heard.reply, status, this.language);
+    const givesTime = stalled && heard.wantsTime && !this.done && !this.holding;
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const sentences = [...new Set([...greeting, ...urgent, ...extra, ...ride, ...closing])].filter((line) => line !== "");
+    const said = answer.blocked ? [] : [answer.text];
+    const lines = [...greeting, ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
+    const sentences = [...new Set(lines)].filter((line) => line !== "");
     const leavingHold = this.done && this.reachedHold;
-    const turn = this.say(transfer || leavingHold ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked);
-    return transfer ? { ...turn, transfer } : turn;
+    const turn = this.say(transfer || leavingHold ? "" : this.freshAcknowledgment(ack.text), sentences, ack.blocked || answer.blocked);
+    return { ...turn, transfer, givesTime };
+  }
+
+  private rideLines(heard: Interpretation) {
+    const repeatOnHold = this.holding && heard.wantsRepeat;
+    return heard.asksAboutRide || repeatOnHold ? [this.rideLine()] : [];
+  }
+
+  // What ends a turn: the goodbye, a moment's wait the resident asked for, or the next question,
+  // in other words when it is the same question as last time.
+  private nextLines(stalled: boolean, givesTime: boolean) {
+    if (this.done) return this.closingLines();
+    if (givesTime) return [LINES[this.language].takeYourTime];
+    return [stalled ? this.questionAgain() : this.question()];
+  }
+
+  // The line went quiet after a question: check in and ask it again in other words. After
+  // MAX_QUIET_CHECK_INS the call ends and the reach ladder calls back, since silence is never
+  // taken as an answer. A quiet line at the neighbor question just means nobody comes to mind.
+  checkIn(): AgentTurn {
+    const lines = LINES[this.language];
+    if (this.step === "neighbor") {
+      const transition = this.afterNeighbor();
+      this.moveTo(transition.step);
+      return this.say("", [...(transition.lines ?? []), ...this.nextLines(false, false)], false);
+    }
+    this.quietCheckIns += 1;
+    if (this.quietCheckIns > MAX_QUIET_CHECK_INS) {
+      this.lostContact = true;
+      this.moveTo("done");
+      return this.say("", [withSafety(lines.lostYou, this.language)], false);
+    }
+    const stillThere = lines.stillThere[(this.quietCheckIns - 1) % lines.stillThere.length];
+    return this.say("", [stillThere, this.questionAgain()], false);
   }
 
   // The same acknowledgment twice in a row, or "got it", sounds like a machine not listening.
@@ -208,13 +298,13 @@ export class Conversation {
   }
 
   private say(acknowledgment: string, sentences: string[], guardBlocked: boolean): AgentTurn {
-    this.history.push({ speaker: "agent", text: [acknowledgment, ...sentences].filter(Boolean).join(" ") });
+    const text = [acknowledgment, ...sentences].filter(Boolean).join(" ");
+    if (text !== "") this.history.push({ speaker: "agent", text });
     return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked, ignored: false };
   }
 
   // Noise doesn't count as a missed turn or use up a try; the question stays where it was.
   private ignore(): AgentTurn {
-    this.history.pop();
     return { acknowledgment: "", sentences: [], stage: this.stage, done: this.done, guardBlocked: false, ignored: true };
   }
 
@@ -224,7 +314,7 @@ export class Conversation {
       stage: this.step,
       question: this.question(),
       record: this.record,
-      recentTurns: this.history.slice(-HISTORY_TURNS - 1, -1),
+      recentTurns: this.history.slice(-HISTORY_TURNS),
       utterance,
     };
   }
@@ -255,6 +345,7 @@ export class Conversation {
   // Nobody can understand each other: flag the call for a person and end it without promising anything.
   private handOffToPerson(): AgentTurn {
     this.escalateOnce("language_barrier");
+    this.handedOff = true;
     this.moveTo("done");
     const languages = [...new Set<Language>([this.language, this.openingLanguage, "en"])];
     return this.say("", languages.map((language) => withSafety(LINES[language].languageBarrier, language)), false);
@@ -387,8 +478,15 @@ export class Conversation {
     return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
   }
 
+  // "Yes, there's someone" with no address yet gets asked for it once.
+  neighbor(heard: Interpretation): Transition {
+    const owesAddress = heard.answer === "yes" && heard.neighborAddresses.length === 0;
+    if (owesAddress && this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: "neighbor" };
+    return this.afterNeighbor();
+  }
+
   // Anyone waiting for a ride stays on the line instead of being hung up on.
-  neighbor(): Transition {
+  private afterNeighbor(): Transition {
     if (!needsRide(this.record)) return { step: "done" };
     this.reachedHold = true;
     return { step: "hold", lines: [this.rideLine()] };
@@ -411,6 +509,10 @@ export class Conversation {
     return QUESTIONS[this.step](this);
   }
 
+  questionAgain(): string {
+    return QUESTIONS_AGAIN[this.step](this);
+  }
+
   // A street with no house number can't be driven to, so the agent asks for the number.
   askAddressQuestion() {
     const lines = LINES[this.language];
@@ -418,9 +520,20 @@ export class Conversation {
     return street && !hasHouseNumber(street) ? lines.askHouseNumber(street) : lines.askAddress;
   }
 
+  askAddressAgain() {
+    const again = LINES[this.language].askAgain;
+    const street = this.record.address;
+    return street && !hasHouseNumber(street) ? again.houseNumber(street) : again.address;
+  }
+
   addressQuestion() {
     const address = this.record.address ?? this.knownAddress;
     return address ? LINES[this.language].confirmAddress(address) : LINES[this.language].askAddress;
+  }
+
+  addressAgain() {
+    const address = this.record.address ?? this.knownAddress;
+    return address ? LINES[this.language].askAgain.confirmAddress(address) : LINES[this.language].askAgain.address;
   }
 
   needsQuestion() {
@@ -458,11 +571,23 @@ function isNoise(heard: Interpretation) {
   return !heard.addressedToAgent && heard.emergency === "none" && isEmpty(heard.updates) && heard.neighborAddresses.length === 0;
 }
 
-// A turn that gave us nothing to work with: asked us to repeat, or answered nothing usable.
-function heardNothing(heard: Interpretation) {
-  if (heard.wantsRepeat) return true;
+// Nothing in the turn answers anything: no yes or no, no field, no emergency, ride question or neighbor.
+function answeredNothing(heard: Interpretation) {
   const answered = heard.answer === "yes" || heard.answer === "no";
   return !answered && isEmpty(heard.updates) && heard.emergency === "none" && !heard.asksAboutRide && heard.neighborAddresses.length === 0;
+}
+
+// A turn that gave us nothing to work with: asked us to repeat, or said nothing usable. Asking for a
+// moment or asking something of their own is the resident engaging, so it doesn't count.
+function heardNothing(heard: Interpretation) {
+  if (heard.wantsRepeat) return true;
+  return answeredNothing(heard) && !heard.wantsTime && heard.reply === "";
+}
+
+// The resident asked us to repeat, asked for a moment, or asked something of their own without
+// answering: the question stays where it is.
+function keepsQuestion(heard: Interpretation) {
+  return heard.wantsRepeat || (answeredNothing(heard) && (heard.wantsTime || heard.reply !== ""));
 }
 
 const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpretation) => Transition> = {
@@ -475,7 +600,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
   assistance: (c, heard) => c.assistance(heard),
   readback: (c, heard) => c.readback(heard),
   fix: (c) => c.fix(),
-  neighbor: (c) => c.neighbor(),
+  neighbor: (c, heard) => c.neighbor(heard),
   hold: (c, heard) => c.hold(heard),
   done: () => ({ step: "done" }),
 };
@@ -491,6 +616,21 @@ const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
   readback: (c) => c.readbackQuestion(),
   fix: (c) => LINES[c.language].whatToFix,
   neighbor: (c) => LINES[c.language].askNeighbor,
+  hold: (c) => c.holdQuestion(),
+  done: (c) => LINES[c.language].goodbye,
+};
+
+const QUESTIONS_AGAIN: Record<Step, (conversation: Conversation) => string> = {
+  ask_address: (c) => c.askAddressAgain(),
+  confirm_address: (c) => c.addressAgain(),
+  can_leave: (c) => LINES[c.language].askAgain.canLeave,
+  has_car: (c) => LINES[c.language].askAgain.hasCar,
+  household: (c) => LINES[c.language].askAgain.household,
+  needs: (c) => LINES[c.language].askAgain.needs,
+  assistance: (c) => LINES[c.language].askAgain.assistance,
+  readback: (c) => LINES[c.language].askAgain.readback,
+  fix: (c) => LINES[c.language].askAgain.fix,
+  neighbor: (c) => LINES[c.language].askAgain.neighbor,
   hold: (c) => c.holdQuestion(),
   done: (c) => LINES[c.language].goodbye,
 };

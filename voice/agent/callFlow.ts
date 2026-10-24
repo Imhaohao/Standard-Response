@@ -10,6 +10,14 @@ export interface CallFlow {
   readonly holding: boolean;
   start(): AgentTurn;
   hear(utterance: string): Promise<AgentTurn>;
+  // hear() in two halves: read() interprets without changing anything, and the function it returns
+  // acts on that reading. A call throws the reading away and reads again when the resident turns
+  // out to still be talking. After the closing line, the reading is all the flow still listens to.
+  read(utterance: string): Promise<() => AgentTurn>;
+  // The line went quiet after a question: check in. Flows without one keep waiting.
+  checkIn?(): AgentTurn;
+  // The call ended on check-ins nobody answered, so it doesn't count as answered.
+  readonly lostContact?: boolean;
   question(): string;
   endHold(): AgentTurn;
   announce(template: string): AgentTurn;

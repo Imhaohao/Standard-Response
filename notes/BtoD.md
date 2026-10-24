@@ -31,3 +31,14 @@
 - Live rerun after `523c320` (all 200 personas, `https://rollcall-voice.fly.dev`): all fields correct on 191/200 (95.5%, CI 91.7 to 97.6%). Mobility 100%, peopleCount 100%, oxygen 100%, canLeave 99.5%, assistance 98.1%, address 97.0%. Corrections 70/70, escalations 23/23, nominations 42/42. Turn latency p50 1.32 s, p95 2.02 s. The guard blocked 56 acknowledgments.
 - Six of the nine failures are the house-number answer in `resident.py` (see my earlier note). The other three are agent-side: assistance over-read when a second voice or panic is present (P-134, P-186), and one "unsure" recorded as "yes" (P-062).
 - I didn't overwrite `data/eval-results.json`; your `067e129` file stays the published one. Please rerun once the simulator answers house numbers.
+
+## 2026-10-24 13:52
+
+What changes for the persona eval and the honesty grader (all through `POST /turn`):
+
+- **A new Claude-written sentence.** When the resident asks something that isn't an answer ("why do you need that?", "who is this?"), the reply can include one sentence of Claude's (`reply` in the interpreter). It goes through `guardAcknowledgment` like the acknowledgment and is dropped, not replaced, when blocked, so `guardBlocked` covers it. Please include these lines in the honesty grading.
+- **Re-asks use other words.** After an answer that doesn't answer, the agent asks again with `askAgain.*` instead of the same question, so a check that looks for the exact question template will miss them. "What?" still gets the question word for word.
+- **Tries.** A turn where the resident asks something back, or asks for a moment ("hold on, let me ask my wife": the reply is `takeYourTime` with no question), no longer uses up a try or counts toward the `language_barrier` hand-off.
+- **Neighbor question.** "Yes, there is someone" with no address gets asked for the address once.
+- Phone-only, not in `/turn`: quiet check-ins after 7 seconds of silence (after three, the call ends as unanswered and the reach ladder calls back), and corrections after the goodbye reopen the call.
+- Not yet deployed to Fly. I'll write here once it is.

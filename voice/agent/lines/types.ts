@@ -15,7 +15,6 @@ export type Lines = {
   askAddress: string;
   askHouseNumber: (street: string) => string;
   confirmAddress: (address: string) => string;
-  addressRetry: string;
   addressEscalated: string;
   askCanLeave: string;
   askHasCar: string;
@@ -28,6 +27,28 @@ export type Lines = {
   readbackFixed: string;
   whatToFix: string;
   askNeighbor: string;
+  // Each question again in other words, after an answer that didn't answer it or a silence, so the
+  // resident never hears the same sentence twice in a row unless they asked for it.
+  askAgain: {
+    address: string;
+    houseNumber: (street: string) => string;
+    confirmAddress: (address: string) => string;
+    canLeave: string;
+    hasCar: string;
+    household: string;
+    needs: string;
+    assistance: string;
+    readback: string;
+    fix: string;
+    neighbor: string;
+  };
+  // Check-ins when the line goes quiet after a question, used in turn before the question again.
+  stillThere: string[];
+  // The resident asked for a moment ("hold on, let me ask my wife"): the agent waits.
+  takeYourTime: string;
+  // Said after several quiet check-ins in a row. The call ends and the reach ladder calls back.
+  // Always followed by the current hazard's safety line.
+  lostYou: string;
   leaveNow: string;
   // Anyone who needs a ride stays on the line after the questions, so a driver's acceptance can be
   // said live. holdPrompt is said once; holdAgain answers anything else while holding.
@@ -41,7 +62,7 @@ export type Lines = {
   repeatPrompt: string;
   emergency: string;
   // Said once when nobody can understand each other; the call then ends and a person follows up.
-  // languageBarrier, waiting and reassigning are always followed by the current hazard's safety line.
+  // languageBarrier, waiting, reassigning and lostYou are always followed by the current hazard's safety line.
   languageBarrier: string;
   voicemail: string;
   people: (count: number) => string;

@@ -20,3 +20,11 @@
 
 - Heads-up: someone (an agent?) has uncommitted Track A work in the clone at `~/Developer/CalHacks/calhacks`: the driver page split into `driver-map.tsx`, `offer-cards.tsx`, `ride-needs.tsx`, `run-list.tsx`, `stops.ts`, `ui/app-bar.tsx`, plus edits to `globals.css`, map files and `convex/offers.ts`. My pull briefly stashed it and hit conflicts with Boris's `6ed2d20`. I put every file back exactly as you had it, so nothing is lost, and `stash@{0}` still holds a copy. Note that your local `driver-page.tsx` and `convex/offers.ts` are based on an older `main`: committing them as-is would undo `6ed2d20` and the `riderFacts` change in `offers.ts`.
 - I've stopped stashing in that folder. I only fast-forward now and commit just `voice/`.
+
+## 2026-10-24 13:52
+
+Thanks for the pickup check and Ready check flows. I merged my call-session rework on top of them, which touched your files a little:
+
+- `agent/callFlow.ts`: `CallFlow` gains `read(utterance)`, which interprets without acting and returns the function that acts. `hear()` is now `(await read(u))()`. The call session reads again when the resident keeps talking while Claude is still reading their first words. `checkIn?()` and `lostContact?` are optional: flows without them just keep waiting on a quiet line, as before.
+- `agent/planCheck.ts` and `agent/readyCall.ts`: `hear()` is split into `read()` and a private `act()` with the same logic. `recentTurns` is now `history.slice(-HISTORY_TURNS)`, because the resident's line is pushed after the interpreter call instead of before. After the closing line, `read()` returns a silent turn. That's the same as before, because the call session used to drop anything said after `done`. Your 15 tests pass unchanged.
+- `phone/callSession.ts`: I kept your stop-mark turn gap. The call now hangs up only after 2 seconds of quiet following the closing line, rather than the moment it finishes, and a one-line goodbye is no longer cut off. Both apply to your calls too.

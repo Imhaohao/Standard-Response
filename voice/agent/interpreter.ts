@@ -26,9 +26,13 @@ export type Interpretation = {
   // False for background noise, a pet, a TV, or the resident talking to someone else in the room.
   addressedToAgent: boolean;
   wantsToEnd: boolean;
+  // "Hold on, let me ask my daughter": the agent waits instead of asking again.
+  wantsTime: boolean;
   neighborAddresses: string[];
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
+  // A short answer to something the resident asked or said that isn't an answer to the question.
+  reply: string;
 };
 
 export type TurnContext = {
@@ -62,9 +66,11 @@ const outputSchemaFor = (kind: Hazard) => objectOf({
   wantsRepeat: { type: "boolean" },
   addressedToAgent: { type: "boolean" },
   wantsToEnd: { type: "boolean" },
+  wantsTime: { type: "boolean" },
   neighborAddresses: { type: "array", items: { type: "string" } },
   spokenLanguage: enumOf(HEARD_LANGUAGES),
   acknowledgment: { type: "string" },
+  reply: { type: "string" },
 });
 
 // What the resident is facing, and what counts as the hazard being at the home right now.
@@ -116,16 +122,20 @@ Other outputs:
 - wantsRepeat: true if they didn't hear or understand the question.
 - addressedToAgent: false when the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When false, list no changes. True otherwise, including a short "yes", a request to repeat, or a request to switch language.
 - wantsToEnd: true if they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay" or "thanks" is false.
+- wantsTime: true if they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
 - neighborAddresses: addresses or locations of other people who might not be able to leave, if they mention any.
 - spokenLanguage: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
-- acknowledgment: at most 6 words in spokenLanguage that show what you understood from this answer, such as "Okay, two people.", "Thanks, a walker." or "Mm, no car." Vary the wording from turn to turn, opening word included: rotate among openers like "Okay", "Thanks", "Mm", "Alright", "Right" or none, never start the same way as the agent's previous turn, and never say "Got it". Empty string when addressedToAgent is false, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never ask a question.`;
+- acknowledgment: at most 6 words in spokenLanguage that show what you understood from this answer, such as "Okay, two people.", "Thanks, a walker." or "Mm, no car." Vary the wording from turn to turn, opening word included: rotate among openers like "Okay", "Thanks", "Mm", "Alright", "Right" or none, never start the same way as the agent's previous turn, and never say "Got it". Empty string when addressedToAgent is false, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never ask a question.
+- reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused), one short, calm sentence of at most 20 words in spokenLanguage that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is the Altadena paratransit evacuation line." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads or shelters. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, or when addressedToAgent is false. The acknowledgment's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.`;
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
 const SYSTEM = forEachHazard(systemFor);
 const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
 
-const client = new Anthropic();
+// Made on the first turn, so the state machine can be loaded (and tested) without a key.
+let client: Anthropic | null = null;
+const anthropic = () => (client ??= new Anthropic());
 
 const CHOICES: Partial<Record<Field, readonly string[]>> = {
   canLeave: ["yes", "no", "unsure"],
@@ -184,9 +194,11 @@ function parse(text: string, fallbackLanguage: Language, kind: Hazard): Interpre
     wantsRepeat: raw.wantsRepeat === true,
     addressedToAgent: raw.addressedToAgent !== false,
     wantsToEnd: raw.wantsToEnd === true,
+    wantsTime: raw.wantsTime === true,
     neighborAddresses: Array.isArray(raw.neighborAddresses) ? (raw.neighborAddresses as string[]) : [],
     spokenLanguage: languageFrom(raw.spokenLanguage, fallbackLanguage),
     acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",
+    reply: typeof raw.reply === "string" ? raw.reply : "",
   };
 }
 
@@ -205,7 +217,7 @@ function promptFor(turn: TurnContext) {
 
 export async function interpret(turn: TurnContext): Promise<Interpretation> {
   const kind = currentHazard();
-  const response = await client.messages.create({
+  const response = await anthropic().messages.create({
     model: env.anthropicModel,
     max_tokens: 1024,
     system: SYSTEM[kind],

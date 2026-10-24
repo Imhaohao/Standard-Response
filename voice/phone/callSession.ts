@@ -21,15 +21,22 @@ const TURN_GAP_MS = 300;
 const UNFINISHED_TURN_GAP_MS = 1300;
 const SENTENCE_END = /[.?!。？！]["'”」』)]?$/;
 const TRAILING_OFF = /(\.\.\.|…|[,、，:;\-–—])$/;
+// The resident kept talking while Claude read their first words: read it all again, this many times
+// at most, so a television in the background can't hold the call up forever.
+const MAX_REREADS = 2;
 // If Claude hasn't answered by then, a short backchannel covers the wait.
 const BACKCHANNEL_AFTER_MS = 300;
 const BARGE_IN_MIN_WORDS = 2;
 // Quiet between the old-language agent's "let me transfer you" and the new one coming on.
 const TRANSFER_PAUSE_MS = 1500;
-// A resident on hold who says nothing for this long has likely left the phone; we say goodbye
-// and hang up, and status changes reach them by callback instead.
-const HOLD_SILENCE_MS = 3 * 60_000;
-
+// How long a quiet line waits, by what the call is waiting for:
+// - answer: the agent asked a question; then it checks in and asks again in other words.
+// - moment: the resident asked for a moment ("hold on, let me ask my wife").
+// - hold: a resident on hold who says nothing for this long has likely left the phone; we say
+//   goodbye and hang up, and status changes reach them by callback instead.
+// - goodbye: the goodbye has played; the line stays open this long in case they have more to say.
+const QUIET_MS = { answer: 7000, moment: 20_000, hold: 3 * 60_000, goodbye: 2000 } as const;
+type Waiting = keyof typeof QUIET_MS;
 
 type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
 type TwilioMessage =
@@ -47,6 +54,12 @@ const soundsFinished = (text: string) => {
 };
 
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+function waitingAfter(turn: AgentTurn, holding: boolean): Waiting {
+  if (turn.done) return "goodbye";
+  if (holding) return "hold";
+  return turn.givesTime ? "moment" : "answer";
+}
 
 export function handleMediaStream(socket: WebSocket) {
   let session: CallSession | null = null;
@@ -79,7 +92,9 @@ class CallSession implements LiveCall {
   private heardSoFar = "";
   private lastSpeechAt = 0;
   private turnTimer: NodeJS.Timeout | null = null;
-  private holdTimer: NodeJS.Timeout | null = null;
+  private waiting: Waiting | null = null;
+  private quietTimer: NodeJS.Timeout | null = null;
+  private rereads = 0;
   private thinking = false;
   private residentSpoke = false;
   private lastBackchannel = "";
@@ -164,28 +179,32 @@ class CallSession implements LiveCall {
 
   private onSpeech(text: string, isFinal: boolean) {
     this.lastSpeechAt = Date.now();
-    this.clearHoldTimer();
+    this.restartQuietTimer();
     if (this.speech.speaking && (isFinal || wordCount(text) >= BARGE_IN_MIN_WORDS)) this.speech.bargeIn();
-    if (isFinal) this.heardSoFar += text;
-    if (this.heardSoFar.trim() === "") return;
+    if (isFinal) this.heardSoFar = `${this.heardSoFar} ${text}`;
+    const soFar = this.heardSoFar.trim();
+    if (soFar === "") return;
     if (this.turnTimer) clearTimeout(this.turnTimer);
-    const gap = soundsFinished(this.heardSoFar) ? TURN_GAP_MS : UNFINISHED_TURN_GAP_MS;
-    this.turnTimer = setTimeout(() => void this.takeTurn(), gap);
+    const gap = soundsFinished(soFar) ? TURN_GAP_MS : UNFINISHED_TURN_GAP_MS;
+    this.turnTimer = setTimeout(() => {
+      this.turnTimer = null;
+      void this.takeTurn();
+    }, gap);
   }
 
   private async takeTurn() {
-    if (this.thinking || !this.conversation || this.conversation.done) return;
+    if (this.thinking || !this.conversation || this.reachedMachine) return;
     const utterance = this.heardSoFar.trim();
-    this.heardSoFar = "";
     if (utterance === "") return;
     this.thinking = true;
     this.residentSpoke = true;
     const spokeAt = this.lastSpeechAt;
-    this.logLine("resident", utterance);
     // First audio the resident hears after they stop, whether the backchannel or the reply itself.
     let heardAt: number | null = null;
     let backchanneled = false;
     const backchannel = setTimeout(() => {
+      // Never talk over a resident who has started again.
+      if (this.lastSpeechAt !== spokeAt) return;
       backchanneled = true;
       this.speech.say([this.pickBackchannel()], this.language, () => {
         heardAt = Date.now();
@@ -193,20 +212,37 @@ class CallSession implements LiveCall {
       });
     }, BACKCHANNEL_AFTER_MS);
     try {
-      const turn = await this.conversation.hear(utterance);
+      const act = await this.conversation.read(utterance);
       clearTimeout(backchannel);
-      this.syncLanguage();
-      if (turn.ignored) this.afterNoise(backchanneled);
-      else if (turn.transfer) void this.speakTransfer(turn, { spokeAt, heardAt: () => heardAt }, turn.transfer);
-      else this.speakTurn(turn, { spokeAt, heardAt: () => heardAt }, backchanneled);
+      // They kept talking while Claude read the first part: answer all of it together instead.
+      if (this.heardSoFar.trim() !== utterance && this.rereads < MAX_REREADS) {
+        this.rereads += 1;
+        return;
+      }
+      this.rereads = 0;
+      this.heardSoFar = this.heardSoFar.trim().slice(utterance.length);
+      this.answer(utterance, act(), { spokeAt, heardAt: () => heardAt }, backchanneled);
+    } catch (error) {
+      console.error(`[call ${this.callSid}] turn failed`, error);
+      this.restartQuietTimer();
     } finally {
       this.thinking = false;
-      if (this.heardSoFar.trim() !== "") void this.takeTurn();
+      if (!this.turnTimer && this.heardSoFar.trim() !== "") void this.takeTurn();
     }
+  }
+
+  private answer(utterance: string, turn: AgentTurn, timing: TurnTiming, backchanneled: boolean) {
+    this.logLine("resident", utterance);
+    this.syncLanguage();
+    if (turn.ignored) this.afterNoise();
+    else if (turn.transfer) void this.speakTransfer(turn, timing, turn.transfer);
+    else this.speakTurn(turn, timing, backchanneled);
   }
 
   // A language switch plays as a transfer: the old voice signs off, a pause, then the new voice.
   private async speakTransfer(turn: AgentTurn, timing: TurnTiming, transfer: NonNullable<AgentTurn["transfer"]>) {
+    this.waiting = null;
+    this.restartQuietTimer();
     this.speech.say([transfer.line], transfer.language, () => this.logLine("agent", transfer.line, Date.now() - timing.spokeAt));
     await this.speech.whenSilent();
     await new Promise((resolve) => setTimeout(resolve, TRANSFER_PAUSE_MS));
@@ -221,32 +257,44 @@ class CallSession implements LiveCall {
       this.logLine("agent", text, timing ? firstAudio - timing.spokeAt : undefined);
     });
     if (this.callId) fireAndForget("setStage", convex().mutation(api.calls.setStage, { callId: this.callId, stage: turn.stage }));
-    if (turn.done) void this.speech.whenSilent().then(() => this.finish(true));
-    else if (this.conversation?.holding) void this.speech.whenSilent().then(() => this.armHoldTimer());
+    void this.waitAfter(turn);
   }
 
-  private armHoldTimer() {
-    this.clearHoldTimer();
-    this.holdTimer = setTimeout(() => {
-      if (this.ended || this.thinking || !this.conversation?.holding) return;
-      this.speakTurn(this.conversation.endHold(), null);
-    }, HOLD_SILENCE_MS);
+  // The quiet clock starts once the agent stops talking. Even after the goodbye the call only hangs
+  // up when the line stays quiet, so a resident who is still talking is never cut off.
+  private async waitAfter(turn: AgentTurn) {
+    this.waiting = waitingAfter(turn, this.conversation?.holding ?? false);
+    await this.speech.whenSilent();
+    this.restartQuietTimer();
   }
 
-  private clearHoldTimer() {
-    if (this.holdTimer) clearTimeout(this.holdTimer);
-    this.holdTimer = null;
+  // Any sound from the resident restarts the clock, so it only runs out on a quiet line.
+  private restartQuietTimer() {
+    if (this.quietTimer) clearTimeout(this.quietTimer);
+    this.quietTimer = null;
+    const waiting = this.waiting;
+    if (waiting === null || this.ended) return;
+    this.quietTimer = setTimeout(() => this.onQuiet(waiting), QUIET_MS[waiting]);
+  }
+
+  private onQuiet(waiting: Waiting) {
+    this.quietTimer = null;
+    const conversation = this.conversation;
+    // Mid-turn: the reply that follows starts the clock again.
+    if (this.ended || !conversation || this.thinking || this.speech.speaking || this.heardSoFar.trim() !== "") return;
+    if (waiting === "goodbye") void this.finish(!conversation.lostContact);
+    else if (waiting === "hold") this.speakTurn(conversation.endHold(), null);
+    else if (conversation.checkIn) this.speakTurn(conversation.checkIn(), null);
   }
 
   private logLatency(spokeAt: number, label: string) {
     console.log(`[call ${this.callSid}] first audio (${label}) ${Date.now() - spokeAt}ms after the resident stopped`);
   }
 
-  // Noise stays unanswered, unless a backchannel already played: then the question is asked again
-  // so the "Mm-hm" doesn't hang in the air.
-  private afterNoise(backchanneled: boolean) {
-    if (!backchanneled || !this.conversation) return;
-    this.speech.say([this.conversation.question()], this.language);
+  // Noise stays unanswered. The quiet clock picks up where it was, so if the resident really is
+  // silent they get a check-in rather than the same question again.
+  private afterNoise() {
+    void this.speech.whenSilent().then(() => this.restartQuietTimer());
   }
 
   private pickBackchannel() {
@@ -273,13 +321,14 @@ class CallSession implements LiveCall {
     const turn = this.conversation.announce(template);
     this.speech.cutIn(turn.sentences, language ?? this.language);
     this.logLine("agent", turn.sentences.join(" "));
-    await this.speech.whenSilent();
-    if (this.conversation.holding) this.armHoldTimer();
+    await this.waitAfter(turn);
   }
 
   onMachine() {
     if (this.residentSpoke || this.ended) return;
     this.reachedMachine = true;
+    this.waiting = null;
+    this.restartQuietTimer();
     this.speech.bargeIn();
     const voicemail = this.params.mode === "callback"
       ? this.callbackSentences()
@@ -312,7 +361,7 @@ class CallSession implements LiveCall {
     if (this.ended) return;
     this.ended = true;
     if (this.turnTimer) clearTimeout(this.turnTimer);
-    this.clearHoldTimer();
+    if (this.quietTimer) clearTimeout(this.quietTimer);
     this.unsubscribe?.();
     this.transcriber?.close();
     this.speech.close();

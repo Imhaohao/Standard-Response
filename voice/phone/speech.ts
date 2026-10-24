@@ -15,7 +15,9 @@ export type TwilioSink = Pick<WebSocket, "send" | "readyState" | "OPEN">;
 
 export class CallSpeech {
   private queue: Queued[] = [];
-  private current: string | null = null;
+  // The sentence being generated. Set before the request goes out, so there is never a moment
+  // mid-sentence when nothing seems to be playing; contextId arrives once Cartesia has the request.
+  private current: { contextId: string | null } | null = null;
   private marksOutstanding = 0;
   private markCounter = 0;
   private draining = false;
@@ -46,7 +48,8 @@ export class CallSpeech {
   // The resident started talking: stop audio now and forget anything unsaid.
   bargeIn() {
     this.queue = [];
-    const cancelled = this.current;
+    // A sentence whose request is still on its way is cancelled when it comes back (see play).
+    const cancelled = this.current?.contextId;
     this.current = null;
     if (cancelled) this.speaker.cancel(cancelled);
     this.send({ event: "clear", streamSid: this.streamSid });
@@ -83,21 +86,26 @@ export class CallSpeech {
   }
 
   private async play(item: Queued) {
+    const current: { contextId: string | null } = { contextId: null };
+    this.current = current;
     let started = false;
-    const { contextId, done } = await this.speaker.speak(item.text, item.language, (audio) => {
-      if (!started) {
-        started = true;
-        item.onStart?.();
-      }
-      this.send({ event: "media", streamSid: this.streamSid, media: { payload: audio } });
-    });
-    this.current = contextId;
     try {
+      const { contextId, done } = await this.speaker.speak(item.text, item.language, (audio) => {
+        if (this.current !== current) return;
+        if (!started) {
+          started = true;
+          item.onStart?.();
+        }
+        this.send({ event: "media", streamSid: this.streamSid, media: { payload: audio } });
+      });
+      // A barge-in while the request was on its way: this sentence must not play.
+      if (this.current !== current) return this.speaker.cancel(contextId);
+      current.contextId = contextId;
       await done;
     } catch (error) {
       console.error("[speech] sentence failed", error);
     }
-    if (this.current !== contextId) return;
+    if (this.current !== current) return;
     this.current = null;
     this.markCounter += 1;
     this.marksOutstanding += 1;

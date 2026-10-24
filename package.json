@@ -14,6 +14,7 @@
     "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
     "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts",
     "test:prepare": "tsx --test lib/prepare/*.test.ts",
+    "test:voice": "tsx --test voice/agent/*.test.ts voice/phone/*.test.ts",
     "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts"
   },
   "dependencies": {

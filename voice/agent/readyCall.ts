@@ -235,14 +235,24 @@ export class ReadyCall implements CallFlow {
   }
 
   async hear(utterance: string): Promise<AgentTurn> {
-    this.history.push({ speaker: "resident", text: utterance });
-    let heard: ReadyHeard;
+    return (await this.read(utterance))();
+  }
+
+  // Nothing follows the closing line, so anything said after it is ignored.
+  async read(utterance: string): Promise<() => AgentTurn> {
+    if (this.done) return () => silentTurn(this, "close");
+    let heard: ReadyHeard | null = null;
     try {
       heard = await this.interpret(this.context(utterance));
     } catch (error) {
       console.error("[ready] interpreter failed", error);
-      return this.say("", [LINES[this.language].repeatPrompt, this.question()]);
     }
+    return () => this.act(utterance, heard);
+  }
+
+  private act(utterance: string, heard: ReadyHeard | null): AgentTurn {
+    this.history.push({ speaker: "resident", text: utterance });
+    if (!heard) return this.say("", [LINES[this.language].repeatPrompt, this.question()]);
     if (!heard.addressedToAgent && !heard.emergency) return this.ignore();
     const asides = this.asidesFor(heard);
     if (heard.wantsRepeat) return this.say("", [...asides, this.question()]);
@@ -377,7 +387,7 @@ export class ReadyCall implements CallFlow {
       step: this.step,
       question: this.question(),
       answers: { ...this.answers },
-      recentTurns: this.history.slice(-HISTORY_TURNS - 1, -1),
+      recentTurns: this.history.slice(-HISTORY_TURNS),
       utterance,
     };
   }
