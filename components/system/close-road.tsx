@@ -56,7 +56,7 @@ function VanRow({ van, stop, route }: { van: Vehicle; stop: Assignment; route: R
       <Button
         variant={closed ? "onPanelQuiet" : "onPanel"}
         size="lg"
-                disabled={!path || closed}
+        disabled={!path || closed}
         onClick={() => path && void addClosures({ closures: [{ path, source: "manual" }] }).then(() => setClosed(true))}
       >
         <RoadHorizon weight="bold" className="size-4" />
@@ -83,7 +83,7 @@ export function CloseRoadPanel() {
   return (
     <Panel title="Close this road">
       {rows.length === 0 ? (
-        <PanelEmpty>No driver-page van has a pickup yet.</PanelEmpty>
+        <PanelEmpty>Accept a pickup on the driver page, then close the road in front of that van here.</PanelEmpty>
       ) : (
         <ul>
           {rows.map(({ van, stop, route }) => (
