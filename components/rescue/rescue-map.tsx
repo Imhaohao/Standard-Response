@@ -44,14 +44,14 @@ export function RescueMap() {
   const [mode, setMode] = useState<SurfaceMode>("ink");
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
-  const board = useRescueBoard(data ?? null, toLocal);
-  const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data ?? null, board.people, toLocal);
-  const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data?.origin, control?.warningIssuedAt, homes, toLocal);
+  const board = useRescueBoard(data, toLocal);
+  const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data, board.people, toLocal);
+  const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(toLocal);
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
 
-  const drawing = useDrawingTools(data ?? null, toLatLng);
+  const drawing = useDrawingTools(data, toLatLng);
   const { tool, setTool, startFrom } = drawing;
   const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome, ignite);
   const [spot, setSpot] = useState<ContextSpot | null>(null);
@@ -119,7 +119,7 @@ export function RescueMap() {
           </div>
           <div className="flex items-end gap-3 p-3 pt-0">
             <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
-              {simulated.lit && <SimulatedFireHint onClear={simulated.putOut} />}
+              {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={simulated.putOut} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>
             <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
@@ -150,10 +150,12 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
 
 // The scenario's fire, or the one the dispatcher lit at a house to rehearse, which replaces it here
 // until it is put out. The forecast is for the scenario's fire, so it is hidden while a lit one burns.
-function useFireOnScreen(origin: LatLng | undefined, warningIssuedAt: number | undefined, homes: Home[], toLocal: (point: LatLng) => Point) {
-  const scenario = useHazard(origin);
-  const forecast = useDangerZones(origin);
-  const simulated = useSimulatedFire(scenario, homes, toLocal);
+const NO_BUILDINGS: InkMapData["buildings"] = [];
+
+function useFireOnScreen(data: InkMapData | null, warningIssuedAt: number | undefined, homes: Home[], toLocal: (point: LatLng) => Point) {
+  const scenario = useHazard(data?.origin);
+  const forecast = useDangerZones(data?.origin);
+  const simulated = useSimulatedFire(scenario, data?.buildings ?? NO_BUILDINGS, homes, toLocal);
   const hazard = simulated.hazard ?? scenario;
   const clock = useFireClock(hazard, simulated.startedAt ?? warningIssuedAt);
   const { follow } = clock;
@@ -169,5 +171,13 @@ function useFireOnScreen(origin: LatLng | undefined, warningIssuedAt: number | u
     clearFire();
     follow();
   }, [clearFire, follow]);
-  return { hazard, danger: simulated.hazard ? null : forecast, clock, simulated: { lit: simulated.hazard !== null, putOut }, ignite };
+  const fire = simulated.hazard;
+  const summary = fire ? { burned: fire.burned, outAt: fire.outAt, homesReached: simulated.homesReached } : null;
+  return {
+    hazard,
+    danger: fire ? null : forecast,
+    clock,
+    simulated: { summary, response: simulated.response, setResponse: simulated.setResponse, putOut },
+    ignite,
+  };
 }

@@ -3,6 +3,7 @@
 import { ArrowClockwise, ArrowCounterClockwise, Check, Cube, Cursor, Fire, FireExtinguisher, Icon, MapTrifold, Path, RoadHorizon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { FireClock } from "@/lib/ink-map/hazard";
+import { Crews, FireResponse } from "@/lib/ink-map/ignition";
 import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
 import { SegmentedControl } from "./segmented-control";
@@ -106,14 +107,51 @@ export function DrawingHint({
   );
 }
 
-// While a rehearsal fire stands in for the scenario, the way back to the scenario stays in reach.
-export function SimulatedFireHint({ onClear }: { onClear: () => void }) {
+const CONSTRUCTION = [
+  { value: "older", label: "Older homes" },
+  { value: "hardened", label: "Wildfire-code homes" },
+] as const;
+
+const CREWS = [
+  { value: "0", label: "No crews" },
+  { value: "1", label: "1 engine" },
+  { value: "3", label: "3 engines" },
+] as const;
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+function fireOutcome({ burned, outAt, homesReached }: SimulatedFireSummary) {
+  const reach = `${count(burned, "building", "buildings")} burn, ${count(homesReached, "household", "households")} to warn`;
+  return outAt === null ? `Still spreading at the end of the run: ${reach}` : `Out by +${scenarioClock(outAt)}: ${reach}`;
+}
+
+export type SimulatedFireSummary = { burned: number; outAt: number | null; homesReached: number };
+
+// While a rehearsal fire stands in for the scenario, how it ends and who it reaches stay in view,
+// along with how the homes are built, how many crews respond and the way back to the scenario.
+export function SimulatedFireHint({
+  summary,
+  response,
+  onResponse,
+  onClear,
+}: {
+  summary: SimulatedFireSummary;
+  response: FireResponse;
+  onResponse: (response: FireResponse) => void;
+  onClear: () => void;
+}) {
   return (
-    <HintSurface>
-      <Fire weight="fill" className="size-4 shrink-0 text-signal" aria-hidden />
-      <span className="pr-2">Simulated fire, clock started when you lit it</span>
-      <HintAction Icon={FireExtinguisher} label="Put it out" onClick={onClear} />
-    </HintSurface>
+    <ChromeSurface className="type-small flex flex-col gap-1.5 p-1.5 font-semibold">
+      <div className="flex min-h-8 items-center gap-1 pl-1.5">
+        <Fire weight="fill" className="size-4 shrink-0 text-signal" aria-hidden />
+        <span className="pr-2 tabular-nums" aria-live="polite">{fireOutcome(summary)}</span>
+        <HintAction Icon={FireExtinguisher} label="Put it out" onClick={onClear} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentedControl options={CONSTRUCTION} value={response.construction} onChange={(construction) => onResponse({ ...response, construction })} ariaLabel="How the homes are built" />
+        <SegmentedControl options={CREWS} value={String(response.engines) as `${Crews}`} onChange={(engines) => onResponse({ ...response, engines: Number(engines) as Crews })} ariaLabel="Fire crews responding" />
+      </div>
+    </ChromeSurface>
   );
 }
 
