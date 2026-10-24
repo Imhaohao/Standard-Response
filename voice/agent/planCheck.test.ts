@@ -49,11 +49,11 @@ describe("pickup check, helper call", () => {
     assert.doesNotMatch(spoken(await call.hear("no, and there's fire here")), /call 911/i);
   });
 
-  it("asks a neighbor found during the warning to pick them up on the way out", async () => {
+  it("asks a neighbor found during the warning to pick them up and drive them out", async () => {
     const { call, recorded } = planCall("helper", [{ answer: "yes", minutes: 5 }], "en", true);
     const opening = spoken(call.start());
     assert.match(opening, /Your neighbor Walter at 1182 Mariposa St can't get out on their own/);
-    assert.match(opening, /Could you pick them up on your way out\?/);
+    assert.match(opening, /Could you pick them up and drive them out\?/);
     assert.doesNotMatch(opening, /you're down to pick them up/);
     assert.equal((await call.hear("sure, five minutes")).done, true);
     assert.deepEqual(recorded.helper, [[true, 5]]);

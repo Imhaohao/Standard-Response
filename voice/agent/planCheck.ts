@@ -7,12 +7,12 @@ import { Language, LINES, withSafety } from "./script";
 
 // The pickup check, one short call. The helper hears "can you get to them now?" and, on a yes,
 // "about how many minutes?"; the resident later hears "has your helper picked you up?". A neighbor
-// who never agreed to anything is asked "could you pick them up on your way out?" instead. Claude
+// who never agreed to anything is asked "could you pick them up and drive them out?" instead. Claude
 // only reads the answer. Two unclear answers count as no, because a van is the safer default.
 
 type PlanCheckLines = {
   helperIntro: (helperName: string, residentName: string | undefined, address: string) => string;
-  // A neighbor driving out who has no arrangement with the resident.
+  // A neighbor with a car who has no arrangement with the resident.
   recruitIntro: (residentName: string | undefined, address: string) => string;
   askComing: string;
   askCanPickUp: string;
@@ -38,7 +38,7 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     recruitIntro: (residentName, address) =>
       `Hi, this is 911 calling about the evacuation in Altadena. ${residentName ? `Your neighbor ${residentName}` : "A neighbor of yours"} at ${address} can't get out on their own, and our crews may not reach them in time.`,
     askComing: "Can you get to them now?",
-    askCanPickUp: "Could you pick them up on your way out?",
+    askCanPickUp: "Could you pick them up and drive them out?",
     askMinutes: "About how many minutes until you're there?",
     helperComing: (residentName) =>
       `Thank you. We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
@@ -62,7 +62,7 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     recruitIntro: (residentName, address) =>
       `Hola, le llamamos del 911 por la evacuación en Altadena. ${residentName ? `Su vecino ${residentName}` : "Un vecino suyo"}, en ${address}, no puede salir por su cuenta, y es posible que nuestros equipos no lleguen a tiempo.`,
     askComing: "¿Puede ir por esa persona ahora?",
-    askCanPickUp: "¿Podría pasar por esa persona cuando salga?",
+    askCanPickUp: "¿Podría pasar por esa persona y sacarla de la zona?",
     askMinutes: "¿Más o menos en cuántos minutos llega?",
     helperComing: (residentName) =>
       `Gracias. Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,

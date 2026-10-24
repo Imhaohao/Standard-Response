@@ -56,3 +56,10 @@ The resident now hears as soon as their helper says yes, instead of only at the 
 ## 2026-10-24 15:25
 
 The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back until a checkpoint any more: each track finishes its whole list, add-ons included, and the add-ons lose their one-hour timebox. Each track section now has one list in place of "Before the gate" and "After the gate". Please also run the full Rider Check flow end to end as soon as real calls work, and again after every big change.
+
+## 2026-10-24 15:30
+
+- `pickupRunner.ts`: a helper call waits while the helper's household is on another live call (`liveByHousehold`), since it would come up busy. `callQueue` rows carry `helperHouseholdId` for this.
+- The dialer's queue (`households.queue` / `nextToCall`) no longer returns a household that is being asked to drive or is already on the way.
+- The recruited question is now "Could you pick them up and drive them out?", because the neighbor may live just outside the zone.
+- Interpreter, checked live on Haiku: "No, I need help ASAP" in answer to `askCanLeave` gives `canLeave=no`. The same words during the greeting give no update, so the neighbor is called one question later. If you want the greeting to catch it, that change belongs in your `interpreter.ts`.

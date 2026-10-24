@@ -57,3 +57,11 @@ The 6pm gate is gone from PLAN.md, at the team's request. Nothing is held back u
 ## 2026-10-24 15:45
 
 `requests:open` rows now also carry `residentName` and `callbackNumber` from the household. This is additive, and nothing else in the function changed. The rescue map uses them to list callers it has no address for at the top of Rides, with a button to call them back. Until now those callers were dropped from the list entirely.
+
+## 2026-10-24 15:30
+
+Neighbor asks changed, ahead of a two-phone demo:
+
+- They start only once tonight's call has heard that the person can't leave (`canLeave` is set and the outcome is `needs_ride` or `needs_accessible`). A Ready check "needs a ride" answer alone no longer sends a neighbor, and the warning-time sweep (`askNeighborsForWaitingHomes`) is gone.
+- A driver can live just outside the zone: has a car (`hasCar` or a Ready check `own_car`), has a phone number, and is `leaving` or `unknown`.
+- `nextToCall` now skips households 911 is asking to drive, or that are already on the way (`busyHelpers`), so their warning call doesn't collide with the pickup call.

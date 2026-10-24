@@ -34,9 +34,11 @@ function retryDue(plan: Plan, role: PlanRole, now: number) {
 // The helper said yes and the resident hasn't heard. Comes before the "picked you up?" call.
 export const notifyDue = (plan: Plan) => !plan.ringing && plan.status === "coming" && plan.residentToldAt === undefined;
 
-// Who this plan needs called right now, if anyone. Never while a call is already ringing.
-export function dueRole(plan: Plan, now: number): PlanRole | null {
+// Who this plan needs called right now, if anyone. Never while a call is already ringing, and never
+// while the neighbor is still on another call with us: theirs would come up busy.
+export function dueRole(plan: Plan, now: number, onAnotherCall: (householdId: string) => boolean = () => false): PlanRole | null {
   if (plan.ringing) return null;
+  if (plan.status === "checking" && plan.helperHouseholdId && onAnotherCall(plan.helperHouseholdId)) return null;
   if (plan.status === "checking") return retryDue(plan, "helper", now) ? "helper" : null;
   const etaPassed = plan.helperEtaAt !== undefined && now >= plan.helperEtaAt;
   return plan.status === "coming" && etaPassed && retryDue(plan, "resident", now) ? "resident" : null;
@@ -121,7 +123,7 @@ export function startPickupRunner() {
         void tell(plan);
         continue;
       }
-      const role = dueRole(plan, now);
+      const role = dueRole(plan, now, (householdId) => liveByHousehold.has(householdId));
       if (role && allowed(phoneFor(plan, role))) void call(plan, role);
     }
   }

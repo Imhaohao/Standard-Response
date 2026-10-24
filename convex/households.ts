@@ -4,7 +4,7 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
-import { askNearbyDriver } from "./neighborPickups";
+import { askNearbyDriver, busyHelpers } from "./neighborPickups";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
 
@@ -113,7 +113,10 @@ export const setEstimates = mutation({
 
 const QUEUE_STATUSES = ["not_called", "no_answer"] as const;
 
+// A neighbor 911 is asking to drive someone, or who is already on the way, isn't rung for their own
+// warning call at the same time: the pickup call would find the line busy.
 export async function nextToCall(ctx: QueryCtx, limit: number) {
+  const busy = await busyHelpers(ctx);
   const lists = await Promise.all(
     QUEUE_STATUSES.map((callStatus) =>
       ctx.db
@@ -125,7 +128,7 @@ export async function nextToCall(ctx: QueryCtx, limit: number) {
   );
   return lists
     .flat()
-    .filter((h) => h.inZone)
+    .filter((h) => h.inZone && !busy.has(h._id))
     .sort((a, b) => b.callPriority - a.callPriority)
     .slice(0, limit);
 }

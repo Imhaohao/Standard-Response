@@ -205,6 +205,7 @@ export const callQueue = query({
           helperPhone: plan.helperPhone,
           relation: plan.relation,
           recruited: plan.recruited ?? false,
+          helperHouseholdId: plan.helperHouseholdId,
           helperAttempts: plan.helperAttempts,
           residentAttempts: plan.residentAttempts,
           lastAttemptAt: plan.lastAttemptAt,

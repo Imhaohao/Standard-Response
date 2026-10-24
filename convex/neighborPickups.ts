@@ -1,17 +1,18 @@
-import { MutationCtx } from "./_generated/server";
+import { MutationCtx, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { located, metersBetween } from "./model";
 
-// When a home needs a ride and nobody agreed ahead of time to come for them, 911 asks the nearest
-// neighbor who is driving out to pick them up on the way. The ride request stays open the whole
-// time: crews are likely swamped, so a neighbor is a faster first try, never a reason to hold a van.
-// Each "no" or missed call moves on to the next neighbor, up to a few.
+// When tonight's call hears that someone can't get out and nobody agreed ahead of time to come for
+// them, 911 calls the nearest neighbor with a car straight away and asks them to pick the person up.
+// The ride request stays open the whole time: crews are likely swamped, so a neighbor is a faster
+// first try, never a reason to hold a van. Each "no" or missed call moves on to the next neighbor.
 
 const NEIGHBOR_RADIUS_METERS = 800;
 const MAX_NEIGHBORS_ASKED = 3;
 const LIVE: Doc<"pickupPlans">["status"][] = ["arranged", "checking", "coming"];
 
 type Household = Doc<"households">;
+type Located = Household & { lat: number; lng: number };
 
 // A neighbor's car can't carry a power wheelchair or someone who has to be lifted by two people.
 function fitsInACar(household: Household) {
@@ -19,49 +20,38 @@ function fitsInACar(household: Household) {
   return household.assistanceRequired !== "two_person_lift";
 }
 
-// Said so on tonight's call, or, before that call reaches them, in the Ready check.
-function needsRide(household: Household) {
-  if (household.outcome === "needs_ride" || household.outcome === "needs_accessible") return true;
-  return household.outcome === "unknown" && household.ready?.exitPlan === "needs_ride";
-}
+// Someone answered "can you leave?" tonight, so we know the person is home and stuck. An old Ready
+// check answer alone never sends a neighbor to a house that may be empty.
+const needsRide = (household: Household) =>
+  (household.outcome === "needs_ride" || household.outcome === "needs_accessible") && household.canLeave !== undefined;
 
-// Leaving in a car of their own, by tonight's call or by the Ready check.
-function drivingOut(household: Household) {
-  if (!household.inZone || !household.callbackNumber) return false;
-  if (household.outcome === "leaving") return household.hasCar === true || household.ready?.exitPlan === "own_car";
-  return household.outcome === "unknown" && household.ready?.exitPlan === "own_car";
+// Has a car, by tonight's call or the Ready check. A neighbor just outside the warning zone counts
+// too: they aren't evacuating, so they're free to drive over.
+function canDrive(household: Household) {
+  if (!household.callbackNumber) return false;
+  const hasCar = household.hasCar === true || household.ready?.exitPlan === "own_car";
+  return hasCar && (household.outcome === "leaving" || household.outcome === "unknown");
 }
 
 const DRIVER_OUTCOMES = ["leaving", "unknown"] as const;
-const RIDER_OUTCOMES = ["needs_ride", "needs_accessible", "unknown"] as const;
 
-async function plansFor(ctx: MutationCtx, householdId: Id<"households">) {
-  return await ctx.db.query("pickupPlans").withIndex("by_householdId", (q) => q.eq("householdId", householdId)).take(20);
-}
-
-// Everyone who could drive a neighbor out, and those already on their way to someone. Loaded once
-// per sweep so a whole zone's worth of asks reads the households table once.
-type DriverPool = { drivers: (Household & { lat: number; lng: number })[]; busy: Set<string> };
-
-async function householdsWith(ctx: MutationCtx, outcomes: readonly Household["outcome"][]) {
-  const lists = await Promise.all(outcomes.map((outcome) => ctx.db.query("households").withIndex("by_outcome", (q) => q.eq("outcome", outcome)).take(1000)));
-  return lists.flat();
-}
-
-async function driverPool(ctx: MutationCtx): Promise<DriverPool> {
-  const drivers = (await householdsWith(ctx, DRIVER_OUTCOMES)).filter(drivingOut).filter(located);
+// Neighbors 911 is asking right now, or who said they're on their way to someone.
+export async function busyHelpers(ctx: QueryCtx) {
   const busy = new Set<string>();
   for (const status of ["checking", "coming"] as const) {
     const live = await ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", status)).take(200);
     for (const plan of live) if (plan.helperHouseholdId) busy.add(plan.helperHouseholdId);
   }
-  return { drivers, busy };
+  return busy;
 }
 
-function nearestDriver(pool: DriverPool, resident: Household & { lat: number; lng: number }, alreadyAsked: Set<string>) {
+async function nearestDriver(ctx: MutationCtx, resident: Located, skip: Set<string>) {
+  const lists = await Promise.all(
+    DRIVER_OUTCOMES.map((outcome) => ctx.db.query("households").withIndex("by_outcome", (q) => q.eq("outcome", outcome)).take(1000)),
+  );
   let best: { household: Household; meters: number } | null = null;
-  for (const household of pool.drivers) {
-    if (household._id === resident._id || pool.busy.has(household._id) || alreadyAsked.has(household._id)) continue;
+  for (const household of lists.flat()) {
+    if (household._id === resident._id || skip.has(household._id) || !canDrive(household) || !located(household)) continue;
     const meters = metersBetween(resident, household);
     if (meters <= NEIGHBOR_RADIUS_METERS && (!best || meters < best.meters)) best = { household, meters };
   }
@@ -70,17 +60,22 @@ function nearestDriver(pool: DriverPool, resident: Household & { lat: number; ln
 
 const streetOf = (address: string) => address.replace(/^\s*\d+[A-Za-z]?\s+/, "");
 
-export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"households">, pool?: DriverPool) {
+const waitingForANeighbor = (resident: Household | null): resident is Located =>
+  resident !== null && resident.inZone && needsRide(resident) && fitsInACar(resident) && located(resident);
+
+// Nobody is already being asked or on the way, and we haven't run through our neighbors yet.
+const mayAskAnother = (plans: Doc<"pickupPlans">[]) =>
+  !plans.some((plan) => LIVE.includes(plan.status)) && plans.filter((plan) => plan.recruited).length < MAX_NEIGHBORS_ASKED;
+
+export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"households">) {
   const resident = await ctx.db.get("households", householdId);
-  if (!resident?.inZone || !needsRide(resident) || !fitsInACar(resident) || !located(resident)) return;
-  const plans = await plansFor(ctx, householdId);
-  if (plans.some((plan) => LIVE.includes(plan.status))) return;
-  if (plans.filter((plan) => plan.recruited).length >= MAX_NEIGHBORS_ASKED) return;
-  const alreadyAsked = new Set<string>(plans.flatMap((plan) => (plan.helperHouseholdId ? [plan.helperHouseholdId] : [])));
-  const drivers = pool ?? (await driverPool(ctx));
-  const neighbor = nearestDriver(drivers, resident, alreadyAsked);
+  if (!waitingForANeighbor(resident)) return;
+  const plans = await ctx.db.query("pickupPlans").withIndex("by_householdId", (q) => q.eq("householdId", householdId)).take(20);
+  if (!mayAskAnother(plans)) return;
+  const skip = await busyHelpers(ctx);
+  for (const plan of plans) if (plan.helperHouseholdId) skip.add(plan.helperHouseholdId);
+  const neighbor = await nearestDriver(ctx, resident, skip);
   if (!neighbor) return;
-  drivers.busy.add(neighbor._id);
   const now = Date.now();
   await ctx.db.insert("pickupPlans", {
     householdId,
@@ -98,16 +93,8 @@ export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"househo
   });
   await ctx.db.insert("events", {
     kind: "dispatch",
-    message: `Asking a neighbor on ${streetOf(neighbor.address)} to pick up ${resident.residentName ?? resident.address} on their way out`,
+    message: `Asking a neighbor on ${streetOf(neighbor.address)} to pick up ${resident.residentName ?? resident.address}`,
     householdId,
     at: now,
   });
-}
-
-// The warning just went out: homes already known to need a ride get a neighbor asked straight away.
-export async function askNeighborsForWaitingHomes(ctx: MutationCtx) {
-  const pool = await driverPool(ctx);
-  for (const household of await householdsWith(ctx, RIDER_OUTCOMES)) {
-    if (household.inZone && needsRide(household)) await askNearbyDriver(ctx, household._id, pool);
-  }
 }
