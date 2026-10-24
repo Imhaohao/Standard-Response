@@ -14,7 +14,9 @@ type ScenarioFile = ScenarioGeoJson & { metadata?: { label?: string; basis?: str
 
 // Track D's scenario for the operator's hazard, in the map's own metres. Reloaded when the hazard changes.
 export function useHazard(origin: LatLng | undefined): Hazard | null {
-  const kind = useQuery(api.control.get)?.hazard;
+  // A deployment from before the hazard switch returns no hazard at all; that night is a wildfire.
+  const control = useQuery(api.control.get);
+  const kind = control === undefined ? undefined : (control.hazard ?? "wildfire");
   const [loaded, setLoaded] = useState<{ kind: string; file: ScenarioFile | null } | null>(null);
   useEffect(() => {
     if (!kind) return;
