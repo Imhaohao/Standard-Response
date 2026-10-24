@@ -32,6 +32,7 @@ LINES = {
         "emergency": "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
         "waiting": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
         "people": lambda n: "one person" if n == 1 else f"{n} people", "pets": "with pets", "no_car": "no car",
+        "leaving": "you're leaving on your own", "by_car": "by car",
         "mobility": {"walks": "everyone can walk", "walker": "someone uses a walker", "manual_wheelchair": "someone uses a wheelchair",
                      "power_wheelchair": "someone uses a power wheelchair", "bedbound": "someone is bedbound"},
         "assist": {"one_person_assist": "needs one person to help", "two_person_lift": "needs two people to lift"},
@@ -57,6 +58,7 @@ LINES = {
         "emergency": "Si puede, llame al 911 ahora mismo. Le marqué como urgente para el despachador.",
         "waiting": "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
         "people": lambda n: "una persona" if n == 1 else f"{n} personas", "pets": "con mascotas", "no_car": "sin carro",
+        "leaving": "usted sale por su cuenta", "by_car": "en carro",
         "mobility": {"walks": "todos pueden caminar", "walker": "alguien usa andadera", "manual_wheelchair": "alguien usa silla de ruedas",
                      "power_wheelchair": "alguien usa silla de ruedas eléctrica", "bedbound": "alguien está en cama"},
         "assist": {"one_person_assist": "necesita una persona que le ayude", "two_person_lift": "necesita dos personas para levantarle"},
@@ -70,7 +72,7 @@ STAGE_OF = {"ask_address": "confirm_address", "confirm_address": "confirm_addres
 LIMITED = {"walker", "manual_wheelchair", "power_wheelchair", "bedbound"}
 ADDRESS_STEPS = {"ask_address", "confirm_address", "readback", "fix"}
 LEAVE_STEPS = {"can_leave", "has_car", "readback", "fix"}
-CORRECTING = re.compile(r"(actually|wait|i meant|en realidad|espere|perdon|quise decir)")
+CORRECTING = re.compile(r"(actually|wait|i meant|sorry|that'?s not right|en realidad|espere|perdon|quise decir|no es cierto)")
 
 # Yes or no at the start of any sentence, so a tangent before the answer doesn't hide it.
 SENTENCE_START = r"(?:^|[.!?\u00bf\u00a1]\s*)\W*"
@@ -212,7 +214,9 @@ class ScriptedConversation:
 
     def readback(self) -> str:
         l, r = self.lines, self.record
-        parts = [l["people"](r["peopleCount"]) if "peopleCount" in r else None, l["mobility"].get(r.get("mobility")),
+        leaving = r.get("canLeave") == "yes" and r.get("hasCar") is not False and not r.get("mobility")
+        parts = [l["leaving"] if leaving else None, l["by_car"] if leaving and r.get("hasCar") else None,
+                 l["people"](r["peopleCount"]) if "peopleCount" in r else None, l["mobility"].get(r.get("mobility")),
                  l["oxygen"] if "oxygen" in (r.get("medical") or []) else None, l["assist"].get(r.get("assistanceRequired")),
                  l["pets"] if r.get("pets") else None, l["no_car"] if r.get("hasCar") is False else None,
                  l["at"].format(address=r["address"]) if r.get("address") else None]
@@ -303,12 +307,19 @@ class ScriptedConversation:
         return "done", []
 
     def _after_fix(self) -> str:
-        """A correction that brings in a mobility aid also needs the assistance question."""
+        """After a correction, go back to the first thing the record is now missing (as conversation.ts nextMissing)."""
         r = self.record
-        return "assistance" if r.get("mobility") in LIMITED and "assistanceRequired" not in r else "readback"
+        if not self.needs_ride():
+            return "readback"
+        if "peopleCount" not in r:
+            return "household"
+        if "mobility" not in r:
+            return "needs"
+        return "assistance" if r["mobility"] in LIMITED and "assistanceRequired" not in r else "readback"
 
     def _after_leave(self) -> str:
-        return "household" if self.needs_ride() else "neighbor"
+        """Residents leaving on their own still hear a short read-back, so a mistaken yes can be corrected."""
+        return "household" if self.needs_ride() else "readback"
 
 
 class ScriptedAgent:

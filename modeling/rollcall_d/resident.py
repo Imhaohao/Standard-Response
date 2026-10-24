@@ -67,6 +67,7 @@ EN = {
     "wait": "Wait, actually, ",
     "no_prefix": "No, ",
     "second_voice": "(someone else in the room) Tell them I'm here too! ... Oh, sorry. ",
+    "second_voice_other": "(someone else in the room) That's not right, tell them! ... Oh, sorry. ",
     "partial": "I'm on {street}, near the corner.",
     "address": "I'm at {address}.",
     "reassure": " Is someone coming to get me?",
@@ -97,6 +98,7 @@ ES = {
     "wait": "Espere, en realidad, ",
     "no_prefix": "No, ",
     "second_voice": "(otra persona en el cuarto) ¡Diles que yo también estoy aquí! ... Ay, perdón. ",
+    "second_voice_other": "(otra persona en el cuarto) ¡Eso no es cierto, díselo! ... Ay, perdón. ",
     "partial": "Estoy en la {street}, cerca de la esquina.",
     "address": "Estoy en el {address}.",
     "reassure": " ¿Alguien va a venir por mí?",
@@ -179,7 +181,11 @@ class Resident:
     def _correction_text(self) -> str:
         field = self.correction["field"]
         self.corrected = True
-        prefix = self.say["second_voice"] if self.correction["when"] == "second_voice" else self.say["wait"]
+        if self.correction["when"] != "second_voice":
+            prefix = self.say["wait"]
+        else:
+            # "I'm here too" only fits when the correction is about who's home
+            prefix = self.say["second_voice" if field in ("peopleCount", "mobility", "assistanceRequired") else "second_voice_other"]
         text = self._field_sentence(field, self.truth[field])
         if field == "peopleCount" and self.truth["mobility"] != "walks":
             text += " " + self._field_sentence("mobility", self.truth["mobility"])
@@ -189,6 +195,8 @@ class Resident:
 
     def _readback_fix(self, record: dict) -> str | None:
         """A resident listening to the read-back corrects anything that's wrong."""
+        if record.get("canLeave") is not None and record["canLeave"] != self.truth["canLeave"]:
+            return self.say["no_prefix"] + self._field_sentence("canLeave", self.truth["canLeave"]).lower()
         checks = [("peopleCount", record.get("peopleCount")), ("mobility", record.get("mobility")),
                   ("assistanceRequired", record.get("assistanceRequired"))]
         for field, got in checks:

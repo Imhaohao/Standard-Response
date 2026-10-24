@@ -1,6 +1,6 @@
 {
  "label": "Text persona eval. Simulated residents from persona cards, not real riders.",
- "generatedAt": "2026-10-24T02:16:15-0700",
+ "generatedAt": "2026-10-24T02:39:24-0700",
  "agent": "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.",
  "personas": 200,
  "completed": 200,
@@ -16,39 +16,39 @@
    ]
   },
   "peopleCount": {
-   "correct": 101,
+   "correct": 103,
    "total": 103,
-   "accuracy": 0.981,
+   "accuracy": 1.0,
    "ci95": [
-    0.932,
-    0.995
+    0.964,
+    1.0
    ]
   },
   "mobility": {
-   "correct": 101,
+   "correct": 103,
    "total": 103,
-   "accuracy": 0.981,
+   "accuracy": 1.0,
    "ci95": [
-    0.932,
-    0.995
+    0.964,
+    1.0
    ]
   },
   "assistanceRequired": {
-   "correct": 101,
+   "correct": 103,
    "total": 103,
-   "accuracy": 0.981,
+   "accuracy": 1.0,
    "ci95": [
-    0.932,
-    0.995
+    0.964,
+    1.0
    ]
   },
   "canLeave": {
-   "correct": 195,
+   "correct": 200,
    "total": 200,
-   "accuracy": 0.975,
+   "accuracy": 1.0,
    "ci95": [
-    0.943,
-    0.989
+    0.981,
+    1.0
    ]
   },
   "oxygen": {
@@ -62,44 +62,44 @@
   }
  },
  "allFieldsCorrect": {
-  "correct": 195,
+  "correct": 200,
   "total": 200,
-  "accuracy": 0.975,
+  "accuracy": 1.0,
   "ci95": [
-   0.943,
-   0.989
+   0.981,
+   1.0
   ]
  },
  "byLanguage": {
   "en": {
    "address": 1.0,
-   "peopleCount": 0.992,
-   "mobility": 0.992,
-   "assistanceRequired": 0.992,
-   "canLeave": 0.969,
+   "peopleCount": 1.0,
+   "mobility": 1.0,
+   "assistanceRequired": 1.0,
+   "canLeave": 1.0,
    "oxygen": 1.0
   },
   "es": {
    "address": 1.0,
-   "peopleCount": 0.986,
-   "mobility": 0.986,
-   "assistanceRequired": 0.986,
-   "canLeave": 0.986,
+   "peopleCount": 1.0,
+   "mobility": 1.0,
+   "assistanceRequired": 1.0,
+   "canLeave": 1.0,
    "oxygen": 1.0
   }
  },
  "byTrait": {
   "asks_reassurance": {
    "cards": 34,
-   "allFieldsCorrect": 0.971
+   "allFieldsCorrect": 1.0
   },
   "flames": {
    "cards": 15,
-   "allFieldsCorrect": 0.933
+   "allFieldsCorrect": 1.0
   },
   "hard_of_hearing": {
    "cards": 37,
-   "allFieldsCorrect": 0.973
+   "allFieldsCorrect": 1.0
   },
   "medical": {
    "cards": 8,
@@ -111,28 +111,28 @@
   },
   "panic": {
    "cards": 21,
-   "allFieldsCorrect": 0.905
+   "allFieldsCorrect": 1.0
   },
   "partial_address": {
    "cards": 6,
-   "allFieldsCorrect": 0.833
+   "allFieldsCorrect": 1.0
   },
   "second_voice": {
    "cards": 18,
-   "allFieldsCorrect": 0.833
+   "allFieldsCorrect": 1.0
   },
   "tangents": {
    "cards": 28,
-   "allFieldsCorrect": 0.964
+   "allFieldsCorrect": 1.0
   }
  },
  "corrections": {
-  "correct": 65,
+  "correct": 70,
   "total": 70,
-  "accuracy": 0.929,
+  "accuracy": 1.0,
   "ci95": [
-   0.843,
-   0.969
+   0.948,
+   1.0
   ],
   "byWhen": {
    "next_turn": {
@@ -145,21 +145,21 @@
     ]
    },
    "readback": {
-    "correct": 28,
+    "correct": 30,
     "total": 30,
-    "accuracy": 0.933,
+    "accuracy": 1.0,
     "ci95": [
-     0.787,
-     0.982
+     0.886,
+     1.0
     ]
    },
    "second_voice": {
-    "correct": 12,
+    "correct": 15,
     "total": 15,
-    "accuracy": 0.8,
+    "accuracy": 1.0,
     "ci95": [
-     0.548,
-     0.93
+     0.796,
+     1.0
     ]
    }
   }
@@ -183,117 +183,6 @@
   "turnMsP95": 0.3
  },
  "guardBlocked": 0,
- "failures": [
-  {
-   "persona": "P-071",
-   "field": "peopleCount",
-   "expected": 2,
-   "got": null,
-   "traits": [
-    "tangents",
-    "asks_reassurance"
-   ]
-  },
-  {
-   "persona": "P-071",
-   "field": "mobility",
-   "expected": "manual_wheelchair",
-   "got": null,
-   "traits": [
-    "tangents",
-    "asks_reassurance"
-   ]
-  },
-  {
-   "persona": "P-071",
-   "field": "assistanceRequired",
-   "expected": "none",
-   "got": null,
-   "traits": [
-    "tangents",
-    "asks_reassurance"
-   ]
-  },
-  {
-   "persona": "P-071",
-   "field": "canLeave",
-   "expected": "no",
-   "got": "yes",
-   "traits": [
-    "tangents",
-    "asks_reassurance"
-   ]
-  },
-  {
-   "persona": "P-087",
-   "field": "canLeave",
-   "expected": "yes",
-   "got": "no",
-   "traits": [
-    "partial_address",
-    "panic",
-    "second_voice"
-   ]
-  },
-  {
-   "persona": "P-132",
-   "field": "peopleCount",
-   "expected": 2,
-   "got": null,
-   "traits": [
-    "panic",
-    "flames"
-   ]
-  },
-  {
-   "persona": "P-132",
-   "field": "mobility",
-   "expected": "walker",
-   "got": null,
-   "traits": [
-    "panic",
-    "flames"
-   ]
-  },
-  {
-   "persona": "P-132",
-   "field": "assistanceRequired",
-   "expected": "none",
-   "got": null,
-   "traits": [
-    "panic",
-    "flames"
-   ]
-  },
-  {
-   "persona": "P-132",
-   "field": "canLeave",
-   "expected": "no",
-   "got": "yes",
-   "traits": [
-    "panic",
-    "flames"
-   ]
-  },
-  {
-   "persona": "P-167",
-   "field": "canLeave",
-   "expected": "yes",
-   "got": "no",
-   "traits": [
-    "second_voice"
-   ]
-  },
-  {
-   "persona": "P-195",
-   "field": "canLeave",
-   "expected": "yes",
-   "got": "no",
-   "traits": [
-    "hard_of_hearing",
-    "second_voice"
-   ]
-  }
- ],
+ "failures": [],
  "caveat": "The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the harness works end to end. Report the run against Track B's endpoint, never this one."
 }

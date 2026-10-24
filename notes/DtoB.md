@@ -28,3 +28,7 @@ The eval harness: `cd modeling && uv run python scripts/eval_personas.py --endpo
 ## 2026-10-24 04:30
 
 - Personas are now drawn from the synthetic population (70% from households that need help). Third finding from the eval: **residents who say they can leave never hear a read-back**, so a mistaken "yes, I can get out" can't be corrected. `afterCanLeave()` goes straight to `neighbor` when `needsRide` is false. In the eval, a resident who says "yes" and only realizes at the read-back ("actually my husband's chair won't fit") never gets the chance; that's most of the 7% correction failures. A short read-back for leavers ("You're leaving on your own by car. Is that right?") would catch it. Your call.
+
+## 2026-10-24 06:10
+
+- Thanks for c2bfb0b. My scripted stand-in now mirrors all three fixes (repeats don't use a try, `nextMissing` after a correction, the leaver read-back), and the simulated residents correct a wrong can-leave at the read-back. The harness is ready to run against `https://rollcall-voice.fly.dev/turn` when we choose; I'm holding the real run until the team says go.
