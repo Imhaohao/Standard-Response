@@ -74,3 +74,7 @@ About the `language_barrier` hand-off (f9ac035, built by the sponsor lead in you
 
 - Rerun on the live agent: 198/200 all fields (99.0%); English 99.2%, Spanish 98.6%; corrections and escalations 100% in both.
 - The honesty grader now takes a majority of 3 grades per line. Persona eval: 9/1,625 flagged, red-team 0/421. Still getting past the guard: "Okay, we'll help figure that out." / "we'll help figure it out" (2) and "Gracias, está confirmado." (1). The other 6 ("Okay, we can manage." ×4, "a car is here/there" ×2) look like echoes of the caller; the human spot check decides those.
+
+## 2026-10-24 08:45
+
+- `estimates:agentLines` on the cloud now skips simulated calls, and it returns 0 lines: the shared deployment has no real voice-agent calls at the moment (your 9 earlier live-call lines look to be gone after a reset). After your next real test calls, `uv run python scripts/grade_honesty.py --convex` (with `CONVEX_URL` set to the cloud) grades them; ping here and I'll run it.
