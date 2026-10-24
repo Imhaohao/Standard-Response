@@ -64,6 +64,7 @@ class CallSession implements LiveCall {
   private turnTimer: NodeJS.Timeout | null = null;
   private thinking = false;
   private residentSpoke = false;
+  private lastBackchannel = "";
   private reachedMachine = false;
   private ended = false;
 
@@ -166,7 +167,8 @@ class CallSession implements LiveCall {
       const turn = await this.conversation.hear(utterance);
       clearTimeout(backchannel);
       this.syncLanguage();
-      this.speakTurn(turn, { spokeAt, heardAt: () => heardAt }, backchanneled);
+      if (turn.ignored) this.afterNoise(backchanneled);
+      else this.speakTurn(turn, { spokeAt, heardAt: () => heardAt }, backchanneled);
     } finally {
       this.thinking = false;
       if (this.heardSoFar.trim() !== "") void this.takeTurn();
@@ -188,9 +190,17 @@ class CallSession implements LiveCall {
     console.log(`[call ${this.callSid}] first audio (${label}) ${Date.now() - spokeAt}ms after the resident stopped`);
   }
 
+  // Noise stays unanswered, unless a backchannel already played: then the question is asked again
+  // so the "Mm-hm" doesn't hang in the air.
+  private afterNoise(backchanneled: boolean) {
+    if (!backchanneled || !this.conversation) return;
+    this.speech.say([this.conversation.question()], this.language);
+  }
+
   private pickBackchannel() {
-    const options = LINES[this.language].backchannels;
-    return options[Math.floor(Math.random() * options.length)];
+    const options = LINES[this.language].backchannels.filter((line) => line !== this.lastBackchannel);
+    this.lastBackchannel = options[Math.floor(Math.random() * options.length)];
+    return this.lastBackchannel;
   }
 
   // The resident switched languages mid-call: listen in the new one too.

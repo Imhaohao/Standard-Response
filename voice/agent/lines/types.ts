@@ -53,7 +53,8 @@ export type Lines = {
   sentenceGap?: string;
   textPrompt: string;
   textThanks: string;
-  // Fills a pause while Claude is thinking. Must not acknowledge any content.
+  // Fills a pause while Claude is thinking. It plays before we know whether the resident answered
+  // (or a dog barked), so it must not claim to have understood anything: no "got it".
   backchannels: string[];
   // Replaces an acknowledgment the honesty guard blocks.
   neutralAck: string;

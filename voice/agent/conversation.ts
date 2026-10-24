@@ -54,6 +54,8 @@ export type AgentTurn = {
   stage: Stage;
   done: boolean;
   guardBlocked: boolean;
+  // Background noise or talk not meant for the agent: nothing was said back and nothing changed.
+  ignored: boolean;
 };
 
 export type ConversationOptions = {
@@ -93,6 +95,7 @@ export class Conversation {
   private changedThisTurn = false;
   private escalated = new Set<Escalation>();
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
+  private lastAcknowledgment = "";
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
@@ -134,16 +137,17 @@ export class Conversation {
       console.error("[agent] interpreter failed", error);
       return this.say("", [LINES[this.language].repeatPrompt], false);
     }
-    if (this.shouldHandOff(heard)) return this.handOffToPerson();
+    if (isNoise(heard)) return this.ignore();
+    const switched = this.switchLanguageIfNeeded(heard.spokenLanguage);
+    if (!switched && this.shouldHandOff(heard)) return this.handOffToPerson();
     if (heard.spokenLanguage === "other") return this.say("", [LINES[this.language].repeatPrompt], false);
-    if (canSpeak(heard.spokenLanguage)) this.switchLanguageIfNeeded(heard.spokenLanguage);
     this.changedThisTurn = false;
     this.applyUpdates(heard.updates, heard.confidence);
     const urgent = this.handleEmergency(heard);
     for (const address of heard.neighborAddresses) this.effects.nominate(address);
 
-    // Asking us to repeat isn't a failed answer, so it doesn't use up a try.
-    if (heard.wantsRepeat) return this.reply(heard, urgent, []);
+    // Asking us to repeat, or to switch language, isn't a failed answer, so it doesn't use up a try.
+    if (heard.wantsRepeat || (switched && heardNothing(heard))) return this.reply(heard, urgent, []);
     const transition = this.advance(heard);
     this.moveTo(transition.step);
     return this.reply(heard, urgent, transition.lines ?? []);
@@ -155,12 +159,31 @@ export class Conversation {
     const ride = heard.asksAboutRide && !this.done ? [this.rideLine()] : [];
     const closing = this.done ? this.closingLines() : [this.question()];
     const sentences = [...urgent, ...extra, ...ride, ...closing].filter((line) => line !== "");
-    return this.say(ack.text, sentences, ack.blocked);
+    return this.say(this.freshAcknowledgment(ack.text), sentences, ack.blocked);
+  }
+
+  // The same acknowledgment twice in a row, or "got it", sounds like a machine not listening.
+  // A repeated opener ("Okay, ..." after "Okay, ...") is dropped and the rest kept.
+  private freshAcknowledgment(text: string) {
+    const normalized = normalizeAck(text);
+    if (normalized === "") return text;
+    const previous = this.lastAcknowledgment;
+    this.lastAcknowledgment = normalized;
+    if (normalized === previous || /\bgot it\b/.test(normalized)) return "";
+    if (firstWord(normalized) !== firstWord(previous)) return text;
+    const rest = text.trim().replace(/^\S+?[,.!]?\s+/u, "");
+    return rest === text.trim() ? "" : rest.charAt(0).toUpperCase() + rest.slice(1);
   }
 
   private say(acknowledgment: string, sentences: string[], guardBlocked: boolean): AgentTurn {
     this.history.push({ speaker: "agent", text: [acknowledgment, ...sentences].filter(Boolean).join(" ") });
-    return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked };
+    return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked, ignored: false };
+  }
+
+  // Noise doesn't count as a missed turn or use up a try; the question stays where it was.
+  private ignore(): AgentTurn {
+    this.history.pop();
+    return { acknowledgment: "", sentences: [], stage: this.stage, done: this.done, guardBlocked: false, ignored: true };
   }
 
   private turnContext(utterance: string): TurnContext {
@@ -184,10 +207,14 @@ export class Conversation {
     return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS;
   }
 
-  private switchLanguageIfNeeded(spoken: Language) {
-    if (spoken === this.language) return;
+  // Switching to a language we speak is progress, not a missed turn, so the hand-off counters reset.
+  private switchLanguageIfNeeded(spoken: Interpretation["spokenLanguage"]) {
+    if (!canSpeak(spoken) || spoken === this.language) return false;
     this.language = spoken;
+    this.missedTurns = 0;
+    this.unknownLanguageTurns = 0;
     this.effects.updateRecord({ language: spoken }, {});
+    return true;
   }
 
   // Nobody can understand each other: flag the call for a person and end it without promising anything.
@@ -326,7 +353,7 @@ export class Conversation {
     return { step: "done" };
   }
 
-  private question(): string {
+  question(): string {
     return QUESTIONS[this.step](this);
   }
 
@@ -364,6 +391,14 @@ export class Conversation {
   private closingLines() {
     return [this.rideLine(), LINES[this.language].goodbye];
   }
+}
+
+const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
+const firstWord = (normalized: string) => normalized.split(" ")[0];
+
+// Claude judged it not meant for the agent, and it carries nothing we must act on.
+function isNoise(heard: Interpretation) {
+  return !heard.addressedToAgent && heard.emergency === "none" && isEmpty(heard.updates) && heard.neighborAddresses.length === 0;
 }
 
 // A turn that gave us nothing to work with: asked us to repeat, or answered nothing usable.

@@ -54,7 +54,7 @@ export const ES: Lines = {
   textPrompt:
     "Línea de evacuación de Altadena: hay una advertencia de evacuación en su calle. Responda 1 si puede salir por su cuenta, 2 si necesita transporte, 3 si necesita un vehículo para silla de ruedas. También puede escribir quién está con usted.",
   textThanks: "Gracias. Ya tenemos su respuesta.",
-  backchannels: ["Muy bien.", "Entendido.", "Ajá, muy bien."],
+  backchannels: ["Mm-hm.", "Muy bien.", "A ver.", "Un momento."],
   neutralAck: "Entendido.",
   waiting:
     "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora.",

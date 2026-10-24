@@ -10,6 +10,9 @@ const PHONE_AUDIO = { encoding: "pcm_mulaw", sample_rate: 8000 } as const;
 // Seconds of silence before Cartesia finalizes what the resident said.
 const END_OF_SPEECH_SILENCE_SECS = 0.5;
 
+// Whisper-style models write non-speech as tags: "[cat meowing]", "(music)", "*coughs*".
+const SOUND_TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*|♪/g;
+
 type TranscriptMessage = { type: "transcript"; is_final: boolean; text: string };
 type ErrorMessage = { type: "error"; message?: string; title?: string };
 
@@ -48,7 +51,8 @@ export class Transcriber {
     const message = JSON.parse(raw) as TranscriptMessage | ErrorMessage | { type: string };
     if (message.type === "transcript") {
       const transcript = message as TranscriptMessage;
-      if (transcript.text.trim() !== "") this.events.onSpeech(transcript.text, transcript.is_final);
+      const speech = transcript.text.replace(SOUND_TAGS, " ").replace(/\s+/g, " ");
+      if (speech.trim() !== "") this.events.onSpeech(speech, transcript.is_final);
     } else if (message.type === "error") {
       const error = message as ErrorMessage;
       this.events.onError(`stt: ${error.title ?? ""} ${error.message ?? ""}`);
