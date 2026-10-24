@@ -41,6 +41,7 @@ class CardRun:
     seconds: float = 0.0
     turn_ms: list[float] = field(default_factory=list)
     escalations: list[str] = field(default_factory=list)
+    escalated_at: dict[str, int] = field(default_factory=dict)  # each escalation -> resident turns heard before it was raised
     nominations: list[str] = field(default_factory=list)
     guard_blocked: int = 0
     correction_said: bool = False
@@ -64,6 +65,8 @@ def run_card(agent, card: dict, seed: int = 0, request_status: str | None = None
             run.transcript.append({"speaker": "agent", "text": response["reply"], "requestStatus": request_status or "none"})
             run.record = response.get("record") or {}
             run.escalations = response.get("escalations") or []
+            for kind in run.escalations:
+                run.escalated_at.setdefault(kind, run.turns)
             run.nominations = response.get("nominations") or []
             run.guard_blocked += int(bool(response.get("guardBlocked")))
             if response.get("done"):
