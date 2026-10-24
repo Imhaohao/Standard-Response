@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Archivo } from "next/font/google";
+import { Public_Sans, Sofia_Sans_Condensed } from "next/font/google";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { PRODUCT_NAME } from "@/lib/brand";
 import "./globals.css";
 
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin"],
-  axes: ["wdth"],
-});
+// Public Sans is the US Web Design System face: plain, trusted, legible under stress.
+// Sofia Sans Condensed carries the big figures, the way emergency signage does.
+const publicSans = Public_Sans({ variable: "--font-public-sans", subsets: ["latin"] });
+const sofiaCondensed = Sofia_Sans_Condensed({ variable: "--font-sofia-condensed", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: `${PRODUCT_NAME} call floor`,
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    <html lang="en" className={`${publicSans.variable} ${sofiaCondensed.variable} h-full antialiased`}>
       <body className="min-h-full">
         <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>

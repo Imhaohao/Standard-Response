@@ -1,47 +1,31 @@
 @import "tailwindcss";
 
-/* Palette: Red Cross-style white page, ink type, one red signal.
-   Red means "needs an accessible vehicle / urgent" and the brand mark. Nothing else. */
+/* Light mode only: the map is paper, and every surface around it is paper too.
+   Red means fire or a person who can't leave without help. Nothing else is red. */
 :root {
-  --canvas: oklch(0.982 0.002 30);
-  --surface: oklch(0.995 0.001 30);
-  --surface-sunk: oklch(0.952 0.003 30);
-  --line: oklch(0.885 0.004 30);
-  --line-strong: oklch(0.78 0.006 30);
-  --ink: oklch(0.215 0.008 30);
-  --ink-muted: oklch(0.45 0.01 30);
-  --panel: oklch(0.255 0.006 30);
-  --panel-raised: oklch(0.32 0.007 30);
-  --on-panel: oklch(0.97 0.003 30);
-  --on-panel-muted: oklch(0.8 0.006 30);
+  --canvas: oklch(0.975 0.006 85);
+  --surface: oklch(0.995 0.002 85);
+  --surface-sunk: oklch(0.955 0.006 85);
+  --line: oklch(0.9 0.006 85);
+  --line-strong: oklch(0.8 0.008 85);
+  --ink: oklch(0.235 0.012 60);
+  --ink-muted: oklch(0.47 0.012 60);
+  /* Floating cards over the map. Kept as their own tokens so the map chrome can change in one place. */
+  --panel: oklch(0.995 0.002 85);
+  --panel-raised: oklch(0.955 0.006 85);
+  --on-panel: oklch(0.235 0.012 60);
+  --on-panel-muted: oklch(0.47 0.012 60);
   --signal: oklch(0.585 0.215 27);
+  --signal-soft: oklch(0.94 0.04 27);
+  --ember: oklch(0.72 0.18 50);
   --leaving: oklch(0.58 0.13 155);
   --ride: oklch(0.7 0.16 58);
   --accessible: var(--signal);
-  --unreachable: oklch(0.55 0.012 30);
-  --unknown: oklch(0.8 0.006 30);
-  /* The map is drawn on paper in both schemes, so it keeps the ink renderer's own paper and ink. */
+  --unreachable: oklch(0.55 0.012 60);
+  --unknown: oklch(0.8 0.008 60);
   --map-paper: oklch(0.963 0.012 85);
   --map-ink: oklch(0.235 0.012 60);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --canvas: oklch(0.165 0.005 30);
-    --surface: oklch(0.2 0.006 30);
-    --surface-sunk: oklch(0.245 0.006 30);
-    --line: oklch(0.31 0.007 30);
-    --line-strong: oklch(0.42 0.008 30);
-    --ink: oklch(0.955 0.003 30);
-    --ink-muted: oklch(0.74 0.008 30);
-    --panel: oklch(0.235 0.007 30);
-    --panel-raised: oklch(0.3 0.008 30);
-    --signal: oklch(0.66 0.2 27);
-    --leaving: oklch(0.7 0.14 155);
-    --ride: oklch(0.76 0.15 58);
-    --unreachable: oklch(0.62 0.012 30);
-    --unknown: oklch(0.45 0.008 30);
-  }
+  --shadow-float: 0 1px 2px oklch(0.3 0.02 60 / 0.08), 0 6px 20px oklch(0.3 0.02 60 / 0.1);
 }
 
 @theme inline {
@@ -57,6 +41,8 @@
   --color-on-panel: var(--on-panel);
   --color-on-panel-muted: var(--on-panel-muted);
   --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-ember: var(--ember);
   --color-leaving: var(--leaving);
   --color-ride: var(--ride);
   --color-accessible: var(--accessible);
@@ -64,7 +50,9 @@
   --color-unknown: var(--unknown);
   --color-map-paper: var(--map-paper);
   --color-map-ink: var(--map-ink);
-  --font-sans: var(--font-archivo);
+  --font-sans: var(--font-public-sans);
+  --font-display: var(--font-sofia-condensed);
+  --shadow-float: var(--shadow-float);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -72,24 +60,24 @@
 body {
   background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-family: var(--font-public-sans), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
-/* Type scale. Heavy, slightly condensed display in the Red Cross manner. */
+/* Type scale: Public Sans for reading, Sofia Sans Condensed for anything read from across the room. */
 @layer components {
   .type-display {
+    font-family: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
     font-size: clamp(2.25rem, 4vw, 3.75rem);
     line-height: 1;
-    font-weight: 860;
-    font-stretch: 88%;
+    font-weight: 800;
     text-wrap: balance;
   }
   .type-title {
+    font-family: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
     font-size: 1.375rem;
     line-height: 1.15;
     font-weight: 800;
-    font-stretch: 90%;
   }
   .type-heading {
     font-size: 1rem;
@@ -105,15 +93,15 @@ body {
   .type-small {
     font-size: 0.8125rem;
     line-height: 1.4;
-    font-weight: 450;
+    font-weight: 400;
   }
   /* Hatching marks something that no longer holds: a replaced offer, a locked control. */
   .hatch {
     background-image: repeating-linear-gradient(135deg, currentColor 0 1.5px, transparent 1.5px 7px);
   }
   .type-figure {
-    font-weight: 820;
-    font-stretch: 85%;
+    font-family: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
+    font-weight: 800;
     line-height: 1;
   }
 }

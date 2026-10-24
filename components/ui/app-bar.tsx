@@ -26,8 +26,8 @@ function ScreenNav() {
               <Link
                 href={screen.href}
                 aria-current={current ? "page" : undefined}
-                className={`type-small inline-flex h-7 items-center px-2 font-semibold focus-visible:outline-2 focus-visible:outline-on-panel ${
-                  current ? "bg-on-panel text-panel" : "text-on-panel-muted hover:bg-panel-raised hover:text-on-panel"
+                className={`type-small inline-flex h-8 items-center rounded-full px-3 font-bold focus-visible:outline-2 focus-visible:outline-ink ${
+                  current ? "bg-ink text-canvas" : "text-ink-muted hover:bg-surface-sunk hover:text-ink"
                 }`}
               >
                 {screen.label}
@@ -44,21 +44,21 @@ export function WarningClock({ issuedAt }: { issuedAt: number }) {
   const now = useNow();
   return (
     <div className="flex items-baseline gap-2">
-      <span className="type-small text-on-panel-muted">Since the warning</span>
+      <span className="type-small text-ink-muted">Since the warning</span>
       <span className="type-figure text-lg tabular-nums">{formatElapsed(now - issuedAt)}</span>
     </div>
   );
 }
 
-// The dark bar on top of every screen: the product mark, the screens, and whatever the screen
-// needs at hand on the right.
+// The bar on top of every screen: the product mark, the screens, and whatever the screen needs at
+// hand on the right.
 export function AppBar({ children }: { children?: ReactNode }) {
   return (
-    <header className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
+    <header className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface/95 px-4 py-2 text-ink backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="size-3 shrink-0 bg-signal" aria-hidden />
+        <span className="size-3 shrink-0 rounded-full bg-signal" aria-hidden />
         <span className="type-heading">{PRODUCT_NAME}</span>
-        <span className="type-small hidden truncate text-on-panel-muted sm:inline">{AREA_NAME}</span>
+        <span className="type-small hidden truncate text-ink-muted sm:inline">{AREA_NAME}</span>
       </div>
       <ScreenNav />
       {children && <div className="ml-auto flex flex-wrap items-center gap-3">{children}</div>}

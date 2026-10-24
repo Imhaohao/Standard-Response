@@ -14,11 +14,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function Button({ variant = "primary", size = "md", className = "", ...props }: ButtonProps) {
-  const sizing = size === "lg" ? "h-12 px-5 text-base" : "h-10 px-4 text-sm";
+  const sizing = size === "lg" ? "h-14 px-6 text-base" : "h-11 px-4 text-sm";
   return (
     <button
       type="button"
-      className={`inline-flex shrink-0 select-none items-center justify-center gap-2 rounded-[2px] font-semibold whitespace-nowrap transition-[background-color,scale,opacity] duration-150 ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:pointer-events-none disabled:opacity-40 ${sizing} ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex shrink-0 select-none items-center justify-center gap-2 rounded-xl font-bold whitespace-nowrap transition-[background-color,scale,opacity] duration-150 ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:opacity-40 ${sizing} ${VARIANTS[variant]} ${className}`}
       {...props}
     />
   );

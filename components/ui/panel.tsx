@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-// The dark surface that floats over the map. Paper is the map; decisions are made on panel.
+// A card that floats over the map. The map is the subject; cards hold the decisions.
 export function Panel({
   title,
   aside,
@@ -13,9 +13,9 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`flex min-w-0 flex-col border border-panel-raised bg-panel/96 text-on-panel backdrop-blur-md ${className}`}>
-      <header className="flex min-h-10 items-center justify-between gap-2 border-b border-panel-raised px-3">
-        <h2 className="type-small font-bold">{title}</h2>
+    <section className={`flex min-w-0 flex-col overflow-hidden rounded-2xl bg-panel text-on-panel shadow-float ${className}`}>
+      <header className="flex min-h-11 items-center justify-between gap-2 px-4 pt-1">
+        <h2 className="type-heading">{title}</h2>
         {aside}
       </header>
       {children}
@@ -24,5 +24,5 @@ export function Panel({
 }
 
 export function PanelEmpty({ children }: { children: ReactNode }) {
-  return <p className="type-small px-3 py-6 text-center text-on-panel-muted">{children}</p>;
+  return <p className="type-small px-4 py-6 text-center text-on-panel-muted">{children}</p>;
 }

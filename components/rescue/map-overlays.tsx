@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Anchor, GeoAnchor, GeoLeg, GeoLine, MapLine } from "@/components/map/layers";
 import { LatLng } from "@/lib/geo";
 import { Point } from "@/lib/ink-map/data";
+import { Van, Wheelchair } from "@phosphor-icons/react";
 import { awaitingRide, OpenRequest } from "./marks";
 
 const PAPER = "var(--map-paper)";
@@ -16,44 +17,63 @@ type Vehicle = FunctionReturnType<typeof api.vehicles.list>[number];
 type Assignment = FunctionReturnType<typeof api.offers.active>[number];
 type Route = FunctionReturnType<typeof api.dispatch.routes>[number];
 
-// Labels sit on a paper casing so they stay readable over streets and screentone.
-const LABEL = { fill: INK, stroke: PAPER, strokeWidth: 3, paintOrder: "stroke" as const, fontSize: 11, fontWeight: 700 };
+const WAITING: OpenRequest["status"][] = ["received", "approved", "reassigning"];
 
-// Every pin is red, because every pin is a person who is still waiting. Escalation changes the
-// shape and the size, not the colour: a bigger mark, a ring that keeps going out, and a word.
+// One badge per person, readable without reading: red means still waiting for a driver, ink means
+// a driver said yes. The glyph says what they need: a wheelchair, or how many people.
 function RequestPin({ request }: { request: OpenRequest }) {
+  const waiting = WAITING.includes(request.status);
   const escalated = Boolean(request.escalation);
-  const size = escalated ? 7.5 : 5.5;
+  const r = escalated ? 13 : 10.5;
+  const fill = waiting || escalated ? HAZARD : INK;
+  const people = request.load.seats + request.load.wheelchairSpaces + request.load.stretcherSpaces;
   return (
     <GeoAnchor at={{ lat: request.lat!, lng: request.lng! }}>
-      <circle r={size + 5} fill={HAZARD} fillOpacity={escalated ? 0.22 : 0.12} />
-      {escalated && <circle r={16} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
+      {(waiting || escalated) && <circle r={r} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
+      <circle r={r + 2.5} fill={PAPER} />
+      <circle r={r} fill={fill} strokeDasharray={request.status === "reassigning" ? "4 3" : undefined} stroke={request.status === "reassigning" ? PAPER : "none"} strokeWidth={1.5} />
       {request.needsLift ? (
-        <rect x={-size} y={-size} width={size * 2} height={size * 2} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
+        <Wheelchair x={-r * 0.62} y={-r * 0.66} size={r * 1.28} weight="bold" color="white" />
       ) : (
-        <circle r={size} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
-      )}
-      {escalated && (
-        <text x={13} y={-10} {...LABEL} fill={HAZARD}>
-          {escalationShort(request.escalation!)}
+        <text y={4} textAnchor="middle" fontSize={r * 1.05} fontWeight={800} fill="white">
+          {people}
         </text>
       )}
+      {escalated && <EscalationChip escalation={request.escalation!} r={r} />}
     </GeoAnchor>
   );
 }
 
-function escalationShort(escalation: string) {
-  return { address_unconfirmed: "address?", medical: "medical", flames: "flames", unservable: "no vehicle", language_barrier: "language" }[escalation] ?? escalation;
+function EscalationChip({ escalation, r }: { escalation: string; r: number }) {
+  const label = escalationShort(escalation);
+  const width = label.length * 6.4 + 14;
+  return (
+    <g transform={`translate(${r + 5} ${-r - 4})`}>
+      <rect width={width} height={18} rx={9} fill={HAZARD} stroke={PAPER} strokeWidth={2} />
+      <text x={width / 2} y={12.5} textAnchor="middle" fontSize={11} fontWeight={700} fill="white">
+        {label}
+      </text>
+    </g>
+  );
 }
 
-function VehicleMark({ vehicle }: { vehicle: Vehicle }) {
+function escalationShort(escalation: string) {
+  return { address_unconfirmed: "Address?", medical: "Medical", flames: "Sees flames", unservable: "No vehicle", language_barrier: "Language" }[escalation] ?? escalation;
+}
+
+// A van is a dark chip with its name inside, so the label never floats away from the vehicle.
+// A van with nobody to fetch is drawn hollow.
+function VehicleMark({ vehicle, busy }: { vehicle: Vehicle; busy: boolean }) {
+  const width = vehicle.label.length * 6.6 + 26;
   return (
     <GeoAnchor at={{ lat: vehicle.lat, lng: vehicle.lng }}>
-      <rect x={-10} y={-7} width={20} height={14} fill={PAPER} />
-      <rect x={-9} y={-6} width={18} height={12} fill={INK} />
-      <text x={14} y={4} {...LABEL}>
-        {vehicle.label}
-      </text>
+      <g transform={`translate(${-width / 2} -10)`}>
+        <rect width={width} height={20} rx={5} fill={busy ? INK : PAPER} stroke={busy ? PAPER : INK} strokeWidth={busy ? 2 : 1.5} />
+        <Van x={5} y={3} size={14} weight="fill" color={busy ? "white" : INK} />
+        <text x={22} y={14} fontSize={11} fontWeight={700} fill={busy ? "white" : INK}>
+          {vehicle.label}
+        </text>
+      </g>
     </GeoAnchor>
   );
 }
@@ -148,6 +168,7 @@ export function MapOverlays({ tool, draft }: { tool: string; draft: Point[] }) {
   const requestById = new Map(located.map((request) => [request._id, request]));
   const routeByVehicle = new Map(routes.filter((route) => route.remaining.length > 1).map((route) => [route.vehicleId, route]));
   const at = (request: OpenRequest): LatLng => ({ lat: request.lat!, lng: request.lng! });
+  const busyVehicles = new Set(assignments.map((assignment) => assignment.vehicleId));
 
   return (
     <g>
@@ -166,7 +187,7 @@ export function MapOverlays({ tool, draft }: { tool: string; draft: Point[] }) {
         );
       })}
       {vehicles.map((vehicle) => (
-        <VehicleMark key={vehicle._id} vehicle={vehicle} />
+        <VehicleMark key={vehicle._id} vehicle={vehicle} busy={busyVehicles.has(vehicle._id)} />
       ))}
       {located.map((request) => (
         <RequestPin key={request._id} request={{ ...request, lat: at(request).lat, lng: at(request).lng }} />

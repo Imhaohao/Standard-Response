@@ -262,6 +262,7 @@ uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uDebug;
+uniform float uInkStrength;
 
 float decodeId(vec2 uv) {
   vec3 c = texture(tId, uv).rgb * 255.0;
@@ -395,14 +396,14 @@ float landuseInk(float kind, float shade, vec2 mapXY, float cell) {
 
 float terrainInk(float shade, float up, vec3 w, float metersPerPixel, float cell) {
   float steep = 1.0 - up;
-  float slopeHatch = hatch(clamp((steep - 0.12) * 1.6, 0.0, 0.55) * (1.0 - shade * 0.6), 5.5 * uPixelRatio, 0.35);
+  float slopeHatch = hatch(clamp((steep - 0.16) * 1.2, 0.0, 0.32) * (1.0 - shade * 0.7), 6.5 * uPixelRatio, 0.35);
   float elevation = w.y + uBaseElevation;
   float interval = metersPerPixel > 3.0 ? 100.0 : 25.0;
   float e = elevation / interval;
   float contour = 1.0 - smoothstep(0.0, 1.0, abs(fract(e + 0.5) - 0.5) / max(fwidth(e), 1e-4));
   // The yard tone is a town-scale texture: it says "this is a settled block" when a house is one
   // pixel wide. Close up it is only dirt on the paper, so it fades out as the detail comes in.
-  float yard = screentone(shade < 0.25 ? 0.26 : 0.045, cell) * smoothstep(0.8, 3.0, metersPerPixel);
+  float yard = screentone(shade < 0.25 ? 0.16 : 0.0, cell) * smoothstep(0.8, 3.0, metersPerPixel);
   return max(max(yard, slopeHatch), contour * 0.35);
 }
 
@@ -416,8 +417,8 @@ float buildingTone(float shade, float detail, float cell, float lit, float plain
 
 float surfaceInk(float surface, float shade, float up, vec3 w, float metersPerPixel, float cell, float detail) {
   vec2 mapXY = vec2(w.x, -w.z);
-  if (surface == S_WALL) return buildingTone(shade, detail, cell, 0.16, 0.2);
-  if (surface == S_ROOF) return buildingTone(shade, detail, cell, 0.12, 0.16);
+  if (surface == S_WALL) return buildingTone(shade, detail, cell, 0.16, 0.12);
+  if (surface == S_ROOF) return buildingTone(shade, detail, cell, 0.1, 0.08);
   if (surface == S_ROAD) return screentone(shade < 0.25 ? 0.2 : 0.0, cell) * detail;
   // A tree is 5 m across, so at town scale it is a fraction of a pixel and its canopy tone aliases
   // into a random dark speck. Fading the tone keeps the tree cover visible as a stipple.
@@ -488,8 +489,8 @@ void main() {
   float lod = 1.0 - 0.55 * smoothstep(0.45, 1.5, metersPerPixel);
   float tone = surfaceInk(surface, shade, up, w, metersPerPixel, cell, detail) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
-  float ink = max(tone * 0.92, lines);
-  vec3 color = mix(paper, uInk, ink);
+  float ink = max(tone * 0.85, lines);
+  vec3 color = mix(paper, uInk, ink * uInkStrength);
 
   vec4 state = buildingState(idC);
   if (state.r > 0.0) {
@@ -506,7 +507,7 @@ void main() {
     // stamping them on the whole scar turns the town into wallpaper and hides the street grid.
     float age = uFireNow - minutes;
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
-    float scorch = hatch(0.16, 8.0 * uPixelRatio, -0.75) * burned * mix(0.3, 1.0, fresh);
+    float scorch = hatch(0.16, 8.0 * uPixelRatio, -0.75) * burned * fresh;
     float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
     color = mix(color, uInk, scorch * 0.45);
     color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));

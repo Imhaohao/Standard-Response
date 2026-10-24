@@ -34,8 +34,9 @@ export function useHazard(origin: LatLng | undefined): Hazard | null {
   }, [origin, file]);
 }
 
-// Scenario minutes advance faster than the clock so a three-minute demo covers a five-hour fire.
-export const SIM_MINUTES_PER_SECOND = 2;
+// Minute 0 is the warning and the scenario runs on the wall clock, the same clock Track D's
+// deadlines use. The scrubber is how anyone looks ahead.
+export const SIM_MINUTES_PER_SECOND = 1 / 60;
 
 export type FireClock = {
   minutes: number;

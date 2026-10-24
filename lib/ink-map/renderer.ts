@@ -166,6 +166,7 @@ export class InkMapRenderer {
       uTime: { value: 0 },
       uPulse: { value: 1 },
       uDebug: { value: 0 },
+      uInkStrength: { value: this.view.kind === "overview" ? 0.58 : 0.72 },
     };
   }
 
