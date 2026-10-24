@@ -67,7 +67,8 @@ npm run dev:voice    # http://localhost:8080, reads .env.local
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude, which interprets each thing a resident says |
 | `CARTESIA_API_KEY`, `CARTESIA_VOICE_EN`, `CARTESIA_VOICE_ES` | Speech in both directions, and the English and Spanish voices |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | Telephony |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_FROM_NUMBER` | Telephony. Calls are placed with the API key |
+| `TWILIO_AUTH_TOKEN` | Checks the signature on every Twilio webhook |
 | `VOICE_PUBLIC_URL` | Public https URL of this server; Twilio calls back here |
 | `DIAL_ALLOWLIST` | Comma-separated numbers the dialer may ring. Every other number is skipped, so a fictional rider list never rings a stranger |
 | `VOICE_MODEL` | Defaults to `claude-haiku-5-5` |

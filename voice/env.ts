@@ -29,6 +29,9 @@ export const env = {
   anthropicThinkingOff: optional("VOICE_THINKING", "off") === "off",
   twilio: {
     accountSid: () => required("TWILIO_ACCOUNT_SID"),
+    // REST calls authenticate with an API key; the auth token only checks webhook signatures.
+    apiKeySid: () => required("TWILIO_API_KEY_SID"),
+    apiKeySecret: () => required("TWILIO_API_KEY_SECRET"),
     authToken: () => required("TWILIO_AUTH_TOKEN"),
     fromNumber: () => required("TWILIO_FROM_NUMBER"),
   },

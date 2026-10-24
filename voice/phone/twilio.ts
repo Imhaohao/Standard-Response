@@ -15,7 +15,8 @@ export type StreamParameters = {
 };
 
 let client: ReturnType<typeof twilio> | null = null;
-const rest = () => (client ??= twilio(env.twilio.accountSid(), env.twilio.authToken()));
+const rest = () =>
+  (client ??= twilio(env.twilio.apiKeySid(), env.twilio.apiKeySecret(), { accountSid: env.twilio.accountSid() }));
 
 const escapeXml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
