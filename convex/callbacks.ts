@@ -67,3 +67,14 @@ export const markUnanswered = mutation({
     return null;
   },
 });
+
+// Under-the-hood screen: recent callbacks with their timing.
+export const recent = query({
+  args: { limit: v.number() },
+  handler: async (ctx, { limit }) => {
+    const rows = await ctx.db.query("callbacks").order("desc").take(limit);
+    return await Promise.all(
+      rows.map(async (row) => ({ ...row, address: (await ctx.db.get("households", row.householdId))?.address })),
+    );
+  },
+});

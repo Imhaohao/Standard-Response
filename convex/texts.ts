@@ -25,3 +25,24 @@ export const reply = mutation({
   returns: v.id("texts"),
   handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "inbound", at: Date.now() }),
 });
+
+// Simulated phone panel: one thread per household, newest first.
+export const threads = query({
+  args: {},
+  handler: async (ctx) => {
+    const texts = await ctx.db.query("texts").order("desc").take(500);
+    const byHousehold = new Map<string, typeof texts>();
+    for (const text of texts) byHousehold.set(text.householdId, [...(byHousehold.get(text.householdId) ?? []), text]);
+    return await Promise.all(
+      [...byHousehold.values()].map(async (thread) => {
+        const household = await ctx.db.get("households", thread[0].householdId);
+        return {
+          householdId: thread[0].householdId,
+          address: household?.address ?? "Unknown address",
+          residentName: household?.residentName,
+          texts: thread.reverse(),
+        };
+      }),
+    );
+  },
+});

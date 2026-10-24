@@ -81,7 +81,15 @@ function householdFromRow(row: Row, now: number) {
   };
 }
 
-// Rescue map upload. Riders enter the call queue only once a zone covers them.
+async function alreadyImported(ctx: MutationCtx, callbackNumber: string) {
+  const existing = await ctx.db
+    .query("households")
+    .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
+    .first();
+  return existing !== null;
+}
+
+// Rescue map upload. Rows with a phone number already on file are skipped. Riders enter the call queue only once a zone covers them.
 export const importCsv = mutation({
   args: { csv: v.string() },
   returns: v.object({ imported: v.number(), skippedLines: v.array(v.number()) }),
@@ -91,7 +99,7 @@ export const importCsv = mutation({
     let imported = 0;
     for (const [index, row] of parseRows(csv).entries()) {
       const household = householdFromRow(row, now);
-      if (!household) {
+      if (!household || (await alreadyImported(ctx, household.callbackNumber))) {
         skippedLines.push(index + 2);
         continue;
       }

@@ -1,7 +1,7 @@
 import { MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { located, metersBetween, Point, vehicleCanServe } from "./model";
-import { acceptAssignment, completeAssignment, liveAssignmentsFor } from "./offers";
+import { acceptAssignment, approveAssignment, completeAssignment, liveAssignmentsFor } from "./offers";
 import { Proposal, writePlan } from "./plans";
 import { transitionRequest } from "./requests";
 
@@ -95,6 +95,12 @@ async function moveVehicles(ctx: MutationCtx, tickMs: number) {
   const accepted = await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", "accepted")).take(200);
   const stepMeters = (SIMULATED_SPEED_MPS * tickMs) / 1000;
   for (const assignment of accepted) await driveAccepted(ctx, assignment, stepMeters);
+}
+
+// Stand-in for the dispatcher's approval, including offers proposed while approval was manual.
+export async function approveLeftovers(ctx: MutationCtx) {
+  const proposed = await ctx.db.query("assignments").withIndex("by_status", (q) => q.eq("status", "proposed")).take(200);
+  for (const assignment of proposed) await approveAssignment(ctx, assignment._id);
 }
 
 export async function standInDispatch(ctx: MutationCtx, control: Doc<"control">, now: number, tickMs: number) {

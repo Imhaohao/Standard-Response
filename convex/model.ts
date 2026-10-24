@@ -109,6 +109,9 @@ export function vehicleCanServe(vehicle: VehicleFit, need: NeedFit) {
   );
 }
 
+// How long a driver has to answer an offer before it expires.
+export const OFFER_TTL_MS = 2 * 60_000;
+
 // A request's deadline: when the hazard reaches the home, less time to board and leave.
 export const DEADLINE_MARGIN_MINUTES = 10;
 export const deadlineFor = (fireArrivalAt: number) => fireArrivalAt - DEADLINE_MARGIN_MINUTES * 60_000;

@@ -132,7 +132,7 @@ const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.
 
 async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number) {
   for (const vehicle of FLEET) {
-    const lat = AREA.south - 0.004 + random() * 0.008;
+    const lat = AREA.south + 0.001 + random() * 0.004;
     const lng = AREA.west + random() * (AREA.east - AREA.west);
     await ctx.db.insert("vehicles", { ...vehicle, lat, lng, shiftEndsAt: warningAt + 8 * 60 * 60_000 });
   }

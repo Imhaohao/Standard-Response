@@ -40,3 +40,51 @@ export const MOBILITY_LABELS: Record<NonNullable<Doc<"households">["mobility"]>,
 };
 
 export const CAN_LEAVE_LABELS = { yes: "Yes", no: "No", unsure: "Unsure" } as const;
+
+export type RequestStatus = Doc<"requests">["status"];
+export type AssignmentStatus = Doc<"assignments">["status"];
+
+export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
+  received: "Waiting for a driver",
+  approved: "Offer sent",
+  driver_accepted: "Driver accepted",
+  en_route: "Driver on the way",
+  reassigning: "Finding a new driver",
+  arrived: "Picked up",
+  closed: "Closed",
+};
+
+export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
+  proposed: "Waiting for approval",
+  offered: "Offered to driver",
+  accepted: "Accepted",
+  declined: "Declined",
+  expired: "Expired",
+  replaced: "Replaced by a newer plan",
+  revoked: "Revoked",
+  completed: "Picked up",
+};
+
+export const ESCALATION_LABELS: Record<NonNullable<Doc<"households">["escalation"]>, string> = {
+  address_unconfirmed: "Address not confirmed",
+  medical: "Medical emergency",
+  flames: "Sees flames",
+  unservable: "No vehicle can reach in time",
+};
+
+type Load = Doc<"requests">["load"];
+
+// "2 seats, 1 wheelchair, crew of 2"
+export function needsSummary(load: Load, crewNeeded: number) {
+  const parts = [
+    load.seats > 0 && `${load.seats} seat${load.seats === 1 ? "" : "s"}`,
+    load.wheelchairSpaces > 0 && `${load.wheelchairSpaces} wheelchair`,
+    load.stretcherSpaces > 0 && `${load.stretcherSpaces} stretcher`,
+    crewNeeded > 1 && `crew of ${crewNeeded}`,
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+export function capacitySummary(vehicle: Pick<Doc<"vehicles">, "seats" | "wheelchairSpaces" | "stretcherSpaces" | "crewSize">) {
+  return `Fits ${needsSummary(vehicle, vehicle.crewSize)}`;
+}

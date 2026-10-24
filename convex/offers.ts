@@ -4,8 +4,8 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { audit, releaseRequest, transitionRequest } from "./requests";
 import { queueCallback } from "./callbacks";
+import { OFFER_TTL_MS } from "./model";
 
-export const OFFER_TTL_MS = 2 * 60_000;
 
 const LIVE = new Set<Doc<"assignments">["status"]>(["proposed", "offered", "accepted"]);
 

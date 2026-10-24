@@ -78,7 +78,7 @@ export async function writePlan(ctx: MutationCtx, plan: Proposal, autoApprove: b
     if (autoApprove) await approveAssignment(ctx, assignmentId);
   }
   await ctx.db.insert("plans", { version, solver: plan.solver, solveMs: plan.solveMs, changes, createdAt: now });
-  await audit(ctx, "plan", `Plan v${version}: ${changes.length} changes`, { planVersion: version });
+  await audit(ctx, "plan", `New plan with ${changes.length} change${changes.length === 1 ? "" : "s"}`, { planVersion: version });
   return version;
 }
 
