@@ -1,4 +1,4 @@
-import { emptyResult, MeetingResult, MeshMessage, MeshNode } from "./node";
+import { MeetingResult } from "./node";
 import { randomId } from "./random";
 
 // Carrying the mesh protocol between real phones. The protocol in node.ts doesn't care how bytes
@@ -11,12 +11,23 @@ import { randomId } from "./random";
 //   stands in for a radio neighbourhood when one person demos several "phones" on one screen.
 //
 // A native app would put the same messages on Bluetooth LE or Wi-Fi Aware; nothing else changes.
+//
+// Both carry any protocol shaped like the mesh's: a phone that says hello, answers each message
+// with replies, and tallies what a meeting brought. MeshNode is one; the preparedness survey's
+// phone (lib/prepare/node.ts) is another.
 
 const RESYNC_MS = 20_000;
 const MAX_MESSAGE_CHARS = 512_000;
 
 export type Link = { send(text: string): void; close(): void };
-export type MeetingListener = (result: MeetingResult) => void;
+export type MeetingListener<Result = MeetingResult> = (result: Result) => void;
+
+export type PeerMessage = { type: string };
+export interface Peer<Result = MeetingResult> {
+  hello(): PeerMessage;
+  receive(message: unknown, result?: Result): PeerMessage[];
+  emptyResult(): Result;
+}
 
 const parse = (text: unknown) => {
   if (typeof text !== "string" || text.length > MAX_MESSAGE_CHARS) return null;
@@ -27,13 +38,13 @@ const parse = (text: unknown) => {
   }
 };
 
-export class PeerSession {
+export class PeerSession<Result = MeetingResult> {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    private readonly node: MeshNode,
+    private readonly node: Peer<Result>,
     private readonly link: Link,
-    private readonly onMeeting: MeetingListener,
+    private readonly onMeeting: MeetingListener<Result>,
   ) {}
 
   start() {
@@ -48,7 +59,7 @@ export class PeerSession {
   receive(text: unknown) {
     const message = parse(text);
     if (message === null) return;
-    const result = emptyResult();
+    const result = this.node.emptyResult();
     for (const reply of this.node.receive(message, result)) this.link.send(JSON.stringify(reply));
     this.onMeeting(result);
   }
@@ -60,7 +71,7 @@ export class PeerSession {
   }
 }
 
-type Envelope = { from: string; to: string | null; body: MeshMessage };
+type Envelope = { from: string; to: string | null; body: PeerMessage };
 
 function isEnvelope(value: unknown): value is Envelope {
   if (typeof value !== "object" || value === null) return false;
@@ -70,7 +81,7 @@ function isEnvelope(value: unknown): value is Envelope {
 
 // Every tab announces itself with a hello to all; each tab that hears it meets the announcer
 // one-to-one, with replies addressed to it, so aggregation mass is never delivered twice.
-export class TabMesh {
+export class TabMesh<Result = MeetingResult> {
   // A fresh address per page load, used only to route replies between tabs.
   private readonly address = randomId();
   private readonly channel: BroadcastChannel;
@@ -78,8 +89,8 @@ export class TabMesh {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    private readonly node: MeshNode,
-    private readonly onMeeting: MeetingListener,
+    private readonly node: Peer<Result>,
+    private readonly onMeeting: MeetingListener<Result>,
     name = "rollcall-mesh",
   ) {
     this.channel = new BroadcastChannel(name);
@@ -101,7 +112,7 @@ export class TabMesh {
     return this.peers.size;
   }
 
-  private post(to: string | null, body: MeshMessage) {
+  private post(to: string | null, body: PeerMessage) {
     const envelope: Envelope = { from: this.address, to, body };
     this.channel.postMessage(envelope);
   }
@@ -110,7 +121,7 @@ export class TabMesh {
     if (!isEnvelope(data) || data.from === this.address) return;
     if (data.to !== null && data.to !== this.address) return;
     this.peers.set(data.from, Date.now());
-    const result = emptyResult();
+    const result = this.node.emptyResult();
     const replies = this.node.receive(data.body, result);
     // A broadcast hello starts a meeting: answer it, and say hello back so the other tab answers too.
     if (data.to === null && data.body.type === "hello") replies.push(this.node.hello());

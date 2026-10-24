@@ -19,12 +19,13 @@ export const DEFAULT_OPTIMIZER: ServerOptimizer = { kind: "adam", learningRate: 
 
 // Kept on the server and never sent to phones.
 export type OptimizerState = { first: number[]; second: number[] };
-export const freshOptimizerState = (): OptimizerState => ({ first: Array(DIMENSIONS).fill(0), second: Array(DIMENSIONS).fill(0) });
+// `dimensions` defaults to the street-blockage model's; other federated models pass their own.
+export const freshOptimizerState = (dimensions: number = DIMENSIONS): OptimizerState => ({ first: Array(dimensions).fill(0), second: Array(dimensions).fill(0) });
 export type OpenRound = { baseVersion: number; sum: number[]; mass: number; uploads: number; staleMass: number };
 
-export const emptyRound = (baseVersion: number): OpenRound => ({
+export const emptyRound = (baseVersion: number, dimensions: number = DIMENSIONS): OpenRound => ({
   baseVersion,
-  sum: Array(DIMENSIONS).fill(0),
+  sum: Array(dimensions).fill(0),
   mass: 0,
   uploads: 0,
   staleMass: 0,
@@ -66,7 +67,7 @@ export function closeRound(
   model: GlobalModel,
   round: OpenRound,
   issuedAt: number,
-  state: OptimizerState = freshOptimizerState(),
+  state: OptimizerState = freshOptimizerState(model.weights.length),
   optimizer: ServerOptimizer = DEFAULT_OPTIMIZER,
 ) {
   const step = round.sum.map((value) => value / round.mass);

@@ -187,6 +187,10 @@ export class MeshNode {
     return peer > mine || (peer === mine && hello.session > this.session);
   }
 
+  emptyResult(): MeetingResult {
+    return emptyResult();
+  }
+
   // Applies one message and returns the replies to send back.
   receive(message: unknown, result?: MeetingResult): MeshMessage[] {
     if (!isRecord(message)) return [];

@@ -153,15 +153,17 @@ function solve(matrix: number[][], vector: number[]) {
 
 // Logistic regression fitted centrally by Newton's method. Only for measuring: it needs every
 // example in one place, which is exactly what the phones never allow.
+// The dimension is the examples' (the street-blockage model's when there are none).
 export function fitCentrally(examples: Example[], l2 = 1e-3, iterations = 12) {
-  let w: number[] = Array(DIMENSIONS).fill(0);
+  const dimensions: number = examples[0]?.x.length ?? DIMENSIONS;
+  let w: number[] = Array(dimensions).fill(0);
   for (let it = 0; it < iterations && examples.length > 0; it++) {
     const gradient = meanGradient(w, examples, l2);
-    const hessian = Array.from({ length: DIMENSIONS }, (_, i) => Array.from({ length: DIMENSIONS }, (_, j) => (i === j ? l2 : 0)));
+    const hessian = Array.from({ length: dimensions }, (_, i) => Array.from({ length: dimensions }, (_, j) => (i === j ? l2 : 0)));
     for (const { x } of examples) {
       const p = predict(w, x);
       const weight = (p * (1 - p)) / examples.length;
-      for (let i = 0; i < DIMENSIONS; i++) for (let j = 0; j < DIMENSIONS; j++) hessian[i][j] += weight * x[i] * x[j];
+      for (let i = 0; i < dimensions; i++) for (let j = 0; j < dimensions; j++) hessian[i][j] += weight * x[i] * x[j];
     }
     const step = solve(hessian, gradient);
     w = w.map((value, i) => value - step[i]);
