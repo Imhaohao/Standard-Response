@@ -18,7 +18,7 @@ export function deathsIfUnserved({ weight, load }: RiskFields) {
   return people * Math.min(MAX_DEATH_SHARE, DEATH_SHARE_PER_WEIGHT * weight);
 }
 
-// boardsAt is when a vehicle is expected to have the rider aboard; null means nobody is coming.
+// boardsAt is when the rider is expected to have finished boarding; null means nobody is coming.
 export function expectedDeaths(rider: RiskFields & { deadlineAt: number }, boardsAt: number | null) {
   const worst = deathsIfUnserved(rider);
   if (boardsAt === null) return worst;

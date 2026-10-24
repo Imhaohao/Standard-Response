@@ -156,11 +156,14 @@ function OnTheirWay({ people, focus }: { people: Person[]; focus: FocusProps }) 
 }
 
 const RISK_MODEL_NOTE =
-  "Assumed risk model, not a prediction: each rider's risk grows with their need, is zero when a vehicle reaches them by their deadline, and reaches its maximum at fire arrival. The solver plans to make the first number as small as it can.";
+  "Assumed risk model, not a prediction: each rider's risk grows with their need, is zero when they are aboard a vehicle by their deadline, and reaches its maximum at fire arrival. The solver plans to make the first number as small as it can.";
 
-function boardingTime(assignment: Assignment) {
+// When the van is expected to have the rider aboard: its arrival plus the time it takes to board.
+function boardingDone(person: Person) {
+  const { assignment } = person;
+  if (!assignment) return null;
   const from = assignment.etaUpdatedAt ?? assignment.offeredAt ?? assignment.proposedAt;
-  return from + assignment.etaMinutes * 60_000;
+  return from + (assignment.etaMinutes + person.boardingMinutes) * 60_000;
 }
 
 function deathEstimates(people: Person[]) {
@@ -168,7 +171,7 @@ function deathEstimates(people: Person[]) {
   let withoutRides = 0;
   for (const person of people) {
     withoutRides += deathsIfUnserved(person);
-    if (needStage(person) !== "pickedUp") withPlan += expectedDeaths(person, person.assignment ? boardingTime(person.assignment) : null);
+    if (needStage(person) !== "pickedUp") withPlan += expectedDeaths(person, boardingDone(person));
   }
   return { withPlan, withoutRides };
 }

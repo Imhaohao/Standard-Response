@@ -140,7 +140,9 @@ def _add_time(routing, manager, model: Model, transit_index):
     for r, request in enumerate(model.requests):
         pickup = manager.NodeToIndex(model.pickup_of[r])
         time_dim.SetCumulVarSoftUpperBound(pickup, 0, max(1, round(WAIT_COST_PER_WEIGHT_SECOND * request["weight"])))
-        lateness_dim.SetCumulVarSoftUpperBound(pickup, max(0, int(request["deadline"])), lateness_cost_per_second(request))
+        # The cumul is arrival at the door; the rider is safe once boarding finishes, so that must beat the deadline.
+        boarded_by = int(request["deadline"] - request["boardingSeconds"])
+        lateness_dim.SetCumulVarSoftUpperBound(pickup, max(0, boarded_by), lateness_cost_per_second(request))
     return time_dim
 
 
@@ -207,6 +209,32 @@ def _initial_routes(manager, model: Model):
     return routes
 
 
+def _heuristic_routes(manager, model: Model):
+    """Warm start from the competent heuristic, so the search begins at the baseline and only improves on it."""
+    import heuristic  # heuristic imports this module's constants
+
+    plan = heuristic.solve(model.problem)
+    request_index = {request["id"]: r for r, request in enumerate(model.requests)}
+    shelter_index = {shelter["id"]: s for s, shelter in enumerate(model.shelters)}
+    routes = []
+    for route in plan["routes"]:
+        nodes = []
+        for stop in route["stops"]:
+            r = request_index[stop["request"]]
+            node = model.pickup_of[r] if stop["kind"] == "pickup" else model.dropoffs_of[r][shelter_index[stop["shelter"]]]
+            nodes.append(manager.NodeToIndex(node))
+        routes.append(nodes)
+    return routes
+
+
+def _solve_warm(routing, manager, model: Model, params):
+    for routes in (_heuristic_routes(manager, model), _initial_routes(manager, model)):
+        initial = routing.ReadAssignmentFromRoutes(routes, True)
+        if initial is not None:
+            return routing.SolveFromAssignmentWithParameters(initial, params)
+    return routing.SolveWithParameters(params)
+
+
 def _search_parameters(time_limit: float):
     params = pywrapcp.DefaultRoutingSearchParameters()
     params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
@@ -260,12 +288,7 @@ def solve(problem: dict) -> dict:
     _add_shelter_capacity(routing, manager, model)
 
     params = _search_parameters(problem.get("timeLimitSeconds", 3))
-    solution = None
-    initial = routing.ReadAssignmentFromRoutes(_initial_routes(manager, model), True)
-    if initial is not None:
-        solution = routing.SolveFromAssignmentWithParameters(initial, params)
-    if solution is None:
-        solution = routing.SolveWithParameters(params)
+    solution = _solve_warm(routing, manager, model, params)
     if solution is None:
         return empty_result(problem, "ortools")
     routes, dropped = _read_solution(routing, manager, model, time_dim, solution)
