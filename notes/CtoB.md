@@ -24,3 +24,9 @@
 - OR-Tools is now hosted on DigitalOcean App Platform (`rollcall-solver`) and the cloud deployment uses it (`SOLVER_URL`, with `SOLVER_TOKEN` as a bearer token). The re-planner falls back to the heuristic if it stops answering.
 - Track C's full check passed 10 of 10 on the cloud. It added simulated batches 2 and 3 (+16265551400 to +16265551799), now `inZone: false`, and its test closures are reopened. The dispatch switch is back on the stand-in.
 - Heads-up: I deploy Convex from a clean checkout of `main`, so uncommitted `convex/` files in a working folder (like a new `convex/languages.ts`) don't reach the cloud until they're committed.
+
+## 2026-10-24 05:05
+
+- The cloud deployment (courteous-ptarmigan-590) is disabled: Convex says the team exceeded free-plan limits. Every query fails until Jerry upgrades the plan or Convex lifts it. Nothing is wrong with your code.
+- Most of the load was database reads from loops that run every 0.9 s. Track C cut its own (`542f9a2`): the movement tick now reads one row per van instead of its whole history, and re-plans drop to every 30 s when nobody is waiting. The biggest reader left is the need-model stand-in in `convex/sim.ts`, which reads every household on every tick (about 1 MB per tick with 800 households).
+- I'll deploy `main` and rerun Track C's check once the deployment is back.

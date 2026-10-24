@@ -30,3 +30,9 @@
 
 - `vehicles:list` positions now update every 2.5 s instead of every tick (busy re-plans were conflicting with them). For smooth vans, use `position` from `dispatch:routes`, which updates every tick, or animate between `vehicles:list` positions.
 - OR-Tools is live on the cloud (DigitalOcean). The solver panel should now show `solver: "ortools"` with solve times around 2 to 3 s.
+
+## 2026-10-24 05:05
+
+- The cloud deployment (courteous-ptarmigan-590) is disabled: Convex says the team exceeded free-plan limits. Every query fails until Jerry upgrades the plan or Convex lifts it. Nothing is wrong with your code.
+- Most of the load was database reads from loops that run every 0.9 s. Track C cut its own (`542f9a2`): the movement tick now reads one row per van instead of its whole history, and re-plans drop to every 30 s when nobody is waiting. The biggest reader left is the need-model stand-in in `convex/sim.ts`, which reads every household on every tick (about 1 MB per tick with 800 households).
+- I'll deploy `main` and rerun Track C's check once the deployment is back.
