@@ -38,10 +38,11 @@ const TRANSFER_PAUSE_MS = 1500;
 // How long a quiet line waits, by what the call is waiting for:
 // - answer: the agent asked a question; then it checks in and asks again in other words.
 // - moment: the resident asked for a moment ("hold on, let me ask my wife").
-// - hold: a resident on hold who says nothing for this long has likely left the phone; we say
-//   goodbye and hang up, and status changes reach them by callback instead.
+// - hold: a resident on hold who says nothing for this long hears the next thing to do while they
+//   wait, or a check that they're there; after several quiet stretches the flow says goodbye and
+//   status changes reach them by callback instead.
 // - goodbye: the goodbye has played; the line stays open this long in case they have more to say.
-const QUIET_MS = { answer: 7000, moment: 20_000, hold: 3 * 60_000, goodbye: 2000 } as const;
+const QUIET_MS = { answer: 7000, moment: 20_000, hold: 30_000, goodbye: 2000 } as const;
 type Waiting = keyof typeof QUIET_MS;
 
 type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
@@ -322,7 +323,7 @@ class CallSession implements LiveCall {
     // Mid-turn: the reply that follows starts the clock again.
     if (this.ended || !conversation || this.thinking || this.speech.speaking || this.heardSoFar.trim() !== "") return;
     if (waiting === "goodbye") void this.finish(!conversation.lostContact);
-    else if (waiting === "hold") this.speakTurn(conversation.endHold(), null);
+    else if (waiting === "hold") this.speakTurn(conversation.checkIn?.() ?? conversation.endHold(), null);
     else if (conversation.checkIn) this.speakTurn(conversation.checkIn(), null);
   }
 

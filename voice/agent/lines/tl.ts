@@ -43,6 +43,11 @@ export const TL: Lines = {
   passedOn: (place) => `Salamat po, naipasa ko na po ang ${place}.`,
   needAddress: "Para mailagay po kayo sa rescue list, kailangan ko po ang address.",
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
+  holdSteps: [
+    "Habang naghihintay po, ilagay ninyo sa isang bag ang mga gamot, salamin, ID at charger ng telepono.",
+    "Magsuot po kayo ng matibay na sapatos, at manatili po sa iisang kuwarto ang lahat ng aalis kasama ninyo.",
+    "Kung kaya po, buksan ninyo ang ilaw sa labas para madaling mahanap ang bahay ninyo.",
+  ],
   holdPrompt: "Mananatili po ako sa linya kasama ninyo. Puwede po kayong magbaba anumang oras.",
   goodbye: "Salamat po. Paalam po.",
   transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",

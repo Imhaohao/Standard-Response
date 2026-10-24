@@ -42,6 +42,11 @@ export const EN: Lines = {
   passedOn: (place) => `Thanks, I've passed on ${place}.`,
   needAddress: "To put you on the rescue list, I need the address.",
   leaveNow: "Please leave now, and take your medications and phone charger.",
+  holdSteps: [
+    "While you wait, put your medications, glasses, ID and phone charger in one bag.",
+    "Put on sturdy shoes, and keep everyone who is leaving with you in the same room.",
+    "If you can, turn on an outside light so your home is easy to find.",
+  ],
   holdPrompt: "I'll stay on the line with you. You can hang up any time.",
   goodbye: "Thank you. Goodbye.",
   transferOut: "Okay, let me transfer you. Give me two seconds.",

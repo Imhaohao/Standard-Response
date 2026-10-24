@@ -62,3 +62,12 @@ The voice exam (`npm run exam:voice`, README "Voice exam") drove changes to line
 - The inbound greeting no longer says "I can help get you a ride out", and `askAgain.address` no longer starts with "Sorry, I didn't catch that." (still matches `street address`).
 - A bare "yes", "no", "just me", "okay" on hold or "hello?" is now read in code without Claude (`voice/agent/quickAnswer.ts`), so those turns return in milliseconds over `POST /turn`.
 - `POST /turn` request and response shapes are unchanged.
+
+## 2026-10-24 18:10
+
+Hold (after the questions, waiting for a driver) now always answers, which changes some `POST /turn` replies on hold:
+
+- **New interpreter flag `asks_what_to_do`** ("what should I bring?", "do I wait outside?"). The reply is the next of three fixed `holdSteps` lines (medications, glasses, ID and charger in one bag; sturdy shoes and everyone in one room; an outside light on), never Claude's advice. Someone leaving on their own hears `leaveNow` instead.
+- **No silent or acknowledgment-only turns on hold.** If Claude's reply would be dropped as a repeat, or the turn has only an acknowledgment, the code adds the status line, or the next `holdSteps` line when the status line was the last thing said.
+- Phone-only: a quiet line on hold gets a check-in every 30 seconds (the three steps, then `stillThere`), and after six quiet stretches in a row, the goodbye.
+- Request and response shapes are unchanged.

@@ -51,6 +51,7 @@ const reading = (language: Language, overrides: Partial<Interpretation>): Interp
   addressedToAgent: true,
   wantsToEnd: false,
   wantsTime: false,
+  asksWhatToDo: false,
   neighborAddresses: [],
   spokenLanguage: language,
   acknowledgment: "",

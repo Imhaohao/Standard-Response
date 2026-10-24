@@ -43,6 +43,11 @@ export const VI: Lines = {
   passedOn: (place) => `Cảm ơn, tôi đã chuyển ${place} cho nhân viên điều phối.`,
   needAddress: "Để đưa quý vị vào danh sách cứu hộ, tôi cần địa chỉ.",
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
+  holdSteps: [
+    "Trong lúc chờ, quý vị hãy bỏ thuốc, kính, giấy tờ tùy thân và sạc điện thoại vào một túi.",
+    "Quý vị hãy mang giày chắc chắn, và để mọi người sẽ đi cùng ở chung một phòng.",
+    "Nếu được, quý vị hãy bật đèn bên ngoài để dễ tìm thấy nhà mình.",
+  ],
   holdPrompt: "Tôi sẽ giữ máy cùng quý vị. Quý vị có thể cúp máy bất cứ lúc nào.",
   goodbye: "Cảm ơn quý vị. Tạm biệt.",
   transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",

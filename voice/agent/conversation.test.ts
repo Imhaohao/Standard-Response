@@ -21,6 +21,7 @@ function heard(overrides: Partial<Interpretation> = {}): Interpretation {
     addressedToAgent: true,
     wantsToEnd: false,
     wantsTime: false,
+    asksWhatToDo: false,
     neighborAddresses: [],
     spokenLanguage: "en",
     acknowledgment: "",
@@ -110,12 +111,57 @@ describe("answers that don't answer", () => {
 
   it("answers anything said on hold with where the ride stands, never a stock filler", () => {
     const { conversation } = atHold();
+    // They heard the status on reaching hold, so the first answer is something to do meanwhile.
     const asked = conversation.respond("are we supposed to wait here?", heard());
-    assert.deepEqual(asked.sentences, [conversation.rideLine()]);
+    assert.deepEqual(asked.sentences, [EN.holdSteps[0]]);
     const quiet = conversation.respond("okay", heard({ addressedToAgent: true }));
     assert.deepEqual(quiet.sentences, []);
     const blocked = conversation.respond("are they coming?", heard({ reply: "They'll be there soon." }));
     assert.deepEqual(blocked.sentences, [conversation.rideLine()]);
+  });
+
+  it("never leaves a caller on hold with only an acknowledgment, or a reply it already gave", () => {
+    const { conversation } = atHold();
+    const acked = conversation.respond("I'll be sitting right here by the door", heard({ acknowledgment: "You're by the door." }));
+    assert.deepEqual(acked.sentences, [EN.holdSteps[0]]);
+    const reply = "I don't know that.";
+    conversation.respond("how close is the fire?", heard({ reply }));
+    const again = conversation.respond("are the roads open?", heard({ reply }));
+    assert.ok(again.sentences.length > 0);
+    assert.ok(!again.sentences.includes(reply));
+  });
+
+  it("answers what to do while waiting with the fixed steps, in turn", () => {
+    const { conversation } = atHold();
+    const first = conversation.respond("what should I bring?", heard({ asksWhatToDo: true }));
+    assert.deepEqual(first.sentences, [EN.holdSteps[0]]);
+    const second = conversation.respond("anything else I should do?", heard({ asksWhatToDo: true }));
+    assert.deepEqual(second.sentences, [EN.holdSteps[1]]);
+  });
+
+  it("tells someone leaving on their own to go when they ask what to do", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("yes", heard({ answer: "yes", updates: { canLeave: "yes" } }));
+    const turn = conversation.respond("what should I do?", heard({ asksWhatToDo: true }));
+    assert.ok(turn.sentences.includes(EN.leaveNow));
+  });
+
+  it("fills a quiet line on hold with steps, then check-ins, then a goodbye", () => {
+    const { conversation } = atHold();
+    const said = Array.from({ length: 6 }, () => conversation.checkIn().sentences);
+    assert.deepEqual(said.slice(0, 3), EN.holdSteps.map((step) => [step]));
+    assert.deepEqual(said.slice(3), EN.stillThere.map((line) => [line]));
+    assert.equal(conversation.step, "hold");
+    const last = conversation.checkIn();
+    assert.ok(last.done);
+    assert.ok(last.sentences.includes(EN.goodbye));
+  });
+
+  it("starts the quiet count over when the caller on hold speaks", () => {
+    const { conversation } = atHold();
+    for (let stretch = 0; stretch < 6; stretch += 1) conversation.checkIn();
+    conversation.respond("okay", heard());
+    assert.ok(!conversation.checkIn().done);
   });
 
   it("takes a correction that restates the record as a confirmation, not a loop", () => {

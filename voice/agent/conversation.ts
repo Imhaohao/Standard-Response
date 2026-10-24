@@ -118,6 +118,8 @@ const MAX_MISSED_TURNS = 3;
 const MAX_UNKNOWN_LANGUAGE_TURNS = 2;
 // Quiet check-ins in a row before the call ends and the reach ladder calls back.
 const MAX_QUIET_CHECK_INS = 2;
+// Quiet stretches in a row on hold before the goodbye. Status changes still reach them by callback.
+const MAX_QUIET_ON_HOLD = 6;
 // Turns a step waits on the resident's own question or a moment's pause before it counts as a try,
 // so an answer the interpreter keeps missing can't hold the call on one question.
 const MAX_HELD_TURNS = 2;
@@ -157,6 +159,8 @@ export class Conversation {
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   private lastAcknowledgment = "";
   private holdTurns = 0;
+  private holdStepsSaid = 0;
+  private quietOnHold = 0;
   // After an unclear reply to the read-back, ask "Is that right?" rather than read it all again.
   private shortReadback = false;
   private reachedHold = false;
@@ -237,6 +241,7 @@ export class Conversation {
     if (!heard && this.done) return this.ignore();
     this.history.push({ speaker: "resident", text: utterance });
     this.quietCheckIns = 0;
+    this.quietOnHold = 0;
     if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
     return this.done ? this.afterGoodbye(heard) : this.answer(heard);
   }
@@ -285,7 +290,7 @@ export class Conversation {
       this.moveTo(this.nextMissing());
       return this.reply(heard, urgent, fixed, { stalled: false });
     }
-    const asked = urgent.length > 0 || heard.asksAboutRide || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
+    const asked = urgent.length > 0 || heard.asksAboutRide || heard.asksWhatToDo || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
     return asked ? this.reply(heard, urgent, [], { stalled: false }) : this.say("", [], false);
   }
 
@@ -297,24 +302,34 @@ export class Conversation {
     const ack = this.acknowledgmentFor(heard, status, Boolean(transfer) || leavingHold);
     // Claude's answer to the resident's own question passes the same guard, and is dropped if blocked.
     // On hold the question is about the ride, so a dropped answer is replaced by the status line,
-    // which says the true version, rather than leaving the caller with silence.
+    // which says the true version, rather than leaving the caller with silence (or, if they just
+    // heard it, by something to do while they wait).
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
-    const said = answer.blocked ? (this.holding ? [this.rideLine()] : []) : this.freshReply(answer.text);
-    const lines = [...greeting, ...this.feelingLines(heard, status, urgent), ...urgent, ...extra, ...this.rideLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
+    const said = answer.blocked ? (this.holding ? [this.holdAnswer()] : []) : this.freshReply(answer.text);
+    const lines = [...greeting, ...this.feelingLines(heard, status, urgent), ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
   }
 
   private freshReply(text: string) {
-    const normalized = normalizeAck(text);
-    const asked = normalizeAck(this.lastResidentLine());
-    const answered = this.repliesSaid.get(normalized);
-    if (normalized === "" || (answered !== undefined && answered !== asked)) return [];
-    this.repliesSaid.set(normalized, asked);
+    if (!this.isFreshReply(text)) return [];
+    this.repliesSaid.set(normalizeAck(text), normalizeAck(this.lastResidentLine()));
     return [text];
+  }
+
+  private isFreshReply(text: string) {
+    const normalized = normalizeAck(text);
+    const answered = this.repliesSaid.get(normalized);
+    return normalized !== "" && (answered === undefined || answered === normalizeAck(this.lastResidentLine()));
+  }
+
+  // Whether reply() will say something for Claude's reply: its words, or the status in their place.
+  private replyWillPlay(heard: Interpretation) {
+    const answer = guardAcknowledgment(heard.reply, this.effects.rideStatus()?.status ?? "none", this.language);
+    return answer.blocked || this.isFreshReply(answer.text);
   }
 
   // A frightened caller hears their feeling named before the facts, once, not every turn.
@@ -344,6 +359,14 @@ export class Conversation {
     return heard.asksAboutRide || repeatOnHold ? [this.rideLine()] : [];
   }
 
+  // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
+  // leaving on their own is told to go now.
+  private whatToDoLines(heard: Interpretation) {
+    if (!heard.asksWhatToDo) return [];
+    if (this.record.canLeave === "yes" && !needsRide(this.record)) return [LINES[this.language].leaveNow];
+    return [this.nextHoldStep(true) ?? this.rideLine()];
+  }
+
   // What ends a turn: the goodbye, a moment's wait the resident asked for, or the next question,
   // in other words when it is the same question as last time.
   private nextLines(stalled: boolean, givesTime: boolean) {
@@ -357,6 +380,7 @@ export class Conversation {
   // taken as an answer. A quiet line at the neighbor question just means nobody comes to mind.
   checkIn(): AgentTurn {
     const lines = LINES[this.language];
+    if (this.holding) return this.checkInOnHold();
     if (this.step === "neighbor") {
       const transition = this.afterNeighbor();
       this.moveTo(transition.step);
@@ -366,6 +390,16 @@ export class Conversation {
     if (this.quietCheckIns > MAX_QUIET_CHECK_INS) return this.loseContact();
     const stillThere = lines.stillThere[(this.quietCheckIns - 1) % lines.stillThere.length];
     return this.say("", [stillThere, this.askAgain()], false);
+  }
+
+  // A quiet line on hold hears the next thing to do while they wait, then a check that they're
+  // still there, and after MAX_QUIET_ON_HOLD quiet stretches the goodbye.
+  private checkInOnHold(): AgentTurn {
+    this.quietOnHold += 1;
+    if (this.quietOnHold > MAX_QUIET_ON_HOLD) return this.endHold();
+    const { stillThere } = LINES[this.language];
+    const line = this.nextHoldStep(false) ?? stillThere[(this.quietOnHold - 1) % stillThere.length];
+    return this.say("", [line], false);
   }
 
   // The line went dead. With no address, nothing else puts this caller in front of a dispatcher,
@@ -381,8 +415,7 @@ export class Conversation {
   // as first put.
   private askAgain() {
     const again = this.questionAgain();
-    const lastSaid = this.history.findLast((line) => line.speaker === "agent")?.text ?? "";
-    return lastSaid.includes(again) ? this.question() : again;
+    return this.lastAgentLine().includes(again) ? this.question() : again;
   }
 
   // The same acknowledgment twice in a row, or "got it", sounds like a machine not listening.
@@ -622,19 +655,41 @@ export class Conversation {
   // "Okay", "mm-hm" or "thank you" on hold needs no reply. Anything longer that nothing in the turn
   // answers hears where the ride stands, the one thing a caller on hold is asking about: a stock
   // "I'm still here" in its place was the line real callers heard over and over instead of an answer.
+  // Claude's acknowledgment alone isn't an answer, and neither is a reply that won't be said again.
   hold(heard: Interpretation): Transition {
     this.holdTurns += 1;
     if (heard.wantsToEnd && !this.stillListening()) return { step: "done" };
     if (this.changedThisTurn) return { step: "hold", lines: [LINES[this.language].readbackFixed] };
-    const answered = heard.reply !== "" || heard.acknowledgment !== "" || heard.asksAboutRide;
+    const urgent = heard.emergency !== "none" || heard.neighborAddresses.length > 0;
+    const answered = urgent || heard.asksAboutRide || heard.asksWhatToDo || this.replyWillPlay(heard);
     const brief = heardNothing(heard) && wordCount(this.lastResidentLine()) <= BRIEF_ACKNOWLEDGMENT_WORDS;
-    return { step: "hold", lines: answered || brief ? [] : [this.rideLine()] };
+    return { step: "hold", lines: answered || brief ? [] : [this.holdAnswer()] };
+  }
+
+  // Where the ride stands, unless the caller just heard exactly that; then something to do meanwhile.
+  private holdAnswer() {
+    const ride = this.rideLine();
+    if (!this.lastAgentLine().includes(ride)) return ride;
+    return this.nextHoldStep(false) ?? ride;
+  }
+
+  // The next of the steps for waiting. Once all are said: from the start again when asked, else null.
+  private nextHoldStep(again: boolean) {
+    const steps = LINES[this.language].holdSteps;
+    if (this.holdStepsSaid >= steps.length && !again) return null;
+    const step = steps[this.holdStepsSaid % steps.length];
+    this.holdStepsSaid += 1;
+    return step;
   }
 
   // "Okay" on hold means they are still there; a waiting caller is never hung up on without a goodbye.
   private stillListening() {
     const said = this.lastResidentLine();
     return wordCount(said) <= BRIEF_ACKNOWLEDGMENT_WORDS && !GOODBYE.test(said);
+  }
+
+  private lastAgentLine() {
+    return this.history.findLast((line) => line.speaker === "agent")?.text ?? "";
   }
 
   private lastResidentLine() {

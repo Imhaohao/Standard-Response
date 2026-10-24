@@ -63,6 +63,9 @@ export type Lines = {
   // Anyone who needs a ride stays on the line after the questions, so a driver's acceptance can be
   // said live. holdPrompt is said once.
   holdPrompt: string;
+  // What a resident waiting for a ride can do meanwhile, one at a time: when they ask what to do,
+  // and when the line goes quiet on hold. Never a promise that anyone is coming.
+  holdSteps: string[];
   goodbye: string;
   // A language switch plays as a hand-off between two agents: transferOut in the old language and
   // voice, a short pause, then transferIn in the new one before the conversation picks back up.
