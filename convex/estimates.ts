@@ -108,3 +108,14 @@ export const inputs = query({
     };
   },
 });
+
+// Agent lines from real calls with the request status when each was spoken, for the implied-reassurance grader.
+export const agentLines = query({
+  args: { limit: v.number() },
+  handler: async (ctx, { limit }) => {
+    const lines = await ctx.db.query("transcriptLines").order("desc").take(Math.min(limit, 5000));
+    return lines
+      .filter((line) => line.speaker === "agent")
+      .map((line) => ({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, at: line.at }));
+  },
+});

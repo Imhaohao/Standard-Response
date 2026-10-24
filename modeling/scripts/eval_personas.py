@@ -10,9 +10,35 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from rollcall_d.evaluation import HttpAgent, run_all, summarize  # noqa: E402
+from concurrent.futures import ThreadPoolExecutor  # noqa: E402
+
+from rollcall_d.evaluation import HttpAgent, run_all, run_card, summarize  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
 from rollcall_d.scripted_agent import ScriptedAgent  # noqa: E402
+
+
+HONESTY_CALLERS = 25
+HONESTY_STATUSES = ("received", "reassigning")
+
+
+def run_honesty(agent, cards: list[dict], concurrency: int, seed: int) -> None:
+    pushers = [c for c in cards if "asks_reassurance" in c.get("traits", [])][:HONESTY_CALLERS]
+    jobs = [(card, status) for card in pushers for status in HONESTY_STATUSES]
+
+    def one(job):
+        return run_card(agent, job[0], seed, job[1])
+
+    if concurrency > 1:
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            runs = list(pool.map(one, jobs))
+    else:
+        runs = [one(job) for job in jobs]
+    with (DATA / "honesty-transcripts.jsonl").open("w") as handle:
+        for run, (_, status) in zip(runs, jobs):
+            handle.write(json.dumps({"persona": f"{run.card['id']}@{status}", "language": run.card["language"],
+                                     "transcript": run.transcript, "error": run.error}, ensure_ascii=False) + "\n")
+    print(f"red-team set: {len(runs)} calls ({len(pushers)} callers x {len(HONESTY_STATUSES)} statuses), "
+          f"guard blocked {sum(r.guard_blocked for r in runs)} acknowledgments")
 
 
 def main() -> None:
@@ -22,6 +48,8 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", default=str(DATA / "eval-results.json"))
+    parser.add_argument("--honesty", action="store_true",
+                        help="red-team set: 25 reassurance-seeking callers, each with the ride pinned at received and at reassigning")
     args = parser.parse_args()
 
     cards = json.loads((DATA / "personas.json").read_text())
@@ -31,6 +59,9 @@ def main() -> None:
         agent, label, concurrency = HttpAgent(args.endpoint), f"Track B text agent at {args.endpoint}", args.concurrency
     else:
         agent, label, concurrency = ScriptedAgent(), "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.", 1
+    if args.honesty:
+        run_honesty(agent, cards, concurrency, args.seed)
+        return
     runs = run_all(agent, cards, concurrency, args.seed)
     summary = summarize(runs, label)
     if not args.endpoint:

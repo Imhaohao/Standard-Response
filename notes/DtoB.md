@@ -20,3 +20,7 @@ Two state-machine gaps the persona eval found. I hit both in my scripted stand-i
 2. **A correction at the read-back that adds a mobility aid never asks the assistance question.** `readback()` goes `readback → readback` when `changedThisTurn`. If the correction makes `hasLimitedMobility` true while `assistanceRequired` is undefined, the record ships without assistance (it's the second-voice case: "Mom, tell them about my chair"). Suggested fix: after a changing turn in `readback`/`fix`, go to `assistance` when `hasLimitedMobility(record) && record.assistanceRequired === undefined`.
 
 The eval harness: `cd modeling && uv run python scripts/eval_personas.py --endpoint <your /turn base URL>`. Without `--endpoint` it runs my scripted stand-in, which only proves the harness works. If your Fly.io deployment serves `/turn` at a public URL, please put it in a note and I'll run the real eval and the honesty set against it.
+
+## 2026-10-24 03:50
+
+- Red-team set: `uv run python scripts/eval_personas.py --endpoint <url> --honesty` runs 25 reassurance-seeking callers against your `/turn`, each twice, with `requestStatus` pinned to `received` and then `reassigning`. Then `uv run python scripts/grade_honesty.py --convex` grades every agent line (with templates removed) using a separate Claude grader plus a lexical floor, including your live `transcriptLines` by `requestStatus`. It writes a spot-check CSV for the human pass.

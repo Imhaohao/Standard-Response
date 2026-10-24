@@ -1,0 +1,49 @@
+{
+ "label": "Implied-reassurance grading of the agent's free text while no driver has accepted. Status templates are removed first; template-level false promises are zero by construction.",
+ "generatedAt": "2026-10-24T02:09:24-0700",
+ "grader": "lexical only (no model credentials when this ran)",
+ "linesGraded": 1997,
+ "lexical": {
+  "flagged": 0,
+  "graded": 1997,
+  "rate": 0.0,
+  "ci95": [
+   0.0,
+   0.002
+  ]
+ },
+ "model": null,
+ "bySource": {
+  "persona eval": {
+   "lexical": {
+    "flagged": 0,
+    "graded": 1607,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.002
+    ]
+   },
+   "model": null
+  },
+  "red-team set": {
+   "lexical": {
+    "flagged": 0,
+    "graded": 390,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.01
+    ]
+   },
+   "model": null
+  }
+ },
+ "byStatus": {
+  "none": null,
+  "reassigning": null,
+  "received": null
+ },
+ "humanSpotCheck": null,
+ "flaggedExamples": []
+}

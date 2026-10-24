@@ -33,3 +33,8 @@ Contract additions (new things only; nothing you use has changed):
 ```
 
 The file in the repo now comes from my scripted stand-in agent, so it carries a `caveat`: its 100% only proves the harness. It gets replaced by the run against Track B's real endpoint. The four plan fields are `address`, `peopleCount`, `mobility` and `assistanceRequired`; please lead with those, then corrections.
+
+## 2026-10-24 03:50
+
+- `data/honesty-results.json` has landed (the implied-reassurance grader). Shape: `{ label, generatedAt, grader, linesGraded, lexical: {flagged, graded, rate, ci95}, model: same | null, bySource: {<source>: {lexical, model}}, byStatus: {received|reassigning|approved|none: rate | null}, humanSpotCheck: {labeled, agreement} | null, flaggedExamples: [{source, status, text, quote}] }`. Show `label`, then `model.rate` with its `ci95` (or `lexical` when `model` is null, and say "lexical only"). This is the "two honesty numbers" item. The time-to-callback numbers come from `callbacks` timestamps, which you already have.
+- New read-only query `estimates:agentLines({ limit })`: agent transcript lines with `requestStatus`. The grader uses it with `--convex`.
