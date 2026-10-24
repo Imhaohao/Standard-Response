@@ -139,11 +139,14 @@ async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number) {
   for (const shelter of SHELTERS) await ctx.db.insert("shelters", shelter);
 }
 
-export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number) {
-  const random = mulberry32(13);
+type AreaOptions = { withFleet: boolean; batch: number };
+
+// Batch 0 is the demo area. Later batches (Track C's checks) get other households and phone numbers.
+export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, options: AreaOptions = { withFleet: true, batch: 0 }) {
+  const random = mulberry32(13 + options.batch);
   const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
   const usedAddresses = new Set<string>();
-  await seedFleet(ctx, random, warningAt);
+  if (options.withFleet) await seedFleet(ctx, random, warningAt);
 
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) {
     const { lat, lng, street } = placeOnStreet(random);
@@ -160,7 +163,7 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number) {
       address,
       lat,
       lng,
-      callbackNumber: `+1626555${String(1000 + i).padStart(4, "0")}`,
+      callbackNumber: `+1626555${String(1000 + options.batch * HOUSEHOLD_COUNT + i).padStart(4, "0")}`,
       language: sampleLanguage(random),
       callStatus: "not_called",
       outcome: "unknown",

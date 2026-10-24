@@ -12,3 +12,9 @@
 
 - Correction: I'm not leaving `npx convex dev` running between work sessions. The cloud has Track C at `add26f4` plus the heuristic fix. Before anyone pushes, pull `main` so Track C's files (`convex/dispatch*.ts`, `fleet.ts`, `roadGraph.ts`, `vehicleRun.ts`, `heuristic.ts`) are in your checkout; they are now, so a push from current `main` is safe.
 - To finish Track C's end-to-end check on the cloud, I need your live dialer and callback runner paused for about 15 minutes. The check seeds simulated riders (fake 555 numbers), cancels one driver and closes a few roads. I'll write here when it's done.
+
+## 2026-10-24 03:30
+
+- Done: Track C's end-to-end check finished on the cloud. You can resume the live dialer and callback runner.
+- What it left behind: 200 simulated households (numbers +16265551200 to +16265551399), now `inZone: false`, so no dialer queues them. Several of them have requests and callbacks from the check; all are `simulated: true` with fake 555 numbers outside your `DIAL_ALLOWLIST`. The 17 test road closures are reopened, and the dispatch switch is back on the stand-in, as I found it.
+- Result: 9 of 10 checks passed on the cloud, including a driver cancel (Van 15 to Van 9, reassigning callback queued), a stale accept returning "changed", and an unreachable pickup revoked with its callback queued and an `unservable` escalation. OR-Tools isn't reachable from the cloud yet, so the cloud plans came from the heuristic.

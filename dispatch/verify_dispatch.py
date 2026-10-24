@@ -95,7 +95,7 @@ def start_night(world: World, reset: bool):
 
 
 def check_solver(world: World, report: Report):
-    plan = wait_for(lambda: (world.status()["latestPlan"] or None), 90)
+    plan = wait_for(lambda: _own_plan(world), 120)
     if not plan:
         report.check(False, "Dispatcher writes plans", "no plan within 90 s")
         return
@@ -107,6 +107,11 @@ def check_solver(world: World, report: Report):
         f"plan v{plan['version']} by {solver}, {plan.get('requestCount')} requests, {plan.get('vehicleCount')} vehicles, "
         f"{plan['solveMs']} ms, fallback: {plan.get('fallbackReason') or 'none'}, solver configured: {status['solverConfigured']}",
     )
+
+
+def _own_plan(world: World):
+    plan = world.status()["latestPlan"]
+    return plan if plan and plan["solver"] != "stand_in" else None
 
 
 def fits(vehicle, request):
@@ -183,6 +188,17 @@ def edges_touching(node):
     return [e for e in GRAPH["edges"] if node in (e["u"], e["v"])]
 
 
+def edge_on_path(points):
+    """The road segment between two consecutive intersections the van will drive through, near mid-route."""
+    nodes = [nearest_node(p["lat"], p["lng"]) for p in points]
+    pairs = [(a, b) for a, b in zip(nodes, nodes[1:]) if a != b]
+    for a, b in pairs[len(pairs) // 2 :] + pairs[: len(pairs) // 2]:
+        edge = next((e for e in GRAPH["edges"] if e["u"] == a and e["v"] == b), None)
+        if edge:
+            return edge
+    return None
+
+
 def closure_for(edge):
     u, v = GRAPH["nodes"][edge["u"]], GRAPH["nodes"][edge["v"]]
     return {"edgeKey": edge["key"], "path": [{"lat": u[0], "lng": u[1]}, {"lat": v[0], "lng": v[1]}], "source": "manual"}
@@ -197,14 +213,15 @@ def check_reroute(world: World, report: Report):
         report.check(False, "Closure re-routes the same vehicle to the same stop", "no long pickup route to cut")
         return
     vehicle_id, route = next(iter(routes.items()))
-    middle = route["remaining"][len(route["remaining"]) // 2]
-    node = nearest_node(middle["lat"], middle["lng"])
-    blocked = [e for e in edges_touching(node)]
-    world.client.mutation("roads:addClosures", {"closures": [closure_for(blocked[0])]})
+    edge = edge_on_path(route["remaining"])
+    if not edge:
+        report.check(False, "Closure re-routes the same vehicle to the same stop", "couldn't find a road segment on the van's path")
+        return
+    world.client.mutation("roads:addClosures", {"closures": [closure_for(edge)]})
     target = route["target"]
     rerouted = wait_for(lambda: _rerouted(world, vehicle_id, target, route), 30)
     detail = (
-        f"closed {blocked[0]['name'] or 'a street'} on the van's path; "
+        f"closed {edge['name'] or 'a street'} on the van's path; "
         + ("new path, same pickup" if rerouted == "same" else "pickup revoked instead" if rerouted == "revoked" else "no change seen")
     )
     report.check(rerouted in ("same", "revoked"), "Closure re-routes the same vehicle to the same stop", detail)
@@ -326,9 +343,9 @@ def main():
     check_movement(world, report)
     check_frozen_runs(world, report)
     check_reroute(world, report)
-    check_revocation(world, report)
     cancelled = check_cancel_and_new_driver(world, report, avoid=())
     check_stale_accept(world, report, cancelled)
+    check_revocation(world, report)
     check_fallback(world, report, args.fallback_dir)
     check_completed(world, report)
     print(f"\n{len(report.rows) - len(report.failed)} of {len(report.rows)} checks passed")

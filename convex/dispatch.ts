@@ -241,10 +241,13 @@ export const status = query({
   },
 });
 
-// Rescue map: the road path each vehicle still has to drive.
+// Rescue map: the road path each vehicle still has to drive. Empty while the dispatch stand-in
+// is on, because its straight-line movement doesn't follow these paths.
 export const routes = query({
   args: {},
   handler: async (ctx) => {
+    const control = await ctx.db.query("control").first();
+    if (control?.simulateDispatch ?? true) return [];
     const rows = await ctx.db.query("vehicleRoutes").take(200);
     return rows.map((route) => ({
       vehicleId: route.vehicleId,

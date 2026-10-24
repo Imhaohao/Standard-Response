@@ -12,6 +12,7 @@ import type * as callbacks from "../callbacks.js";
 import type * as calls from "../calls.js";
 import type * as control from "../control.js";
 import type * as dispatch from "../dispatch.js";
+import type * as dispatchCheck from "../dispatchCheck.js";
 import type * as dispatchProblem from "../dispatchProblem.js";
 import type * as dispatchSnapshot from "../dispatchSnapshot.js";
 import type * as dispatchStandIn from "../dispatchStandIn.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   calls: typeof calls;
   control: typeof control;
   dispatch: typeof dispatch;
+  dispatchCheck: typeof dispatchCheck;
   dispatchProblem: typeof dispatchProblem;
   dispatchSnapshot: typeof dispatchSnapshot;
   dispatchStandIn: typeof dispatchStandIn;

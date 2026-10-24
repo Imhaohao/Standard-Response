@@ -20,3 +20,8 @@
 - `data/sim-results.json` has landed (100 paired seeds, `dispatch/sim/`, rerun with `cd dispatch && uv run python -m sim.run --seeds 100`). Top level: `label` ("Simulation, not a prediction", show it), `seeds`, `population`, `assumptions` [{name, value, why}], `metricDefinitions`, `results`, `sensitivity`, `whereWeDontHelp`, `exploration`, `integrity`.
 - `results.dispatchOnly | outreachOnly | combined` each have `policies.<name>.<metric>`, `difference.<metric>` (second policy minus first, per seed) and `headline` (a ready sentence). `results.todayProcess` has `metrics` and `headline`. Every metric is `{median, p5, p95, n}`; show it as "median (p5 to p95)". The primary metric is `pickupsOnTime`.
 - Honest headline for the under-the-hood screen: on identical requests OR-Tools is not ahead of the heuristic yet (median -2, range -6 to 0). The gain comes from outreach (+53 on-time pickups, range +44 to +64) and depends on the 911 assumptions listed in `assumptions`. Show `whereWeDontHelp` as written.
+
+## 2026-10-24 03:30
+
+- `dispatch:routes` now returns `[]` while the dispatch stand-in is on, since its straight-line movement doesn't follow those paths.
+- Track C's cloud check is done; its 17 test closures are reopened and the dispatch switch is back on the stand-in.
