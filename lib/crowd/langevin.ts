@@ -104,6 +104,10 @@ export class CrowdSim {
   readonly router: RoadRouter;
   seconds = 0;
   discovered = 0;
+  // Flow by street: cars that entered each segment, and speed samples taken on it every 30 s.
+  readonly segmentEntries: Uint32Array;
+  readonly segmentSpeedSum: Float64Array;
+  readonly segmentSpeedSamples: Uint32Array;
 
   private trueShut: Uint8Array;
   private trueBlocked = new Set<number>();
@@ -142,6 +146,9 @@ export class CrowdSim {
     this.hashKey = new Int32Array(n);
     this.hashCols = Math.ceil((ground.cols * ground.cell) / HASH_CELL) + 1;
     this.router = new RoadRouter(ground, params.safeLat);
+    this.segmentEntries = new Uint32Array(ground.segments.length);
+    this.segmentSpeedSum = new Float64Array(ground.segments.length);
+    this.segmentSpeedSamples = new Uint32Array(ground.segments.length);
     for (const [i, household] of households.entries()) {
       [this.x[i], this.y[i]] = toXY(household);
       this.people[i] = Math.max(1, household.peopleCount);
@@ -179,6 +186,7 @@ export class CrowdSim {
     this.refreshIfDue();
     if (this.seconds >= this.nextDecision) {
       this.decideDepartures(DECISION_EVERY_SECONDS / 60);
+      this.sampleFlow();
       this.nextDecision = this.seconds + DECISION_EVERY_SECONDS;
     }
     const { dt, tau, temperature } = this.params;
@@ -296,9 +304,36 @@ export class CrowdSim {
     }
     const next = this.router.nextEdge(node, this.potentialFor(i), this.known[i]);
     this.stuck[i] = next < 0 ? 1 : 0;
+    if (next >= 0 && this.router.edgeSegment[next] >= 0) this.segmentEntries[this.router.edgeSegment[next]] += 1;
     this.edge[i] = next;
     this.goal[i] = node;
     this.point[i] = 1;
+  }
+
+  private sampleFlow() {
+    for (let i = 0; i < this.count; i++) {
+      const edge = this.edge[i];
+      if (this.state[i] !== STATE.moving || edge < 0) continue;
+      const segment = this.router.edgeSegment[edge];
+      if (segment < 0) continue;
+      this.segmentSpeedSum[segment] += Math.hypot(this.vx[i], this.vy[i]);
+      this.segmentSpeedSamples[segment] += 1;
+    }
+  }
+
+  // Streets where the most driving time was lost to crowding: cars through it times the share of
+  // free-flow speed they didn't get.
+  bottlenecks(limit = 10) {
+    const rows: { segment: number; entries: number; meanSpeed: number; freeSpeed: number; slowdown: number }[] = [];
+    for (let segment = 0; segment < this.segmentEntries.length; segment++) {
+      const samples = this.segmentSpeedSamples[segment];
+      if (samples < 5) continue;
+      const meanSpeed = this.segmentSpeedSum[segment] / samples;
+      const freeSpeed = this.ground.segments[segment].kph / 3.6;
+      const slowdown = Math.max(0, 1 - meanSpeed / freeSpeed);
+      rows.push({ segment, entries: this.segmentEntries[segment], meanSpeed, freeSpeed, slowdown });
+    }
+    return rows.sort((a, b) => b.entries * b.slowdown - a.entries * a.slowdown).slice(0, limit);
   }
 
   private decideDepartures(minutes: number) {

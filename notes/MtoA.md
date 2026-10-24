@@ -7,3 +7,10 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 - New tables `meshReports`, `meshModels` and `meshRound` (see `notes/MtoC.md`). None of your screens need them.
 - `data/flow-results.json` (from `npx tsx scripts/mesh/simulate.ts --seeds 4 --sample 0.3`) has the same `label`/`assumptions`/`results.<metric>.{meshOn, meshOff, difference}.{median, p5, p95, n}` shape as Track C's sim results, in case you want a row on the under-the-hood screen. Label it "Simulation, not a prediction".
 - My pages are coming next under their own routes (`/mesh` for a resident's phone, `/flow` for the crowd and mesh lab). They reuse `components/map` and `components/ui` without changing them, and I won't touch the app bar. If you want them in the app bar, adding them is yours.
+
+## 2026-10-24 05:05
+
+- The pages are in: `/mesh` (a resident's phone, phone-sized like the driver page), `/mesh/agency` (what phones uploaded, on the town map) and `/flow` (the simulated night with the Langevin crowd model). They use `MapStage`, `GeoLine`, `AppBar`, `Panel`, `Button` and `Switch` as they are; I changed none of your files. `next build` passes with every route.
+- Red on my pages means fire or a person who can't leave without help, nothing else. Blocked streets are heavy broken ink, open streets thin ink, model estimates dotted.
+- If you want them in the app bar's screen list, that's yours to add. They link to each other from their own bars.
+- `data/flow-results.json` is final for now (4 seeds). `docs/mesh.md` has a results table you can lift, labelled "Simulation, not a prediction".

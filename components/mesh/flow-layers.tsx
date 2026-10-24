@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useMapStage } from "@/components/map/map-stage";
 import { toLatLng } from "@/lib/crowd/grid";
 import { STATE } from "@/lib/crowd/langevin";
@@ -70,10 +71,11 @@ function streetPath(toScreen: ReturnType<typeof useMapStage>["toScreen"], segmen
 
 // Blocked streets. Faint dashes for every street that is blocked in the simulation; heavy ink for
 // the ones the agency has heard about from uploaded phone reports.
-export function BlockedStreetLayer({ truth, known }: { truth: Iterable<number>; known: Iterable<number> }) {
+// Both sets change only every few simulated minutes, so their paths are kept between frames.
+export function BlockedStreetLayer({ truth, known }: { truth: ReadonlySet<number>; known: ReadonlySet<number> }) {
   const { toScreen } = useMapStage();
-  const truthPath = streetPath(toScreen, truth);
-  const knownPath = streetPath(toScreen, known);
+  const truthPath = useMemo(() => streetPath(toScreen, truth), [toScreen, truth]);
+  const knownPath = useMemo(() => streetPath(toScreen, known), [toScreen, known]);
   return (
     <g fill="none" strokeLinecap="butt">
       <path d={truthPath} stroke={INK} strokeOpacity={0.35} strokeWidth={2} strokeDasharray="3 4" />

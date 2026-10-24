@@ -89,6 +89,13 @@ function runOnce(seed: number, mesh: boolean) {
       massUploaded: last.massUploaded,
       auc: last.auc,
       phonesContributing: contributions.filter((c) => c > 0).length,
+      bottlenecks: world.crowd.bottlenecks(8).map((b) => ({
+        street: world.ground.segments[b.segment].name || "unnamed road",
+        segment: world.ground.segments[b.segment].key,
+        carsThrough: b.entries,
+        meanSpeedKph: round(b.meanSpeed * 3.6, 1),
+        freeSpeedKph: round(b.freeSpeed * 3.6, 1),
+      })),
       maxContributionsPerPhone: Math.max(0, ...contributions),
     },
   };

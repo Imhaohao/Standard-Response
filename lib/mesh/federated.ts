@@ -56,7 +56,7 @@ export function rawFeaturesOf(input: FeatureInput): number[] {
 // noise, matters: noise is the same size in every direction of the weights, so a feature that is
 // rarely nonzero would otherwise carry a signal far below the noise. Centring also separates the
 // bias from road class and the clock, which plain gradient steps otherwise confuse.
-export const FEATURE_CENTER = [0, 0.18, 0.149, 0.553, 0.433, 0.833, 0.144];
+export const FEATURE_CENTER = [0, 0.179, 0.149, 0.553, 0.433, 0.833, 0.144];
 export const FEATURE_SCALE = [1, 0.363, 0.356, 0.497, 0.299, 0.505, 0.271];
 
 export function featuresOf(input: FeatureInput): number[] {

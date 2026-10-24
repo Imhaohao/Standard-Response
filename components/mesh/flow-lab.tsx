@@ -27,8 +27,8 @@ const SAMPLE = 0.25;
 const CELL_METERS = 30;
 const END_MINUTES = 300;
 const CHECKPOINT_MINUTES = 10;
-const FRAME_BUDGET_MS = 12;
-const RENDER_EVERY_MS = 60;
+const FRAME_BUDGET_MS = 24;
+const RENDER_EVERY_MS = 100;
 const SPEEDS = [1, 3, 8] as const;
 
 type Comparison = { meshOn: Range; meshOff: Range; difference: Range };
@@ -105,7 +105,30 @@ function NightPanel({ world, checkpoint }: { world: FlowWorld; checkpoint: Check
         <Figure label="Drove into a blocked street they didn't know about" value={stats.discoveries} />
         {checkpoint && <Figure label="Traffic moving under 1 m/s" value={`${Math.round(checkpoint.crowd.jammedShare * 100)}%`} />}
       </Figures>
+      <Bottlenecks world={world} />
     </Panel>
+  );
+}
+
+// Where crowding costs the most driving time so far: cars through a street times the share of its
+// free-flow speed they didn't get.
+function Bottlenecks({ world }: { world: FlowWorld }) {
+  const rows = world.crowd.bottlenecks(3);
+  if (rows.length === 0) return null;
+  return (
+    <div className="border-t border-panel-raised px-3 py-2">
+      <p className="type-small mb-1 text-on-panel-muted">Slowest busy streets</p>
+      <ol className="flex flex-col gap-0.5">
+        {rows.map((row) => (
+          <li key={row.segment} className="flex items-baseline justify-between gap-3">
+            <span className="type-small truncate">{world.ground.segments[row.segment].name || "Unnamed road"}</span>
+            <span className="type-small shrink-0 tabular-nums text-on-panel-muted">
+              {row.entries} cars, {Math.round(row.meanSpeed * 3.6)} of {Math.round(row.freeSpeed * 3.6)} km/h
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -234,7 +257,8 @@ export function FlowLab() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={world.minutes} fronts={hazard?.field.fronts} className="absolute inset-0">
+      {/* The fire on the map moves a whole minute at a time, so the 3D surface redraws once per minute, not per frame. */}
+      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={Math.floor(world.minutes)} fronts={hazard?.field.fronts} className="absolute inset-0">
         <BlockedStreetLayer truth={world.crowd.trulyBlocked()} known={world.agencyKnownBlocked()} />
         <MeetingLayer world={world} />
         <AgentLayer world={world} />

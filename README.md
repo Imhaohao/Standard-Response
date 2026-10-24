@@ -101,3 +101,13 @@ The call floor sets the look for every screen.
 - **Code:** Phosphor icons only. One `Button` component. `npm run lint` enforces cyclomatic complexity 15.
 
 Check work with `npm run typecheck && npm run lint`.
+
+## Mesh add-on
+
+Three features beside the core flow, with their own tables and pages; nothing in the core flow depends on them. `docs/mesh.md` has the design, the privacy accounting, the results and the limits.
+
+- `/mesh`: a resident's phone. Road reports pass phone to phone with no internet: tabs on one device, or two phones paired by QR code over a shared Wi-Fi or hotspot.
+- Federated learning over that mesh: noised updates are mixed between phones, and the agency only ever receives mixes of five or more phones. `/mesh/agency` shows what it received.
+- `/flow`: Langevin dynamics for evacuating households on the real street graph, with the mesh on or off.
+
+`npm run test:mesh` runs the add-on's tests. `npx tsx scripts/mesh/simulate.ts` regenerates `data/flow-results.json`.
