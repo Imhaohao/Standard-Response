@@ -1,9 +1,9 @@
 # Picking up Boris's work
 
-You are taking over the interface of a hackathon app. Boris built the map and the rescue map and
-ran out of runway. The driver page, the call floor and two smaller screens are still the old
-design. Your job is to finish them in the same language, and to make them look really freaking
-good — not "good enough for a demo", good.
+You are working on the interface of a hackathon app. Boris built the map and the rescue map. On
+Saturday 24 Oct around 03:30–04:00 Brendan's Claude finished the rest of Track A from this file: the
+driver page, the call floor, `/system` and `/phone` are all on the new design now. Read "What is
+done" before you change any of them, so you build on that work instead of redoing it.
 
 ## The one thing to get right
 
@@ -74,81 +74,142 @@ shown on the map, and it is the most important thing on the screen.
 
 ## What is done
 
+### Boris's foundation
+
 - The map bake: 26,251 buildings from the December 2024 OSM snapshot, terrain, streets, parks,
   trees. `public/map/altadena.json` + `public/map/terrain.bin`. Never fetched live.
 - The ink renderer, working at `/lab` with a fire scrubber.
 - `components/map/*` — the shared stage, both surfaces, the overlay primitives.
 - `components/ui/panel.tsx` and `components/ui/switch.tsx` — the dark floating panel and the
   neutral switch. Use these; do not invent a second panel.
-- **The rescue map (`/map`) is rebuilt**: `components/rescue/*`. Top bar with the screen nav and the
-  elapsed clock, a left column (who needs a ride, neighbours named on calls), a right column (the
-  plan, the fleet, doors to knock, the rider upload), a bottom toolbar (look / draw zone / close a
-  road, 3D–flat) and a fire scrubber that moves the scenario's `minutesAfterWarning`.
-- `convex/estimates.ts` returns the shape Track D documented.
+- **The rescue map (`/map`)**: `components/rescue/*`. Left column (who needs a ride, neighbours named
+  on calls), right column (plan, fleet, doors to knock, rider upload), bottom toolbar (look / draw
+  zone / close a road, 3D–flat) and the fire scrubber.
 
-**But the rescue map has not been verified against a live incident.** Boris only ever saw it against
-a finished dataset, where every request was already `arrived` and no panel had anything in it. Reset
-the demo and look at it with the fire moving and people waiting:
+### Shared pieces added in the takeover (use them, don't fork them)
 
-```bash
-npx convex run control:reset
-npx convex run control:issueWarning
+- `components/ui/app-bar.tsx` — `<AppBar>` (product mark + screen nav, right-hand slot for controls)
+  and `<WarningClock>`. Every screen uses it; `/map`'s `MapTopBar` is a thin wrapper. `AppNav`,
+  `HeaderBar`, `PageShell` and `ui/section.tsx` are deleted.
+- `components/ui/button.tsx` has an `onPaper` variant (ink on map paper) for controls that sit on a
+  paper-coloured card.
+- `.hatch` in `app/globals.css` (components layer) — diagonal hatching in `currentColor`, for "this
+  no longer holds".
+- `<MapStage>` falls back to `mode="paper"` by itself when WebGL cannot start
+  (`InkMapCanvas` takes `onFail`). Before, a machine without WebGL crashed the whole screen.
+- `StageTrack` and `Waveform` in `components/ui` are now drawn for the dark panel.
+
+### Driver page — `components/driver/`
+
+Boris pushed his own rebuild at 03:00 and a house-marker tweak at 03:20; this version replaced it and
+kept his two best ideas (needs worked out from `stop.rider`, and the red house marker for homes the
+map has no building outline for).
+
+```
+driver-page.tsx   picker + "hold offers" switch in the top bar, the map, the sheet below it
+driver-map.tsx    fixed close-up (radius 120 m) on the focused stop, red roof + red house marker
+                  with a pulse, numbered flags for run stops, the van and its dispatch:routes line
+offer-cards.tsx   OfferCard (address, ETA with van glyph, need tiles, Accept + Decline; the offer
+                  countdown is a fuse inside the Accept button) and ChangedCard (hatched paper,
+                  struck-through address, "Got it")
+ride-needs.tsx    glyph tiles: people, wheelchair, stretcher, crew, lift, O₂, medical
+run-list.tsx      the accepted run in stop order, numbers match the map flags, "can't make it"
+stops.ts          types, picker order, useDriverBoard (offers / changed / run, with hold logic)
 ```
 
-Then check, in order: red roofs on the buildings where people are waiting; pins for escalations;
-the "who needs a ride" count matching the number of pins on the map; a drawn zone; a closed road
-snapped onto the real street; an offer approved by hand; and the flat surface showing the same
-thing as the 3D one.
+Checked live: offer → hold on → offer withdrawn → late Accept rejected → card flips to changed, then
+accept the new offer → run list.
 
-## What is not done — your actual job
+### Call floor — `components/floor/` (`app/page.tsx` renders `floor/call-floor.tsx`)
 
-In the order Boris would have done them.
+```
+call-floor.tsx       full-bleed map, AppBar with clock + controls, before-warning hero,
+                     left column (reach panel + tabs: On the phone / Next to call / Activity),
+                     right column (listening in)
+floor-map.tsx        the calling area (convex/model.ts AREA, padded for the side panels) on the
+                     real map; every household marked on its roof, red roofs for riders, the next
+                     six homes to call numbered, the followed call ringed and labelled
+household-mark.tsx   THE encoding for a household, used by the map, the chart and the legend:
+                     red square = accessible van, red dot = needs a ride, ink ring with a hole =
+                     on the phone, faint ink dot = leaving, X = unreachable, hollow ring = no answer
+reach-panel.tsx      big "answered" count, 200-cell unit chart that doubles as the legend, and
+                     the redial → texted → door check ladder
+line-list.tsx        live lines (selected = raised fill + left bar + headphones)
+listening-panel.tsx  record fields, then a Slack-style transcript: agent turns on a raised
+                     surface with a bot avatar and latencyMs, resident turns plain
+queue-list.tsx, activity-list.tsx
+floor-controls.tsx   line stepper, inbound surge, dialer toggle, and the stand-in switches +
+                     reset behind one "Stand-ins" popover
+```
 
-### 1. The driver page — `components/driver/driver-page.tsx`
+The old call-floor components, `coverage-map.tsx` and `components/map/base-layers.tsx` are deleted.
 
-This is a phone screen and it is the one a real volunteer would use in a car, so it has to be
-readable at arm's length in daylight. It is still the old design.
+### Under the hood — `components/system/`
 
-What it must do:
+Paper page, three columns of dark panels: **Right now** (`close-road.tsx`, `live-panels.tsx`:
+re-plan, request flow, callback timing, audit trail), **The calls** (`call-panels.tsx`: accuracy
+with intervals, turn latency, honesty by status, red-team change cases), **The dispatch**
+(`dispatch-panels.tsx`: simulator differences, door-check fairness with a scenario picker).
+`range.tsx` has `RangeRow` (dot = value, bar = range, optional zero line), and every result number
+goes through it. `results.ts` types the files, and `/api/results` now also serves
+`honesty-results.json`, `door-fairness.json` and `redteam-change-cases.json`. Each team's `label`
+sits under its panel.
 
-- Open on a **close-up of the pickup** (`{kind: "closeup", center, radius}`), with the building the
-  rider is in glowing red so the driver can see *which house* before reading anything.
-- Show the rider's needs **visually**: how many people, how many wheelchairs or stretchers, whether
-  they need a lift, oxygen, or a crew. Glyphs and counts, not sentences.
-- Two big buttons. Accept and Decline. They must be the largest thing on the screen.
-- A countdown on the offer. `OFFER_TTL_MS` is in `convex/model.ts`.
-- **"This assignment changed"** — when a re-plan replaces or revokes the run while the driver is
-  looking at it, the screen must say so loudly and show the new one. This is the state the whole
-  project is about; do not bury it.
-- Once accepted: the run in stop order, with the driving route from `dispatch:routes`.
-- A driver picker, and the "hold offers until I tap" checkbox.
+**"Close this road"** lives here (the plan put it on this screen, not `/phone`). For each driver-page
+van with a pickup it closes the last stretch of that van's real route before the door. When there is
+no route (the dispatch stand-in drives straight lines) it closes a short line across the approach
+70 m before the house instead. Either way it writes a `manual` closure through
+`roads:addClosures`. There is no "reopen" mutation yet.
 
-### 2. The call floor — `app/page.tsx`
+### `/phone` — `components/phone/phone-panel.tsx`
 
-Still the old grey design. It has a **fake map**: `components/map/base-layers.tsx` draws invented
-streets and fire contours. Delete that and put the real `<MapStage>` behind the floor.
+A thread list (a dot marks threads waiting on a reply) and a handset with SMS bubbles, one-tap 1 / 2 / 3
+replies and a free-text reply. The "simulated" label is in the app bar.
 
-Keep these, restyled: `LiveLines`, `CallDetail`, `CallQueue`, `RetryLadder`, `EventFeed`,
-`HarnessPanel`. The transcript is the thing people will actually look at during the demo — give the
-resident and the agent real hierarchy, with the agent's turn on its own distinct surface. Read the
-"chat and transcript views" rule in `~/.claude/CLAUDE.md` before you style it.
+### Backend touches
 
-`ReachPanel` is a wall of text. It is counting how much of the town we have reached. Draw that, do
-not write it.
+- `convex/control.ts` `clearTables`: the delete batch is now one read budget shared across tables.
+  Before, reset failed with "Too many reads" once there was a real night's data, and nothing cleared.
+- `convex/estimates.ts` `agentLines` also returns `latencyMs` (note in `notes/AtoD.md`).
+- `convex/offers.ts` is Boris's version (with `riderFacts`); the driver page reads `stop.rider`.
 
-### 3. `/system` and `/phone`
+## What is still open
 
-Light restyles. `/system` (under the hood) shows the model results from `data/*.json`; Track D's
-notes in `notes/DtoA.md` say what each file's shape is and which label must stay visible next to
-which number. `/phone` is the simulated handset; keep the "Close this road" demo control where the
-plan says it belongs.
+1. **Verify `/map` against a live incident.** Nobody has done this yet:
 
-### 4. Cleanup
+   ```bash
+   npx convex run control:reset
+   npx convex run control:issueWarning
+   ```
 
-- Delete `components/rescue/map-view.tsx`, `components/rescue/field-lists.tsx`,
-  `components/rescue/dispatch-list.tsx`, `components/rescue/plan-summary.tsx` and
-  `components/map/base-layers.tsx` once nothing imports them. Check with `grep -rn` first.
-- `convex/estimates.ts` was edited by Track A. Track D owns it. Read `notes/AtoD.md` first.
+   Then check, in order: red roofs on the buildings where people are waiting; pins for escalations;
+   the "who needs a ride" count matching the pins; a drawn zone; a closed road snapped onto the real
+   street; an offer approved by hand; and the flat surface showing the same thing as the 3D one.
+2. **Flat surface on the new screens.** The driver page and the call floor pass `fronts` so the paper
+   fallback draws the fire, but neither has been looked at in `mode="paper"` yet.
+3. **The demo run end to end** with the driver page on a real phone: Maria accepts Carmen, close the
+   road from `/system`, the revoke and the "This assignment changed" card on Luis's old offer.
+4. `/system` shows "–" for requests and vehicles while the dispatch stand-in is on, because only Track
+   C's real dispatcher fills `requestCount` / `vehicleCount`.
+
+## Working in this checkout
+
+Several Claude sessions share the same clone. A `git rebase --autostash` in one session can pull
+files into another session's working tree mid-edit, and leaves `autostash` entries in
+`git stash list`. Re-read a file (and `git log -1 -- <file>`) right before you overwrite it, and never
+drop a stash you didn't create.
+
+To test screens without touching the shared deployment, copy `convex/` and
+`data/roads/altadena.json` into a scratch folder that has `package.json` and a `node_modules`
+symlink, then run there:
+
+```bash
+CONVEX_AGENT_MODE=anonymous npx convex dev --typecheck disable --local-cloud-port 3320 --local-site-port 3321
+```
+
+Point Next at it with `NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3320 npx next dev -p 3100`. For
+headless screenshots, launch Chrome with `--use-angle=metal --enable-gpu --ignore-gpu-blocklist`, or
+WebGL won't start and you'll only see the flat fallback.
 
 ## The bar
 
