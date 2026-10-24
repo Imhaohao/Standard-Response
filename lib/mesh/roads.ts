@@ -100,3 +100,38 @@ export function nearestSegment(p: Point, withinMeters = 60): Segment | null {
   }
   return best;
 }
+
+// Segments whose midpoints lie within `meters` of each other's, for the nearby-blocked feature.
+export const NEARBY_METERS = 400;
+let nearbyCache: Int32Array[] | null = null;
+
+export function nearbySegments(): Int32Array[] {
+  if (nearbyCache) return nearbyCache;
+  const cell = NEARBY_METERS / 111_320;
+  const bucket = new Map<string, number[]>();
+  const keyOf = (p: Point) => `${Math.floor(p.lat / cell)},${Math.floor(p.lng / cell)}`;
+  SEGMENT_LIST.forEach((segment, i) => bucket.set(keyOf(segment.mid), [...(bucket.get(keyOf(segment.mid)) ?? []), i]));
+  nearbyCache = SEGMENT_LIST.map((segment, i) => {
+    const [row, col] = keyOf(segment.mid).split(",").map(Number);
+    const found: number[] = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -2; dc <= 2; dc++) {
+        for (const j of bucket.get(`${row + dr},${col + dc}`) ?? []) {
+          if (j !== i && metersBetween(segment.mid, SEGMENT_LIST[j].mid) <= NEARBY_METERS) found.push(j);
+        }
+      }
+    }
+    return Int32Array.from(found);
+  });
+  return nearbyCache;
+}
+
+export function nearbyBlockedShare(segment: number, believedBlocked: (segment: number) => boolean) {
+  const around = nearbySegments()[segment];
+  if (around.length === 0) return 0;
+  let blocked = 0;
+  for (const j of around) if (believedBlocked(j)) blocked += 1;
+  return blocked / around.length;
+}
+
+export const SEGMENT_INDEX = new Map(SEGMENT_LIST.map((segment, i) => [segment.key, i]));

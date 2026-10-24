@@ -86,6 +86,8 @@ export class FlowWorld {
   readonly timeline: Checkpoint[] = [];
   meetings = 0;
   massUploaded = 0;
+  // Pairs of households whose phones met in the zone during the last mesh tick, for drawing.
+  recentMeetings: [number, number][] = [];
   private readonly random: Random;
   private readonly segmentIndex = new Map<string, number>();
   private readonly gateway: Uint8Array;
@@ -171,6 +173,7 @@ export class FlowWorld {
       this.observeFromHomes();
       this.nextHomeObserve = seconds + this.params.homeObserveEveryMinutes * 60;
     }
+    this.recentMeetings = [];
     if (this.params.mesh) {
       this.meetNearby();
       this.meetAtShelter();
@@ -281,6 +284,7 @@ export class FlowWorld {
         if (last !== undefined && this.minutes - last < cooldown) continue;
         this.lastPair.set(pair, this.minutes);
         this.meetPhones(i, j);
+        this.recentMeetings.push([i, j]);
       }
     }
   }
@@ -349,6 +353,12 @@ export class FlowWorld {
       if (truth.has(index)) this.agencyKnown.add(index);
       else this.agencyWrong += 1;
     }
+  }
+
+  // Blocked streets the agency knows about from uploaded reports (and that really are blocked).
+  agencyKnownBlocked(): ReadonlySet<number> {
+    this.refreshAgencyKnowledge();
+    return this.agencyKnown;
   }
 
   // Held-out segments at this minute, with the nearby share the agency itself would use.

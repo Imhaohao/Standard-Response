@@ -21,6 +21,14 @@ export function gaussian(random: Random) {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+// Uniform draws from the platform's cryptographic source. Phones use this for the privacy noise,
+// which must not be predictable.
+export function cryptoRandom(): number {
+  const buffer = new Uint32Array(2);
+  crypto.getRandomValues(buffer);
+  return (buffer[0] * 2 ** 21 + (buffer[1] >>> 11)) / 2 ** 53;
+}
+
 export type IdSource = () => string;
 
 // A fresh random identifier. Nothing in it comes from the device, the person, the place or the time.

@@ -2,6 +2,7 @@ import { NEVER_BURNS } from "../ink-map/fire-field";
 import { featuresOf, rawFeaturesOf, sigmoid } from "../mesh/federated";
 import { gaussian, Random } from "../mesh/random";
 import { Ground, fireMinutesAt, toXY } from "../crowd/grid";
+import { nearbyBlockedShare, nearbySegments } from "../mesh/roads";
 
 // Which streets are actually blocked in a simulated night: the ground truth the phones observe
 // and the model is scored against. A segment blocks (downed lines, debris, abandoned cars, fire
@@ -13,7 +14,6 @@ import { Ground, fireMinutesAt, toXY } from "../crowd/grid";
 export const TRUE_WEIGHTS = [-5.2, 3.4, 2.2, 0.9, -0.5, 0.5];
 const CLUSTER_SIGMA = 1.1;
 const CLUSTER_METERS = 350;
-export const NEARBY_METERS = 400;
 
 export class BlockageWorld {
   readonly count: number;
@@ -33,26 +33,8 @@ export class BlockageWorld {
     this.kph = Float64Array.from(segments, (s) => s.kph);
     this.lanes = Float64Array.from(segments, (s) => s.lanes);
     this.threshold = Float64Array.from(segments, () => random());
-    this.nearby = this.neighbours(NEARBY_METERS);
+    this.nearby = nearbySegments();
     this.cluster = this.smoothNoise(random);
-  }
-
-  private neighbours(meters: number) {
-    const bucket = new Map<string, number[]>();
-    const keyOf = (x: number, y: number) => `${Math.floor(x / meters)},${Math.floor(y / meters)}`;
-    this.mid.forEach(([x, y], i) => bucket.set(keyOf(x, y), [...(bucket.get(keyOf(x, y)) ?? []), i]));
-    return this.mid.map(([x, y], i) => {
-      const found: number[] = [];
-      const [bx, by] = [Math.floor(x / meters), Math.floor(y / meters)];
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (const j of bucket.get(`${bx + dx},${by + dy}`) ?? []) {
-            if (j !== i && Math.hypot(this.mid[j][0] - x, this.mid[j][1] - y) <= meters) found.push(j);
-          }
-        }
-      }
-      return Int32Array.from(found);
-    });
   }
 
   // Gaussian-kernel average of white noise, rescaled to unit variance.
@@ -127,10 +109,6 @@ export class BlockageWorld {
   }
 
   nearbyShare(segment: number, believedBlocked: (segment: number) => boolean) {
-    const around = this.nearby[segment];
-    if (around.length === 0) return 0;
-    let blocked = 0;
-    for (const j of around) if (believedBlocked(j)) blocked += 1;
-    return blocked / around.length;
+    return nearbyBlockedShare(segment, believedBlocked);
   }
 }

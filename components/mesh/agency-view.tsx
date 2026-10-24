@@ -1,0 +1,195 @@
+"use client";
+
+import { useQuery } from "convex/react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
+import { GeoLine } from "@/components/map/layers";
+import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { TOWN_FRAME } from "@/components/map/projection";
+import { AppBar } from "@/components/ui/app-bar";
+import { Button } from "@/components/ui/button";
+import { Panel, PanelEmpty } from "@/components/ui/panel";
+import { ScenarioGeoJson } from "@/lib/ink-map/fire-field";
+import { SIM_MINUTES_PER_SECOND, useFireClock, useHazard } from "@/lib/ink-map/hazard";
+import { FEATURE_NAMES, predict } from "@/lib/mesh/federated";
+import { SEGMENT_INDEX, SEGMENT_LIST, SEGMENTS } from "@/lib/mesh/roads";
+import { ROUND_MASS } from "@/lib/mesh/rounds";
+import { segmentFireMinutes, streetFeatures } from "@/lib/mesh/street-features";
+import { formatClock, useNow } from "@/lib/time";
+import { Figure, Figures } from "./figures";
+
+const INK = "var(--map-ink)";
+const PAPER = "var(--map-paper)";
+const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
+// Streets the shared model rates at least this likely to be blocked are drawn as estimates.
+const ESTIMATE_THRESHOLD = 0.5;
+
+type Roads = NonNullable<ReturnType<typeof useRoads>>;
+
+function useRoads() {
+  const now = useNow(60_000);
+  const minute = Math.floor(now / 60_000) * 60_000;
+  return useQuery(api.mesh.roads, minute ? { now: minute } : "skip");
+}
+
+function useFireMinutes() {
+  const [fire, setFire] = useState<Float64Array | null>(null);
+  useEffect(() => {
+    let live = true;
+    void fetch("/api/scenario")
+      .then((r) => r.json() as Promise<ScenarioGeoJson | null>)
+      .then((scenario) => live && setFire(segmentFireMinutes(scenario)));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return fire;
+}
+
+// Where the shared model expects blockages that nobody has reported yet.
+function useEstimates(roads: Roads | undefined, weights: number[] | undefined, issuedAt: number | undefined) {
+  const fire = useFireMinutes();
+  const now = useNow(60_000);
+  return useMemo(() => {
+    if (!fire || !weights || !roads || !now) return [];
+    const minutes = issuedAt === undefined ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
+    const reported = new Set(roads.segments.map((s) => s.segment));
+    const blocked = new Set(roads.segments.filter((s) => s.status === "blocked").map((s) => SEGMENT_INDEX.get(s.segment)));
+    const estimates: { index: number; probability: number }[] = [];
+    SEGMENT_LIST.forEach((segment, index) => {
+      if (reported.has(segment.key)) return;
+      const probability = predict(weights, streetFeatures(index, minutes, fire, (s) => blocked.has(s)));
+      if (probability >= ESTIMATE_THRESHOLD) estimates.push({ index, probability });
+    });
+    return estimates;
+  }, [fire, weights, roads, now, issuedAt]);
+}
+
+function ReportedStreets({ roads }: { roads: Roads }) {
+  return (
+    <g fill="none">
+      {roads.segments.map((s) => {
+        const path = SEGMENTS.get(s.segment)?.path ?? [];
+        if (s.status === "blocked")
+          return (
+            <g key={s.segment}>
+              <GeoLine route={path} stroke={PAPER} strokeWidth={7} />
+              <GeoLine route={path} stroke={INK} strokeWidth={5} strokeDasharray="3 2" />
+            </g>
+          );
+        return s.status === "clear" ? <GeoLine key={s.segment} route={path} stroke={INK} strokeWidth={2.5} /> : null;
+      })}
+    </g>
+  );
+}
+
+function EstimatedStreets({ estimates }: { estimates: { index: number; probability: number }[] }) {
+  return (
+    <g fill="none">
+      {estimates.map(({ index, probability }) => (
+        <GeoLine key={index} route={SEGMENT_LIST[index].path} stroke={INK} strokeOpacity={0.25 + 0.6 * probability} strokeWidth={3} strokeDasharray="1 3" strokeLinecap="round" />
+      ))}
+    </g>
+  );
+}
+
+function UploadsPanel({ roads }: { roads: Roads | undefined }) {
+  if (!roads) return <Panel title="Road reports from phones"><PanelEmpty>Loading…</PanelEmpty></Panel>;
+  const blocked = roads.segments.filter((s) => s.status === "blocked").length;
+  const open = roads.segments.filter((s) => s.status === "clear").length;
+  const latest = Math.max(0, ...roads.segments.map((s) => s.lastObservedAt));
+  return (
+    <Panel title="Road reports from phones">
+      <Figures>
+        <Figure label="Reports, last six hours" value={roads.reports} />
+        <Figure label="Relayed phone to phone before upload" value={roads.reports ? `${Math.round((roads.relayed / roads.reports) * 100)}%` : "—"} />
+        <Figure label="Streets reported blocked" value={blocked} />
+        <Figure label="Streets reported open" value={open} />
+        <Figure label="Latest observation" value={latest ? formatClock(latest) : "—"} />
+      </Figures>
+      <p className="type-small border-t border-panel-raised px-3 py-2 text-on-panel-muted">
+        Each report is a street, blocked or open, and the minute. No phone, person or uploader is recorded.
+      </p>
+    </Panel>
+  );
+}
+
+function ModelPanel() {
+  const rounds = useQuery(api.mesh.rounds);
+  const latest = rounds?.models[0];
+  const open = rounds?.open;
+  return (
+    <Panel title="Shared model">
+      <Figures>
+        <Figure label="Version" value={latest?.version ?? 0} />
+        <Figure label="Phones' worth of updates in it" value={Math.round(latest?.contributors ?? 0)} />
+        <Figure
+          label="Next version"
+          value={open && open.baseVersion === (latest?.version ?? 0) ? `${open.mass.toFixed(1)} of ${ROUND_MASS}` : `0 of ${ROUND_MASS}`}
+          hint="Uploads arrive mixed, five or more phones each"
+        />
+        {open && open.refused > 0 && <Figure label="Uploads refused" value={open.refused} hint="Too small, too stale, or out of bounds" />}
+      </Figures>
+      {latest && (
+        <dl className="grid grid-cols-[1fr_auto] gap-x-3 border-t border-panel-raised px-3 py-2">
+          {FEATURE_NAMES.map((name, i) => (
+            <div key={name} className="contents">
+              <dt className="type-small text-on-panel-muted">{name.replaceAll("_", " ")}</dt>
+              <dd className="type-small text-right font-semibold tabular-nums">{latest.weights[i].toFixed(2)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Panel>
+  );
+}
+
+export function AgencyView() {
+  const data = useInkMapData();
+  const hazard = useHazard(data?.origin);
+  const control = useQuery(api.control.get);
+  const clock = useFireClock(hazard, control?.warningIssuedAt);
+  const roads = useRoads();
+  const model = useQuery(api.mesh.model);
+  const estimates = useEstimates(roads, model?.weights, control?.warningIssuedAt);
+  const [mode, setMode] = useState<SurfaceMode>("ink");
+
+  if (!data) return <p className="type-body grid h-[100dvh] place-items-center text-ink-muted">Loading the map of Altadena…</p>;
+
+  return (
+    <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
+      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} className="absolute inset-0">
+        {model && model.version > 0 && <EstimatedStreets estimates={estimates} />}
+        {roads && <ReportedStreets roads={roads} />}
+      </MapStage>
+      <div className="pointer-events-none absolute inset-0 flex flex-col">
+        <AppBar>
+          <Link href="/mesh" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
+            A resident&apos;s phone
+          </Link>
+          <Link href="/flow" className="type-small font-semibold text-on-panel-muted hover:text-on-panel">
+            Simulated night
+          </Link>
+        </AppBar>
+        <div className="flex min-h-0 flex-1 items-start justify-between gap-3 p-3">
+          <div className="pointer-events-auto flex w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+            <UploadsPanel roads={roads} />
+          </div>
+          <div className="pointer-events-auto flex w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+            <ModelPanel />
+          </div>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
+          <div className="flex items-center gap-3 border border-panel-raised bg-panel/96 px-3 py-2 text-on-panel backdrop-blur-md">
+            <span className="type-small">Heavy broken line: reported blocked. Thin line: reported open. Dotted: model estimate, nobody has reported it.</span>
+            <Button variant="onPanelQuiet" className="!h-8" onClick={() => setMode(mode === "ink" ? "paper" : "ink")}>
+              {mode === "ink" ? "Flat" : "3D"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
