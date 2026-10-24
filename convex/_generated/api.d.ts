@@ -42,6 +42,7 @@ import type * as pickupSim from "../pickupSim.js";
 import type * as pickups from "../pickups.js";
 import type * as plans from "../plans.js";
 import type * as prepare from "../prepare.js";
+import type * as reachLadder from "../reachLadder.js";
 import type * as ready from "../ready.js";
 import type * as readyProfile from "../readyProfile.js";
 import type * as readySim from "../readySim.js";
@@ -99,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   pickups: typeof pickups;
   plans: typeof plans;
   prepare: typeof prepare;
+  reachLadder: typeof reachLadder;
   ready: typeof ready;
   readyProfile: typeof readyProfile;
   readySim: typeof readySim;
@@ -145,4 +147,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   householdsByOutcome: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"householdsByOutcome">;
   householdsByCallStatus: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"householdsByCallStatus">;
+  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
 };

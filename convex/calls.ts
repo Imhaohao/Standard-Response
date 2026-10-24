@@ -1,12 +1,11 @@
 import { v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { mutation } from "./functions";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { callPhase, callStage, requestStatus } from "./schema";
 import { outcomeFor } from "./model";
 import { simNow } from "./clock";
-
-const MAX_VOICE_ATTEMPTS = 2;
+import { ladderOnDial, recordMiss, STAND_IN_MAX_VOICE_ATTEMPTS, stopLadder } from "./reachLadder";
 
 export async function startCall(
   ctx: MutationCtx,
@@ -19,6 +18,7 @@ export async function startCall(
     callStatus: "in_call",
     attempts: household.attempts + 1,
     lastAttemptAt: now,
+    ...ladderOnDial(household, now),
   });
   return await ctx.db.insert("calls", {
     householdId: household._id,
@@ -39,10 +39,17 @@ export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: b
   if (!household) throw new Error(`Household ${call.householdId} not found`);
   const now = await simNow(ctx);
   await ctx.db.patch("calls", callId, { phase: answered ? "ended" : "no_answer", endedAt: now });
+  if (answered) return await endAnswered(ctx, household, now);
+  // Real riders: the reach ladder workflow owns the retries, the text and the door check.
+  if (!household.simulated) return await recordMiss(ctx, household, now);
+  await endUnansweredStandIn(ctx, household, now);
+}
 
+async function endAnswered(ctx: MutationCtx, household: Doc<"households">, now: number) {
   // A call nobody could understand is not an answer: the home goes to the door-check queue.
-  if (answered && household.escalation === "language_barrier") {
+  if (household.escalation === "language_barrier") {
     await ctx.db.patch("households", household._id, { callStatus: "door_check" });
+    await stopLadder(ctx, household._id, "door_check");
     await ctx.db.insert("events", {
       kind: "retry",
       message: `Couldn't understand each other at ${household.address}. Door check and an interpreter call-back`,
@@ -51,11 +58,13 @@ export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: b
     });
     return;
   }
-  if (answered) {
-    await ctx.db.patch("households", household._id, { callStatus: "complete" });
-    return;
-  }
-  const exhausted = household.attempts >= MAX_VOICE_ATTEMPTS;
+  await ctx.db.patch("households", household._id, { callStatus: "complete" });
+  await stopLadder(ctx, household._id, "reached");
+}
+
+// Simulated households keep the stand-in's fast ladder: two calls, then a text (sim.ts).
+async function endUnansweredStandIn(ctx: MutationCtx, household: Doc<"households">, now: number) {
+  const exhausted = household.attempts >= STAND_IN_MAX_VOICE_ATTEMPTS;
   await ctx.db.patch("households", household._id, { callStatus: exhausted ? "texted" : "no_answer" });
   await ctx.db.insert("events", {
     kind: "retry",
@@ -115,7 +124,8 @@ export const say = mutation({
   },
 });
 
-// Voice server: hang up. `answered: false` runs the retry ladder (retry, then text).
+// Voice server: hang up. `answered: false` moves the reach ladder on (convex/reachLadder.ts);
+// `answered: true` cancels it.
 export const end = mutation({
   args: { callId: v.id("calls"), answered: v.boolean() },
   returns: v.null(),
@@ -147,6 +157,7 @@ export async function resolveFollowUpFor(
     callStatus,
     outcome: outcomeFor({ ...household, callStatus }),
   });
+  await stopLadder(ctx, householdId, result === "replied" ? "replied" : "door_check");
   await ctx.db.insert("events", {
     kind: "retry",
     message:

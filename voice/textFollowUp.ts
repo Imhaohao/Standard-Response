@@ -6,10 +6,10 @@ import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
 
 // The text step of the reach ladder for real riders. SMS registration won't clear this weekend, so
-// texts live in Convex and show on Track A's simulated phone panel. No reply in time means the
-// home goes on the door-check list.
+// texts live in Convex and show on Track A's simulated phone panel. This sends the prompt in the
+// rider's language and reads the reply; the reach ladder workflow (convex/reachLadder.ts) puts the
+// home on the door-check list when no reply comes in time.
 
-const REPLY_WAIT_MS = 3 * 60_000;
 const CHECK_EVERY_MS = 5_000;
 
 type FollowUp = { householdId: Id<"households">; language: string; texts: Doc<"texts">[] };
@@ -46,7 +46,7 @@ export function startTextFollowUp() {
     await convex().mutation(api.texts.send, { householdId, body: `${LINES[language].textThanks} ${ride}` });
   }
 
-  async function advance(followUp: FollowUp, now: number) {
+  async function advance(followUp: FollowUp) {
     const sent = latest(followUp.texts, "outbound");
     if (!sent) {
       await convex().mutation(api.texts.send, { householdId: followUp.householdId, body: LINES[languageOf(followUp.language)].textPrompt });
@@ -54,17 +54,13 @@ export function startTextFollowUp() {
     }
     const reply = latest(followUp.texts, "inbound");
     if (reply && reply.at > sent.at) return parseReply(followUp, reply);
-    if (now - sent.at > REPLY_WAIT_MS) {
-      await convex().mutation(api.calls.resolveFollowUp, { householdId: followUp.householdId, result: "door_check" });
-    }
   }
 
   setInterval(() => {
-    const now = Date.now();
     for (const followUp of followUps) {
       if (working.has(followUp.householdId)) continue;
       working.add(followUp.householdId);
-      advance(followUp, now)
+      advance(followUp)
         .catch((error) => console.error("[texts] follow-up failed", error))
         .finally(() => working.delete(followUp.householdId));
     }

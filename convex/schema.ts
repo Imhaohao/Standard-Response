@@ -54,6 +54,29 @@ export const callStatus = v.union(
   v.literal("complete"),
 );
 
+// Where a real rider stands on the reach ladder workflow (convex/reachLadder.ts). The first four
+// are live steps; the last three are how the ladder ended.
+export const ladderStep = v.union(
+  v.literal("waiting_to_retry"),
+  v.literal("retry_due"),
+  v.literal("retrying"),
+  v.literal("awaiting_reply"),
+  v.literal("reached"),
+  v.literal("replied"),
+  v.literal("door_check"),
+);
+
+export const reachLadder = v.object({
+  workflowId: v.string(),
+  step: ladderStep,
+  // Voice attempts made in this ladder, the first miss included.
+  attempt: v.number(),
+  firstMissAt: v.number(),
+  // Night-clock ms when the next step (a retry, or the door check) is due.
+  nextStepAt: v.optional(v.number()),
+  updatedAt: v.number(),
+});
+
 export const outcome = v.union(
   v.literal("unknown"),
   v.literal("leaving"),
@@ -236,6 +259,8 @@ export default defineSchema({
     ready: v.optional(readyProfile),
     // Track A: Ready check calls nobody answered.
     readyMisses: v.optional(v.number()),
+    // Track B: the reach ladder workflow for a real rider nobody has reached yet.
+    ladder: v.optional(reachLadder),
     simulated: v.boolean(),
   })
     .index("by_callStatus_and_callPriority", ["callStatus", "callPriority"])

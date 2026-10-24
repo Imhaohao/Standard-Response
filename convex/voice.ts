@@ -4,6 +4,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { requestStatus, vehicleType } from "./schema";
 import { nextToCall } from "./households";
 import { openRequestFor } from "./requests";
+import { dialableNow } from "./reachLadder";
 
 // Track B: what the real voice server reads. Only real riders (simulated: false) appear here;
 // the stand-in keeps handling the simulated households.
@@ -65,7 +66,8 @@ export const statusFor = query({
   },
 });
 
-// Real riders the dialer may call now, highest priority first. Retry timing is the server's job.
+// Real riders the dialer may call now, highest priority first. The reach ladder workflow decides
+// when a missed rider is due again (convex/reachLadder.ts); until then it stays out of this list.
 export const dialQueue = query({
   args: { limit: v.number() },
   returns: v.array(
@@ -83,7 +85,7 @@ export const dialQueue = query({
   handler: async (ctx, { limit }) => {
     const households = await nextToCall(ctx, limit * 4);
     return households
-      .filter((h) => !h.simulated)
+      .filter((h) => !h.simulated && dialableNow(h))
       .slice(0, limit)
       .map((h) => ({
         _id: h._id,

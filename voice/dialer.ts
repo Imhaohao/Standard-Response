@@ -6,10 +6,10 @@ import { onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/twilio";
 
 // Outbound dialer for real riders. Drains the in-zone queue highest priority first, through a token
-// bucket sized to Twilio's default of 1 new call per second. The reach ladder: call, retry after
-// 2 minutes; `calls:end` moves a second miss to the text step.
+// bucket sized to Twilio's default of 1 new call per second. Retry timing lives in Convex: the reach
+// ladder workflow (convex/reachLadder.ts) keeps a missed rider out of `voice:dialQueue` until the
+// retry at 2 or 5 minutes is due, so every household in the queue may be rung now.
 
-const RETRY_AFTER_MS = 2 * 60_000;
 const QUEUE_LIMIT = 25;
 
 type Queued = {
@@ -19,9 +19,6 @@ type Queued = {
   lastAttemptAt?: number;
   callStatus: "not_called" | "no_answer";
 };
-
-const readyToDial = (household: Queued, now: number) =>
-  household.callStatus === "not_called" || now - (household.lastAttemptAt ?? 0) >= RETRY_AFTER_MS;
 
 export function startDialer() {
   let control: Partial<Doc<"control">> | null = null;
@@ -77,8 +74,7 @@ export function startDialer() {
 
   function tick() {
     if (!control?.dialerRunning || !control.warningIssuedAt || capacity() <= 0) return;
-    const now = Date.now();
-    const next = queue.find((household) => !busy(household._id) && readyToDial(household, now) && allowed(household));
+    const next = queue.find((household) => !busy(household._id) && allowed(household));
     if (next) void dial(next);
   }
 

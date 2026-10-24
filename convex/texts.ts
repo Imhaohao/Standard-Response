@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
 import { simNow } from "./clock";
+import { stopLadder } from "./reachLadder";
 
 export const forHousehold = query({
   args: { householdId: v.id("households") },
@@ -21,11 +22,17 @@ export const send = mutation({
   handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "outbound", at: await simNow(ctx) }),
 });
 
-// Simulated phone panel: a resident's reply. The voice track parses it.
+// Simulated phone panel: a resident's reply. The voice track parses it. A reply ends the reach
+// ladder at once, so no door check follows while the reply is being read.
 export const reply = mutation({
   args: { householdId: v.id("households"), body: v.string() },
   returns: v.id("texts"),
-  handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "inbound", at: await simNow(ctx) }),
+  handler: async (ctx, args) => {
+    const textId = await ctx.db.insert("texts", { ...args, direction: "inbound", at: await simNow(ctx) });
+    const household = await ctx.db.get("households", args.householdId);
+    if (household?.ladder?.step === "awaiting_reply") await stopLadder(ctx, household._id, "replied");
+    return textId;
+  },
 });
 
 // Simulated phone panel: one thread per household, newest first.
