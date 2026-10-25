@@ -168,11 +168,11 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
 - **One press closes the last stretch, and the van usually just drives around it.** That's the honest "re-routed to the same pickup" step. In about three quarters of sampled homes there's another way in. The button now comes back once the van has a new route (`ff035db`). Press it again to close that way in too, and when no road reaches the rider in time the next re-plan revokes the pickup and Carmen gets the `reassigning` call. For a single-press revocation, rehearse with a rider whose last street is the only way in.
 - **Every closure is snapped to the road graph as it's written** (`77cc28a`). Hazard and drawn closures used to wait for the real dispatcher's next re-plan. With the dispatch stand-in on, a caller's way out (`voice:situation`'s route) ignored every one of them.
 
-## 2026-10-25 03:20
+## 2026-10-25 02:58
 
 `data/flow-results.json` is regenerated on the Eaton Fire scenario with today's crowd model (4 seeds, 30% of households), offline. The flow lab and the under-the-hood screen read it directly; nothing else quoted its numbers except `docs/mesh.md`, now updated. What moved: the shared model's AUC is 0.74 (it was 0.93 on seed 7), and so is the central fit on raw data (0.75), so it's the data, not the privacy. On this fire phones come to know of about 40 blocked streets, against 115. The agency still hears about 2 minutes sooner with the mesh in every seed, and now knows of more of what phones saw (80% against 64%, median). Evacuation totals still don't move.
 
-## 2026-10-25 03:45
+## 2026-10-25 03:03
 
 **Found, not fixed: 1,020 of the 11,855 synthetic households (2,404 people, 81 who can't leave on their own) are more than 200 m from any street in the road graph,** up to 620 m. They cluster in the northwest corner, around 34.20–34.21 N, 118.17–118.18 W, which is inside the graph's box but has no streets in it, likely the foothills, where a block group's homes got spread over its whole area. In the crowd model those cars cross that far of yards at 1.2 m/s before reaching a street. Anything that snaps a home to its nearest graph node (the dispatcher's pickups, door checks) starts or ends those trips up to 600 m from the house. Whoever owns `data/population.json` and `data/roads/altadena.json`: either the homes should be placed on residential land, or the graph is missing streets there.
 
