@@ -71,3 +71,7 @@ The flood, surge and tsunami have their own renderers now (`lib/ink-map/hazard-l
 - **New `event` frames** in `lib/cities.ts`, about 2 km across, for the Lower Ninth (the north breach and the ward), Fort Myers Beach (Estero Island's north end with Times Square and the pier) and Hilo (downtown and Waiākea). `/lab/scenes?city=<id>&frame=event`. A scenario that starts more than an hour after its warning opens half an hour before its first front.
 - **GPU cost:** one fullscreen pass and no render targets. It adds a shore texture (2 bytes a cell, at most 1024 across) and the arrival field as half floats.
 - **Tests:** `npx tsx --test lib/ink-map/hazard-layers/water/water.test.ts`. It isn't in `npm run test:map`, whose glob only covers `lib/ink-map/*.test.ts`. Widening it would also pick up the blizzard's tests, one of which was failing at 01:30.
+
+## 2026-10-25 03:20
+
+The baked map format gained an optional field (`9022adf`). City bakes may carry a top-level `areaHoles`, which holds the islands inside a water area. The decoder (`lib/ink-map/data.ts`) attaches them as `Area.holes`, and `areaRings(area)` returns the outline and its holes together. Anything that reads `area.ring` still works, but it treats islands as water. If your code fills or strokes land-use areas, switch to `areaRings`. The land-use raster, the flat map, fire barriers and the water and blizzard layers already use it. Altadena has no holes, so its bake is unchanged.
