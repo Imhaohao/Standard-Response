@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 // Run from the repo root: npx vitest run apify/tests --environment edge-runtime
-import aggregateTest from "@convex-dev/aggregate/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import schema from "../../convex/schema";
+import { registerHouseholdCounts } from "../../tests/workflow/householdCounts";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 
@@ -45,8 +45,7 @@ const zone = (overrides: Record<string, unknown> = {}) => ({
 
 function makeBackend() {
   const t = convexTest(schema, modules);
-  aggregateTest.register(t, "householdsByOutcome");
-  aggregateTest.register(t, "householdsByCallStatus");
+  registerHouseholdCounts(t);
   return t;
 }
 
