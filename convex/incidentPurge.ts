@@ -1,5 +1,5 @@
 import { cancel, type WorkflowId } from "@convex-dev/workflow";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 
@@ -11,6 +11,7 @@ import type { MutationCtx } from "./_generated/server";
 // assignments, pickup plans and neighbor calls, nominations, and the activity-list, audit-log and
 // archived-night rows that name them. Audit log rows are deleted rather than scrubbed: their
 // messages carry addresses and names that no pattern removes reliably.
+// Each batch of households also leaves Elastic's search index (convex/elastic.ts forgetHomes).
 // Kept: simulated households and their rows, vans, shelters, zones, roads, the model and mesh data.
 
 export type Counts = Record<string, number>;
@@ -155,6 +156,7 @@ export async function purgeHouseholdBatch(ctx: MutationCtx, counts: Counts) {
   const batch = await ctx.db.query("households").withIndex("by_simulated", (q) => q.eq("simulated", false)).take(HOUSEHOLD_BATCH);
   let next = counts;
   for (const household of batch) next = await purgeHousehold(ctx, household, next);
+  if (batch.length > 0) await ctx.scheduler.runAfter(0, internal.elastic.forgetHomes, { householdIds: batch.map((h) => h._id) });
   return { done: batch.length < HOUSEHOLD_BATCH, counts: next };
 }
 

@@ -3,7 +3,7 @@
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { ElasticLike, indexDocuments, searchIndex } from "./elasticCore";
+import { ElasticLike, forgetHouseholds, indexDocuments, searchIndex } from "./elasticCore";
 import { householdDocument, lineDocument } from "./elasticDocs";
 
 // Search over call transcripts and households, kept in Elastic Cloud. Set ELASTIC_URL and
@@ -19,6 +19,16 @@ async function connect(): Promise<ElasticLike | null> {
   const { Client } = await import("@elastic/elasticsearch");
   return new Client({ node: ELASTIC_URL, auth: { apiKey: ELASTIC_API_KEY }, serverMode: "serverless" }) as unknown as ElasticLike;
 }
+
+export const forgetHomes = internalAction({
+  args: { householdIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (_ctx, { householdIds }) => {
+    const client = await connect();
+    if (client) await forgetHouseholds(client, householdIds);
+    return null;
+  },
+});
 
 export const indexLine = internalAction({
   args: { lineId: v.id("transcriptLines") },

@@ -9,6 +9,7 @@ export type ElasticLike = {
   };
   bulk: (params: { operations: unknown[] }) => Promise<{ errors: boolean }>;
   search: (params: { index: string } & ReturnType<typeof searchBody>) => Promise<{ hits: { hits: SearchHit[] } }>;
+  deleteByQuery: (params: { index: string; query: unknown }) => Promise<unknown>;
 };
 
 export type ElasticEnv = { ELASTIC_URL?: string; ELASTIC_API_KEY?: string };
@@ -46,4 +47,11 @@ export async function searchIndex(client: ElasticLike, q: string, language?: str
   await ensureIndex(client);
   const response = await client.search({ index: INDEX_NAME, ...searchBody(q, language) });
   return shapeHits(response.hits.hits);
+}
+
+// Closing the incident deletes real homes from Convex; their household and transcript documents go too.
+export async function forgetHouseholds(client: ElasticLike, householdIds: string[]) {
+  if (householdIds.length === 0) return;
+  if (!(await client.indices.exists({ index: INDEX_NAME }))) return;
+  await client.deleteByQuery({ index: INDEX_NAME, query: { terms: { householdId: householdIds } } });
 }

@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import schema from "../../convex/schema";
 import { registerHouseholdCounts } from "../workflow/householdCounts";
-import { ElasticLike, indexDocuments, searchIndex, ensureIndex } from "../../convex/elasticCore";
+import { ElasticLike, forgetHouseholds, indexDocuments, searchIndex, ensureIndex } from "../../convex/elasticCore";
 import { householdDocument, householdSource, INDEX_MAPPINGS, INDEX_NAME, lineDocument, redactPhoneNumbers, shapeHits } from "../../convex/elasticDocs";
 
 // Run with: npx vitest run tests/elastic --environment edge-runtime
@@ -12,7 +12,7 @@ import { householdDocument, householdSource, INDEX_MAPPINGS, INDEX_NAME, lineDoc
 const modules = import.meta.glob("../../convex/**/*.ts");
 
 function fakeClient(options: { indexExists?: boolean; hits?: unknown[] } = {}) {
-  const calls = { exists: 0, create: 0, bulk: [] as unknown[][], search: [] as unknown[] };
+  const calls = { exists: 0, create: 0, bulk: [] as unknown[][], search: [] as unknown[], deleted: [] as unknown[] };
   const client: ElasticLike = {
     indices: {
       exists: async () => {
@@ -30,6 +30,9 @@ function fakeClient(options: { indexExists?: boolean; hits?: unknown[] } = {}) {
     search: async (params) => {
       calls.search.push(params);
       return { hits: { hits: (options.hits ?? []) as never[] } };
+    },
+    deleteByQuery: async (params) => {
+      calls.deleted.push(params);
     },
   };
   return { client, calls };
@@ -163,5 +166,19 @@ describe("search", () => {
     expect(body.query.bool.must[0].multi_match.fuzziness).toBe("AUTO");
     expect(body.query.bool.must[0].multi_match.fields).toEqual(expect.arrayContaining(["text", "text.es", "text.cjk"].map((f) => expect.stringContaining(f))));
     expect(body.query.bool.filter).toEqual([{ term: { language: "es" } }]);
+  });
+});
+
+describe("closing the incident", () => {
+  test("a purged home's documents leave the index", async () => {
+    const { client, calls } = fakeClient({ indexExists: true });
+    await forgetHouseholds(client, ["h1", "h2"]);
+    expect(calls.deleted).toEqual([{ index: INDEX_NAME, query: { terms: { householdId: ["h1", "h2"] } } }]);
+  });
+
+  test("with no index yet there is nothing to delete", async () => {
+    const { client, calls } = fakeClient({ indexExists: false });
+    await forgetHouseholds(client, ["h1"]);
+    expect(calls.deleted).toEqual([]);
   });
 });
