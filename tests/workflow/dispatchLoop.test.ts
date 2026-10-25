@@ -309,3 +309,24 @@ describe("a closure late in a night the fire has crossed", () => {
     expect((await requestOf(t, homes[0])).status).toBe("reassigning");
   });
 });
+
+describe("an offer waiting for the dispatcher's approval at fast playback", () => {
+  test("stays put for the dispatcher's own two minutes, not two minutes of the night", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await t.mutation(api.control.setStandIns, { autoApprove: false });
+    await t.mutation(api.control.setPlayback, { speed: 60 });
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [proposed] = await liveFor(t, request._id);
+    expect(proposed.status).toBe("proposed");
+
+    vi.advanceTimersByTime(10_000);
+    await replan(t);
+    expect((await liveFor(t, request._id))[0]._id).toBe(proposed._id);
+
+    vi.advanceTimersByTime(150_000);
+    await replan(t);
+    expect((await liveFor(t, request._id))[0]._id).not.toBe(proposed._id);
+  });
+});

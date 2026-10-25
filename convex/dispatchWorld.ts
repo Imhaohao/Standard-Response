@@ -166,11 +166,13 @@ function firstFreeStops(snap: Snapshot, revoke: { assignmentId: Id<"assignments"
 
 // A proposed offer nobody approved in time is stale, and so is one the van has since accepted
 // other stops past: its stop order and ETA were set before that run, so it's offered afresh.
-function openOffers(snap: Snapshot, now: number, firstFree: Map<Id<"vehicles">, number>) {
+// "In time" is the dispatcher's own two minutes, as the driver gets to answer: at 60x playback two
+// minutes of the night are two seconds, and the offer would vanish from under their cursor.
+function openOffers(snap: Snapshot, firstFree: Map<Id<"vehicles">, number>) {
   const offers = new Map<Id<"requests">, OpenOffer>();
   for (const assignment of snap.live) {
     if (assignment.status === "accepted") continue;
-    const unapproved = assignment.status === "proposed" && now - assignment.proposedAt > OFFER_TTL_MS;
+    const unapproved = assignment.status === "proposed" && snap.wallNow - assignment._creationTime > OFFER_TTL_MS;
     const overtaken = assignment.stopOrder < (firstFree.get(assignment.vehicleId) ?? 0);
     offers.set(assignment.requestId, { assignment, stale: unapproved || overtaken });
   }
@@ -265,7 +267,7 @@ export function buildWorld(snap: Snapshot, now: number) {
   const revoke = vehiclePlans.flatMap((plan) => plan.revoke);
   const revokingRequests = new Set(revoke.map((r) => snap.live.find((a) => a._id === r.assignmentId)!.requestId));
   const refused = refusedPairs(snap, now, revoke);
-  const offers = openOffers(snap, now, firstFreeStops(snap, revoke));
+  const offers = openOffers(snap, firstFreeStops(snap, revoke));
   const riders = ridersToPlan(context, revokingRequests);
 
   const locations = new Locations();

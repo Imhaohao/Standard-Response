@@ -60,10 +60,13 @@ async function onboardRiders(ctx: QueryCtx) {
 
 export async function readSnapshot(ctx: QueryCtx) {
   const control = await ctx.db.query("control").first();
-  const now = simTime(control?.clock, Date.now());
+  const wallNow = Date.now();
+  const now = simTime(control?.clock, wallNow);
   const requests = await openRequests(ctx);
   return {
     now,
+    // The wall clock, for what waits on a person: a dispatcher's approval doesn't speed up with playback.
+    wallNow,
     requests,
     live: await assignmentsWith(ctx, ["proposed", "offered", "accepted"]),
     refused: await refusalsFor(ctx, requests),
