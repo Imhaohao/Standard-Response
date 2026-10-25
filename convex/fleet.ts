@@ -239,8 +239,7 @@ async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicle
   if (route) await drive(ctx, { fleet, vehicle, route, load });
 }
 
-export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {
-  const closures = await readClosures(ctx);
+export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number, closures: Doc<"roadClosures">[]) {
   let edgeTime: Promise<EdgeTime> | undefined;
   const fleet: Fleet = {
     now,
@@ -263,9 +262,11 @@ export const tick = internalMutation({
     const control = await ctx.db.query("control").first();
     if (!control || control.simulateDispatch || !control.warningIssuedAt) return null;
     const now = await simNow(ctx);
-    await maybeReplan(ctx, Date.now());
+    // Read once a tick for both: on a night the fire has crossed there are over a thousand.
+    const closures = await readClosures(ctx);
+    await maybeReplan(ctx, Date.now(), closures);
     if (control.simulateDrivers) await standInDrivers(ctx, now);
-    await moveFleet(ctx, now, tickMs);
+    await moveFleet(ctx, now, tickMs, closures);
     return null;
   },
 });

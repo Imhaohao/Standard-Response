@@ -10,7 +10,6 @@ import { vehicleCanServe } from "./model";
 import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
 import { closureSetKey } from "./roadGraph";
-import { readClosures } from "./roads";
 import type { Snapshot } from "./dispatchSnapshot";
 import { simNow } from "./clock";
 
@@ -48,11 +47,12 @@ async function hasLiveRuns(ctx: MutationCtx) {
   return false;
 }
 
-// Called from the simulation tick. Starts a re-plan when one is due and none is running.
-export async function maybeReplan(ctx: MutationCtx, now: number) {
+// Called from the simulation tick with the closures it read for the vans. Starts a re-plan when one
+// is due and none is running.
+export async function maybeReplan(ctx: MutationCtx, now: number, roadClosures: Doc<"roadClosures">[]) {
   const state = await stateRow(ctx);
   if (state.replanStartedAt && now - state.replanStartedAt < REPLAN_LOCK_MS) return;
-  const closures = closureSetKey(await readClosures(ctx));
+  const closures = closureSetKey(roadClosures);
   const closuresChanged = closures !== state.closuresSeen;
   const since = now - state.lastReplanAt;
   const due = (since >= REPLAN_EVERY_MS && (await hasUrgentWork(ctx))) || (since >= REFRESH_EVERY_MS && (await hasLiveRuns(ctx)));
