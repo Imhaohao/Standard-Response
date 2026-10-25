@@ -28,6 +28,8 @@ const NATIVE_VOICES: Record<string, string> = {
   tl: "6d14ac2a-4dda-46f8-bd6f-0722db08ec00", // Mae
   ru: "7a62541e-5492-410e-95ff-3abd096fce87", // Natalia
   ja: "498e7f37-7fa3-4e2c-b8e2-8b6e9276f956", // Aiko
+  fr: "92579402-6868-412e-b845-3efed0be7a9e", // Jade
+  hi: "6b02ffe5-e3cb-48c0-a023-c72f85953375", // Sneha
 };
 
 export const env = {
