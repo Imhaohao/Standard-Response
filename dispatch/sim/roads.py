@@ -111,7 +111,7 @@ class TravelTimes:
         self.row_of = {int(node): row for row, node in enumerate(self.sources)}
         self.closure_seconds = edge_closure_minutes() * MINUTE * hazard_scale if closure_seconds is None else closure_seconds
         self._by_epoch: dict[int, np.ndarray] = {}
-        self._open_count_by_epoch: dict[int, int] = {}
+        self._last_key: tuple[int, np.ndarray] | None = None
 
     def epoch_of(self, t: float) -> int:
         return int(max(t, 0.0) // CLOSURE_EPOCH_S)
@@ -123,8 +123,17 @@ class TravelTimes:
         epoch = self.epoch_of(t)
         if epoch not in self._by_epoch:
             self._forget_old_epochs(epoch)
-            self._by_epoch[epoch] = self._compute(epoch)
+            self._by_epoch[epoch] = self._same_closures_table(epoch)
         return self._by_epoch[epoch]
+
+    def _same_closures_table(self, epoch: int) -> np.ndarray:
+        """An epoch whose open streets match the last one computed shares its table: one array, not another copy."""
+        key = hash(self.open_edges(epoch).tobytes())
+        if self._last_key is not None and self._last_key[0] == key:
+            return self._last_key[1]
+        table = self._compute(epoch)
+        self._last_key = (key, table)
+        return table
 
     def _forget_old_epochs(self, epoch: int):
         """A whole night of tables would not fit in memory. Epoch 0 stays: it is the no-closure fallback."""
