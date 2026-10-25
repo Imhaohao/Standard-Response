@@ -9,22 +9,34 @@ import { OFFER_TTL_MS } from "./model";
 import { simNow } from "./clock";
 
 
-const LIVE = new Set<Doc<"assignments">["status"]>(["proposed", "offered", "accepted"]);
+const LIVE = ["proposed", "offered", "accepted"] as const;
+
+// Read by status, not by reading the oldest rows and filtering: every re-plan and expiry leaves an
+// ended assignment behind, and on a long night the live ones sit far past any fixed limit.
+const oldestFirst = (rows: Doc<"assignments">[][]) => rows.flat().sort((a, b) => a._creationTime - b._creationTime);
 
 export async function liveAssignmentsFor(ctx: QueryCtx, requestId: Id<"requests">) {
-  const rows = await ctx.db
-    .query("assignments")
-    .withIndex("by_requestId", (q) => q.eq("requestId", requestId))
-    .take(50);
-  return rows.filter((a) => LIVE.has(a.status));
+  const lists = await Promise.all(
+    LIVE.map((status) =>
+      ctx.db
+        .query("assignments")
+        .withIndex("by_requestId_and_status", (q) => q.eq("requestId", requestId).eq("status", status))
+        .take(50),
+    ),
+  );
+  return oldestFirst(lists);
 }
 
 export async function liveAssignmentsForVehicle(ctx: QueryCtx, vehicleId: Id<"vehicles">) {
-  const rows = await ctx.db
-    .query("assignments")
-    .withIndex("by_vehicleId", (q) => q.eq("vehicleId", vehicleId))
-    .take(100);
-  return rows.filter((a) => LIVE.has(a.status));
+  const lists = await Promise.all(
+    LIVE.map((status) =>
+      ctx.db
+        .query("assignments")
+        .withIndex("by_vehicleId_and_status_and_stopOrder", (q) => q.eq("vehicleId", vehicleId).eq("status", status))
+        .take(100),
+    ),
+  );
+  return oldestFirst(lists);
 }
 
 async function mustGet(ctx: QueryCtx, assignmentId: Id<"assignments">) {

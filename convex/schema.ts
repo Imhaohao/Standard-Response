@@ -374,7 +374,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_householdId", ["householdId"]),
+    .index("by_householdId", ["householdId"])
+    // The open request for a home, however many closed ones it has behind it.
+    .index("by_householdId_and_status", ["householdId", "status"]),
 
   vehicles: defineTable({
     label: v.string(),
@@ -437,6 +439,8 @@ export default defineSchema({
     etaUpdatedAt: v.optional(v.number()),
   })
     .index("by_requestId", ["requestId"])
+    // A request's live offer, however many re-plans and expiries came before it.
+    .index("by_requestId_and_status", ["requestId", "status"])
     .index("by_vehicleId", ["vehicleId"])
     .index("by_status", ["status"])
     // Track C: a vehicle's accepted run in stop order, without reading its whole history.

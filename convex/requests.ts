@@ -10,6 +10,9 @@ import { simNow } from "./clock";
 
 export type RequestStatus = Doc<"requests">["status"];
 
+// Every status but closed.
+const OPEN_STATUSES: RequestStatus[] = ["received", "approved", "driver_accepted", "en_route", "reassigning", "arrived"];
+
 // The only legal moves. Every status write goes through `transitionRequest`.
 const NEXT: Record<RequestStatus, RequestStatus[]> = {
   received: ["approved", "closed"],
@@ -48,12 +51,18 @@ export async function releaseRequest(ctx: MutationCtx, requestId: Id<"requests">
   if (request?.status === "approved") await transitionRequest(ctx, requestId, "received");
 }
 
+// By status, so a home whose rider changed their mind many times still finds its open request.
 export async function openRequestFor(ctx: QueryCtx, householdId: Id<"households">) {
-  const requests = await ctx.db
-    .query("requests")
-    .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
-    .take(20);
-  return requests.find((r) => r.status !== "closed") ?? null;
+  const open = await Promise.all(
+    OPEN_STATUSES.map((status) =>
+      ctx.db
+        .query("requests")
+        .withIndex("by_householdId_and_status", (q) => q.eq("householdId", householdId).eq("status", status))
+        .first(),
+    ),
+  );
+  const found = open.filter((r) => r !== null);
+  return found.sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
 }
 
 async function closeRequest(ctx: MutationCtx, request: Doc<"requests">) {
@@ -100,8 +109,6 @@ export const forHousehold = query({
     return request ? { _id: request._id, status: request.status } : null;
   },
 });
-
-const OPEN_STATUSES: RequestStatus[] = ["received", "approved", "driver_accepted", "en_route", "reassigning", "arrived"];
 
 // Every request that isn't closed, with the household's location. Dispatchers and the rescue map read this.
 export const open = query({

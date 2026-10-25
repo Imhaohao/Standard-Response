@@ -36,12 +36,16 @@ async function driverFor(ctx: QueryCtx, assignment: Doc<"assignments">): Promise
   };
 }
 
+// By status, so the driver is still found after many re-plans of this request.
 async function acceptedAssignmentFor(ctx: QueryCtx, requestId: Id<"requests">) {
-  const rows = await ctx.db
-    .query("assignments")
-    .withIndex("by_requestId", (q) => q.eq("requestId", requestId))
-    .take(50);
-  return rows.find((a) => a.status === "accepted" || a.status === "completed") ?? null;
+  for (const status of ["accepted", "completed"] as const) {
+    const row = await ctx.db
+      .query("assignments")
+      .withIndex("by_requestId_and_status", (q) => q.eq("requestId", requestId).eq("status", status))
+      .first();
+    if (row) return row;
+  }
+  return null;
 }
 
 const statusShape = v.union(
