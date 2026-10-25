@@ -46,6 +46,8 @@ import { UnreachedPanel } from "./unreached-panel";
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 // Panels keep their full height and the column scrolls, so no panel is ever cut short.
 const PANEL_COLUMN = "pointer-events-auto flex shrink-0 flex-col gap-3 overflow-y-auto [&>*]:shrink-0";
+// The whole door-check list: the fire crews work all of it, and the panel shows all of it.
+const DOOR_QUEUE_LIMIT = 1000;
 
 export function RescueMap() {
   const data = useInkMapData();
@@ -61,7 +63,9 @@ export function RescueMap() {
   const { unreached, skipped, stillHome } = useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire: { hazard, danger, minutes: clock.minutes }, toLocal });
   const { drill, localDrill, fireMinutes } = useDrillOnMap(toLocal, clock.minutes);
   const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, fireMinutes) : null), [hazard, fireMinutes]);
-  const crews = useFireCrews({ data, homes, hazard, control, lit: simulated.lit, toLocal });
+  // One subscription to the list, so the crews and the Doors to knock panel read the same order.
+  const doorQueue = useQuery(api.doorChecks.queue, { limit: DOOR_QUEUE_LIMIT });
+  const crews = useFireCrews({ data, homes, queue: doorQueue, hazard, startedAt: clock.startedAt, minutes: clock.minutes, toLocal });
   const forecast = useMemo(() => (danger ? { field: forecastField(danger), aheadMinutes: FORECAST_AHEAD_MINUTES } : null), [danger]);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(data, toLocal, board.closed);
@@ -114,7 +118,7 @@ export function RescueMap() {
       >
         <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
         {drill && localDrill && <TruckDrillLayer drill={drill} local={localDrill} />}
-        <FireCrewTrails crews={crews} minutes={fireMinutes} />
+        <FireCrewTrails crews={crews} minutes={clock.minutes} />
         <MapOverlays
           zone={drawing.zone}
           street={drawing.street}
@@ -127,7 +131,7 @@ export function RescueMap() {
           onVanHover={setVanFocusId}
           fireAt={fireAt}
         />
-        <FireCrewEngines crews={crews} minutes={fireMinutes} />
+        <FireCrewEngines crews={crews} minutes={clock.minutes} />
       </MapStage>
 
       <PanelDesk storageKey="rescue-map-panels">
@@ -143,11 +147,11 @@ export function RescueMap() {
             </div>
             <div className="min-w-0 flex-1" />
             <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
-              <FireCrewPanel crews={crews} minutes={fireMinutes} />
+              <FireCrewPanel crews={crews} minutes={clock.minutes} />
+              <DoorCheckPanel queue={doorQueue} crews={crews} minutes={clock.minutes} unreached={unreached.length} />
               <TruckDrillPanel drill={drill} />
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
-              <DoorCheckPanel unreached={unreached.length} />
               <RiderUpload />
             </div>
           </div>
@@ -220,14 +224,15 @@ function useFireOnScreen(data: InkMapData | null, warningIssuedAt: number | unde
   const forecast = useDangerZones(data?.origin);
   const simulated = useSimulatedFire(scenario, data, homes, toLocal);
   const hazard = simulated.hazard ?? scenario;
-  const clock = useFireClock(hazard, simulated.startedAt ?? warningIssuedAt);
+  const startedAt = simulated.startedAt ?? warningIssuedAt;
+  const clock = useFireClock(hazard, startedAt);
   const { ignite, clear: putOut } = simulated;
   const fire = simulated.hazard;
   const summary = fire ? { burned: fire.burnedAt.length, outAt: fire.outAt, homesReached: simulated.homesToWarn } : null;
   return {
     hazard,
     danger: fire ? null : forecast,
-    clock,
+    clock: { ...clock, startedAt },
     simulated: { summary, lit: fire !== null, zoneCorners: simulated.zoneCorners, response: simulated.response, setResponse: simulated.setResponse, putOut },
     ignite,
   };

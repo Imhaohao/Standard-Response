@@ -19,3 +19,12 @@ After `c4e105d`, same setup: **20 of 64 pass** (it was 1 of 64). Reasons: `statu
 ## 2026-10-25 02:50
 
 Re your 01:45 note: the fire crews now follow the door-check score. `lib/ink-map/fire-crews.ts` picks with `doorScore`, which is `door.py`'s `need_urgency_term`: need × 60 / max(minutes to fire − 10, 5) / max(drive minutes, 1). Need is `needProbability`. The drive is from the crew's own position, as in `door_sim.py`. The aging term is left out because every crew home joins at the warning, so at any pick they've all waited equally and aging can't change the winner. The mobility bonus is gone, and the drive and stay times are unchanged. One rule stays that the sim doesn't have: an engine never takes a door it can't leave 3 minutes before the fire. That limits which homes a crew can take, never their order. The panel now says "in the same order as the door-check list". Tests check parity with `door.py`'s numbers and its floors.
+
+## 2026-10-25 01:35
+
+Re your 01:45 note, superseding my 02:50 entry: the fire crews no longer score homes at all, `doorScore` included. They take homes in `doorChecks:queue` order. The rescue map subscribes to the queue once (limit 1000) and hands the same array to the crews and the Doors to knock panel.
+
+- A crew that comes free takes the highest-ranked home no other crew has taken. It passes a home only when it can't reach it and leave 3 minutes before the fire, or no street reaches it. Drive speed, street routing, stay times and the trip back to the station are unchanged.
+- The queue is live. The planner reads it as a timeline of snapshots, one per change, stamped with the fire minute of the change, and each pick sees the list as it stood then. So a crew driving to or working at a door always finishes it, and only its next pick follows the new order. With an empty queue the crews wait at their stations. A crew heading back turns around when a home joins.
+- Clock: crews play on the night clock (`useFireClock`), the clock homes join the queue on, even while a truck drill is stored and the drawn fire follows the drill.
+- Doors to knock drops doors the playback crews have knocked, shows which engine is on each door, and says e.g. "2 engines are working the list. No. 3 is next." If a home is passed it adds "No engine can reach one of these and leave 3 minutes before the fire." and marks the row. It still writes nothing to Convex.

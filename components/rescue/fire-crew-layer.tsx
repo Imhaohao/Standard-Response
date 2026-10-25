@@ -2,7 +2,6 @@
 
 import { Check, FireTruck } from "@phosphor-icons/react";
 import { Anchor, MapLine } from "@/components/map/layers";
-import { formatSinceWarning } from "@/lib/time";
 import { crewAt, CrewMoment, CrewRun, visitedBy } from "@/lib/ink-map/fire-crews";
 import { FireCrews, useSmoothMinutes } from "./use-fire-crews";
 
@@ -13,8 +12,8 @@ const EMBER = "var(--ember)";
 const ARC_RADIUS = 15;
 const ARC_LENGTH = 2 * Math.PI * ARC_RADIUS;
 
-// A crew that hasn't reached the map yet, or has driven back off it, isn't drawn.
-const shown = (run: CrewRun, moment: CrewMoment) => !(run.joinsAtEdge && (moment.kind === "waiting" || moment.kind === "done"));
+// A crew whose station is off the map isn't drawn while it waits there.
+const shown = (run: CrewRun, moment: CrewMoment) => !(run.joinsAtEdge && moment.kind === "idle" && moment.atStation);
 
 // The street a crew is driving to its next door, as a dotted ink line, and a ring on that door.
 function Heading({ moment }: { moment: CrewMoment }) {
@@ -87,7 +86,7 @@ export function FireCrewTrails({ crews, minutes }: { crews: FireCrews | null; mi
 }
 
 // Parked at the curb beside the door it is helping at; otherwise right on the street.
-const CURB: Record<CrewMoment["kind"], string | undefined> = { helping: "translate(-17 -12)", waiting: undefined, driving: undefined, done: undefined };
+const CURB: Record<CrewMoment["kind"], string | undefined> = { helping: "translate(-17 -12)", idle: undefined, driving: undefined };
 
 function EngineMark({ run, moment, label }: { run: CrewRun; moment: CrewMoment; label: string }) {
   return (
@@ -121,8 +120,7 @@ export function FireCrewEngines({ crews, minutes }: { crews: FireCrews | null; m
 // What a crew is doing, in a few words, for the engine's tooltip and the crews panel.
 export function crewStatus(run: CrewRun, moment: CrewMoment, homeAddress: Map<string, string>) {
   const address = (home: string) => homeAddress.get(home) ?? "a home in the fire's path";
-  if (moment.kind === "waiting") return `Leaves ${run.station} ${formatSinceWarning(Math.ceil(run.leavesAt))} after the warning`;
   if (moment.kind === "helping") return `At ${address(moment.visit.home)}`;
   if (moment.kind === "driving") return moment.to ? `Driving to ${address(moment.to.home)}` : `Heading back to ${run.station}`;
-  return "No more homes it can reach before the fire";
+  return moment.atStation ? `At ${run.station}` : "Stopped, no street back to its station";
 }
