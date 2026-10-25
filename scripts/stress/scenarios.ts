@@ -347,6 +347,22 @@ const PATCHES: RecordPatch[] = [
   { canLeave: "yes", hasCar: false },
 ];
 
+// Household counts are applied by the aggregate's queue, so they trail the records briefly.
+const COUNTS_SETTLE_MS = 10_000;
+
+async function settledCounts(lab: Lab, rows: Doc<"households">[]) {
+  const expected = countBy(rows, (h) => h.outcome);
+  const started = Date.now();
+  for (;;) {
+    const counts = await lab.query(api.households.counts, {});
+    const counted: Record<string, number> = counts.outcome;
+    const settled = counts.total === rows.length && Object.entries(expected).every(([outcome, n]) => counted[outcome] === n);
+    const waitedMs = Date.now() - started;
+    if (settled || waitedMs > COUNTS_SETTLE_MS) return { counts, waitedMs };
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
+
 const concurrentCorrections: Scenario = {
   name: "concurrent-corrections",
   about: "150 riders, 450 record updates sent all at once; household counts and requests must match the records",
@@ -357,12 +373,14 @@ const concurrentCorrections: Scenario = {
     // Each update writes a different household. Only the shared household counts link them.
     const given = Object.entries(lab.conflicts[lab.scenario] ?? {});
     lab.expect(given.length === 0, `updates to different households never give up on a write conflict (${JSON.stringify(Object.fromEntries(given))} of ${ops.length})`);
-    const [rows, requests, counts] = await Promise.all([lab.table("households"), lab.table("requests"), lab.query(api.households.counts, {})]);
-    lab.expect(counts.total === rows.length, `household count ${counts.total} matches ${rows.length} rows`);
+    const [rows, requests] = await Promise.all([lab.table("households"), lab.table("requests")]);
+    const { counts, waitedMs } = await settledCounts(lab, rows);
+    lab.expect(counts.total === rows.length, `household count ${counts.total} matches ${rows.length} rows (after ${waitedMs} ms)`);
     const counted: Record<string, number> = counts.outcome;
     for (const [outcome, n] of Object.entries(countBy(rows, (h) => h.outcome))) {
       lab.expect((counted[outcome] ?? 0) === n, `${outcome} count ${counted[outcome] ?? 0} matches ${n} rows`);
     }
+    lab.expect(waitedMs <= COUNTS_SETTLE_MS, `household counts catch up with the records within ${COUNTS_SETTLE_MS / 1000}s (took ${waitedMs} ms)`);
     const mine = new Set(households);
     for (const household of rows.filter((h) => mine.has(h._id))) {
       const open = requests.filter((r) => r.householdId === household._id && r.status !== "closed").length;

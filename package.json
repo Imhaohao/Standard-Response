@@ -45,6 +45,7 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@convex-dev/batch-worker": "0.3.3",
     "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",

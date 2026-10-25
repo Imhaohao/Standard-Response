@@ -8,6 +8,12 @@ import { internalMutation, MutationCtx, QueryCtx } from "./_generated/server";
 // Call-floor counts kept as running totals, so `households:counts` reads a few aggregate nodes
 // instead of every household on every tick. Each value is its own namespace: a call ending
 // (callStatus) never contends with a need estimate changing (outcome) or with another value.
+//
+// Writes are queued and counts read a moment stale. Applied in the household's own transaction,
+// every write to a namespace touched one of its few B-tree nodes, so record writes for different
+// homes conflicted: the stress test (docs/convex-stress.md) lost over half of 450 concurrent
+// corrections that way. Queued, the aggregate's batch worker applies them one batch at a time.
+const QUEUED = { async: true } as const;
 
 export const OUTCOMES = ["unknown", "leaving", "needs_ride", "needs_accessible", "unreachable"] as const;
 export const CALL_STATUSES = ["not_called", "in_call", "no_answer", "texted", "door_check", "complete"] as const;
@@ -32,16 +38,16 @@ export async function syncHouseholdCounts(ctx: MutationCtx, change: Change<DataM
   const { oldDoc, newDoc } = change;
   if (oldDoc && newDoc && oldDoc.outcome === newDoc.outcome && oldDoc.callStatus === newDoc.callStatus) return;
   for (const aggregate of [byOutcome, byCallStatus] as TableAggregate<Counted<string>>[]) {
-    if (oldDoc && newDoc) await aggregate.replaceOrInsert(ctx, oldDoc, newDoc);
-    else if (newDoc) await aggregate.insertIfDoesNotExist(ctx, newDoc);
-    else if (oldDoc) await aggregate.deleteIfExists(ctx, oldDoc);
+    if (oldDoc && newDoc) await aggregate.replaceOrInsert(ctx, oldDoc, newDoc, QUEUED);
+    else if (newDoc) await aggregate.insertIfDoesNotExist(ctx, newDoc, QUEUED);
+    else if (oldDoc) await aggregate.deleteIfExists(ctx, oldDoc, QUEUED);
   }
 }
 
 export async function countHouseholds(ctx: QueryCtx) {
   const [outcomes, statuses] = await Promise.all([
-    byOutcome.countBatch(ctx, OUTCOMES.map((namespace) => ({ namespace }))),
-    byCallStatus.countBatch(ctx, CALL_STATUSES.map((namespace) => ({ namespace }))),
+    byOutcome.countBatch(ctx, OUTCOMES.map((namespace) => ({ namespace })), { stale: true }),
+    byCallStatus.countBatch(ctx, CALL_STATUSES.map((namespace) => ({ namespace })), { stale: true }),
   ]);
   return {
     total: outcomes.reduce((sum, count) => sum + count, 0),
@@ -54,6 +60,7 @@ const BACKFILL_BATCH = 200;
 
 // Rebuilds both aggregates from the households table, then switches `households:counts` over.
 // Run once after deploying: npx convex run householdCounts:backfill
+// Clearing needs an empty write queue, so run it while no household is being written.
 export const backfill = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   returns: v.null(),
@@ -64,8 +71,8 @@ export const backfill = internalMutation({
     }
     const page = await ctx.db.query("households").paginate({ cursor: cursor ?? null, numItems: BACKFILL_BATCH });
     for (const household of page.page) {
-      await byOutcome.insertIfDoesNotExist(ctx, household);
-      await byCallStatus.insertIfDoesNotExist(ctx, household);
+      await byOutcome.insertIfDoesNotExist(ctx, household, QUEUED);
+      await byCallStatus.insertIfDoesNotExist(ctx, household, QUEUED);
     }
     if (!page.isDone) {
       await ctx.scheduler.runAfter(0, internal.householdCounts.backfill, { cursor: page.continueCursor });

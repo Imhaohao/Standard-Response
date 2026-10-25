@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import aggregateTest from "@convex-dev/aggregate/test";
 import { describe, expect, test } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import schema from "../../convex/schema";
 import { EDGES } from "../../convex/roadGraph";
 import { TRAFFIC_STALE_MS } from "../../convex/traffic";
+import { registerHouseholdCounts } from "./householdCounts";
 
 // The traffic forecast reaching the dispatcher: the runner publishes, the re-plan snapshot reads it.
 // Run with: npx vitest run tests/workflow/trafficDriveTimes.test.ts --environment edge-runtime
@@ -16,8 +16,7 @@ const range = (median: number | null) => ({ median, p5: median, p95: median, n: 
 
 function setup() {
   const t = convexTest(schema, modules);
-  aggregateTest.register(t, "householdsByOutcome");
-  aggregateTest.register(t, "householdsByCallStatus");
+  registerHouseholdCounts(t);
   return t;
 }
 

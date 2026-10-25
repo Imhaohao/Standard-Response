@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import aggregateTest from "@convex-dev/aggregate/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/neighborPickups.test.ts --environment edge-runtime
 
@@ -19,8 +19,7 @@ const NEIGHBOR = { lat: 34.1900, lng: -118.15445 };
 
 function setup() {
   const t = convexTest(schema, modules);
-  aggregateTest.register(t, "householdsByOutcome");
-  aggregateTest.register(t, "householdsByCallStatus");
+  registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
   return t;
 }

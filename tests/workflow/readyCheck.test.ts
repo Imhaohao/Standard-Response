@@ -1,10 +1,10 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import aggregateTest from "@convex-dev/aggregate/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api, internal } from "../../convex/_generated/api";
 import schema from "../../convex/schema";
+import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/readyCheck.test.ts --environment edge-runtime
 // The Ready check stand-in calls simulated homes as calls on the floor: each rings, talks through its
@@ -14,8 +14,7 @@ const modules = import.meta.glob("../../convex/**/*.ts");
 
 function setup() {
   const t = convexTest(schema, modules);
-  aggregateTest.register(t, "householdsByOutcome");
-  aggregateTest.register(t, "householdsByCallStatus");
+  registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
   return t;
 }

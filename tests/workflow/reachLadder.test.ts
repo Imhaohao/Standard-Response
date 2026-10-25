@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import aggregateTest from "@convex-dev/aggregate/test";
 import workflowTest from "@convex-dev/workflow/test";
 import type { WorkflowId } from "@convex-dev/workflow";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -8,6 +7,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
 import { realWaitMs, workflow } from "../../convex/reachLadder";
+import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/reachLadder.test.ts --environment edge-runtime
 
@@ -19,8 +19,7 @@ const TO_RETRY_3 = 3 * MINUTE;
 
 function setup() {
   const t = convexTest(schema, modules);
-  aggregateTest.register(t, "householdsByOutcome");
-  aggregateTest.register(t, "householdsByCallStatus");
+  registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
   return t;
 }
