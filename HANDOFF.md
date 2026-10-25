@@ -156,10 +156,12 @@ goes through it. `results.ts` types the files, and `/api/results` now also serve
 sits under its panel.
 
 **"Close this road"** lives here (the plan put it on this screen, not `/phone`). For each driver-page
-van with a pickup it closes the last stretch of that van's real route before the door. When there is
-no route (the dispatch stand-in drives straight lines) it closes a short line across the approach
-70 m before the house instead. Either way it writes a `manual` closure through
-`roads:addClosures`. There is no "reopen" mutation yet.
+van with a pickup it closes the last stretch of that van's real route before the door. When the van
+isn't routed to that stop (the dispatch stand-in drives straight lines, or the van is heading to the
+shelter or an earlier pickup first) it closes a short line across the approach 70 m before the house
+instead. Either way it writes a `manual` closure through `roads:addClosures`. Once the van drives
+around the closure, the button comes back for its new way in; closing that too is how the pickup
+becomes unreachable and is revoked. There is no "reopen" mutation yet.
 
 ### `/phone` — `components/phone/phone-panel.tsx`
 
