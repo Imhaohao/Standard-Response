@@ -147,10 +147,22 @@ def wildfire_arrival(arrival_s, context: ArrivalContext) -> np.ndarray:
     return sighting_arrival(lat, lng, sightings, arrival_s)
 
 
-def tsunami_last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
-    """A pickup only counts if the van can still drive out of the inundation zone before the first wave, so the
-    household's hazard time is the wave minus the drive from its door to the zone's edge."""
+def last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
+    """The hazard time minus the drive from the door to the edge of the zone, for homes inside it."""
     return arrival_s - np.where(np.isfinite(arrival_s), seconds_to_leave_zone(context.net, context.fronts, context.nodes), 0.0)
+
+
+def tsunami_last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
+    """Every van must be out of the inundation zone before the first wave reaches any of it, so each home in the zone
+    has the first wave's time, minus the drive from its door to the zone's edge."""
+    first_wave = min(minutes for minutes, _ in context.fronts) * MINUTE
+    return last_exit(np.where(np.isfinite(arrival_s), first_wave, np.inf), context)
+
+
+def tsunami_closures(net, fronts, scenario, folder) -> np.ndarray:
+    """Every street anywhere in the inundation zone closes at the first wave."""
+    reached = edge_arrival_seconds(net, fronts)
+    return np.where(np.isfinite(reached), min(minutes for minutes, _ in fronts) * MINUTE, np.inf)
 
 
 def blizzard_deadline(arrival_s, context: ArrivalContext) -> np.ndarray:
@@ -165,7 +177,7 @@ def blizzard_deadline(arrival_s, context: ArrivalContext) -> np.ndarray:
 def flood_last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
     """Lower Ninth: aboard and out of the ward before the water reaches the home, and no van enters after the first
     breach. The household's hazard time is the earlier of the two, minus the drive from its door out of the ward."""
-    return tsunami_last_exit(np.minimum(arrival_s, FLOOD_NO_ENTRY_MINUTE * MINUTE), context)
+    return last_exit(np.minimum(arrival_s, FLOOD_NO_ENTRY_MINUTE * MINUTE), context)
 
 
 def flood_closures(net, fronts, scenario, folder) -> np.ndarray:
@@ -229,11 +241,12 @@ RULES: dict[str, HazardRule] = {
         adjust_arrival=surge_shelter_by,
     ),
     "tsunami": HazardRule(
-        on_time="everyone aboard, and the van able to drive out of the inundation zone, at least 10 min before the first wave",
+        on_time="everyone aboard, and the van able to drive out of the inundation zone, at least 10 min before the first wave reaches any of it",
         on_time_why="a van caught inside the zone at the first wave is lost with its riders",
         margin_s=10 * MINUTE,
         closure_rule="every street inside the inundation zone closes at the first wave",
         closure_why="the 1960 waves came in a series over hours; nobody re-enters the zone",
+        closures=tsunami_closures,
         adjust_arrival=tsunami_last_exit,
     ),
     "blizzard": HazardRule(
