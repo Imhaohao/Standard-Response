@@ -16,6 +16,8 @@ import { FORECAST_AHEAD_MINUTES, forecastField, useDangerZones } from "@/lib/ink
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
 import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
+import { FireCrewEngines, FireCrewTrails } from "./fire-crew-layer";
+import { FireCrewPanel } from "./fire-crew-panel";
 import { FireSpreadLayer } from "./fire-spread-layer";
 import { FleetPanel } from "./fleet-panel";
 import { DrawingHint, PlaybackBar, MapToolbar, MapTopBar, SimulatedFireHint } from "./map-chrome";
@@ -33,6 +35,7 @@ import { PickupLayer } from "./pickup-layer";
 import { TruckDrillLayer } from "./truck-drill-layer";
 import { TruckDrillPanel } from "./truck-drill-panel";
 import { useDrillOnMap } from "./use-truck-drill";
+import { useFireCrews } from "./use-fire-crews";
 import { ReadyPanel } from "./ready-panel";
 import { useMapClick, useMapFocus } from "./use-map-focus";
 import { usePickups } from "./use-pickups";
@@ -58,6 +61,7 @@ export function RescueMap() {
   const { unreached, skipped, stillHome } = useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire: { hazard, danger, minutes: clock.minutes }, toLocal });
   const { drill, localDrill, fireMinutes } = useDrillOnMap(toLocal, clock.minutes);
   const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, fireMinutes) : null), [hazard, fireMinutes]);
+  const crews = useFireCrews({ data, homes, hazard, control, lit: simulated.lit, toLocal });
   const forecast = useMemo(() => (danger ? { field: forecastField(danger), aheadMinutes: FORECAST_AHEAD_MINUTES } : null), [danger]);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(data, toLocal, board.closed);
@@ -110,6 +114,7 @@ export function RescueMap() {
       >
         <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
         {drill && localDrill && <TruckDrillLayer drill={drill} local={localDrill} />}
+        <FireCrewTrails crews={crews} minutes={fireMinutes} />
         <MapOverlays
           zone={drawing.zone}
           street={drawing.street}
@@ -122,6 +127,7 @@ export function RescueMap() {
           onVanHover={setVanFocusId}
           fireAt={fireAt}
         />
+        <FireCrewEngines crews={crews} minutes={fireMinutes} />
       </MapStage>
 
       <PanelDesk storageKey="rescue-map-panels">
@@ -137,6 +143,7 @@ export function RescueMap() {
             </div>
             <div className="min-w-0 flex-1" />
             <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
+              <FireCrewPanel crews={crews} minutes={fireMinutes} />
               <TruckDrillPanel drill={drill} />
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
