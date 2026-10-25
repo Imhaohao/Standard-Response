@@ -216,6 +216,24 @@ describe("Langevin dynamics", () => {
     assert.ok(along(sim, 1) > 19 && along(sim, 1) < along(sim, 0), `the queued car is at ${along(sim, 1)} m`);
   });
 
+  it("counts a route point it drove past as reached, so a fast car doesn't turn back for it", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const stretch = (k: number, p: number) => {
+      const shape = router.edgeShape[k];
+      return Math.hypot(shape[2 * p + 2] - shape[2 * p], shape[2 * p + 3] - shape[2 * p + 1]);
+    };
+    const edge = EDGES.findIndex((e, k) => router.edgeShape[k].length >= 6 && stretch(k, 0) > 30 && stretch(k, 1) > 30 && router.edgeFire[k] > 200 && !router.safe[e.v]);
+    assert.ok(edge >= 0);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const length = stretch(edge, 0);
+    // 12 m past the end of the first stretch, outside the reach circle, as one 1 s step at 50 km/h leaves it.
+    const past = toLatLng(ax + ((bx - ax) * (length + 12)) / length, ay + ((by - ay) * (length + 12)) / length);
+    const sim = new CrowdSim(ground, [{ ...past, peopleCount: 1, canLeave: "yes", hasCar: true }], seededRandom(1), () => new Set(), { ...DEFAULT_CROWD, dt: 1, temperature: 0 });
+    onStreet(sim, edge);
+    sim.step();
+    assert.equal(sim.point[0], 2, "steering for the next point on the street");
+  });
+
   it("leaves keen households earlier than reluctant ones", () => {
     const departure = (keen: boolean, seed: number) => {
       const random = seededRandom(seed);

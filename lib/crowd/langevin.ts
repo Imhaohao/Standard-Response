@@ -485,10 +485,23 @@ export class CrowdSim {
     return [dx - along * ux, dy - along * uy];
   }
 
+  // Whether car i has reached the route point it is driving for: within REACH_METERS of it, or past
+  // the end of the stretch of street it is driving. Without the second test a fast car that steps
+  // over the reach circle in one step (14 m a step at 50 km/h and a 1 s step) turns back for the
+  // point it missed, into the cars behind it. A car heading for an intersection off the street is
+  // leaving home or turning back, slowly, and aims straight at it, so the circle is enough there.
+  private reached(i: number) {
+    const [tx, ty] = this.target(i);
+    const dx = tx - this.x[i];
+    const dy = ty - this.y[i];
+    if (Math.hypot(dx, dy) <= REACH_METERS) return true;
+    const stretch = this.stretch(i);
+    return stretch !== null && dx * stretch[2] + dy * stretch[3] < 0;
+  }
+
   private advanceRoute(i: number) {
     for (let hops = 0; hops < 4 && this.state[i] === STATE.moving; hops++) {
-      const [tx, ty] = this.target(i);
-      if (Math.hypot(tx - this.x[i], ty - this.y[i]) > REACH_METERS) return;
+      if (!this.reached(i)) return;
       const edge = this.edge[i];
       if (edge < 0) {
         this.chooseAt(i, this.goal[i]);
