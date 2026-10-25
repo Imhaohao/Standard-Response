@@ -139,3 +139,10 @@ Neighbor calls: what one call hears now decides which neighbors 911 calls next (
 - New table `neighborCalls` (cleared on reset). `startCall` removes a home's row. A row is dropped from the queue once its home has a helper on the way, or once its driver is busy.
 - `nextToCall` order is now: neighbor calls, then Claude's plan, then `callPriority`. `households:queue` returns the neighbor reason in `planReason` when there is one.
 - The shared car and ride rules (`canDrive`, `fitsInACar`, `busyHelpers`, ...) moved from `neighborPickups.ts` to `neighborRules.ts`.
+
+## 2026-10-24 18:20
+
+Real households were never called after the warning. Two fixes in `control:issueWarning`:
+
+- `coverAreaIfNoZone` (`convex/riders.ts`): if no zone has been drawn, the warning now covers every household (`inZone: true`), the same as the seeded town. Homes that signed up at `/ready` or came from the CSV used to stay `inZone: false`, so the dialer and the pickup check skipped them. A drawn zone still decides as before.
+- `retimeArea` (`convex/seed.ts`, was `retimeSimulatedArea`): every located household, real or simulated, gets its `fireArrivalAt` from the stand-in fire when the warning goes out. Before, a real home kept the "+90 min from sign-up" placeholder, so the neighbor who signed up second always looked upwind to `awayFromTheFire` and was never asked. Track D's runner still overwrites these through `households:setEstimates`.

@@ -198,10 +198,13 @@ export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number, driv
 
 // The Ready check seeds the town before any warning. When the warning comes, every simulated home's
 // fire arrival and call priority are measured from it instead.
-export async function retimeSimulatedArea(ctx: MutationCtx, warningAt: number) {
+// The warning starts the fire clock for every home with a location, simulated or real. Placeholder
+// arrival times from sign-up or the rider list would otherwise order neighbors by when they signed
+// up, not by where they live. Track D's hazard runner overwrites these once a scenario is running.
+export async function retimeArea(ctx: MutationCtx, warningAt: number) {
   const households = await ctx.db.query("households").take(1000);
   for (const household of households) {
-    if (!household.simulated || household.lat === undefined || household.lng === undefined) continue;
+    if (household.lat === undefined || household.lng === undefined) continue;
     const fireArrivalAt = fireArrivalFor({ lat: household.lat, lng: household.lng }, warningAt);
     await ctx.db.patch("households", household._id, {
       fireArrivalAt,

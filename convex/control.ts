@@ -3,7 +3,8 @@ import { query, MutationCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
-import { retimeSimulatedArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
+import { retimeArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
+import { coverAreaIfNoZone } from "./riders";
 import { startPickupChecks } from "./pickups";
 import { startCall } from "./calls";
 import { MAX_RUN_MS, TICK_MS } from "./sim";
@@ -55,8 +56,9 @@ export const issueWarning = mutation({
     if (control.warningIssuedAt) return null;
     const clock = clockAtSpeed(control.clock, control.clock?.speed || 1, Date.now());
     const now = clock.simAt;
-    if (await ctx.db.query("households").first()) await retimeSimulatedArea(ctx, now);
+    if (await ctx.db.query("households").first()) await retimeArea(ctx, now);
     else await seedSimulatedArea(ctx, now);
+    await coverAreaIfNoZone(ctx);
     // Simulated drivers drive only in a simulated town. Real households get the driver-page vans.
     await seedFleetIfEmpty(ctx, now, !(await hasSimulatedHouseholds(ctx)));
     const tickGeneration = control.tickGeneration + 1;

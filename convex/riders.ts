@@ -124,6 +124,14 @@ async function markZone(ctx: MutationCtx, polygon: Point[]) {
   return covered;
 }
 
+// A warning issued with no zone drawn covers the whole area, as it does for the simulated town.
+// Without this, homes that signed up at /ready or came from the rider list would never be called.
+export async function coverAreaIfNoZone(ctx: MutationCtx) {
+  if (await ctx.db.query("zones").first()) return;
+  const households = await ctx.db.query("households").take(5000);
+  for (const household of households) if (!household.inZone) await ctx.db.patch("households", household._id, { inZone: true });
+}
+
 // Rescue map: the dispatcher draws the warning zone. Returns how many riders it covers.
 export const setZone = mutation({
   args: { polygon: v.array(point) },

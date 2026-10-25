@@ -109,3 +109,7 @@ Neighbor calls: what one call hears now decides which neighbors 911 calls next (
 - New table `neighborCalls` (cleared on reset). `startCall` removes a home's row. A row is dropped from the queue once its home has a helper on the way, or once its driver is busy.
 - `nextToCall` order is now: neighbor calls, then Claude's plan, then `callPriority`. `households:queue` returns the neighbor reason in `planReason` when there is one.
 - The shared car and ride rules (`canDrive`, `fitsInACar`, `busyHelpers`, ...) moved from `neighborPickups.ts` to `neighborRules.ts`.
+
+## 2026-10-24 18:20
+
+Real households now reach the dialer after the warning: with no zone drawn, `issueWarning` puts every household in the zone, and every located home gets its fire arrival from the stand-in fire instead of its sign-up placeholder. Before this, `voice:dialQueue` and `pickups:callQueue` stayed empty for `/ready` sign-ups. More pickup-call changes for you follow in my next note.
