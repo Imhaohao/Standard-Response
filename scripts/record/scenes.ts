@@ -83,6 +83,15 @@ async function fastForward(world: World, speed: Speed, label: string, ready: () 
   await world.waitUntil(label, ready, timeoutMs, 1000);
 }
 
+// The Ready check run off camera, so the night starts with most homes on file and helpers named.
+async function readyCheckOffCamera(context: SceneContext) {
+  const { world } = context;
+  await world.startReadyCheck();
+  await fastForward(world, 60, "the Ready check", async () => (await world.readyProfiles()) >= context.homes * 0.6, 180_000);
+  await world.stopReadyCheck();
+  await world.setSpeed(0);
+}
+
 async function holdFor(seconds: number) {
   await sleep(seconds * 1000);
 }
@@ -125,6 +134,7 @@ const warning: Scene = {
   run: async (context) => {
     const { world } = context;
     await seed(context);
+    await readyCheckOffCamera(context);
     await world.drawWarningZone();
     const floor = await film(context, { name: "warning", aspect: "wide", route: "/dashboard", map: true }, async (page) => {
       await holdFor(3);
@@ -197,7 +207,7 @@ async function untilMariaHasAnOffer(world: World) {
   const maria = await world.vehicleOf("Maria");
   const hasOffer = async () => {
     const board = await world.offersFor(maria);
-    return JSON.stringify(board).includes('"offered"');
+    return board.some((row) => row.status === "offered");
   };
   return { maria, hasOffer };
 }
@@ -254,6 +264,7 @@ const night: Scene = {
   run: async (context) => {
     const { world } = context;
     await seed(context);
+    await readyCheckOffCamera(context);
     await world.drawWarningZone();
     const map = await film(context, { name: "night", aspect: "wide", route: "/map", map: true, speedUp: NIGHT_SPEED_UP, everyNth: 2 }, async () => {
       await holdFor(3);
