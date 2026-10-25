@@ -73,9 +73,10 @@ export function PaperSurface({
 const STILL_BURNING_MINUTES = 15;
 const AHEAD_MINUTES = 30;
 
-// The fire at the minute on the clock, traced from the same arrival times the 3D map shades: the
-// ground it has burned in ash, the last quarter hour of it still burning in flat fire colour, a firm
-// red line on the edge, and a dashed line where it will be in half an hour.
+// The fire at the minute on the clock, traced from the same arrival times the 3D map shades: all the
+// ground it has reached in fire colour, a shade deeper behind the last quarter hour, a firm red line
+// on the edge, and a dashed line where it will be in half an hour. A hazard that doesn't burn leaves
+// grey ground instead.
 function FlatFire({ field, burns, minutes, project }: { field: FireField; burns: boolean; minutes: number; project: LocalProjection }) {
   const outlines = useMemo(() => {
     const grid = fieldGrid(field);
@@ -85,8 +86,14 @@ function FlatFire({ field, burns, minutes, project }: { field: FireField; burns:
   if (!outlines.edge) return <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />;
   return (
     <g>
-      <path d={outlines.cooled} fill="var(--map-ink)" fillOpacity={0.22} />
-      {burns && <path d={outlines.edge + outlines.cooled} fillRule="evenodd" fill="var(--ember)" fillOpacity={0.55} />}
+      {burns ? (
+        <>
+          <path d={outlines.edge} fill="var(--ember)" fillOpacity={0.55} />
+          <path d={outlines.cooled} fill="var(--signal)" fillOpacity={0.22} />
+        </>
+      ) : (
+        <path d={outlines.edge} fill="var(--map-ink)" fillOpacity={0.22} />
+      )}
       <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />
       <path d={outlines.edge} fill="none" stroke="var(--signal)" strokeWidth={2.4} strokeLinejoin="round" />
     </g>

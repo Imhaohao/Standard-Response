@@ -3,7 +3,8 @@ import { InkMapData, terrainHeight } from "./data";
 import type { FireField } from "./fire-field";
 
 // Flames as objects standing in the town: rows of licking tongues along every burning edge, and
-// behind it a field of them dying down over the last quarter hour of burned ground. They are real
+// behind it a field of them dying down over the last quarter hour of burned ground, with pockets
+// still alight further in. They are real
 // geometry, so they stand up from the hills, hide behind houses and look different from every
 // angle. A flame on the line is a flat card turned along it, with the tongues drawn on it; one behind
 // the line is a cross of two cards, so it reads as fire from any side. The set is re-placed only when
@@ -17,6 +18,11 @@ const HEAD_MINUTES = 6;
 const STILL_BURNING_MINUTES = 15;
 const BEHIND_TRIES = 18;
 const BEHIND_DENSITY = 0.8;
+// Deep inside, an hour and a half of burned ground keeps pockets still alight: a share of cells
+// holds a small clump of low flames.
+const POCKET_MINUTES = 90;
+const POCKET_SHARE = 0.16;
+const POCKET_DENSITY = 0.35;
 
 export const FLAME_VERTEX = `
 precision highp float;
@@ -174,7 +180,8 @@ function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, numbe
 // fire passed that exact spot. Each is placed as one card here and stood up as a cross by `crossed`.
 function flamesBehind(grid: Grid, col: number, row: number, index: number): Flame[] {
   const since = grid.minutes - grid.field.minutes[index];
-  if (since < 0 || since > STILL_BURNING_MINUTES + 2) return [];
+  if (since < 0 || since > POCKET_MINUTES) return [];
+  if (since > STILL_BURNING_MINUTES + 2) return pocket(grid, col, row, index);
   const [cx, cy] = centre(grid, col, row);
   const flames: Flame[] = [];
   for (let k = 0; k < BEHIND_TRIES; k++) {
@@ -188,6 +195,27 @@ function flamesBehind(grid: Grid, col: number, row: number, index: number): Flam
       y,
       width: (6 + hash(seed + 1) * 4) * (0.5 + 0.5 * burning),
       height: (8 + hash(seed + 2) * 14) * (0.25 + 0.75 * burning),
+      phase: hash(seed + 3),
+      angle: hash(seed + 4) * Math.PI,
+    });
+  }
+  return flames;
+}
+
+// A clump of low flames in a cell long since crossed, in a few cells only, so the inside of the
+// fire flickers here and there instead of everywhere.
+function pocket(grid: Grid, col: number, row: number, index: number): Flame[] {
+  if (hash(index * 1.37 + 0.2) > POCKET_SHARE) return [];
+  const [cx, cy] = centre(grid, col, row);
+  const flames: Flame[] = [];
+  for (let k = 0; k < BEHIND_TRIES; k++) {
+    const seed = index * 5.71 + k * 2.19;
+    if (hash(seed + 0.9) > POCKET_DENSITY) continue;
+    flames.push({
+      x: cx + (hash(seed) - 0.5) * grid.cellX * 0.7,
+      y: cy + (hash(seed + 0.5) - 0.5) * grid.cellY * 0.7,
+      width: 5 + hash(seed + 1) * 3,
+      height: 5 + hash(seed + 2) * 7,
       phase: hash(seed + 3),
       angle: hash(seed + 4) * Math.PI,
     });

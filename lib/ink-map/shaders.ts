@@ -205,8 +205,8 @@ float frontGlow(vec2 mapXY, float minutes) {
 }
 `;
 
-// Quarter resolution, every animated frame. Red is how hard the fire glows here, green how freshly
-// it burned. The composite and the fire pass both read it.
+// Quarter resolution, every animated frame. Red is how hard the fire glows here, green whether the
+// fire has reached it at all. The fire pass reads both.
 export const FIRE_MASK_FRAGMENT = `
 precision highp float;
 precision highp sampler2D;
@@ -237,8 +237,7 @@ void main() {
   float edge = burned * edgeOfBurn(mapXY, max(8.0, uViewMpp * 5.0));
   float flicker = 0.75 + 0.25 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.9, -uTime * 0.5));
   float glow = max(frontGlow(mapXY, minutes) * 0.7, edge) * flicker * uBurning;
-  float fresh = burned * (1.0 - smoothstep(0.0, 70.0, uFireNow - minutes));
-  color = vec4(glow, fresh + glow * 0.5, 0.0, 1.0);
+  color = vec4(glow, burned + glow * 0.5, 0.0, 1.0);
 }
 `;
 
@@ -541,21 +540,75 @@ vec3 forecast(vec3 color, vec2 mapXY, float minutes, float lines) {
 }
 
 // How much of a point is still burning: fully for the first quarter hour after the fire reaches
-// it, then fading to the ash of the burned area.
+// it, then dying down to the embers of the burned area.
 float burningShare(float minutes) {
   float since = uFireNow - minutes;
   return step(0.0, since) * (1.0 - smoothstep(12.0, 18.0, since)) * uFireOn * uBurning;
 }
 
-// Where the fire is right now, plainly: homes and ground inside the burning band take flat fire
-// colours, roofs brightest, and a crisp line traces the burning edge all the way round, so which
-// houses are on fire never has to be guessed from a glow.
-vec3 burningNow(vec3 color, float surface, float minutes, float lines) {
-  float share = burningShare(minutes);
-  vec3 roof = mix(uEmber, vec3(1.0, 0.82, 0.45), 0.35);
-  if (surface == S_ROOF) color = mix(color, roof, share * 0.92 * (1.0 - lines * 0.6));
-  else if (surface == S_WALL) color = mix(color, uRed, share * 0.85 * (1.0 - lines * 0.4));
-  else color = mix(color, mix(uEmber, uPaper, 0.35), share * 0.55);
+// Everything the fire has reached is still the fire, so the whole burned area is one deep orange
+// zone rather than rings of grey that each need a legend. It is not a gradient: noise roughens how
+// long ago the fire passed, so the lighter, fresher ground breaks into tongues and islands, and
+// patches of hot orange and dark scorch are scattered over it, more of the hot near the line and
+// more of the scorch deep inside. All of it is fixed to the ground, so it pans with the town.
+vec3 fireGround(vec2 mapXY, float since) {
+  float age = since + (fbm(mapXY * 0.02) - 0.5) * 45.0;
+  float heat = 1.0 - smoothstep(0.0, 70.0, age);
+  // Warped by a finer noise, so the patches' edges tear into jags and slivers instead of rounding off.
+  vec2 tear = vec2(valueNoise(mapXY * 0.16), valueNoise(mapXY * 0.16 + 9.7)) - 0.5;
+  float patches = fbm(mapXY * 0.05 + 31.0 + tear * 1.1);
+  float edge = fwidth(patches) + 0.015;
+  float hot = smoothstep(0.6 - edge, 0.6 + edge, patches + heat * 0.16);
+  float scorched = 1.0 - smoothstep(0.4 - edge, 0.4 + edge, patches + heat * 0.12);
+  vec3 deep = mix(uEmber, uRed, 0.3) * 0.8;
+  vec3 bright = mix(uEmber, vec3(1.0, 0.8, 0.45), 0.45);
+  vec3 scorch = mix(uRed, uInk, 0.55);
+  vec3 ground = mix(deep, bright, heat * 0.45);
+  ground = mix(ground, bright, hot * 0.8);
+  ground = mix(ground, scorch, scorched * 0.65);
+  // Coals: a sparse scatter of small bright flecks, mostly in the hot patches.
+  // They fade out zoomed out, where a fleck is under a pixel and would only shimmer.
+  vec2 coalAt = mapXY * 0.6 + 4.1;
+  float coalSize = max(fwidth(coalAt).x, fwidth(coalAt).y);
+  float coal = step(0.93 - hot * 0.07, valueNoise(coalAt)) * mix(0.25, 1.0, hot) * (1.0 - smoothstep(0.25, 0.6, coalSize));
+  return mix(ground, vec3(1.0, 0.86, 0.55), coal * 0.65);
+}
+
+// Homes in the zone: a burning one is the brightest thing on the map for its quarter hour, and a
+// burned-out one is dark maroon, so either reads as a house against the ground around it.
+vec3 fireBuilding(float surface, float burning) {
+  vec3 burnedOut = mix(uRed, uInk, surface == S_ROOF ? 0.45 : 0.6);
+  vec3 alight = surface == S_ROOF ? mix(uEmber, vec3(1.0, 0.86, 0.5), 0.45) : uRed;
+  return mix(burnedOut, alight, burning);
+}
+
+vec3 fireZone(vec3 color, float ink, float surface, vec2 mapXY, float minutes) {
+  float since = uFireNow - minutes;
+  if (since < 0.0 || uFireOn < 0.5) return color;
+  bool building = surface == S_ROOF || surface == S_WALL;
+  vec3 zone = building ? fireBuilding(surface, burningShare(minutes)) : fireGround(mapXY, since);
+  return zone * (1.0 - ink * 0.7);
+}
+
+// A quake or flood leaves ground that is damaged, not alight: a warm grey and a light crosshatch,
+// darkest just behind the edge. The houses go to solid charcoal so they still read as houses.
+vec3 ashen(vec3 color, float surface, float minutes, float lines) {
+  float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn;
+  if (burned == 0.0) return color;
+  float fresh = 1.0 - smoothstep(2.0, 75.0, uFireNow - minutes);
+  bool building = surface == S_ROOF || surface == S_WALL;
+  float crosshatch = max(groundHatch(0.07, 12.0 * uPixelRatio, 0.7854), groundHatch(0.07, 12.0 * uPixelRatio, -0.7854));
+  float scorch = building ? 0.0 : crosshatch * burned * (0.35 + 0.65 * fresh);
+  vec3 ash = mix(vec3(0.88, 0.85, 0.82), vec3(0.7, 0.62, 0.57), fresh);
+  color = mix(color, color * ash, burned * (building ? 0.3 : 0.6 + 0.3 * fresh));
+  color = mix(color, uCharcoal, scorch * (0.16 + 0.16 * fresh) * (1.0 - lines));
+  if (surface == S_ROOF) color = mix(color, uCharcoal * 1.2, burned * 0.75);
+  if (surface == S_WALL) color = mix(color, uCharcoal * 1.5, burned * 0.6);
+  return color;
+}
+
+// A crisp line along the hazard's edge all the way round, so where it is never has to be guessed.
+vec3 hazardEdge(vec3 color, float minutes) {
   float width = max(fwidth(minutes), 1e-3);
   // Where the fire field stops, minutes jump from a real time to "never burns" across one pixel. That
   // jump is not a front, so a step this steep draws no edge.
@@ -607,7 +660,12 @@ void main() {
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
   float ink = max(tone * 0.85, lines);
   vec3 color = mix(paper, uInk, ink * uInkStrength);
+  float minutes = arrivalMinutes(mapXY);
+  if (uBurning > 0.5) color = fireZone(color, ink * uInkStrength, surface, mapXY, minutes);
+  else color = ashen(color, surface, minutes, lines);
 
+  // Who is in a home is drawn over the fire, never under it: a home with people still in it stays
+  // charcoal even while it burns.
   vec4 state = buildingState(idC);
   float stillHome = step(0.75, state.b) * step(state.r, 0.0);
   float left = step(0.25, state.b) * (1.0 - step(0.75, state.b));
@@ -625,26 +683,8 @@ void main() {
     pulsing = step(0.5, state.g) * wash * state.r * (1.0 - lines);
   }
 
-  float minutes = arrivalMinutes(mapXY);
   color = forecast(color, mapXY, minutes, lines);
-  color = burningNow(color, surface, minutes, lines);
-  float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn * (1.0 - burningShare(minutes));
-  if (burned > 0.0) {
-    // Minutes since the fire passed. A light crosshatch on the ground marks the whole scar as burned,
-    // heaviest just behind the front. It stays off the houses: they go to solid charcoal instead, so
-    // a burned-out home still reads as a home against the ash around it.
-    float age = uFireNow - minutes;
-    float fresh = 1.0 - smoothstep(2.0, 75.0, age);
-    bool building = surface == S_ROOF || surface == S_WALL;
-    float crosshatch = max(groundHatch(0.07, 12.0 * uPixelRatio, 0.7854), groundHatch(0.07, 12.0 * uPixelRatio, -0.7854));
-    float scorch = building ? 0.0 : crosshatch * burned * (0.35 + 0.65 * fresh);
-    // Ash: the ground goes a warm grey, darkest just behind the front, and pales as it cools.
-    vec3 ash = mix(vec3(0.88, 0.85, 0.82), vec3(0.7, 0.62, 0.57), fresh);
-    color = mix(color, color * ash, burned * (building ? 0.3 : 0.6 + 0.3 * fresh));
-    color = mix(color, uCharcoal, scorch * (0.16 + 0.16 * fresh) * (1.0 - lines));
-    if (surface == S_ROOF) color = mix(color, uCharcoal * 1.2, burned * 0.75);
-    if (surface == S_WALL) color = mix(color, uCharcoal * 1.5, burned * 0.6);
-  }
+  color = hazardEdge(color, minutes);
 
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole
   // town in red and drown out the roofs that mean somebody is waiting.
@@ -694,6 +734,16 @@ vec3 sparks(vec3 color, vec2 mapXY, float fresh) {
   return mix(color, vec3(1.0, 0.78, 0.4), spark);
 }
 
+// Pockets still alight deep in the burned area: soft patches of glow that swell, fade and drift as
+// the noise under them moves, so the inside of the fire never sits still.
+vec3 pockets(vec3 color, vec2 mapXY, float since) {
+  if (since < 0.0) return color;
+  float slow = valueNoise(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04));
+  float quick = valueNoise(mapXY * 0.04 + vec2(-uTime * 0.18, uTime * 0.12));
+  float glow = smoothstep(0.42, 0.7, slow * 0.55 + quick * 0.45);
+  return color * (1.0 + vec3(0.5, 0.25, 0.05) * glow) + vec3(1.0, 0.72, 0.35) * glow * 0.22;
+}
+
 // The map point under a screen point.
 vec2 groundAt(vec2 uv) {
   vec3 w = worldPosition(uv, texture(tDepth, uv).r);
@@ -731,7 +781,8 @@ void main() {
     vec2 mapXY = groundAt(uv);
     float minutes = arrivalMinutes(mapXY);
     float since = uFireNow - minutes;
-    color = sparks(color, mapXY, step(0.0, since) * (1.0 - smoothstep(10.0, 25.0, since)));
+    color = pockets(color, mapXY, since);
+    color = sparks(color, mapXY, step(0.0, since) * (1.0 - 0.6 * smoothstep(10.0, 40.0, since)));
     float core = coreLine(uv, minutes);
     // An animated-film glow: an orange halo bleeding out from the line, warming whatever it
     // touches, and a white-hot core along the line itself.
