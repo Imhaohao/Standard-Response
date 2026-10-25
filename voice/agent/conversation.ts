@@ -375,6 +375,8 @@ export class Conversation {
   // so neither leads with an acknowledgment.
   // When Claude's question is spoken it carries the acknowledgment, so neither the echo nor Claude's
   // separate ack is said as well.
+  // A caller with fire or a medical emergency at home is never met with silence on hold: "Do not risk
+  // anybody else's life for mine" had its reply blocked and its feeling just said, and heard nothing.
   private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled, passedOn = false }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const leavingHold = this.done && this.reachedHold;
@@ -389,6 +391,7 @@ export class Conversation {
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
     const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime, passedOn });
     const sentences = [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== "");
+    if (ack.text === "" && sentences.length === 0 && this.holding && this.dangerAtHome()) sentences.push(LINES[this.language].holdPrompt);
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
@@ -512,7 +515,9 @@ export class Conversation {
   // status (voice exam, stay_with_them). The agency's steps are given once, after the status.
   private fireSafetyLines(heard: Interpretation) {
     if (this.fireStepsGiven || !this.holding || !this.escalated.has("flames") || heard.approvedAnswer) return [];
-    if (!heard.asksAboutRide && heard.feeling === "") return [];
+    // "There is fire all around us" on hold came with no feeling from Claude, so it got the emergency
+    // line and no steps; the fire reported on this very turn counts too.
+    if (!heard.asksAboutRide && heard.feeling === "" && heard.emergency === "none") return [];
     this.fireStepsGiven = true;
     return [bankText("trapped_by_fire", this.language) ?? ""];
   }

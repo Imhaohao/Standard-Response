@@ -65,6 +65,14 @@ describe("the honesty guard", () => {
     assert.equal(guardAcknowledgment("Necesita ayuda rápido.", "received", "es").blocked, false);
   });
 
+  it("drops Claude's own stay-or-go advice, but not the agency's fire-safety steps", () => {
+    for (const line of ["Stay where you are safely.", "Please stay where you are and keep the door closed.", "Quédese donde está y cierre la puerta."]) {
+      assert.equal(guardAcknowledgment(line, "none", /[áéíóúñ]/.test(line) ? "es" : "en").blocked, true, line);
+    }
+    const steps = "If fire blocks your way out, stay inside. Close every door and window, but leave the doors unlocked.";
+    assert.equal(guardAcknowledgment(steps, "none", "en", true).blocked, false);
+  });
+
   it("drops a short English echo of a record fact on a Spanish call, and keeps the Spanish one", () => {
     assert.equal(guardAcknowledgment("Mm, a walker.", "received", "es").blocked, true);
     assert.equal(guardAcknowledgment("Thanks, two people.", "received", "es").blocked, true);

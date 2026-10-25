@@ -833,13 +833,32 @@ describe("Claude's wording of the next question", () => {
 });
 
 describe("a caller with fire at the home, on hold", () => {
-  it("hears the agency's fire-safety steps once when they plead or ask about the ride", () => {
+  it("hears the agency's fire-safety steps once, on the turn the fire is reported, even with no feeling read", () => {
     const { conversation } = atHold();
-    conversation.respond("the flames are at my door", heard({ emergency: "flames" }));
-    const first = conversation.respond("please, is someone coming?", heard({ asksAboutRide: true }));
+    const first = conversation.respond("the flames are at my door", heard({ emergency: "flames" }));
     assert.ok(first.sentences.some((line) => line.startsWith("If fire blocks your way out")));
-    const again = conversation.respond("please hurry", heard({ asksAboutRide: true }));
+    const again = conversation.respond("please, is someone coming?", heard({ asksAboutRide: true }));
     assert.ok(!again.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+  });
+
+  it("hears them when they plead, if the fire was raised before the hold", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no, the flames are at my door", heard({ answer: "no", updates: { canLeave: "no" }, emergency: "flames" }));
+    conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
+    conversation.respond("I use a walker", heard({ updates: { mobility: "walker" } }));
+    conversation.respond("no help needed", heard({ answer: "no", updates: { assistanceRequired: "none" } }));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("no", heard({ answer: "no" }));
+    assert.equal(conversation.step, "hold");
+    const turn = conversation.respond("please hurry", heard({ asksAboutRide: true }));
+    assert.ok(turn.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+  });
+
+  it("is never met with silence", () => {
+    const { conversation } = atHold();
+    conversation.respond("There is fire all around us.", heard({ emergency: "flames", feeling: "That sounds frightening." }));
+    const turn = conversation.respond("Do not risk anybody else's life for mine.", heard({ emergency: "flames", asksAboutRide: true, feeling: "That sounds frightening.", reply: "I understand. Please leave now." }));
+    assert.deepEqual(turn.sentences, [EN.holdPrompt]);
   });
 
   it("doesn't hear them without fire at the home", () => {
