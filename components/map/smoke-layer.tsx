@@ -29,6 +29,7 @@ const MAX_PUFF_PIXELS = 280;
 const FRAME_MS = 33;
 const OUTLINE_PX = 1.5;
 const SHADOW_OPACITY = 0.5;
+const SMOKE_OPACITY = 0.55;
 
 type Source = { point: Point; strength: number };
 
@@ -260,5 +261,7 @@ export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minut
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useSmokePainter(canvasRef, sources, size.width, size.height);
   if (sources.length === 0) return null;
-  return <canvas ref={canvasRef} style={{ width: size.width, height: size.height }} className="pointer-events-none absolute inset-0" aria-hidden />;
+  // The whole cloud fades as one layer, so overlapping puffs stay a single silhouette and the town
+  // shows through it rather than darkening where puffs stack.
+  return <canvas ref={canvasRef} style={{ width: size.width, height: size.height, opacity: SMOKE_OPACITY }} className="pointer-events-none absolute inset-0" aria-hidden />;
 }
