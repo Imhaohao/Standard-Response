@@ -20,9 +20,17 @@ export function clockSteps(model: WaterModel) {
   return steps;
 }
 
+// The minute the scenario's fronts reach a point, or null where none does. The field holds ground no
+// front reaches at a while past the last front so its outline filters smoothly; that ground is never reached.
+export function frontArrival(field: FireField, point: Point) {
+  const arrival = arrivalMinutesAt(field, point);
+  const last = field.fronts[field.fronts.length - 1]?.minutes ?? -Infinity;
+  return arrival === null || arrival > last ? null : arrival;
+}
+
 // The first minute the water stands at least `depth` deep at a point, or Infinity if it never does.
 export function firstUnderWater(model: WaterModel, data: InkMapData, field: FireField, point: Point, depth: number, steps: number[]) {
-  const arrival = arrivalMinutesAt(field, point);
+  const arrival = frontArrival(field, point);
   if (arrival === null) return NEVER;
   const ground = groundAt(data, point);
   if (depthAt(model, ground, arrival, point, arrival) >= depth) return arrival;

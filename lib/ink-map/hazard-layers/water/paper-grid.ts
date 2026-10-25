@@ -1,6 +1,7 @@
 import type { InkMapData, Point } from "../../data";
-import { arrivalMinutesAt, type FireField } from "../../fire-field";
+import type { FireField } from "../../fire-field";
 import { isolines, type Grid } from "../../isolines";
+import { frontArrival } from "./impact";
 import { groundAt, surfaceAt, type WaterModel } from "./model";
 import { cellCentre, isStandingWater, type ShoreGrid } from "./shore";
 
@@ -28,7 +29,7 @@ export function depthCells(data: InkMapData, field: FireField, shore: ShoreGrid)
   return {
     ...grid,
     ground: Float32Array.from(grid.points, (point) => groundAt(data, point)),
-    arrival: Float32Array.from(grid.points, (point) => arrivalMinutesAt(field, point) ?? Infinity),
+    arrival: Float32Array.from(grid.points, (point) => frontArrival(field, point) ?? Infinity),
     standing: Uint8Array.from(grid.points, (point) => (isStandingWater(shore, point) ? 1 : 0)),
   };
 }

@@ -60,7 +60,7 @@ function floodScenario(levelOffset = 0, breaches: { at: Point; opensAtMinutes: n
     label: "Test flood",
     basis: "Synthetic",
     sources: [],
-    clock: { warningAt: "2005-08-29T00:00:00-05:00", minutesShown: 60 },
+    clock: { warningAt: "2005-08-29T00:00:00-05:00", minutesShown: 120 },
     fronts: frontsGeoJson([
       { minutes: 10, box: [-400, -300, -200, 300] },
       { minutes: 30, box: [-400, -300, 20, 300] },
@@ -102,6 +102,7 @@ test("impact reports a building once water stands half a metre over its ground, 
     [10, 0],
     [-100, 0],
     [300, 0],
+    [-470, 0],
   ];
   const { map, field, model } = floodWorld(fakeMap({ buildings }));
   const index = waterIndex(model, map, field);
@@ -109,6 +110,7 @@ test("impact reports a building once water stands half a metre over its ground, 
   assert.equal(index.buildings[1], Infinity);
   assert.ok(index.buildings[2] > 18 && index.buildings[2] < 21, `low building behind the second front floods as it arrives, got ${index.buildings[2]}`);
   assert.equal(index.buildings[3], Infinity);
+  assert.equal(index.buildings[4], Infinity, "low ground outside every front stays dry long after the last one");
   assert.deepEqual(impactAt(index, 17.5).buildings, []);
   assert.deepEqual(impactAt(index, 18).buildings, [0]);
   assert.deepEqual(impactAt(index, 25).buildings, [0, 2]);
