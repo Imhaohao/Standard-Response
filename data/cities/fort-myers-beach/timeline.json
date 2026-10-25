@@ -109,11 +109,25 @@
       "where": "site 3288"
     },
     {
+      "at": "2022-09-28T15:36:00-04:00",
+      "kind": "peak",
+      "what": "Punta Rassa sensor FLLEE03246 (San Carlos Bay, north-west of the map) peaks at 2.69 m (8.83 ft) NAVD88.",
+      "source": "usgs-stn-ian",
+      "where": "site 3246 record"
+    },
+    {
       "at": "2022-09-28T16:30:00-04:00",
       "kind": "warning",
       "what": "County text urges anyone with water entering their home to go to the highest level possible.",
       "source": "lee-aar-2023",
       "where": "p. 10"
+    },
+    {
+      "at": "2022-09-28T16:51:00-04:00",
+      "kind": "peak",
+      "what": "Mullock Creek sensor FLLEE03287 (Estero Bay mainland shore, east of the map) peaks at 3.16 m NAVD88.",
+      "source": "usgs-stn-ian",
+      "where": "site 3287 record"
     },
     {
       "at": "2022-09-28T17:03:00-04:00",

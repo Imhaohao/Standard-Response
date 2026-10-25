@@ -91,9 +91,9 @@ def drop_small(mask: np.ndarray, min_cells: int) -> np.ndarray:
     return np.isin(labels, np.flatnonzero(sizes >= min_cells) + 1)
 
 
-def tidy(mask: np.ndarray, min_cells: int) -> np.ndarray:
+def tidy(mask: np.ndarray, min_cells: int, smoothing: int = 1) -> np.ndarray:
     """Drop specks and fill small holes so the polygons stay small without changing the picture."""
-    closed = ndimage.binary_closing(mask, structure=FOUR_NEIGHBOURS, iterations=1) | mask
+    closed = ndimage.binary_closing(mask, structure=FOUR_NEIGHBOURS, iterations=smoothing) | mask
     keep = drop_small(closed, min_cells)
     holes = ndimage.binary_fill_holes(keep) & ~keep
     return keep | (holes & ~drop_small(holes, min_cells))

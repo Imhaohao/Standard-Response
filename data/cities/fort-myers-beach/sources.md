@@ -22,7 +22,9 @@ All times are Eastern Daylight Time (UTC-4). Elevations are metres NAVD88. Built
 - FLLEE03382 is on the Fort Myers Beach pier at 26.45239, -81.95666. Its wave-filtered water level (file 130763, 6-minute Butterworth low-pass) is the scenario's water level. It peaked at 4.033 m (13.23 ft) at 14:39.
 - FLLEE03284 is at Matanzas Pass, on the San Carlos Island side (file 130798). It peaked at 3.675 m at 15:06.
 - FLLEE03288 is at the Big Carlos Pass bridge (file 130439). It peaked at 3.506 m at 15:34; the USGS peak summary says 15:50.
-- Those two sensors are the `gauges` in the series.
+- FLLEE03246 is at the Punta Rassa boat ramp on San Carlos Bay (26.4843, -82.0106; file 131871), just north-west of the map. It peaked at 2.691 m at 15:36.
+- FLLEE03287 is at Mullock Creek marina on Estero Bay's mainland shore (26.4733, -81.8517; file 131494), just east of the map. It peaked at 3.156 m at 16:51.
+- These five are the storm-tide sensors in STN event 325 nearest the map. Coconut Point (FLLEE03289) is further south-east and isn't used. The pier is the series' `level`; the other four are its `gauges`.
 - High-water marks on Estero Island run from 11.6 to 13.8 ft NAVD88 (filteredhwms, event=325). They show the peak was nearly the same along the island, which is why one level is used everywhere.
 
 **Lee County, *Hurricane Ian After-Action Report* (11 Aug 2023), pp. 9–10.** https://www.leegov.com/hurricane/Documents/AAR/Lee%20County%20Hurricane%20Ian%20AAR.pdf
@@ -47,12 +49,17 @@ All times are Eastern Daylight Time (UTC-4). Elevations are metres NAVD88. Built
 
 ## Assumptions
 
-- **One water level everywhere** *(assumption)*. The pier record is applied to every cell. The other sensors peaked 0.35–0.53 m lower and 30–55 minutes later than the pier. That means the scenario floods the bay side of the island somewhat early and somewhat deep, which is the safe direction.
-- **Sampling** *(derived)*. The record is sampled every 10 minutes. The highest 10-minute sample is 3.85 m, 0.18 m under the 4.03 m filtered peak. The last front uses the 3.85 m sample.
-- **Before 05:52 on 28 Sep** *(no data)*. The sensor wasn't deployed until then. The series starts at its last dry reading (0.43–0.45 m, the sensor's orifice height) and holds that level before it.
+- **Water level between sensors** *(assumption)*.
+  - At each front's minute, every cell's water level is the inverse-distance-squared mix of the five sensors' levels at that minute, with each sensor's influence capped within 50 m of it.
+  - So the Gulf side near the pier rises first and highest. San Carlos Island follows Matanzas Pass. The south end of the island follows Big Carlos Pass. Iona and McGregor follow Punta Rassa and Mullock Creek, which peaked lower and later.
+  - The blend ignores the island in between. Behind the island the real water may have lagged the blended level.
+- **Front times** *(assumption)*. Fronts are every 30 minutes from 09:00, and every 20 minutes from 14:00 to the last peak at 15:40.
+- **Sampling** *(derived)*. Each record is sampled every 10 minutes, so short peaks are clipped. The pier's highest 10-minute sample is 3.85 m, 0.18 m under its 4.03 m filtered peak.
+- **Smoothing** *(assumption)*. Front outlines are smoothed by three cells (18 m), and patches under 400 cells (about 1.4 ha) are dropped, so the fractal mangrove shore stays under 700 vertices a front.
+- **Before deployment** *(no data)*. The sensors went in between 05:52 and 07:48 on 28 Sep. The series starts at its last dry reading (0.43–0.45 m, the sensor's orifice height) and holds that level before it.
 - **No waves** *(assumption)*. The fronts use still water and leave out the waves riding on top. The unfiltered peak was 15.03 ft MHHW.
 - **Today's ground** *(assumption)*. The DEM is today's ground, not September 2022's.
-- **Fronts stop at the map's extent** *(assumption)*. Fronts are clipped to the extent baked in lib/cities.ts, so the south end of Estero Island isn't drawn.
+- **Fronts stop at the map's extent** *(assumption)*. Fronts are clipped to the extent baked in lib/cities.ts, which is the detail box 26.405–26.49 N, 81.995–81.88 W grown by 0.012°. That extent covers all of Estero Island, San Carlos Island, Iona and McGregor.
 - **Wind** *(assumption)*. Wind comes from the Fort Myers gauge, 22 km inland, because no reliable wind record survives from the island.
 
 ## Deadline for the dispatch simulator

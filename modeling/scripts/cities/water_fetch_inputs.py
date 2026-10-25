@@ -43,6 +43,8 @@ IAN_SENSORS = [
     {"site": "FLLEE03382", "name": "Fort Myers Beach pier", "fileId": 130763},
     {"site": "FLLEE03284", "name": "Matanzas Pass (San Carlos Island side)", "fileId": 130798},
     {"site": "FLLEE03288", "name": "Big Carlos Pass bridge", "fileId": 130439},
+    {"site": "FLLEE03246", "name": "Punta Rassa boat ramp, San Carlos Bay", "fileId": 131871},
+    {"site": "FLLEE03287", "name": "Mullock Creek marina, Estero Bay mainland shore", "fileId": 131494},
 ]
 SAMPLE_MINUTES = 10
 
