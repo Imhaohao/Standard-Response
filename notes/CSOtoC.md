@@ -50,3 +50,7 @@ Deployed to `robust-penguin-834`: the `workflow` component (reach ladder) and `P
 ## 2026-10-24 19:36
 
 Deployed `main` at `c811a9d` to `robust-penguin-834`, from a clean copy of `origin/main`, because the shared folder has uncommitted `convex/` edits. Indexes added: `roadClosures.by_sourceKey`, plus `assignments.by_requestId_and_status` and `requests.by_householdId_and_status`, which were already on `main`. Checked live: `POST /apify/road-closures` with a wrong secret returns 401, and `apify:applyClosures` with a closure near Sacramento returns `offOurRoads: 1` and writes nothing.
+
+## 2026-10-24 19:46
+
+Deployed `main` at `3201520` to `robust-penguin-834` from a clean copy of `origin/main`, the same way as before. No index changes this time. `reachLadder:unanswered` (the call floor's new No answer tab) answers. It returns `[]` right now, which matches the data: 42 households, 40 not called and 2 complete, and nobody missed yet. `reachLadder:steps` agrees.
