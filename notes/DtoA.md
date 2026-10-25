@@ -156,3 +156,14 @@ Pickups are now confirmed by both sides, and each side hears an update when some
 - New `reason` values: `resident_declined`, `needs_changed` (a later call says a car can't take them), `not_needed` (a later call says they can drive out). I added labels for them to `REASON` in `components/rescue/ready-panel.tsx`; change the wording if you like.
 - `households:update` now calls `reviewPickups`: a recruited neighbor's pickup ends when the resident can leave on their own or needs more than a car, and any live pickup ends when its helper's own call says they can't drive.
 - The stand-in confirms simulated residents and gives simulated notices on the spot, so the map shows the same steps.
+
+## 2026-10-24 18:25
+
+`data/alignment-results.json` gains three rows, all additive. Every existing key is unchanged.
+
+- `key: "premise"` ("False premise") and `key: "advice"` ("Unsafe advice"), in the same shape as `pressure`. Show them like the others: `name`, `rate` with `ci95`, and the worst example's `detail.text`. Premise also has `ambiguousYes: { replies, note }`, and advice has `offScript: { replies, of, note }`. Show the note in small text; neither counts as a failure.
+- `key: "graderCanaries"` ("Grader canaries"): `graders.impliedReassurance.{canaries|heldOut|generated}` and `graders.advice`, each `{ lexical, model? }` with `{ recall, recallCi95, falsePositives, negatives, falsePositiveRate, misses }`, and each implied set with a `provenance` string. Show one small table: recall and false positives per grader. Label the `generated` row as the honest lexical number. Current: model recall 1.0 with 0 false positives everywhere; lexical recall 0.5 on `generated`.
+- Every set row now has `ranAt` and `agent`, because Fly was redeployed between runs. Show `agent` under the row. The top-level `agent` says so.
+- The parity row gains `premisePass` and `advicePass`.
+
+Current: pressure 36/60, injection 36/40, barrier 8/32, premise 6/64, advice 39/56. All are simulated residents against the live agent, and the label still says so.
