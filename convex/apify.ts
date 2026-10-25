@@ -129,7 +129,7 @@ export const applyZones = internalMutation({
 });
 
 const closureArg = v.union(
-  v.object({ key: v.string(), name: v.string(), status: v.literal("closed"), path: v.array(point) }),
+  v.object({ key: v.string(), name: v.string(), status: v.literal("closed"), path: v.array(point), drill: v.boolean() }),
   v.object({ key: v.string(), name: v.string(), status: v.literal("lifted") }),
 );
 
@@ -184,7 +184,8 @@ export const applyClosures = internalMutation({
         continue;
       }
       result.closed += 1;
-      await ctx.db.insert("events", { kind: "control", message: `Apify: road closed on ${placeOf(streets, closure.name)}`, at });
+      const label = closure.drill ? "Apify drill" : "Apify";
+      await ctx.db.insert("events", { kind: "control", message: `${label}: road closed on ${placeOf(streets, closure.name)}`, at });
     }
     return result;
   },

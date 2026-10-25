@@ -128,6 +128,7 @@ export interface WebhookClosure {
   status: "closed" | "lifted";
   updatedAt: string | null;
   geometry?: EvacuationRecord["geometry"];
+  drill?: true;
 }
 
 export interface ClosurePlan {
@@ -156,7 +157,7 @@ function liftedClosure(key: string): WebhookClosure {
 }
 
 function toWebhookClosure(record: EvacuationRecord): WebhookClosure {
-  return {
+  const closure: WebhookClosure = {
     source: record.source,
     sourceUrl: record.sourceUrl,
     kind: "road_closure",
@@ -167,6 +168,8 @@ function toWebhookClosure(record: EvacuationRecord): WebhookClosure {
     updatedAt: record.updatedAt,
     geometry: record.geometry,
   };
+  if (record.drill) closure.drill = true;
+  return closure;
 }
 
 const wasRead = (feed: string, fetchedSources: Set<string>, unreadFeeds: Set<string>) =>

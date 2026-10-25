@@ -40,3 +40,18 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 - `pickups:callQueue` rows gain `helperAwaitingCall` and `residentAwaitingCall`: true while that person's own warning call hasn't been tried yet tonight (in the zone, `not_called`, no attempts). The pickup runner holds a separate pickup call while that's true, so the warning call asks it.
 - `nextToCall` now skips a helper only while a pickup call is ringing them or they're already on the way, no longer from the moment they're asked. Before, a paired helper never got their own warning call.
 - Neighbors paired at the Ready check are now asked at the warning, on the strength of the Ready check, not after the resident's call says they can't leave. The resident still confirms before the ride counts, and the van request stays open.
+
+## 2026-10-24 20:15
+
+**Apify drill: a practice zone and a practice road closure arrive through the Actor,** the same way real ones would.
+
+```bash
+npm run apify:drill -- zone
+npm run apify:drill -- closure
+npm run apify:drill -- clear
+```
+
+- `zone` puts a drill warning zone over the calling area, which starts Rider Check. `closure` adds a drill full closure on one block of Lincoln Avenue, so dispatch routes around it. `clear` reports that closure lifted, and the road reopens.
+- It runs the real Actor on your machine, against the real Cal OES, CAL FIRE and Caltrans feeds for west Altadena, plus drill mode. It posts to `NEXT_PUBLIC_CONVEX_SITE_URL` with `APIFY_WEBHOOK_SECRET` from `.env.local`, and that value must match the backend's own `APIFY_WEBHOOK_SECRET`.
+- The activity feed says "Apify drill: road closed on Lincoln Avenue". To demo the change moment through Apify instead of the "Close this road" button, run `closure` at that step.
+- Checked against a local stand-in receiver: each run sends only what changed, and `clear` lifts the closure. Not yet run against a real backend, because I don't have the secret.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildDrillRecord } from "./drill.js";
+import { buildDrillClosure, buildDrillRecord } from "./drill.js";
 import { applyFilters, dedupeZones } from "./filters.js";
 import { isStale, normalizeZoneStatus } from "./status.js";
 import type { EvacuationRecord } from "./types.js";
@@ -132,5 +132,20 @@ test("closure delivery forgets a lifted closure only once the receiver has it", 
   const failed = await deliverClosureWebhook("https://example.test/hook", "s", plan, 5);
   assert.deepEqual(failed.state, sent);
   assert.equal(failed.failed, 2);
+});
+
+test("a drill closure is labelled, sent once, and lifted by the next drill run without it", () => {
+  const line: [number, number][] = [[-118.15957, 34.16982], [-118.15956, 34.16841]];
+  const record = buildDrillClosure(line, "Lincoln Ave", new Date("2026-10-24T05:00:00Z"));
+  assert.equal(record.drill, true);
+  assert.equal(record.kind, "road_closure");
+  assert.equal(record.status, "closed");
+
+  const feeds = new Set(["drill"]);
+  const first = planClosureWebhook([record], {}, feeds, new Set());
+  assert.equal(first.pending[0]!.item.drill, true);
+  const sent = { [first.pending[0]!.key]: first.pending[0]!.fingerprint! };
+  assert.equal(planClosureWebhook([buildDrillClosure(line, "Lincoln Ave", new Date("2026-10-24T05:05:00Z"))], sent, feeds, new Set()).pending.length, 0);
+  assert.deepEqual(planClosureWebhook([], sent, feeds, new Set()).pending.map((entry) => entry.item.status), ["lifted"]);
 });
 

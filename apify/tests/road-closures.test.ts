@@ -85,6 +85,15 @@ describe("POST /apify/road-closures", () => {
     expect(events).toEqual(["Apify: road closed on Lincoln Avenue"]);
   });
 
+  test("a drill closure is written the same way and labelled as a drill", async () => {
+    const t = makeBackend();
+    const drill = closure({ source: "drill", id: "drill-closure-lincoln", drill: true });
+    expect(await (await post(t, { closures: [drill] })).json()).toMatchObject({ closed: 1 });
+    const { closures, events } = await snapshot(t);
+    expect(closures[0]).toMatchObject({ source: "apify", sourceKey: "drill:drill-closure-lincoln" });
+    expect(events).toEqual(["Apify drill: road closed on Lincoln Avenue"]);
+  });
+
   test("the same closure posted again is ignored", async () => {
     const t = makeBackend();
     await post(t, { closures: [closure()] });

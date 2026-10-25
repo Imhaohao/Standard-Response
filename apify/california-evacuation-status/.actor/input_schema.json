@@ -75,13 +75,13 @@
     "drill": {
       "title": "Drill mode",
       "type": "boolean",
-      "description": "Adds one synthetic evacuation zone in warning status built from the drill polygon below. Every drill record has drill: true. Off by default; real records are never altered.",
+      "description": "Adds a synthetic evacuation zone in warning status from the drill polygon, a synthetic full road closure from the drill closure line, or both. Every drill record has drill: true. Off by default; real records are never altered.",
       "default": false
     },
     "drillPolygon": {
       "title": "Drill polygon",
       "type": "array",
-      "description": "Ring of [longitude, latitude] pairs for the drill zone, at least three. Required when drill is on.",
+      "description": "Ring of [longitude, latitude] pairs for the drill zone, at least three.",
       "editor": "json"
     },
     "drillZoneName": {
@@ -89,6 +89,19 @@
       "type": "string",
       "description": "Name shown for the drill zone.",
       "default": "Drill zone",
+      "editor": "textfield"
+    },
+    "drillClosure": {
+      "title": "Drill closure line",
+      "type": "array",
+      "description": "Line of [longitude, latitude] pairs along a street, at least two, for a synthetic full road closure sent to the closure webhook. A later drill run without it reports the closure lifted.",
+      "editor": "json"
+    },
+    "drillClosureName": {
+      "title": "Drill closure name",
+      "type": "string",
+      "description": "Name shown for the drill closure.",
+      "default": "Drill closure",
       "editor": "textfield"
     },
     "requestTimeoutSecs": {

@@ -83,7 +83,7 @@ export function parsePayload(body: unknown): ParsedPayload | null {
 // Road closures the Actor posts to /apify/road-closures: { closures: [...] }. "closed" carries the
 // closure's GeoJSON line or point; "lifted" names one sent before that the source no longer reports.
 export type ParsedClosure =
-  | { key: string; name: string; status: "closed"; path: Point[] }
+  | { key: string; name: string; status: "closed"; path: Point[]; drill: boolean }
   | { key: string; name: string; status: "lifted" };
 
 export type ParsedClosures = {
@@ -113,7 +113,7 @@ function closureFrom(raw: unknown): ParsedClosure | null {
   if (raw.status === "lifted") return { key, name, status: "lifted" };
   if (raw.status !== "closed") return null;
   const path = pathFrom(raw.geometry);
-  return path ? { key, name, status: "closed", path } : null;
+  return path ? { key, name, status: "closed", path, drill: raw.drill === true } : null;
 }
 
 export function parseClosures(body: unknown): ParsedClosures | null {

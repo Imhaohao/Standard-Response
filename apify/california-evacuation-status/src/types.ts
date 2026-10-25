@@ -45,6 +45,8 @@ export interface ActorInput {
   drill: boolean;
   drillPolygon?: [number, number][];
   drillZoneName: string;
+  drillClosure?: [number, number][];
+  drillClosureName: string;
   requestTimeoutSecs: number;
 }
 

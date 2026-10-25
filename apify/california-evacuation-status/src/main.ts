@@ -1,5 +1,5 @@
 import { Actor, log } from "apify";
-import { buildDrillRecord, validDrillRing } from "./drill.js";
+import { buildDrillClosure, buildDrillRecord, validDrillLine, validDrillRing } from "./drill.js";
 import { applyFilters, dedupeZones } from "./filters.js";
 import { fetchClosures } from "./sources/caltrans.js";
 import { fetchIncidents } from "./sources/incidents.js";
@@ -11,6 +11,7 @@ import { deliverClosureWebhook, deliverWebhook, feedOf, planClosureWebhook, plan
 const STATE_STORE = "california-evacuation-status-state";
 const SENT_KEY = "webhook-sent";
 const CLOSURES_SENT_KEY = "closure-webhook-sent";
+const DRILL_SOURCE = "drill";
 
 // Zones come first so the Cal OES copy of a zone wins over the CAL FIRE copy when the two layers overlap.
 const RECORD_SOURCE: Record<SourceName, string> = {
@@ -27,6 +28,7 @@ const DEFAULT_INPUT: ActorInput = {
   staleAfterHours: 72,
   drill: false,
   drillZoneName: "Drill zone",
+  drillClosureName: "Drill closure",
   requestTimeoutSecs: 45,
 };
 
@@ -42,6 +44,7 @@ function withDefaults(raw: Partial<ActorInput> | null): ActorInput {
     closureWebhookUrl: blankToUndefined(merged.closureWebhookUrl),
     webhookSecret: merged.webhookSecret || undefined,
     drillZoneName: blankToUndefined(merged.drillZoneName) ?? DEFAULT_INPUT.drillZoneName,
+    drillClosureName: blankToUndefined(merged.drillClosureName) ?? DEFAULT_INPUT.drillClosureName,
   };
 }
 
@@ -70,13 +73,26 @@ function markStaleZones(records: EvacuationRecord[], staleAfterHours: number, no
   }
 }
 
+function drillZone(input: ActorInput, now: Date): EvacuationRecord[] {
+  if (input.drillPolygon === undefined) return [];
+  if (validDrillRing(input.drillPolygon)) return [buildDrillRecord(input.drillPolygon, input.drillZoneName, now)];
+  log.error("drillPolygon is not a ring of at least three [longitude, latitude] pairs. No drill zone emitted.");
+  return [];
+}
+
+function drillClosure(input: ActorInput, now: Date): EvacuationRecord[] {
+  if (input.drillClosure === undefined) return [];
+  if (validDrillLine(input.drillClosure)) return [buildDrillClosure(input.drillClosure, input.drillClosureName, now)];
+  log.error("drillClosure is not a line of at least two [longitude, latitude] pairs. No drill closure emitted.");
+  return [];
+}
+
+// Drill mode adds a labelled practice zone, a practice road closure, or both. Real records are never changed.
 function drillRecords(input: ActorInput, now: Date): EvacuationRecord[] {
   if (!input.drill) return [];
-  if (!validDrillRing(input.drillPolygon)) {
-    log.error("Drill mode is on but drillPolygon is not a ring of at least three [longitude, latitude] pairs. No drill record emitted.");
-    return [];
-  }
-  return [buildDrillRecord(input.drillPolygon, input.drillZoneName, now)];
+  const records = [...drillZone(input, now), ...drillClosure(input, now)];
+  if (records.length === 0) log.error("Drill mode is on but neither drillPolygon nor drillClosure is set. No drill record emitted.");
+  return records;
 }
 
 function countBy<T extends string>(items: T[]) {
@@ -125,7 +141,9 @@ async function main() {
 
   await Actor.pushData(records);
   const webhook = await notify(input, records, fetched);
-  const closureWebhook = await notifyClosures(input, real, fetched, new Set(ordered.flatMap((result) => result.unreadFeeds)));
+  // The drill is read from the input on every run, so a drill closure left out of this run is lifted.
+  const closureFeeds = new Set([...fetched, DRILL_SOURCE]);
+  const closureWebhook = await notifyClosures(input, records, closureFeeds, new Set(ordered.flatMap((result) => result.unreadFeeds)));
 
   const summary = {
     ranAt: now.toISOString(),
