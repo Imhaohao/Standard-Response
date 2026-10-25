@@ -204,7 +204,7 @@ export function MapStage({
       onClick={onPick ? click : undefined}
       {...hover}
       onContextMenu={onContextPick ? contextMenu : undefined}
-      className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
+      className={`relative isolate size-full touch-none select-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
       <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} forecast={forecast} highlights={highlights} onHandle={setHandle} onFail={fail} />
       {value && (

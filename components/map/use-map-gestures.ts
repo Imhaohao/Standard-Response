@@ -86,6 +86,8 @@ export function useMapGestures(box: RefObject<HTMLDivElement | null>, renderer: 
       queueZoom(Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED), local(event));
     };
     const home = () => renderer.resetView();
+    // A native drag of some selected text would cancel the pointer and end the pan mid-drag.
+    const noNativeDrag = (event: DragEvent) => event.preventDefault();
 
     element.addEventListener("pointerdown", down);
     element.addEventListener("pointermove", move);
@@ -93,6 +95,7 @@ export function useMapGestures(box: RefObject<HTMLDivElement | null>, renderer: 
     element.addEventListener("pointercancel", up);
     element.addEventListener("wheel", wheel, { passive: false });
     element.addEventListener("dblclick", home);
+    element.addEventListener("dragstart", noNativeDrag);
     return () => {
       cancelAnimationFrame(frame);
       resized.disconnect();
@@ -103,6 +106,7 @@ export function useMapGestures(box: RefObject<HTMLDivElement | null>, renderer: 
       element.removeEventListener("pointercancel", up);
       element.removeEventListener("wheel", wheel);
       element.removeEventListener("dblclick", home);
+      element.removeEventListener("dragstart", noNativeDrag);
     };
   }, [box, renderer]);
 

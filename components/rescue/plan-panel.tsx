@@ -104,11 +104,10 @@ function ApprovalMode() {
   );
 }
 
-// The solver and its run time stay in the tooltip for whoever is debugging; the panel itself only
-// says whether there is a plan yet.
+// The solver and its run time are read out to screen readers for whoever is debugging; the panel shows nothing.
 function PlanStatus({ plan }: { plan: { version: number; solver: keyof typeof SOLVER_LABELS; solveMs: number } | null | undefined }) {
-  if (plan) return <span className="sr-only">{`Plan update ${plan.version}, ${SOLVER_LABELS[plan.solver]} solver, ${plan.solveMs} ms`}</span>;
-  return <span className="type-small mr-3 text-on-panel-muted">No plan yet</span>;
+  if (!plan) return null;
+  return <span className="sr-only">{`Plan update ${plan.version}, ${SOLVER_LABELS[plan.solver]} solver, ${plan.solveMs} ms`}</span>;
 }
 
 export function PlanPanel({ className = "" }: { className?: string }) {
