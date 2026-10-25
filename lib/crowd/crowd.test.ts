@@ -204,6 +204,106 @@ describe("Langevin dynamics", () => {
     assert.ok(perHour > 1500 && perHour < 2200, `${Math.round(perHour)} cars an hour`);
   });
 
+  it("keeps a safe time gap, so a freeway lane's queue discharges no faster than a real one", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const stretch = (k: number) => Math.hypot(router.edgeShape[k][2] - router.edgeShape[k][0], router.edgeShape[k][3] - router.edgeShape[k][1]);
+    const edge = EDGES.findIndex((e, k) => stretch(k) > 240 && router.edgeLanes[k] === 2 && router.edgeSpeed[k] > 25 && router.edgeFire[k] > 200 && !router.safe[e.v]);
+    assert.ok(edge >= 0);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const length = stretch(edge);
+    const { laneWidth } = DEFAULT_CROWD;
+    // Each lane's middle, metres right of the line the street is drawn on.
+    const shift = (lane: number) => (router.edgeTwoWay[edge] ? laneWidth / 2 + lane * laneWidth : (lane - 0.5) * laneWidth);
+    const rows = 18;
+    const front = rows * JAM_SPACING_METERS + 10;
+    const homes = Array.from({ length: 2 * rows }, (_, k): Household => {
+      const m = front - Math.floor(k / 2) * JAM_SPACING_METERS;
+      const right = shift(k % 2);
+      return { ...toLatLng(ax + ((bx - ax) * m + (by - ay) * right) / length, ay + ((by - ay) * m - (bx - ax) * right) / length), peopleCount: 1, canLeave: "yes", hasCar: true };
+    });
+    const sim = new CrowdSim(ground, homes, seededRandom(1), () => new Set(), DEFAULT_CROWD);
+    onStreet(sim, edge);
+    for (let i = 0; i < sim.count; i++) sim.lane[i] = i % 2;
+    const along = (i: number) => ((sim.x[i] - ax) * (bx - ax) + (sim.y[i] - ay) * (by - ay)) / length;
+    const crossed: number[] = [];
+    const counted = new Set<number>();
+    for (let s = 0; s < 400 * 2; s++) {
+      sim.step();
+      for (let i = 0; i < sim.count; i++) {
+        if (counted.has(i) || along(i) < front + 60) continue;
+        counted.add(i);
+        crossed.push(sim.seconds);
+      }
+    }
+    const steady = crossed.slice(5, 30);
+    const perLaneHour = (3600 * (steady.length - 1)) / (steady[steady.length - 1] - steady[0]) / 2;
+    // Greenshields alone let it go 3,600 cars an hour a lane, 1 s apart at 29 m/s.
+    assert.ok(perLaneHour > 1600 && perLaneHour < 2400, `${Math.round(perLaneHour)} cars an hour a lane at ${router.edgeSpeed[edge].toFixed(0)} m/s`);
+  });
+
+  // A one-lane street and a street that crosses its first stretch with no intersection between
+  // them, on a bridge: the bridge street's stretch that crosses, and the crossing as metres along
+  // the first street and its point.
+  const findBridge = (router: RoadRouter) => {
+    const usable = (k: number) => router.edgeLanes[k] === 1 && router.edgeFire[k] > 200 && !router.safe[EDGES[k].v] && !router.safe[EDGES[k].u];
+    const shared = (a: number, b: number) => [EDGES[a].u, EDGES[a].v].some((n) => n === EDGES[b].u || n === EDGES[b].v);
+    const within = (value: number, low: number, high: number) => value > low && value < high;
+    const crossing = (a: number, b: number, q: number): [number, number, number] | null => {
+      const [ax, ay, bx, by] = router.edgeShape[a];
+      const shape = router.edgeShape[b];
+      const [cx, cy, dx, dy] = shape.subarray(2 * q, 2 * q + 4);
+      const d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+      if (Math.abs(d) < 1e-6) return null;
+      const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d;
+      const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / d;
+      const length = Math.hypot(bx - ax, by - ay);
+      return within(t * length, 50, length - 15) && within(u, 0, 1) ? [t * length, ax + (bx - ax) * t, ay + (by - ay) * t] : null;
+    };
+    for (let under = 0; under < EDGES.length; under++) {
+      if (!usable(under)) continue;
+      for (let bridge = 0; bridge < EDGES.length; bridge++) {
+        if (bridge === under || shared(under, bridge)) continue;
+        for (let stretch = 0; stretch + 1 < router.edgeShape[bridge].length / 2; stretch++) {
+          const at = crossing(under, bridge, stretch);
+          if (at) return { under, bridge, stretch, at };
+        }
+      }
+    }
+    return null;
+  };
+
+  it("lets a car drive under a bridge whatever is stopped on it", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const found = findBridge(router);
+    assert.ok(found, "a bridge");
+    const { under, bridge, stretch, at } = found;
+    const [metres, cx, cy] = at;
+    const [ax, ay] = router.edgeShape[under];
+    const sim = new CrowdSim(
+      ground,
+      [
+        { ...toLatLng(ax, ay), peopleCount: 1, canLeave: "yes", hasCar: true },
+        { ...toLatLng(cx, cy), peopleCount: 1, canLeave: "yes", hasCar: true },
+      ],
+      seededRandom(1),
+      () => new Set(),
+      { ...DEFAULT_CROWD, temperature: 0, lateralTemperature: 0 },
+    );
+    onStreet(sim, under);
+    // A car standing on the bridge right over the street, in its middle lane.
+    sim.edge[1] = bridge;
+    sim.point[1] = stretch + 1;
+    sim.lane[1] = Math.floor(router.edgeLanes[bridge] / 2);
+    sim.stuck[1] = 1;
+    let slowest = Infinity;
+    for (let s = 0; s < 2 * 60 * 2 && sim.edge[0] === under; s++) {
+      sim.step();
+      const travelled = Math.hypot(sim.x[0] - ax, sim.y[0] - ay);
+      if (travelled > metres - 15 && travelled < metres + 10) slowest = Math.min(slowest, sim.routeSpeed(0));
+    }
+    assert.ok(slowest > 0.95 * router.edgeSpeed[under], `slowed to ${slowest.toFixed(1)} m/s under the bridge, ${router.edgeSpeed[under].toFixed(1)} free`);
+  });
+
   it("keeps a car queued behind a stopped one where it is, rather than letting the noise walk it back", () => {
     const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
     const { edge, at, along } = straightStreet(router, 100);

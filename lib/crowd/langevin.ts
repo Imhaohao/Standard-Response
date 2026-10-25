@@ -80,6 +80,11 @@ export type CrowdParams = {
   // How far ahead a driver reads the road's density, in metres. Gaps past half of it count for
   // less, down to free flow at the full distance.
   lookAhead: number;
+  // The safe time gap, s: a driver keeps at least the jam spacing plus this many seconds of driving
+  // to the car ahead in its lane, seen at any distance (Newell's car following). Greenshields alone
+  // let a queue on a freeway lane go 3,500 cars an hour, 1 s apart; with this a town lane's queue
+  // goes about 1,800 an hour and a freeway lane's 2,100, as real ones do.
+  timeGap: number;
   // Lateral acceleration a driver takes a turn at, m/s², and how hard it brakes ahead of one,
   // m/s². A 90-degree turn comes out at about 20 km/h.
   turnAcceleration: number;
@@ -113,6 +118,7 @@ export const DEFAULT_CROWD: CrowdParams = {
   maxRepulsion: 8,
   speedMatching: 0.5,
   lookAhead: 20,
+  timeGap: 1,
   turnAcceleration: 3,
   comfortBraking: 2,
   refreshMinutes: 5,
@@ -153,6 +159,19 @@ type Ou = ReturnType<typeof ouCoefficients>;
 // The share of `open` (open-road speed, or a sum of them) that `speed` falls short of, 0 to 1.
 // Speeds are along each car's route, so a stalled car's can dip below 0; the share stops at 1.
 export const crowdingShare = (speed: number, open: number) => (open > 0 ? Math.min(1, Math.max(0, 1 - speed / open)) : 0);
+
+// Sorts order[from..to) by `along`, largest first.
+function sortByAlong(order: Int32Array, from: number, to: number, along: Float64Array) {
+  for (let k = from + 1; k < to; k++) {
+    const item = order[k];
+    let m = k - 1;
+    while (m >= from && along[order[m]] < along[item]) {
+      order[m + 1] = order[m];
+      m -= 1;
+    }
+    order[m + 1] = item;
+  }
+}
 
 // The lanes an edge has in its direction, as a whole number.
 const laneCount = (router: RoadRouter, edge: number) => Math.max(1, Math.round(router.edgeLanes[edge]));
@@ -255,6 +274,16 @@ export class CrowdSim {
   private hashNext: Int32Array;
   private hashKey: Int32Array;
   private hashCols: number;
+  // Per step: how far along its edge each car is, the cars on each edge from the front back
+  // (edge e's are laneOrder[laneStart[e]] to laneOrder[laneStart[e + 1] - 1]), and the car ahead of
+  // each in its lane (see `orderLanes`) and the gap to it.
+  private edgeAt: Float64Array;
+  private laneStart: Int32Array;
+  private laneOrder: Int32Array;
+  private laneLeader: Int32Array;
+  private laneGap: Float64Array;
+  // What `neighborsOf` gathers from the cars around one car: their push, and the car it follows.
+  private near = { rx: 0, ry: 0, gap: Infinity, leader: -1 };
   // Each edge's distance along it to each shape point, and the speed its bend at each interior
   // shape point can be taken at (Infinity at the ends).
   private pointAlong: Float64Array[];
@@ -287,10 +316,15 @@ export class CrowdSim {
     this.agentPotential = Array(n).fill(null);
     this.hashNext = new Int32Array(n);
     this.hashKey = new Int32Array(n);
+    this.edgeAt = new Float64Array(n);
+    this.laneOrder = new Int32Array(n);
+    this.laneLeader = new Int32Array(n);
+    this.laneGap = new Float64Array(n);
     this.hashCols = Math.ceil((ground.cols * ground.cell) / HASH_CELL) + 1;
     this.hashHead = new Int32Array(this.hashCols * (Math.ceil((ground.rows * ground.cell) / HASH_CELL) + 1));
     if (params.lookAhead > HASH_CELL) throw new Error(`lookAhead ${params.lookAhead} m is past the ${HASH_CELL} m neighbour search`);
     this.router = new RoadRouter(ground, params.safeLat);
+    this.laneStart = new Int32Array(this.router.edgeShape.length + 1);
     this.segmentEntries = new Uint32Array(ground.segments.length);
     this.segmentSpeedSum = new Float64Array(ground.segments.length);
     this.segmentOpenSpeedSum = new Float64Array(ground.segments.length);
@@ -399,6 +433,12 @@ export class CrowdSim {
       hashHead: new Int32Array(this.hashHead.length),
       hashNext: new Int32Array(this.count),
       hashKey: new Int32Array(this.count),
+      edgeAt: new Float64Array(this.count),
+      laneStart: new Int32Array(this.laneStart.length),
+      laneOrder: new Int32Array(this.count),
+      laneLeader: new Int32Array(this.count),
+      laneGap: new Float64Array(this.count),
+      near: { rx: 0, ry: 0, gap: Infinity, leader: -1 },
     });
   }
 
@@ -679,16 +719,10 @@ export class CrowdSim {
     const edge = this.edge[i];
     const { comfortBraking, maxRepulsion, dt } = this.params;
     if (edge < 0 || forward <= 0) return 0;
-    const shape = this.router.edgeShape[edge];
-    const last = shape.length / 2 - 1;
+    const last = this.router.edgeShape[edge].length / 2 - 1;
     const p = Math.min(this.point[i], last);
     const along = this.pointAlong[edge];
-    // How far the car is along its edge, from the start of the stretch it is on.
-    const [ax, ay] = [shape[2 * p - 2], shape[2 * p - 1]];
-    const stretch = along[p] - along[p - 1];
-    const ux = stretch > 1e-6 ? (shape[2 * p] - ax) / stretch : 0;
-    const uy = stretch > 1e-6 ? (shape[2 * p + 1] - ay) / stretch : 0;
-    const at = along[p - 1] + (this.x[i] - ax) * ux + (this.y[i] - ay) * uy;
+    const at = this.edgeAt[i];
     const horizon = (forward * forward) / (2 * comfortBraking);
     let need = 0;
     for (let q = p; q <= last; q++) {
@@ -785,70 +819,163 @@ export class CrowdSim {
       const distance = Math.hypot(tx - this.x[i], ty - this.y[i]) || 1;
       this.hx[i] = (tx - this.x[i]) / distance;
       this.hy[i] = (ty - this.y[i]) / distance;
+      if (this.edge[i] >= 0) this.edgeAt[i] = this.alongEdge(i);
     }
+    this.orderLanes();
     for (let i = 0; i < this.count; i++) {
       if (this.state[i] === STATE.moving) this.forceOn(i);
     }
   }
 
+  // How far car i is along its edge, metres from the edge's start: to the start of the stretch it
+  // is on, and its projection on that stretch from there.
+  private alongEdge(i: number) {
+    const edge = this.edge[i];
+    const shape = this.router.edgeShape[edge];
+    const p = Math.min(this.point[i], shape.length / 2 - 1);
+    const along = this.pointAlong[edge];
+    const stretch = along[p] - along[p - 1];
+    if (stretch < 1e-6) return along[p - 1];
+    return along[p - 1] + ((this.x[i] - shape[2 * p - 2]) * (shape[2 * p] - shape[2 * p - 2]) + (this.y[i] - shape[2 * p - 1]) * (shape[2 * p + 1] - shape[2 * p - 1])) / stretch;
+  }
+
+  // The car ahead of each car in its lane, at any distance, for the look-ahead past the 20 m the
+  // neighbour search covers: the next car forward in its lane of its street, or with none, the last
+  // car on the street it turns onto. The moving cars on each edge are sorted from the front back
+  // (a counting sort by edge, then insertion sort, quick on lists this short and nearly in order).
+  private orderLanes() {
+    const start = this.laneStart;
+    start.fill(0);
+    const onStreet = (i: number) => this.state[i] === STATE.moving && this.edge[i] >= 0;
+    for (let i = 0; i < this.count; i++) if (onStreet(i)) start[this.edge[i] + 1] += 1;
+    for (let e = 1; e < start.length; e++) start[e] += start[e - 1];
+    const fill = start.slice(0, -1);
+    for (let i = 0; i < this.count; i++) if (onStreet(i)) this.laneOrder[fill[this.edge[i]]++] = i;
+    this.linkLanes();
+    for (let i = 0; i < this.count; i++) if (onStreet(i) && this.laneLeader[i] < 0) this.linkAcrossJunction(i);
+  }
+
+  // Each car's leader in its lane on its own edge: the next car forward in it.
+  private linkLanes() {
+    const start = this.laneStart;
+    const ahead: number[] = [];
+    for (let e = 0; e + 1 < start.length; e++) {
+      const [from, to] = [start[e], start[e + 1]];
+      if (from === to) continue;
+      sortByAlong(this.laneOrder, from, to, this.edgeAt);
+      ahead.length = 0;
+      for (let k = from; k < to; k++) {
+        const i = this.laneOrder[k];
+        const j = ahead[this.lane[i]] ?? -1;
+        this.laneLeader[i] = j;
+        this.laneGap[i] = j >= 0 ? this.edgeAt[j] - this.edgeAt[i] : Infinity;
+        ahead[this.lane[i]] = i;
+      }
+    }
+  }
+
+  // The leader of a car with no car ahead in its lane: the last car on the street it turns onto.
+  private linkAcrossJunction(i: number) {
+    const start = this.laneStart;
+    const next = this.next[i];
+    if (next < 0 || start[next] === start[next + 1]) return;
+    const j = this.laneOrder[start[next + 1] - 1];
+    const along = this.pointAlong[this.edge[i]];
+    this.laneLeader[i] = j;
+    this.laneGap[i] = along[along.length - 1] - this.edgeAt[i] + this.edgeAt[j];
+  }
+
   // Repulsion on car i, and the nearest car ahead of it going its way and the gap to it (-1 and
-  // Infinity if none within the look-ahead).
+  // Infinity if none): within the 20 m around it, or further on in its lane (see `orderLanes`).
   private neighborsOf(i: number): [number, number, number, number] {
-    const { lateralRepulsion, maxRepulsion, lookAhead } = this.params;
+    const { lateralRepulsion, maxRepulsion } = this.params;
     const hx = this.hx[i];
     const hy = this.hy[i];
-    let rx = 0;
-    let ry = 0;
-    let gap = Infinity;
-    let leader = -1;
+    const near = this.near;
+    near.rx = 0;
+    near.ry = 0;
+    near.gap = Infinity;
+    near.leader = -1;
     const key = this.hashKey[i];
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
-        for (let j = this.hashHead[key + dr * this.hashCols + dc] ?? -1; j !== -1; j = this.hashNext[j]) {
-          const dx = this.x[j] - this.x[i];
-          const dy = this.y[j] - this.y[i];
-          // Most cars in the nine cells are past the look-ahead: skip them before the square root.
-          if (j === i || dx * dx + dy * dy >= lookAhead * lookAhead) continue;
-          const d = Math.hypot(dx, dy);
-          if (d < 1e-6 || d >= lookAhead) continue;
-          const forward = dx * hx + dy * hy;
-          if (forward < gap && this.follows(i, j, dx, dy, forward)) {
-            gap = forward;
-            leader = j;
-          }
-          if (this.sameLane(i, j)) {
-            // In one lane cars are in single file: pushed along the lane, by the distance along it.
-            // Pushed across it, a car creeping up a queue would be squeezed out beside the car it
-            // queues behind (the car can't be pushed back, so the push across is all that's left),
-            // and a jammed lane would fill two or three abreast.
-            const along = Math.abs(forward) || 1e-6;
-            const push = this.pushFrom(i, j, dx, dy, along, forward) * (forward > 0 ? 1 : -1);
-            rx -= push * hx;
-            ry -= push * hy;
-            continue;
-          }
-          const push = this.pushFrom(i, j, dx, dy, d, forward);
-          rx -= (push * dx) / d;
-          ry -= (push * dy) / d;
-        }
+        for (let j = this.hashHead[key + dr * this.hashCols + dc] ?? -1; j !== -1; j = this.hashNext[j]) this.meet(i, j);
       }
     }
+    let { rx, ry, gap, leader } = near;
     const along = rx * hx + ry * hy;
     rx = along * hx + lateralRepulsion * (rx - along * hx);
     ry = along * hy + lateralRepulsion * (ry - along * hy);
     const magnitude = Math.hypot(rx, ry);
     const scale = magnitude > maxRepulsion ? maxRepulsion / magnitude : 1;
+    if (this.edge[i] >= 0 && this.laneGap[i] < gap) [leader, gap] = [this.laneLeader[i], this.laneGap[i]];
     return [rx * scale, ry * scale, leader, gap];
   }
 
-  // Whether car j, at (dx, dy) from car i and `forward` metres along i's heading, is ahead of i in
-  // its lane and going its way: in i's lane of i's street, or, on another street or lane, within
-  // half a lane of i's heading.
-  private follows(i: number, j: number, dx: number, dy: number, forward: number) {
+  // How car j bears on car i, added to `near`: its push, and whether it is the nearest car ahead
+  // that i follows.
+  private meet(i: number, j: number) {
+    const near = this.near;
+    const { lookAhead } = this.params;
+    const dx = this.x[j] - this.x[i];
+    const dy = this.y[j] - this.y[i];
+    // Most cars in the nine cells are past the look-ahead: skip them before the square root.
+    if (j === i || dx * dx + dy * dy >= lookAhead * lookAhead || !this.streetsMeet(i, j)) return;
+    const d = Math.hypot(dx, dy);
+    if (d < 1e-6) return;
     const hx = this.hx[i];
     const hy = this.hy[i];
-    const inLane = this.sameLane(i, j) || Math.abs(dx * hy - dy * hx) < this.params.laneWidth / 2;
-    return forward > 0 && inLane && this.hx[j] * hx + this.hy[j] * hy > 0;
+    const forward = dx * hx + dy * hy;
+    if (forward < near.gap && this.follows(i, j, dx, dy, forward)) {
+      near.gap = forward;
+      near.leader = j;
+    }
+    if (this.sameLane(i, j)) {
+      // In one lane cars are in single file: pushed along the lane, by the distance along it.
+      // Pushed across it, a car creeping up a queue would be squeezed out beside the car it
+      // queues behind (the car can't be pushed back, so the push across is all that's left), and
+      // a jammed lane would fill two or three abreast.
+      const ahead = this.edgeAt[j] - this.edgeAt[i] || (i > j ? 1e-6 : -1e-6);
+      const push = this.pushFrom(i, j, dx, dy, Math.abs(ahead), ahead) * Math.sign(ahead);
+      near.rx -= push * hx;
+      near.ry -= push * hy;
+      return;
+    }
+    const push = this.pushFrom(i, j, dx, dy, d, forward);
+    near.rx -= (push * dx) / d;
+    near.ry -= (push * dy) / d;
+  }
+
+  // Whether car i follows car j, at (dx, dy) from it and `forward` metres along its heading: a car
+  // on another street or in another lane going i's way, within half a lane of i's heading, that i
+  // gives way to. Cars in i's own lane are ordered by the lane (see `orderLanes`). Without right of
+  // way two cars at a merge could each follow the other and wait for each other for ever.
+  private follows(i: number, j: number, dx: number, dy: number, forward: number) {
+    if (this.sameLane(i, j)) return false;
+    const hx = this.hx[i];
+    const hy = this.hy[i];
+    const inLane = Math.abs(dx * hy - dy * hx) < this.params.laneWidth / 2;
+    return forward > 0 && inLane && this.hx[j] * hx + this.hy[j] * hy > 0 && this.yieldsTo(i, j, dx, dy, forward);
+  }
+
+  // Right of way: of two cars, the one further into the other's path goes first, and the other
+  // gives way to it. Exactly one of any two gives way.
+  private yieldsTo(i: number, j: number, dx: number, dy: number, forward: number) {
+    const theirs = -(dx * this.hx[j] + dy * this.hy[j]);
+    return forward > theirs || (forward === theirs && i > j);
+  }
+
+  // Whether cars i and j can meet: either is off the streets, or their streets are the same or share
+  // an intersection. Streets that cross with no intersection between them cross on a bridge, and
+  // the cars on one don't meet the cars on the other (the street graph has 182 such crossings,
+  // most of them at the freeway).
+  private streetsMeet(i: number, j: number) {
+    const a = this.edge[i];
+    const b = this.edge[j];
+    if (a < 0 || b < 0 || a === b) return true;
+    const router = this.router;
+    const [au, av, bu, bv] = [router.edgeStart(a), router.edgeEnd(a), router.edgeStart(b), router.edgeEnd(b)];
+    return au === bu || au === bv || av === bu || av === bv;
   }
 
   // Whether cars i and j drive the same lane of the same street. They are in each other's way
@@ -865,9 +992,7 @@ export class CrowdSim {
   private pushFrom(i: number, j: number, dx: number, dy: number, d: number, forward: number) {
     const { radius, repulsion, repulsionRange, repulsionBehind } = this.params;
     if (d >= 2 * radius + 4 * repulsionRange) return 0;
-    const theirs = -(dx * this.hx[j] + dy * this.hy[j]);
-    const yields = forward > theirs || (forward === theirs && i > j);
-    const sight = yields ? repulsionBehind + ((1 - repulsionBehind) * (1 + forward / d)) / 2 : repulsionBehind;
+    const sight = this.yieldsTo(i, j, dx, dy, forward) ? repulsionBehind + ((1 - repulsionBehind) * (1 + forward / d)) / 2 : repulsionBehind;
     return sight * this.inTheWay(i, j, dx, dy) * repulsion * Math.exp((2 * radius - d) / repulsionRange);
   }
 
@@ -882,14 +1007,17 @@ export class CrowdSim {
   }
 
   private forceOn(i: number) {
-    const { tau, lookAhead, speedMatching, laneStiffness } = this.params;
+    const { tau, speedMatching, laneStiffness } = this.params;
     const [rx, ry, leader, gap] = this.neighborsOf(i);
     const edge = this.edge[i];
     const cell = cellIndex(this.ground, this.x[i], this.y[i]);
     const free = this.stuck[i] ? 0 : edge >= 0 ? this.router.edgeSpeed[edge] : cell < 0 ? 0 : this.ground.speed[cell];
     const hx = this.hx[i];
     const hy = this.hy[i];
-    this.pace[i] = this.stuck[i] ? 0 : speedShare(gap, lookAhead);
+    const { lookAhead, timeGap } = this.params;
+    // Greenshields on the road ahead, and no faster than leaves the safe time gap to the car ahead.
+    const safe = Math.max(0, gap - JAM_SPACING_METERS) / timeGap;
+    this.pace[i] = this.stuck[i] || free <= 0 ? 0 : Math.min(speedShare(gap, lookAhead), safe / free);
     const forward = this.vx[i] * hx + this.vy[i] * hy;
     let drive = this.desiredSpeed(i, free * this.pace[i], forward) / tau;
     // The open-road car relaxes the same way, exactly over the step.
