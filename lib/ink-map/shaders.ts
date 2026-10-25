@@ -26,8 +26,12 @@ uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 out vec3 vWorld;
 out vec3 vNormal;
-flat out float vSurface;
-flat out float vId;
+// Not flat: Chrome on a Mac draws WebGL through Metal, which can't take GL's last-vertex rule for
+// flat varyings, so it rewrites every draw's index buffer to emulate it, and on this many vertices
+// that ran the GPU process past 13 GB within seconds. Every vertex of a triangle carries the same
+// surface and id, so interpolation returns them unchanged and the readers round them.
+out float vSurface;
+out float vId;
 void main() {
   mat4 m = modelMatrix;
 #ifdef INSTANCED
@@ -49,8 +53,8 @@ precision highp float;
 precision highp sampler2D;
 in vec3 vWorld;
 in vec3 vNormal;
-flat in float vSurface;
-flat in float vId;
+in float vSurface;
+in float vId;
 uniform vec3 uSun;
 uniform sampler2D uShadowMap;
 uniform mat4 uShadowMatrix;
@@ -85,8 +89,8 @@ vec3 encodeId(float id) {
 void main() {
   vec3 n = normalize(vNormal);
   if (!gl_FrontFacing) n = -n;
-  float surface = vSurface;
-  float id = vId;
+  float surface = floor(vSurface + 0.5);
+  float id = floor(vId + 0.5);
   if (surface < 0.5) {
     vec2 mapXY = vec2(vWorld.x, -vWorld.z);
     vec2 uv = (mapXY - uLanduseRegion.xy) / (uLanduseRegion.zw - uLanduseRegion.xy);

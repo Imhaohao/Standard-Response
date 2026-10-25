@@ -35,7 +35,7 @@ in float iAngle;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 out vec2 vUv;
-flat out float vPhase;
+out float vPhase; // not flat: see GBUFFER_VERTEX in shaders.ts
 void main() {
   // The card lies along the fire line: its width runs in the line's direction on the map.
   vec2 along = vec2(cos(iAngle), sin(iAngle)) * position.x * iSize.x;
@@ -54,7 +54,7 @@ export const FLAME_FRAGMENT = `
 precision highp float;
 precision highp sampler2D;
 in vec2 vUv;
-flat in float vPhase;
+in float vPhase;
 uniform sampler2D tDepth;
 uniform vec2 uResolution;
 uniform vec3 uRed;
