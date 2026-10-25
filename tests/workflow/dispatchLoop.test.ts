@@ -189,3 +189,29 @@ describe("a driver who can't make it", () => {
     expect(await callbacksFor(t, request._id)).toEqual(["driver_accepted", "reassigning", "driver_accepted"]);
   });
 });
+
+describe("an offer nobody answered", () => {
+  test("isn't a no: once it has lapsed a while, the same van can be offered the rider again", async () => {
+    const t = setup();
+    const homes = await night(t);
+    const request = await requestOf(t, homes[0]);
+    const vans = new Set<Id<"vehicles">>();
+    // Every van lets the offer lapse in turn.
+    for (let round = 0; round < 4; round++) {
+      await replan(t);
+      const [offer] = await liveFor(t, request._id);
+      if (!offer) break;
+      vans.add(offer.vehicleId);
+      await t.mutation(internal.offers.expire, { assignmentId: offer._id });
+    }
+    expect(vans.size).toBe(2);
+    await replan(t);
+    expect(await liveFor(t, request._id)).toEqual([]);
+
+    vi.advanceTimersByTime(6 * 60_000);
+    await replan(t);
+    const [again] = await liveFor(t, request._id);
+    expect(again?.status).toBe("offered");
+    expect(vans.has(again.vehicleId)).toBe(true);
+  });
+});

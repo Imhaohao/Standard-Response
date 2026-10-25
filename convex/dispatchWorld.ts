@@ -18,6 +18,8 @@ const OXYGEN_MAX_RIDE_SECONDS = 45 * 60;
 // more than the ETA the rider was given. Being a little later than forecast isn't a reason.
 const REVOKE_TOLERANCE_MS = 10 * 60_000;
 const ETA_REFRESH_MS = 60_000;
+// A van whose driver let an offer expire can be offered that rider again after this long.
+const EXPIRED_REFUSAL_MS = 5 * 60_000;
 
 // Drive times between intersections, in the forecast traffic for a trip setting out now. A leg of
 // a run that sets out later is priced as if it left now; every re-plan prices again from the
@@ -184,8 +186,15 @@ function ridersToPlan(context: Context, revoking: Set<Id<"requests">>) {
   );
 }
 
-function refusedPairs(snap: Snapshot, revoke: { assignmentId: Id<"assignments"> }[]) {
-  const pairs = new Set(snap.refused.map((a) => `${a.requestId}:${a.vehicleId}`));
+// A driver who declined or cancelled isn't offered that rider again. One who let the offer expire
+// didn't say no, only didn't answer: on a small fleet that van may be the rider's only one.
+function stillRefused(assignment: Doc<"assignments">, now: number) {
+  if (assignment.status !== "expired") return true;
+  return now - (assignment.respondedAt ?? assignment.proposedAt) < EXPIRED_REFUSAL_MS;
+}
+
+function refusedPairs(snap: Snapshot, now: number, revoke: { assignmentId: Id<"assignments"> }[]) {
+  const pairs = new Set(snap.refused.filter((a) => stillRefused(a, now)).map((a) => `${a.requestId}:${a.vehicleId}`));
   for (const { assignmentId } of revoke) {
     const assignment = snap.live.find((a) => a._id === assignmentId);
     if (assignment) pairs.add(`${assignment.requestId}:${assignment.vehicleId}`);
@@ -253,7 +262,7 @@ export function buildWorld(snap: Snapshot, now: number) {
   const vehiclePlans = vehicles.map((vehicle) => planVehicle(context, vehicle));
   const revoke = vehiclePlans.flatMap((plan) => plan.revoke);
   const revokingRequests = new Set(revoke.map((r) => snap.live.find((a) => a._id === r.assignmentId)!.requestId));
-  const refused = refusedPairs(snap, revoke);
+  const refused = refusedPairs(snap, now, revoke);
   const offers = openOffers(snap, now, firstFreeStops(snap, revoke));
   const riders = ridersToPlan(context, revokingRequests);
 
