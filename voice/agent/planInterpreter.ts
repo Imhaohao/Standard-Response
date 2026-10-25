@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../env";
 import { Hazard, hazardEscalation, HazardEscalation, HAZARDS } from "../../convex/hazards";
 import { currentHazard } from "../hazard";
+import { withFallback } from "./fallbackModel";
 import type { Answer } from "./interpreter";
 import type { Language } from "./script";
 
@@ -100,18 +101,22 @@ function promptFor(turn: PlanTurnContext) {
 
 export const interpretPlanAnswer: PlanInterpret = async (turn) => {
   const kind = currentHazard();
-  client ??= new Anthropic();
-  const response = await client.messages.create({
-    model: env.anthropicModel,
-    max_tokens: 256,
-    system: SYSTEM[kind],
-    messages: [{ role: "user", content: promptFor(turn) }],
-    output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
-    ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
-  });
-  const text = response.content.find((block) => block.type === "text");
-  if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-    throw new Error(`Plan interpreter returned no text (stop_reason ${response.stop_reason})`);
-  }
-  return parse(text.text);
+  const user = promptFor(turn);
+  const claudeText = async () => {
+    client ??= new Anthropic();
+    const response = await client.messages.create({
+      model: env.anthropicModel,
+      max_tokens: 256,
+      system: SYSTEM[kind],
+      messages: [{ role: "user", content: user }],
+      output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
+      ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
+    });
+    const text = response.content.find((block) => block.type === "text");
+    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
+      throw new Error(`Plan interpreter returned no text (stop_reason ${response.stop_reason})`);
+    }
+    return text.text;
+  };
+  return parse(await withFallback(claudeText, { system: SYSTEM[kind], user, schema: OUTPUT_SCHEMA[kind], maxTokens: 256 }));
 };

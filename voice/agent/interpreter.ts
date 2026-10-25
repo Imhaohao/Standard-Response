@@ -7,6 +7,7 @@ import { Hazard, HAZARDS, hazardEscalation, HazardEscalation } from "../../conve
 import { currentHazard } from "../hazard";
 import { Guidance, guidanceText } from "../knowledge/bank";
 import { recall } from "../knowledge/moss";
+import { withFallback } from "./fallbackModel";
 import type { ApprovedMatch } from "./approvedAnswers";
 import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
 
@@ -359,10 +360,14 @@ export const interpret = (turn: TurnContext) => interpretFor(turn, currentHazard
 // For a hazard other than the operator's current one: the dialog bank's checker reads every hazard.
 export async function interpretFor(turn: TurnContext, kind: Hazard): Promise<Interpretation> {
   const guidance = await recall(turn.question, turn.utterance, kind, turn.language);
-  const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(turn, kind, guidance)));
-  const text = response.content.find((block) => block.type === "text");
-  if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-    throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
-  }
-  return parse(text.text, turn.language, kind);
+  const claudeText = async () => {
+    const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(turn, kind, guidance)));
+    const text = response.content.find((block) => block.type === "text");
+    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
+      throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
+    }
+    return text.text;
+  };
+  const answer = await withFallback(claudeText, { system: SYSTEM[kind], user: promptFor(turn, guidance), schema: OUTPUT_SCHEMA[kind], maxTokens: 1024 });
+  return parse(answer, turn.language, kind);
 }

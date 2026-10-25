@@ -52,6 +52,15 @@ export const env = {
     // agent says it doesn't know rather than guess.
     answerMinScore: numberFrom("MOSS_MIN_SCORE", 0.7),
   },
+  // Backup model on Bitdeer AI Model Studio (voice/agent/fallbackModel.ts). Read at call time. Without
+  // BITDEER_API_KEY the backup is off and a Claude outage behaves as it always did.
+  bitdeer: {
+    apiKey: () => process.env.BITDEER_API_KEY ?? "",
+    model: () => optional("BITDEER_MODEL", "deepseek-ai/DeepSeek-V4.1-Flash"),
+    baseUrl: () => optional("BITDEER_BASE_URL", "https://api-inference.bitdeer.ai/v1").replace(/\/$/, ""),
+    // A Claude request slower than this also goes to Bitdeer; whichever answers first is used.
+    fallbackAfterMs: () => numberFrom("FALLBACK_AFTER_MS", 4000),
+  },
   twilio: {
     accountSid: () => required("TWILIO_ACCOUNT_SID"),
     // REST calls authenticate with an API key; the auth token only checks webhook signatures.
