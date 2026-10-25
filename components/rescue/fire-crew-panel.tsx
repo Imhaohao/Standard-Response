@@ -53,7 +53,7 @@ export function FireCrewPanel({ crews, minutes }: { crews: FireCrews | null; min
         ))}
       </ul>
       <p className="type-small px-4 pb-3 text-on-panel-muted">
-        A playback, not live positions. Engines leave LA County Fire stations at the warning and knock on doors in the fire&rsquo;s path, soonest fire and most help needed first. Station points are approximate.
+        A playback, not live positions. Engines leave LA County Fire stations at the warning and knock on doors in the fire&rsquo;s path, in the same order as the door-check list. Station points are approximate.
       </p>
     </Panel>
   );

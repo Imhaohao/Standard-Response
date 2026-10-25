@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Point } from "./data";
-import { crewAt, CrewHome, CrewStart, planCrews, visitedBy } from "./fire-crews";
+import { crewAt, CrewHome, CrewStart, doorScore, planCrews, visitedBy } from "./fire-crews";
 
 // A straight street between any two points, so drive times are easy to reason about: 100 m a minute.
 const straight = (from: Point, to: Point): Point[] => [from, to];
@@ -10,11 +10,25 @@ const SPEED = 100;
 const start = (engine: string, at: Point, leavesAt = 0): CrewStart => ({ engine, station: `${engine} station`, at, leavesAt, joinsAtEdge: false });
 const home = (id: string, at: Point, fireMinutes: number, need = 0.5, dwellMinutes = 4): CrewHome => ({ id, at, fireMinutes, dwellMinutes, need });
 
-test("a crew goes to the home the fire reaches first, not the nearest", () => {
-  const [run] = planCrews([start("E1", [0, 0])], [home("near", [100, 0], 120), home("far", [800, 0], 30)], straight, SPEED);
+test("the score is door.py's need-and-urgency term, with its floors", () => {
+  assert.equal(doorScore(0.5, 30, 10), (0.5 * (60 / 20)) / 10);
+  assert.equal(doorScore(0.5, 12, 10), (0.5 * (60 / 5)) / 10, "slack under 5 minutes counts as 5");
+  assert.equal(doorScore(0.5, 30, 0.2), 0.5 * (60 / 20), "a drive under a minute counts as one");
+});
+
+test("a crew goes to the home the fire reaches first when the extra drive is worth it", () => {
+  const [run] = planCrews([start("E1", [0, 0])], [home("near", [100, 0], 120), home("far", [400, 0], 15)], straight, SPEED);
   assert.deepEqual(
     run.visits.map((visit) => visit.home),
     ["far", "near"],
+  );
+});
+
+test("a near home goes first when the far one still has time", () => {
+  const [run] = planCrews([start("E1", [0, 0])], [home("near", [100, 0], 120), home("far", [800, 0], 30)], straight, SPEED);
+  assert.deepEqual(
+    run.visits.map((visit) => visit.home),
+    ["near", "far"],
   );
 });
 
@@ -33,7 +47,7 @@ test("a home no crew can reach in time is left out", () => {
 });
 
 test("between two homes due at once, the one that needs more help goes first", () => {
-  const [run] = planCrews([start("E1", [0, 0])], [home("walks", [300, 0], 90, 0.1), home("wheelchair", [0, 300], 90, 1.4)], straight, SPEED);
+  const [run] = planCrews([start("E1", [0, 0])], [home("walks", [300, 0], 90, 0.1), home("wheelchair", [0, 300], 90, 0.9)], straight, SPEED);
   assert.equal(run.visits[0].home, "wheelchair");
 });
 

@@ -1,10 +1,11 @@
+import { DEADLINE_MARGIN_MINUTES } from "@/convex/model";
 import { ENGINE } from "@/convex/vehicleRun";
 import { LatLng } from "../geo";
 import { Point } from "./data";
 
 // Fire crews working the night on the rescue map: engines leave real stations at the warning and
-// go door to door in the fire's path, soonest fire and greatest need first, so they visibly race
-// the front. The whole night is planned at once from the homes and the fire on screen, and the map
+// go door to door in the fire's path in the door-check list's order (the score in
+// modeling/rollcall_d/door.py that data/door-fairness.json measures), so they visibly race the front. The whole night is planned at once from the homes and the fire on screen, and the map
 // plays it back on the fire's clock. It is a playback: nothing here writes to any household.
 
 // Each city's fire stations, by city id (lib/cities.ts). Altadena's are LA County Fire stations at
@@ -29,9 +30,9 @@ export const TURNOUT_MINUTES = 2;
 export const STREET_DETOUR = 1.4;
 // A crew leaves a door at least this long before the fire gets there.
 const SAFETY_MINUTES = 3;
-// How a crew trades a minute of driving, and a home's need, against a minute of the fire's head start.
-const DRIVE_WEIGHT = 2;
-const NEED_MINUTES = 25;
+// The door-check score's floors (MIN_SLACK_MINUTES and MIN_TRAVEL_MINUTES in modeling/rollcall_d/door.py).
+const MIN_SLACK_MINUTES = 5;
+const MIN_TRAVEL_MINUTES = 1;
 
 // `joinsAtEdge`: the station is off the map, so the engine appears where it reaches the streets.
 export type CrewStart = { engine: string; station: string; at: Point; leavesAt: number; joinsAtEdge: boolean };
@@ -53,21 +54,28 @@ function legAlong(path: Point[], startMinutes: number, metersPerMinute: number):
 type Crew = { run: CrewRun; at: Point; time: number; done: boolean };
 type Planner = { homes: CrewHome[]; claimed: Set<string>; drive: DriveRoute; metersPerMinute: number };
 
-// Lower is sooner: the fire's head start on the crew, plus the drive, less the home's need.
+// door.py's need_urgency_term: need, times 60 over the minutes left before the deadline, over the drive.
+// Its aging term is left out: every home here joins the list at the warning, so all of them have
+// waited equally long at any pick and aging can't change which one wins.
+export function doorScore(need: number, minutesToFire: number, driveMinutes: number) {
+  const urgency = 60 / Math.max(minutesToFire - DEADLINE_MARGIN_MINUTES, MIN_SLACK_MINUTES);
+  return (need * urgency) / Math.max(driveMinutes, MIN_TRAVEL_MINUTES);
+}
+
+// Higher goes first. A home the crew can't leave before the fire, with time to spare, isn't a candidate.
 function rank(crew: Crew, home: CrewHome, metersPerMinute: number) {
   const driveMinutes = (distance(crew.at, home.at) * STREET_DETOUR) / metersPerMinute;
-  const arrive = crew.time + driveMinutes;
-  if (arrive + home.dwellMinutes > home.fireMinutes - SAFETY_MINUTES) return null;
-  return home.fireMinutes - arrive + DRIVE_WEIGHT * driveMinutes - NEED_MINUTES * home.need;
+  if (crew.time + driveMinutes + home.dwellMinutes > home.fireMinutes - SAFETY_MINUTES) return null;
+  return doorScore(home.need, home.fireMinutes - crew.time, driveMinutes);
 }
 
 function bestHome(crew: Crew, planner: Planner, passed: Set<string>) {
   let best: CrewHome | null = null;
-  let bestScore = Infinity;
+  let bestScore = -Infinity;
   for (const home of planner.homes) {
     if (planner.claimed.has(home.id) || passed.has(home.id)) continue;
     const score = rank(crew, home, planner.metersPerMinute);
-    if (score !== null && score < bestScore) [best, bestScore] = [home, score];
+    if (score !== null && score > bestScore) [best, bestScore] = [home, score];
   }
   return best;
 }

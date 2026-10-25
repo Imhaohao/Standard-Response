@@ -14,8 +14,6 @@ import { Home } from "./marks";
 
 // A knock, a look inside and a word with whoever answers, before helping anyone out.
 const DOOR_MINUTES = 2;
-// Someone who needs help getting out (a walker, a wheelchair, a lift) is who the crews go to first.
-const MOBILITY_NEED = 0.5;
 // How far off the baked streets a station may sit and still send an engine onto them.
 const FARTHEST_STATION_METERS = 9000;
 const ON_STREETS_METERS = 600;
@@ -39,15 +37,13 @@ function crewStarts(data: InkMapData, cityId: string, toLocal: (point: LatLng) =
 }
 
 // Homes in the fire's path. Only what doesn't change during the night goes in (where, when the
-// fire arrives, how much help getting out), so the plan never jumps as the calls come back.
+// fire arrives, the need estimate the door-check list scores), so the plan never jumps as the calls come back.
 function crewHomes(homes: Home[], hazard: Hazard, toLocal: (point: LatLng) => Point): CrewHome[] {
   return homes.flatMap((home) => {
     const at = toLocal(home);
     const fireMinutes = arrivalMinutesAt(hazard.field, at);
     if (fireMinutes === null) return [];
-    const boarding = boardingMinutesFor(home);
-    const need = home.needProbability + (boarding > 2 ? MOBILITY_NEED : 0);
-    return [{ id: home._id, at, fireMinutes, dwellMinutes: DOOR_MINUTES + boarding, need }];
+    return [{ id: home._id, at, fireMinutes, dwellMinutes: DOOR_MINUTES + boardingMinutesFor(home), need: home.needProbability }];
   });
 }
 
