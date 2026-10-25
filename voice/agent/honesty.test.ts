@@ -38,6 +38,12 @@ const CAUGHT = [
 ] as const;
 
 describe("the honesty guard", () => {
+  it("lets the line say its own name, but no other number", () => {
+    assert.equal(guardAcknowledgment("No, you're on the phone with 911.", "received", "en").blocked, false);
+    assert.equal(guardAcknowledgment("Call 9115 for that.", "received", "en").blocked, true);
+    assert.equal(guardAcknowledgment("Maria is 6 minutes away.", "driver_accepted", "en").blocked, true);
+  });
+
   for (const [language, line] of CAUGHT) {
     it(`drops "${line}" while no driver has accepted`, () => {
       assert.equal(guardAcknowledgment(line, "received", language).blocked, true);

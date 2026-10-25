@@ -349,10 +349,14 @@ export class Conversation {
 
   // "I don't know who Paulina is either" after "I don't know who Paulina is from this call" is the
   // same answer again, so replies are compared by their opening words, not only exactly.
+  // A question is owed an answer, so "I don't know that." to a second question is said again; only
+  // a reply the caller heard on the agent's last turn is dropped, unless they asked the same again.
   private isFreshReply(text: string) {
     const normalized = normalizeAck(text);
     if (normalized === "") return false;
     const asked = normalizeAck(this.lastResidentLine());
+    const answeredThisBefore = [...this.repliesSaid].some(([said, answered]) => answered === asked && sameGist(said, normalized));
+    if (isQuestion(this.lastResidentLine())) return answeredThisBefore || !normalizeAck(this.lastAgentLine()).includes(normalized);
     return [...this.repliesSaid].every(([said, answered]) => answered === asked || !sameGist(said, normalized));
   }
 
@@ -758,10 +762,26 @@ export class Conversation {
   // them, or nothing more when that was just said.
   // "Nothing has changed" only follows a status the caller was actually told. "Leave now" or "I need
   // the address" isn't one: said after those, it claimed an update that never happened.
+  // A question asked right after the status is answered with its first sentences ("No driver has
+  // accepted yet."), not "Nothing has changed": "Can anyone help me?" got that on a real call.
+  // Asked again straight after the answer, the news is that nothing changed, not the answer again.
   private rideUpdate(heard?: Interpretation) {
+    const lifeThreat = heard?.emergency !== undefined && heard.emergency !== "none";
+    const asked = this.askedThisTurn(heard);
+    const answeredLastTurn = this.lastAgentLine().includes(this.rideAnswer());
+    if (asked && answeredLastTurn && !lifeThreat && this.hasStatus()) return LINES[this.language].statusUnchanged;
     if (!this.rideJustSaid()) return this.rideLine();
-    const lifeThreat = heard !== undefined && heard.emergency !== "none";
-    return this.hasStatus() && !lifeThreat ? LINES[this.language].statusUnchanged : "";
+    if (!this.hasStatus() || lifeThreat) return "";
+    return asked ? this.rideAnswer() : LINES[this.language].statusUnchanged;
+  }
+
+  private askedThisTurn(heard?: Interpretation) {
+    return heard !== undefined && (heard.asksAboutRide || isQuestion(this.lastResidentLine()));
+  }
+
+  // Where the ride stands, without the promise to call back and the safety lines that follow it.
+  rideAnswer() {
+    return firstSentences(this.rideLine(), RIDE_ANSWER_SENTENCES);
   }
 
   private hasStatus() {
@@ -878,6 +898,15 @@ const FEELING_WORDS = /(frighten|scar(y|ed)|terrif|afraid|worried|fear|asustad|m
 // How far back a status line still counts as just heard. Reaching hold three turns after a
 // status change replayed the whole reassigning line twenty seconds after the first.
 const RECENT_AGENT_TURNS = 3;
+const RIDE_ANSWER_SENTENCES = 2;
+// Speech-to-text punctuates a question, in every language the line speaks.
+const isQuestion = (text: string) => /[?？¿]/.test(text);
+const firstSentences = (text: string, count: number) =>
+  text
+    .split(/(?<=[.!?。！？])\s*/u)
+    .filter(Boolean)
+    .slice(0, count)
+    .join(" ");
 const MAX_ASKS_WITHOUT_ANSWER = 2;
 const UNSURE = /^\s*(i don'?t know|i'?m not sure|not sure|no s[eé]\b|no estoy segur)/i;
 const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;

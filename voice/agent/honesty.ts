@@ -53,7 +53,8 @@ export function guardAcknowledgment(text: string, status: RequestStatus | "none"
   if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
   const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY].some((pattern) => pattern.test(trimmed));
   if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
-  // Even after acceptance, ETAs and names come only from templates.
-  if (/\d/.test(trimmed)) return blocked;
+  // Even after acceptance, ETAs and names come only from templates. "911" is the line's own name:
+  // "No, you're on the phone with 911." to "Am I in heaven?" was blocked for its digits.
+  if (/\d/.test(trimmed.replace(/\b911\b/g, ""))) return blocked;
   return { text: trimmed, blocked: false };
 }

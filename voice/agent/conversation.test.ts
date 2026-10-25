@@ -118,9 +118,9 @@ describe("answers that don't answer", () => {
     assert.deepEqual(asked.sentences, [EN.holdSteps[0]]);
     const quiet = conversation.respond("okay", heard({ addressedToAgent: true }));
     assert.deepEqual(quiet.sentences, []);
-    // The full status was said on reaching hold, two agent turns ago.
+    // The full status was said on reaching hold, two agent turns ago, so the question gets its start.
     const blocked = conversation.respond("are they coming?", heard({ reply: "They'll be there soon." }));
-    assert.deepEqual(blocked.sentences, [EN.statusUnchanged]);
+    assert.deepEqual(blocked.sentences, [conversation.rideAnswer()]);
     conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
     conversation.respond("is my street closed?", heard({ reply: "I don't know whether streets are closed." }));
     const later = conversation.respond("are they coming yet?", heard({ reply: "They'll be there soon." }));
@@ -434,13 +434,19 @@ describe("which kind of wheelchair", () => {
 
 // Each case is a line real callers heard over and over on robust-penguin-834, 2026-10-24.
 describe("lines the caller just heard", () => {
-  it("answers a second ride question with no change instead of the whole status again", () => {
+  it("answers a second ride question with where it stands instead of the whole status again", () => {
     const { conversation } = atHold();
     const full = conversation.rideLine();
+    // Straight after the full status, the answer to "when?" was just heard.
+    const right = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
+    assert.deepEqual(right.sentences, [EN.statusUnchanged]);
+    conversation.respond("okay, let me get my bag", heard());
     const asked = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
-    assert.deepEqual(asked.sentences, [EN.statusUnchanged]);
+    assert.deepEqual(asked.sentences, [conversation.rideAnswer()]);
+    assert.ok(conversation.rideAnswer().includes("No driver has accepted yet."));
+    // Asked again straight after that answer, the news is that nothing changed.
     const again = conversation.respond("so when?", heard({ asksAboutRide: true }));
-    assert.ok(!again.sentences.includes(full));
+    assert.deepEqual(again.sentences, [EN.statusUnchanged]);
     const repeat = conversation.respond("say that again?", heard({ wantsRepeat: true }));
     assert.ok(repeat.sentences.includes(full));
   });
@@ -466,6 +472,27 @@ describe("lines the caller just heard", () => {
     assert.deepEqual(oh.sentences, []);
     const other = conversation.respond("Who is Howard?", heard({ reply: "I don't know who Howard is." }));
     assert.ok(other.sentences.includes("I don't know who Howard is."));
+  });
+
+  // Jerry at 3060 Olive Avenue asked "Can anyone help me?" and "Am I in heaven?" on hold and heard
+  // "Nothing has changed since I last told you." both times.
+  it("answers a question on hold instead of saying its last line again", () => {
+    const { conversation } = atHold();
+    conversation.respond("okay, let me turn it on", heard());
+    const help = conversation.respond("Can anyone help me?", heard({ asksAboutRide: true }));
+    assert.deepEqual(help.sentences, [conversation.rideAnswer()]);
+    const heaven = conversation.respond("Am I in heaven?", heard({ reply: "No, you're on the phone with 911." }));
+    assert.deepEqual(heaven.sentences, ["No, you're on the phone with 911."]);
+  });
+
+  it("gives the same answer to a new question, but not to the line it just answered", () => {
+    const { conversation } = atHold();
+    const unknown = "I don't know that.";
+    assert.ok(conversation.respond("How close is the fire?", heard({ reply: unknown })).sentences.includes(unknown));
+    const second = conversation.respond("Which roads are closed?", heard({ reply: unknown }));
+    assert.ok(!second.sentences.includes(unknown));
+    conversation.respond("okay, let me get my bag", heard());
+    assert.ok(conversation.respond("Is it windy there?", heard({ reply: unknown })).sentences.includes(unknown));
   });
 
   it("answers a Chinese caller on hold who says more than 嗯 or 好的", () => {
