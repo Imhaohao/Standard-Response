@@ -1,5 +1,6 @@
 import { ARRIVAL_GLSL, FULLSCREEN_HEADER, GBUFFER_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
 import type { WaterKind } from "./model";
+import { SHELF } from "./shore";
 
 // The water, printed like a woodblock: an indigo plate cut into a few flat tints by depth, laid a pixel
 // off the key block's ink lines; the town under it showing through shallow water and fading under deep;
@@ -83,7 +84,7 @@ vec2 shoreAt(vec2 xy) {
 // falling away from the shore, so a sea the terrain draws flat still has depth to draw back from.
 float bedAt(vec2 xy, vec2 shore) {
   float ground = groundElevation(xy);
-  float shelf = REST_LEVEL - min(0.6 + max(shore.y, 0.0) * 0.025, 12.0);
+  float shelf = REST_LEVEL - min(${SHELF.shore} + max(shore.y, 0.0) * ${SHELF.slope}, ${SHELF.deepest.toFixed(1)});
   return mix(ground, min(ground, shelf), smoothstep(0.35, 0.65, shore.x));
 }
 

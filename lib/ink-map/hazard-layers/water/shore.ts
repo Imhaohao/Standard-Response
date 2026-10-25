@@ -8,6 +8,10 @@ import { groundAt, type WaterKind } from "./model";
 // before the levee broke.
 
 export const SEA_LEVEL_METERS = 0.3;
+
+// The bed of standing water the terrain draws flat: 0.6 m deep at the shore, 1.5 m deeper every 100 m
+// out, to 12 m at most. Real bathymetry, where the terrain has some, is used instead wherever it is deeper.
+export const SHELF = { shore: 0.6, slope: 0.015, deepest: 12 };
 const MOST_CELLS_ACROSS = 1024;
 
 export type ShoreGrid = Raster & {
@@ -119,14 +123,20 @@ export function shoreBytes(grid: ShoreGrid) {
   return bytes;
 }
 
-// Whether water lay at a map point before the disaster.
-export function isStandingWater(grid: ShoreGrid, [x, y]: Point) {
+// The grid cell under a map point, held to the grid's edge.
+function cellAt(grid: ShoreGrid, [x, y]: Point) {
   const { x0, y0, x1, y1 } = grid.region;
-  const col = Math.floor(((x - x0) / (x1 - x0)) * grid.width);
-  const row = Math.floor(((y - y0) / (y1 - y0)) * grid.height);
-  if (col < 0 || row < 0 || col >= grid.width || row >= grid.height) return false;
-  return grid.water[row * grid.width + col] === 1;
+  const col = Math.min(grid.width - 1, Math.max(0, Math.floor(((x - x0) / (x1 - x0)) * grid.width)));
+  const row = Math.min(grid.height - 1, Math.max(0, Math.floor(((y - y0) / (y1 - y0)) * grid.height)));
+  return row * grid.width + col;
 }
+
+// Whether water lay at a map point before the disaster.
+export const isStandingWater = (grid: ShoreGrid, point: Point) => grid.water[cellAt(grid, point)] === 1;
+
+// Metres from a map point to the old shore, positive out over the water; ±Infinity on a map with no
+// water at all, or no land.
+export const shoreDistanceAt = (grid: ShoreGrid, point: Point) => grid.distance[cellAt(grid, point)];
 
 const shores = new WeakMap<InkMapData, Map<boolean, ShoreGrid>>();
 

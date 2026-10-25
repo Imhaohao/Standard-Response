@@ -3,12 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import { cityById } from "../../../cities";
 import { AREA_KIND, createProjection, type InkMapData, type Point } from "../../data";
-import { buildFireField, scenarioFronts, type ScenarioGeoJson } from "../../fire-field";
+import { arrivalMinutesAt, buildFireField, scenarioFronts, type ScenarioGeoJson } from "../../fire-field";
 import type { Scenario } from "../../scenario";
 import { impactAt } from "../arrival";
 import { firstUnderWater, waterIndex } from "./impact";
 import { crestDelay, datumShift, depthAt, groundAt, pourReach, seaSurface, surfaceAt, waterModel, waveShape, type TsunamiWave, type WaveTrain } from "./model";
-import { shoreGrid } from "./shore";
+import { shoreFor, shoreGrid } from "./shore";
+import { waterField } from "./source";
 
 const ORIGIN = { lat: 29.966, lng: -90.009 };
 const { toLatLng } = createProjection(ORIGIN);
@@ -154,7 +155,19 @@ test("through an open breach the surface slopes from the canal's level down to t
   assert.ok(Math.abs(surfaceAt(model, [-400, 0], 15) - (-1.5 + (3.5 * 15) / 60)) < 1e-9);
 });
 
-const bore: TsunamiWave = { arrival: 100, runup: 6, period: 20, drawdown: 2 };
+test("inside the first front the water spreads out from the breach, not in from the front's edge", () => {
+  const breach = { at: [-400, 0] as Point, opensAtMinutes: 5, widthMeters: 50 };
+  const { map, field, model } = floodWorld(fakeMap(), floodScenario(0, [breach], { at: [-450, 0], meters: 3 }));
+  const spread = waterField(field, model, shoreFor(map, "flood"));
+  const atBreach = arrivalMinutesAt(spread, [-395, 0])!;
+  const farCorner = arrivalMinutesAt(spread, [-205, 295])!;
+  assert.ok(atBreach < 5.3, `the gap floods as it opens: ${atBreach}`);
+  assert.ok(farCorner > 9.5 && farCorner <= 10, `the far corner floods with the first front: ${farCorner}`);
+  assert.ok(arrivalMinutesAt(field, [-395, 0])! > 9, "the fire's rule had the edge by the breach flood last");
+  assert.equal(arrivalMinutesAt(spread, [-100, 0]), arrivalMinutesAt(field, [-100, 0]), "between later fronts nothing changes");
+});
+
+const bore: TsunamiWave ={ arrival: 100, runup: 6, period: 20, drawdown: 2 };
 
 test("a tsunami crest draws the sea back first, stands at its run-up, then drains away", () => {
   assert.equal(waveShape(-30, bore), 0);

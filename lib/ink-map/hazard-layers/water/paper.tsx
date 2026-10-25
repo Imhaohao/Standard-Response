@@ -5,6 +5,7 @@ import type { PaperHazardProps } from "../types";
 import { surfaceAt, waterModel, type WaterKind, type WaterModel } from "./model";
 import { depthCells, depthOutlines, drawnBackMeters, standingCells, standingOutline } from "./paper-grid";
 import { shoreFor } from "./shore";
+import { waterField } from "./source";
 
 // The flat map's water, printed like the 3D one: standing water in a pale indigo with the sea's scale
 // pattern, the flood in nested plates that darken with depth, each kind's wave linework cut into it, a
@@ -108,7 +109,7 @@ function useWaterDrawing({ kind, data, field, scenario, minutes, project, trace 
   const shown = Math.round(minutes * steps) / steps;
   const model = useMemo(() => waterModel(scenario, data, field, kind), [scenario, data, field, kind]);
   const shore = useMemo(() => shoreFor(data, kind), [data, kind]);
-  const cells = useMemo(() => depthCells(data, field, shore), [data, field, shore]);
+  const cells = useMemo(() => depthCells(data, waterField(field, model, shore), shore), [data, field, model, shore]);
   const standing = useMemo(() => standingCells(shore), [shore]);
   const toPath = useMemo(() => (rings: Point[][]) => rings.map((ring) => ringPath(project, ring)).join(""), [project]);
   const sea = useMemo(() => toPath(standingOutline(standing, 0)), [standing, toPath]);

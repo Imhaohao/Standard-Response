@@ -3,7 +3,7 @@ import type { FireField } from "../../fire-field";
 import { isolines, type Grid } from "../../isolines";
 import { frontArrival } from "./impact";
 import { groundAt, surfaceAt, type WaterModel } from "./model";
-import { cellCentre, isStandingWater, type ShoreGrid } from "./shore";
+import { cellCentre, isStandingWater, SHELF, shoreDistanceAt, type ShoreGrid } from "./shore";
 
 // The flat map's water, worked out on a coarse grid of its own and traced into outlines: the standing
 // water before the disaster, how much of it the sea has drawn back, and the flood's depth bands now.
@@ -50,16 +50,8 @@ export type StandingCells = ReturnType<typeof standingCells>;
 // The shore grid shrunk to the flat map's size: how far out over the water each cell is (negative inland).
 export function standingCells(shore: ShoreGrid) {
   const grid = coarseGrid(shore.region, Math.min(PAPER_CELLS_ACROSS, shore.width));
-  const negativeOffshore = Float32Array.from(grid.points, (point) => -offshoreDistance(shore, point));
+  const negativeOffshore = Float32Array.from(grid.points, (point) => -Math.max(-1e4, Math.min(1e4, shoreDistanceAt(shore, point))));
   return { ...grid, negativeOffshore };
-}
-
-function offshoreDistance(shore: ShoreGrid, [x, y]: Point) {
-  const { x0, y0, x1, y1 } = shore.region;
-  const col = Math.min(shore.width - 1, Math.max(0, Math.floor(((x - x0) / (x1 - x0)) * shore.width)));
-  const row = Math.min(shore.height - 1, Math.max(0, Math.floor(((y - y0) / (y1 - y0)) * shore.height)));
-  const distance = shore.distance[row * shore.width + col];
-  return Number.isFinite(distance) ? distance : distance > 0 ? 1e4 : -1e4;
 }
 
 // The standing water at least `offshore` metres out from its old shore: zero for all of it, more to leave
@@ -70,5 +62,5 @@ export function standingOutline(cells: StandingCells, offshore: number) {
 }
 
 // How far out the sea has drawn back at a level below rest: the same shelf the shader gives a sea the
-// terrain draws flat (0.6 m at the shore, 2.5 m deeper every 100 m).
-export const drawnBackMeters = (level: number) => Math.max(0, (-level - 0.6) / 0.025);
+// terrain draws flat (glsl.ts bedAt).
+export const drawnBackMeters = (level: number) => Math.max(0, (-level - SHELF.shore) / SHELF.slope);

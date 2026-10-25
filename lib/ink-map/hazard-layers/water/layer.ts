@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { terrainHeight, type Point } from "../../data";
+import type { FireField } from "../../fire-field";
 import { sampleAt } from "../../scenario";
 import { arrivalTexture, impactAt, NO_IMPACT, type ArrivalIndex } from "../arrival";
 import type { FullscreenPass, HazardFrame, HazardLayer, HazardLayerContext } from "../types";
@@ -7,6 +8,7 @@ import { MAX_BREACHES, MAX_WAVES, waterFragment } from "./glsl";
 import { waterIndex } from "./impact";
 import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type WaterKind, type WaterModel } from "./model";
 import { shoreBytes, shoreFor, type ShoreGrid } from "./shore";
+import { waterField } from "./source";
 
 // The flood, the surge and the tsunami share this layer; each kind's shader (glsl.ts) draws its own
 // motion. GPU memory beyond the shared terrain: the arrival field as half floats and the shore as two
@@ -61,6 +63,7 @@ export class WaterLayer implements HazardLayer {
   private shore: THREE.DataTexture | null = null;
   private onshore: Point = [0, 1];
   private model: WaterModel;
+  private field: FireField | null = null;
   private index: ArrivalIndex | null = null;
   private wind = { toward: [0, 0] as Point, speed: 0, gust: 0 };
 
@@ -71,9 +74,10 @@ export class WaterLayer implements HazardLayer {
     this.model = waterModel(context.scenario, context.data, context.field, kind);
     if (!context.field) return;
     const grid = shoreFor(context.data, kind);
+    this.field = waterField(context.field, this.model, grid);
     this.onshore = grid.onshore;
     this.shore = shoreTexture(grid);
-    this.arrival = arrivalTexture(context.field);
+    this.arrival = arrivalTexture(this.field);
     this.pass = context.fullscreen(waterFragment(kind), this.uniforms(grid, this.arrival, this.shore), { blend: true });
   }
 
@@ -156,9 +160,8 @@ export class WaterLayer implements HazardLayer {
   }
 
   impact(minutes: number) {
-    const { field, data } = this.context;
-    if (!field) return NO_IMPACT;
-    this.index ??= waterIndex(this.model, data, field);
+    if (!this.field) return NO_IMPACT;
+    this.index ??= waterIndex(this.model, this.context.data, this.field);
     return impactAt(this.index, minutes);
   }
 
