@@ -13,3 +13,7 @@
 | Moss, Auth0, DigitalOcean | Already in the README sponsor table | Live |
 | Figma (about $2K) | Pitch deck in Figma Slides plus a design log kept as you go | **Needs someone in Figma**; back-filled logs score zero |
 | Twilio (not a sponsor) | Trial blocks outbound calls to unverified numbers and adds a key press | **Needs an upgrade**; the new rider homes (Boris, Hudson, Joseph, Brendan) also need `DIAL_ALLOWLIST` on Fly |
+
+## 2026-10-24 21:32
+
+**Apify Actor is on the platform** as `sangria_marzipan/california-evacuation-status` (Jerry's account, build 0.1.2). The first platform build failed: Apify requires a `title` on every nested input field, which local runs never checked, so I fixed `.actor/input_schema.json`. Live run `F2DreCsJmHesawsr4`: 202 records (9 zones, 2 incidents, 191 Caltrans closures), no source failed. The webhook pointed at `robust-penguin-834` sent 0 zones, because all 9 real zones are stale (the 8 Tulare orders date from 2023), and `apifyZones` on Convex is still empty, as it should be. It isn't listed in the Apify Store yet: that's a public listing under Jerry's name, so it waits for his OK. The README no longer calls it "public" until then.

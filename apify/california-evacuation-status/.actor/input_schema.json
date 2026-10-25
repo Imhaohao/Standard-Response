@@ -10,11 +10,31 @@
       "editor": "select",
       "items": {
         "type": "string",
-        "enum": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"],
-        "enumTitles": ["Cal OES active evacuation zones", "CAL FIRE evacuation status zones", "CAL FIRE active incidents", "Caltrans road closures"]
+        "enum": [
+          "calOesZones",
+          "calFireZones",
+          "calFireIncidents",
+          "caltransClosures"
+        ],
+        "enumTitles": [
+          "Cal OES active evacuation zones",
+          "CAL FIRE evacuation status zones",
+          "CAL FIRE active incidents",
+          "Caltrans road closures"
+        ]
       },
-      "default": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"],
-      "prefill": ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"]
+      "default": [
+        "calOesZones",
+        "calFireZones",
+        "calFireIncidents",
+        "caltransClosures"
+      ],
+      "prefill": [
+        "calOesZones",
+        "calFireZones",
+        "calFireIncidents",
+        "caltransClosures"
+      ]
     },
     "counties": {
       "title": "Counties",
@@ -22,7 +42,9 @@
       "description": "Only keep records in these California counties (for example Los Angeles). Leave empty for the whole state.",
       "editor": "stringList",
       "default": [],
-      "prefill": ["Los Angeles"]
+      "prefill": [
+        "Los Angeles"
+      ]
     },
     "boundingBox": {
       "title": "Bounding box",
@@ -30,20 +52,55 @@
       "description": "Only keep records whose geometry touches this box. Degrees in WGS84: west, south, east, north.",
       "editor": "json",
       "properties": {
-        "west": { "type": "number", "minimum": -180, "maximum": 180 },
-        "south": { "type": "number", "minimum": -90, "maximum": 90 },
-        "east": { "type": "number", "minimum": -180, "maximum": 180 },
-        "north": { "type": "number", "minimum": -90, "maximum": 90 }
+        "west": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "title": "West",
+          "description": "Western edge: longitude in degrees"
+        },
+        "south": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "title": "South",
+          "description": "Southern edge: latitude in degrees"
+        },
+        "east": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "title": "East",
+          "description": "Eastern edge: longitude in degrees"
+        },
+        "north": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "title": "North",
+          "description": "Northern edge: latitude in degrees"
+        }
       },
-      "required": ["west", "south", "east", "north"]
+      "required": [
+        "west",
+        "south",
+        "east",
+        "north"
+      ]
     },
     "closureDetail": {
       "title": "Road closures to include",
       "type": "string",
       "description": "full: only roads, ramps and connectors that are fully closed right now. all: also single-lane closures, reported with status open.",
       "editor": "select",
-      "enum": ["full", "all"],
-      "enumTitles": ["Full closures only", "Full and lane closures"],
+      "enum": [
+        "full",
+        "all"
+      ],
+      "enumTitles": [
+        "Full closures only",
+        "Full and lane closures"
+      ],
       "default": "full"
     },
     "staleAfterHours": {
