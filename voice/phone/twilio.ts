@@ -1,24 +1,10 @@
 import twilio from "twilio";
-import type { PlanPurpose } from "../agent/planCheck";
 import { env } from "../env";
+import { callQuery, StreamParameters } from "./callParameters";
 import { callSidByCallId } from "./registry";
 
 // Outbound calls connect straight to our media stream. Answering-machine detection runs
 // asynchronously, so the greeting starts on pickup and a machine result cuts over to voicemail.
-
-export type CallMode = "survey" | "callback" | "inbound" | "plan_check" | "ready";
-
-export type StreamParameters = {
-  mode: CallMode;
-  householdId?: string;
-  callId?: string;
-  callbackId?: string;
-  from?: string;
-  planId?: string;
-  role?: "helper" | "resident";
-  // What a pickup call is for: its question, the resident's confirmation, or a status update.
-  purpose?: PlanPurpose;
-};
 
 let client: ReturnType<typeof twilio> | null = null;
 const rest = () =>
@@ -39,15 +25,7 @@ export function streamTwiml(parameters: StreamParameters) {
 const callbackUrl = (path: string, query: Record<string, string>) => `${env.publicUrl()}${path}?${new URLSearchParams(query)}`;
 
 export async function placeCall(to: string, parameters: StreamParameters) {
-  const query = {
-    mode: parameters.mode,
-    callId: parameters.callId ?? "",
-    callbackId: parameters.callbackId ?? "",
-    householdId: parameters.householdId ?? "",
-    planId: parameters.planId ?? "",
-    role: parameters.role ?? "",
-    purpose: parameters.purpose ?? "",
-  };
+  const query = callQuery(parameters);
   const machineDetection = env.twilioTrial
     ? {}
     : { machineDetection: "DetectMessageEnd", asyncAmd: "true", asyncAmdStatusCallback: callbackUrl("/twilio/amd", query) };

@@ -1,6 +1,6 @@
 import type { PlanPurpose } from "../agent/planCheck";
 import type { Language } from "../agent/script";
-import type { CallMode } from "./twilio";
+import type { CallMode } from "./callParameters";
 
 // Shared lookups between the dialer, the callback runner, Twilio webhooks and live call sessions.
 

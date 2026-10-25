@@ -7,7 +7,6 @@ import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversat
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { CutOffApology } from "./apology";
-import { Transcriber } from "./cartesia";
 import { callUrgency, Delivery, describeDelivery, generationConfig, ROUTINE, turnDelivery, Urgency } from "./delivery";
 import { ElevenLabsCall } from "./elevenLabsCall";
 import { householdCallFor, onFileRecord } from "./householdCall";
@@ -15,12 +14,14 @@ import { interrupts, isBackchannel } from "./interruption";
 import { isOutboundFlowMode, outboundFlowFor, PickupQuestion, pickupFlowFor } from "./outboundFlows";
 import { dueOnThisLine } from "../pickupRunner";
 import { callbackScripts, callEnded, callSidByCallId, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
-import { CallSpeech } from "./speech";
-import { CallMode, connectTo, hangUp, StreamParameters } from "./twilio";
+import type { CallMode, StreamParameters } from "./callParameters";
+import type { CallLine, CallVoice } from "./line";
+import { TwilioLine, TwilioStart } from "./twilioLine";
 import { env } from "../env";
 import { SimClock, simTime } from "../../lib/sim-clock";
 
-// One live phone call: Twilio audio in, Cartesia speech-to-text, the conversation, Cartesia voice out.
+// One live phone call: the resident's words in, the conversation, the agent's words out, on whichever
+// line carries it (line.ts).
 
 // Silence after a finalized transcript before we treat the resident's turn as over. A stop mark only
 // ends a sentence, not the turn: older residents often add a second sentence after a breath ("I'm at
@@ -53,7 +54,6 @@ const TRANSFER_PAUSE_MS = 1500;
 const QUIET_MS = { answer: 7000, moment: 20_000, hold: 30_000, goodbye: 2000 } as const;
 type Waiting = keyof typeof QUIET_MS;
 
-export type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
 type TwilioMessage =
   | { event: "start"; start: TwilioStart }
   | { event: "media"; media: { payload: string; track?: string } }
@@ -84,7 +84,14 @@ type MediaSession = { begin(): Promise<void>; hearAudio(base64: string): void; m
 
 function sessionFor(socket: WebSocket, start: TwilioStart): MediaSession {
   if (env.voiceStack === "elevenlabs" && HOUSEHOLD_MODES.has(start.customParameters.mode)) return new ElevenLabsCall(socket, start);
-  return new CallSession(socket, start);
+  const line = new TwilioLine(socket, start);
+  const call = new CallSession(line);
+  return {
+    begin: () => call.begin(),
+    hearAudio: (base64) => line.hearAudio(base64),
+    markPlayed: () => line.markPlayed(),
+    finish: (answered) => call.finish(answered),
+  };
 }
 
 export function handleMediaStream(socket: WebSocket) {
@@ -104,12 +111,11 @@ export function handleMediaStream(socket: WebSocket) {
   socket.on("close", () => session?.finish(null));
 }
 
-class CallSession implements LiveCall {
+export class CallSession implements LiveCall {
   householdId: string | null = null;
   private readonly params: StreamParameters;
   private readonly callSid: string;
-  private readonly speech: CallSpeech;
-  private transcriber: Transcriber | null = null;
+  private readonly speech: CallVoice;
   private conversation: CallFlow | null = null;
   private callId: Id<"calls"> | null = null;
   private language: Language = "en";
@@ -119,7 +125,7 @@ class CallSession implements LiveCall {
   private pickups: FunctionReturnType<typeof api.pickups.callQueue> = [];
   private unsubscribePickups: (() => void) | null = null;
   private onPickupQuestion = false;
-  // Twilio is putting this caller through to their helper: our side ends without a hang-up.
+  // The carrier is putting this caller through to their helper: our side ends without a hang-up.
   private connecting = false;
   private heardSoFar = "";
   private lastSpeechAt = 0;
@@ -143,10 +149,10 @@ class CallSession implements LiveCall {
   // A medical emergency or flames were reported earlier on this call.
   private threatEarlier = false;
 
-  constructor(socket: WebSocket, start: TwilioStart) {
-    this.params = start.customParameters;
-    this.callSid = start.callSid;
-    this.speech = new CallSpeech(socket, start.streamSid);
+  constructor(private readonly line: CallLine) {
+    this.params = line.params;
+    this.callSid = line.callSid;
+    this.speech = line.voice;
     registerLive(this.callSid, this);
   }
 
@@ -218,19 +224,11 @@ class CallSession implements LiveCall {
   }
 
   private listen() {
-    this.transcriber?.close();
-    this.transcriber = new Transcriber(this.language, {
+    this.line.listen(this.language, {
       onSpeech: (text, isFinal, voicedMs) => this.onSpeech(text, isFinal, voicedMs),
+      onTurnEnd: () => this.endTurnNow(),
       onError: (message) => console.error(`[call ${this.callSid}] ${message}`),
     });
-  }
-
-  hearAudio(base64: string) {
-    this.transcriber?.send(Buffer.from(base64, "base64"));
-  }
-
-  markPlayed() {
-    this.speech.markPlayed();
   }
 
   // Talk under the agent's voice stops it only when the resident is really talking (see
@@ -272,6 +270,14 @@ class CallSession implements LiveCall {
       this.turnTimer = null;
       void this.takeTurn();
     }, gap);
+  }
+
+  // The carrier heard the resident finish: answer now instead of waiting out our own gap.
+  private endTurnNow() {
+    if (this.heardSoFar.trim() === "") return;
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.turnTimer = null;
+    void this.takeTurn();
   }
 
   private async takeTurn() {
@@ -363,15 +369,15 @@ class CallSession implements LiveCall {
     void this.waitAfter(turn);
   }
 
-  // The resident said yes to talking to their helper: once the agent has finished speaking, Twilio
-  // dials the helper on this call. The stream closing then ends our side, with no hang-up.
+  // The resident said yes to talking to their helper: once the agent has finished speaking, the
+  // carrier dials the helper on this call. The stream closing then ends our side, with no hang-up.
   private async putThrough(phone: string) {
     this.connecting = true;
     this.waiting = null;
     this.restartQuietTimer();
     await this.speech.whenSilent();
     try {
-      await connectTo(this.callSid, phone);
+      await this.line.connectTo(phone);
       console.log(`[call ${this.callSid}] put through to the helper`);
     } catch (error) {
       console.error(`[call ${this.callSid}] could not put the call through`, error);
@@ -578,18 +584,17 @@ class CallSession implements LiveCall {
     if (this.quietTimer) clearTimeout(this.quietTimer);
     this.unsubscribe?.();
     this.unsubscribePickups?.();
-    this.transcriber?.close();
-    this.speech.close();
+    this.line.close();
   }
 
-  // answered: true or false when we end the call; null when Twilio or the caller ended it.
+  // answered: true or false when we end the call; null when the carrier or the caller ended it.
   async finish(answered: boolean | null) {
     if (this.ended) return;
     this.ended = true;
     this.stopListening();
     liveByCallSid.delete(this.callSid);
     if (this.householdId && liveByHousehold.get(this.householdId) === this) liveByHousehold.delete(this.householdId);
-    if (answered !== null) await hangUp(this.callSid);
+    if (answered !== null) await this.line.hangUp();
     const wasAnswered = answered ?? this.residentSpoke;
     if (wasAnswered) this.conversation?.lineClosed?.();
     if (this.callId) fireAndForget("calls.end", convex().mutation(api.calls.end, { callId: this.callId, answered: wasAnswered }));

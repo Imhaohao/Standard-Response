@@ -1,11 +1,11 @@
 import { api } from "../convex/_generated/api";
 import { convex, logSubscriptionError } from "./convex";
 import { callSidByCallId, liveByCallSid, onCallEnded } from "./phone/registry";
-import { hangUp } from "./phone/twilio";
+import { hangUpRinging } from "./phone/carrier";
 
 // Hangs up the calls the call floor asked to end (calls:requestHangUp), from our side. A call on
 // the line ends through its session, so it's recorded as answered; one still ringing is cancelled
-// through Twilio, and its status webhook reports it as unanswered, as any ring nobody picked up.
+// through the carrier, and its miss is reported as unanswered, as any ring nobody picked up.
 
 export function startHangUpRunner() {
   const handled = new Set<string>();
@@ -16,7 +16,7 @@ export function startHangUpRunner() {
     handled.add(callId);
     const live = liveByCallSid.get(callSid);
     console.log(`[hang-up] the call floor ended call ${callId}`);
-    void (live ? live.hangUpNow() : hangUp(callSid));
+    void (live ? live.hangUpNow() : hangUpRinging(callSid));
   }
 
   convex().onUpdate(api.calls.hangUpRequests, {}, (callIds) => {

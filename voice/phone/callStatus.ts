@@ -1,5 +1,8 @@
-import type { CallEnded } from "./registry";
-import type { CallMode } from "./twilio";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { convex } from "../convex";
+import { callEnded, CallEnded } from "./registry";
+import type { CallMode } from "./callParameters";
 
 const OUTBOUND_MODES = new Set<string>(["survey", "callback", "plan_check", "ready"]);
 
@@ -15,7 +18,7 @@ function purposeOf(query: URLSearchParams) {
   return purpose === "ask" || purpose === "confirm" || purpose === "notice" ? purpose : undefined;
 }
 
-// Twilio's final status webhook for an outbound call. A call our media stream joined is reported by
+// The carrier's final word on an outbound call (Twilio's status webhook, Cartesia's ring timeout). A call our media stream joined is reported by
 // its own call session when it ends. Any other call never reached anyone, whatever CallStatus says:
 // a trial-account notice that nobody pressed a key for ends as "completed" without our stream.
 export function unreachedCall(query: URLSearchParams, streamed: boolean): CallEnded | null {
@@ -31,4 +34,14 @@ export function unreachedCall(query: URLSearchParams, streamed: boolean): CallEn
     purpose: purposeOf(query),
     answered: false,
   };
+}
+
+// A call that never reached anyone: the dialer, the runners and the Ready dialer count the miss.
+export function reportUnreached(query: URLSearchParams, streamed: boolean) {
+  const ended = unreachedCall(query, streamed);
+  if (!ended) return;
+  if (ended.mode === "survey" && ended.callId) {
+    void convex().mutation(api.calls.end, { callId: ended.callId as Id<"calls">, answered: false });
+  }
+  callEnded(ended);
 }

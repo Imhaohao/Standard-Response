@@ -2,7 +2,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AgentRecord, FIELDS } from "../agent/record";
 import { convex } from "../convex";
-import type { StreamParameters } from "./twilio";
+import type { StreamParameters } from "./callParameters";
 
 // The household a survey or inbound call is about, shared by both voice stacks. An inbound caller
 // gets a household from their number and a fresh `calls` row; a survey call arrives with both.

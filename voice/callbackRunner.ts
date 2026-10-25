@@ -4,7 +4,7 @@ import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
 import { callbackScripts, liveByHousehold, onCallEnded } from "./phone/registry";
-import { placeCall } from "./phone/twilio";
+import { placeCall } from "./phone/carrier";
 
 // Places every queued callback: "a driver accepted" and "your driver can't reach you".
 // The resident always hears the request's status as it is now, even if it changed again since the

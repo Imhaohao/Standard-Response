@@ -3,7 +3,7 @@ import type { Doc, Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
 import { env, mayDial } from "./env";
 import { onCallEnded } from "./phone/registry";
-import { placeCall } from "./phone/twilio";
+import { placeCall } from "./phone/carrier";
 
 // Outbound dialer for real riders. Drains the in-zone queue highest priority first, through a token
 // bucket sized to Twilio's default of 1 new call per second. Retry timing lives in Convex: the reach

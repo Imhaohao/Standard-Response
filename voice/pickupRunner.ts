@@ -6,7 +6,7 @@ import type { PlanRole } from "./agent/planInterpreter";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
 import { CallEnded, liveByHousehold, onCallEnded } from "./phone/registry";
-import { placeCall } from "./phone/twilio";
+import { placeCall } from "./phone/carrier";
 import { simTime } from "../lib/sim-clock";
 
 // Places the pickup check's real calls, so both sides confirm a pickup and hear when it changes:

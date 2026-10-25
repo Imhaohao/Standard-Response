@@ -5,12 +5,13 @@ import type { Escalation } from "../agent/conversation";
 import { Language, languageOf, LINES, RideStatus, statusLine } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { env } from "../env";
-import type { TwilioStart } from "./callSession";
+import type { TwilioStart } from "./twilioLine";
 import { confidenceFor, CONVERSATION_URL, createAgent, deleteAgent, HouseholdBrief, recordFrom, SaveAnswers } from "./elevenlabs";
 import { householdCallFor, onFileRecord } from "./householdCall";
 import { callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
-import { hangUp, StreamParameters } from "./twilio";
+import type { StreamParameters } from "./callParameters";
+import { hangUp } from "./twilio";
 
 // One household call run end to end by an ElevenLabs agent. Twilio audio goes to ElevenLabs as is;
 // the agent's audio comes back and goes to Twilio as is. Our side only writes what it hears to Convex

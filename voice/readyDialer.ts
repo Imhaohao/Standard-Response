@@ -4,7 +4,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
 import { CallEnded, onCallEnded } from "./phone/registry";
-import { placeCall } from "./phone/twilio";
+import { placeCall } from "./phone/carrier";
 
 // Places the Ready check's census calls while the campaign runs. `ready:queue` lists the real
 // households still to reach; a home that missed is tried again after 2 minutes, and the backend

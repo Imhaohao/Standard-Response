@@ -8,7 +8,7 @@ import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
 import { convex, fireAndForget } from "../convex";
 import { mayDial } from "../env";
-import type { CallMode, StreamParameters } from "./twilio";
+import type { CallMode, StreamParameters } from "./callParameters";
 import { simTime } from "../../lib/sim-clock";
 
 // The two short outbound calls that aren't the evening survey: the pickup check (plan_check) and the

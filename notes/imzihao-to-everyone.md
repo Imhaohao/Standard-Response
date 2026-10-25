@@ -17,3 +17,10 @@
 ## 2026-10-24 21:32
 
 **Apify Actor is on the platform** as `sangria_marzipan/california-evacuation-status` (Jerry's account, build 0.1.2). The first platform build failed: Apify requires a `title` on every nested input field, which local runs never checked, so I fixed `.actor/input_schema.json`. Live run `F2DreCsJmHesawsr4`: 202 records (9 zones, 2 incidents, 191 Caltrans closures), no source failed. The webhook pointed at `robust-penguin-834` sent 0 zones, because all 9 real zones are stale (the 8 Tulare orders date from 2023), and `apifyZones` on Convex is still empty, as it should be. It isn't listed in the Apify Store yet: that's a public listing under Jerry's name, so it waits for his OK. The README no longer calls it "public" until then.
+
+## 2026-10-24 21:45
+
+**Calls can run on Cartesia's telephony instead of Twilio.** `VOICE_CARRIER=cartesia` on the call server switches every call; `VOICE_CARRIER=twilio` (the default) switches back. Nothing else changes for anyone else.
+- **How it works:** Cartesia answers and dials the phone (+1 850 641 7117), hears the resident and speaks. Our server still decides every word: Cartesia calls `POST /chats`, then opens `WS /ws`, and sends text events; `CallSession` answers through `voice/phone/cartesiaLine.ts`. The state machine, honesty rules, Convex writes and runners are the same code on both carriers.
+- **The seam:** `CallSession` now talks to a `CallLine` (`voice/phone/line.ts`). `TwilioLine` wraps the old Twilio audio loop unchanged. `placeCall` and ringing hang-ups go through `voice/phone/carrier.ts`. `CallMode` and `StreamParameters` moved to `voice/phone/callParameters.ts`.
+- **What Cartesia mode doesn't do yet:** answering-machine detection, urgency in the voice (speed, emotion), our own barge-in and phantom-speech filters (Cartesia's replace them). A no-answer counts as a miss 45 s after dialing. Helper transfer sends Cartesia's `transfer`; the docs say it needs a Twilio or SIP number, so on the Cartesia number it may fail.

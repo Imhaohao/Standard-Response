@@ -68,11 +68,20 @@ export const env = {
     voiceEs: () => required("CARTESIA_VOICE_ES"),
     // Sonic voices speak every supported language, so other languages fall back to the English
     // voice until CARTESIA_VOICE_<CODE> (for example CARTESIA_VOICE_KO) names a native one.
+    // Cartesia's telephony (VOICE_CARRIER=cartesia): the self-hosted agent that calls this server,
+    // the number it dials from (its id, "ap_..."), and that number, so an inbound call is recognized.
+    agentId: () => required("CARTESIA_AGENT_ID"),
+    fromNumberId: () => required("CARTESIA_FROM_NUMBER_ID"),
+    phoneNumber: () => required("CARTESIA_PHONE_NUMBER"),
     voiceFor: (language: string) =>
       language === "es"
         ? required("CARTESIA_VOICE_ES")
         : process.env[`CARTESIA_VOICE_${language.toUpperCase()}`] || NATIVE_VOICES[language] || required("CARTESIA_VOICE_EN"),
   },
+  // Which phone system carries every call. "twilio" streams raw call audio into our own loop
+  // (Cartesia speech-to-text and voice on it). "cartesia" lets Cartesia's telephony hear and speak
+  // while this server still decides every word (voice/phone/cartesiaLine.ts). Twilio is the default.
+  carrier: (process.env.VOICE_CARRIER === "cartesia" ? "cartesia" : "twilio") as "twilio" | "cartesia",
   // Which stack runs the household call (inbound and survey). "cartesia" is our own loop: Cartesia
   // speech-to-text, the Conversation state machine on Claude, Cartesia voice. "elevenlabs" hands the
   // whole call to an ElevenLabs Conversational AI agent (voice/phone/elevenLabsCall.ts). Callbacks,
