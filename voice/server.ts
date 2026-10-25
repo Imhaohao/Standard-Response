@@ -12,7 +12,7 @@ import { watchHazard } from "./hazard";
 import { handleMediaStream } from "./phone/callSession";
 import { reportUnreached } from "./phone/callStatus";
 import { chatSession, handleCartesiaSocket } from "./phone/cartesiaCalls";
-import { liveByCallSid, streamedCallSids } from "./phone/registry";
+import { liveByCallSid, startDraining, streamedCallSids } from "./phone/registry";
 import { signatureIsValid, streamTwiml } from "./phone/twilio";
 import { startTextFollowUp } from "./textFollowUp";
 import { handleTurn } from "./textAgent";
@@ -100,6 +100,26 @@ server.on("upgrade", (req, socket, head) => {
   if (url.pathname === "/ws") return sockets.handleUpgrade(req, socket, head, (ws) => handleCartesiaSocket(ws, url));
   socket.destroy();
 });
+
+// A deploy stops this machine with SIGINT and waits kill_timeout (voice/fly.toml) before killing it.
+// Every call lives in this process, so a restart used to cut residents off mid-sentence (Jerry,
+// Oct 25, two minutes into his call). Now nothing new is dialed and the live calls get to finish.
+const DRAIN_LIMIT_MS = 280_000;
+const DRAIN_POLL_MS = 1000;
+
+async function drainThenExit(signal: string) {
+  startDraining();
+  const started = Date.now();
+  console.log(`[voice] ${signal}: letting ${liveByCallSid.size} live call(s) finish before exiting`);
+  while (liveByCallSid.size > 0 && Date.now() - started < DRAIN_LIMIT_MS) {
+    await new Promise((resolve) => setTimeout(resolve, DRAIN_POLL_MS));
+  }
+  console.log(`[voice] exiting with ${liveByCallSid.size} live call(s) after ${Math.round((Date.now() - started) / 1000)} s`);
+  process.exit(0);
+}
+
+process.once("SIGINT", () => void drainThenExit("SIGINT"));
+process.once("SIGTERM", () => void drainThenExit("SIGTERM"));
 
 server.listen(env.port, () => {
   console.log(`[voice] listening on :${env.port}, calls on ${env.carrier}`);

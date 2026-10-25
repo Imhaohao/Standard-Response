@@ -3,7 +3,7 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
-import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversation";
+import { AgentTurn, Conversation, ConversationEffects, isLineCheck } from "../agent/conversation";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { CutOffApology } from "./apology";
@@ -307,16 +307,17 @@ export class CallSession implements LiveCall {
     try {
       const act = await this.conversation.read(utterance, this.line.rehear?.bind(this.line));
       clearTimeout(backchannel);
-      // They kept talking while Claude read the first part: answer all of it together instead. Any
-      // speech counts, not only a finished transcript, so the reply never starts over a resident who
-      // is mid-sentence; their next transcript restarts the turn timer.
-      const resumed = this.lastSpeechAt !== spokeAt || this.heardSoFar.trim() !== utterance;
-      if (resumed && this.rereads < MAX_REREADS) {
+      // They kept talking while Claude read the first part: answer all of it together instead. Only
+      // new words count. "Hello?" said into the wait asks whether we're there, and reading again only
+      // stretched the silence: Jerry's long turn waited 17 s while each "hello" restarted the read.
+      const added = this.heardSoFar.trim().slice(utterance.length).trim();
+      if (this.addsWords(added) && this.rereads < MAX_REREADS) {
         this.rereads += 1;
         return;
       }
       this.rereads = 0;
-      this.heardSoFar = this.heardSoFar.trim().slice(utterance.length);
+      // The answer itself tells a "hello?" that we're there, so it gets no turn of its own.
+      this.heardSoFar = this.addsWords(added) ? added : "";
       this.line.nextTurn?.();
       this.answer(utterance, act(), { spokeAt, heardAt: () => heardAt }, backchanneled);
     } catch (error) {
@@ -326,6 +327,10 @@ export class CallSession implements LiveCall {
       this.thinking = false;
       if (!this.turnTimer && this.heardSoFar.trim() !== "") void this.takeTurn();
     }
+  }
+
+  private addsWords(added: string) {
+    return added !== "" && !isLineCheck(added) && !isBackchannel(added, this.language);
   }
 
   private answer(utterance: string, turn: AgentTurn, timing: TurnTiming, backchanneled: boolean) {

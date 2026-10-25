@@ -1092,7 +1092,7 @@ const STILL_ON_THE_LINE = 1;
 // "Hello?", "Hello? Hello?", "Are you there?", "¿Bueno?", "喂？", "もしもし" and the like, alone.
 const LINE_CHECK =
   /^(\s*(hello|hi|hey|are you (still )?there|you there|hola|bueno|al[oóô]|allô|oiga|喂|もしもし|여보세요|ал+о|हेलो)( po)?[\s?？¿!.,。]*)+$/iu;
-const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
+export const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
 // "I'm not leaving without my son" after "I can't get out" was read as unsure, and the agent then
 // said "Thanks, I've fixed that" for a change nobody made. Unsure never replaces a recorded no.
 function keepCantLeave(record: AgentRecord, updates: AgentRecord): AgentRecord {

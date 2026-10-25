@@ -5,7 +5,7 @@ import type { PlanPurpose } from "./agent/planCheck";
 import type { PlanRole } from "./agent/planInterpreter";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
-import { CallEnded, liveByHousehold, onCallEnded } from "./phone/registry";
+import { CallEnded, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 import { simTime } from "../lib/sim-clock";
 
@@ -102,6 +102,7 @@ export function startPickupRunner() {
   }
 
   async function call(plan: Plan, { role, purpose }: PlanCall) {
+    if (isDraining()) return;
     const planId = plan._id;
     active.add(planId);
     try {

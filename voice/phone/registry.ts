@@ -27,6 +27,13 @@ export type CallEnded = {
 };
 
 export const liveByCallSid = new Map<string, LiveCall>();
+
+// Set while a deploy stops this machine (voice/server.ts): live calls finish, nothing new is dialed.
+let draining = false;
+export const isDraining = () => draining;
+export const startDraining = () => {
+  draining = true;
+};
 // Twilio's call for each `calls` row we placed or answered, so the call floor can hang one up
 // while it's still ringing. Entries go when the call ends.
 export const callSidByCallId = new Map<string, string>();

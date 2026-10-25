@@ -3,7 +3,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
-import { CallEnded, onCallEnded } from "./phone/registry";
+import { CallEnded, isDraining, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 
 // Places the Ready check's census calls while the campaign runs. `ready:queue` lists the real
@@ -45,6 +45,7 @@ export function startReadyDialer() {
   }
 
   async function dial(household: Household) {
+    if (isDraining()) return;
     live.add(household._id);
     try {
       await placeCall(household.callbackNumber, { mode: "ready", householdId: household._id });

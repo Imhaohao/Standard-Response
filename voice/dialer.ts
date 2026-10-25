@@ -2,7 +2,7 @@ import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
 import { env, mayDial } from "./env";
-import { onCallEnded } from "./phone/registry";
+import { isDraining, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 
 // Outbound dialer for real riders. Drains the in-zone queue highest priority first, through a token
@@ -73,7 +73,7 @@ export function startDialer() {
   }
 
   function tick() {
-    if (!control?.dialerRunning || !control.warningIssuedAt || capacity() <= 0) return;
+    if (isDraining() || !control?.dialerRunning || !control.warningIssuedAt || capacity() <= 0) return;
     const next = queue.find((household) => !busy(household._id) && allowed(household));
     if (next) void dial(next);
   }

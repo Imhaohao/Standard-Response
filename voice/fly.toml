@@ -1,6 +1,9 @@
 # Deploy from the repo root: npm run deploy:voice
 app = "rollcall-voice"
 primary_region = "sjc"
+# A deploy sends SIGINT and the server lets live calls finish (voice/server.ts) for up to this long.
+kill_signal = "SIGINT"
+kill_timeout = 300
 
 [http_service]
   internal_port = 8080

@@ -3,7 +3,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
-import { callbackScripts, liveByHousehold, onCallEnded } from "./phone/registry";
+import { callbackScripts, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 
 // Places every queued callback: "a driver accepted" and "your driver can't reach you".
@@ -47,6 +47,8 @@ export function startCallbackRunner() {
   async function place(callback: Pending) {
     const { language, template } = await currentTemplate(callback);
     if (await deliverOnLiveCall(callback, template)) return;
+    // A deploy is stopping this server; the next one places it.
+    if (isDraining()) return;
     if (!mayDial(callback.callbackNumber)) {
       console.warn(`[callbacks] ${callback.callbackNumber} is not in DIAL_ALLOWLIST; leaving callback pending`);
       return;

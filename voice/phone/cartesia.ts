@@ -163,6 +163,9 @@ function wavFromMulaw(mulaw: Buffer) {
 }
 
 // One stretch of call audio transcribed by ink-whisper in the given language (batch, not streamed).
+// A rehearing runs while the resident waits in silence, so a language that takes longer is skipped.
+const REHEAR_TIMEOUT_MS = 2000;
+
 export async function transcribeClip(mulaw: Buffer, language: Language): Promise<string> {
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(wavFromMulaw(mulaw))], { type: "audio/wav" }), "turn.wav");
@@ -172,6 +175,7 @@ export async function transcribeClip(mulaw: Buffer, language: Language): Promise
     method: "POST",
     headers: { Authorization: `Bearer ${env.cartesia.apiKey()}`, "Cartesia-Version": env.cartesia.version },
     body: form,
+    signal: AbortSignal.timeout(REHEAR_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`stt batch ${language}: ${response.status} ${await response.text()}`);
   const { text } = (await response.json()) as { text?: string };

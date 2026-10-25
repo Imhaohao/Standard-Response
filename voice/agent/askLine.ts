@@ -105,8 +105,14 @@ function freshOpener(line: string, check: AskCheck) {
   return !OKAY.test(opener) || !check.said.some((earlier) => OKAY.test(openerOf(earlier)));
 }
 
+// The resident just spoke, so asking whether they're there is the question of a machine not
+// listening. "I'm still here, I'm listening. Are you still there?" answered a caller mid-panic.
+const PRESENCE_CHECK = /\b(are you (still )?there|can you hear me|you still with me|still on the line)\b|¿?(sigue ahí|me oye|está ahí)/i;
+const asksNoPresence = (line: string) => !PRESENCE_CHECK.test(line);
+
 const CHECKS: ((line: string, check: AskCheck) => boolean)[] = [
   fitsLength,
+  asksNoPresence,
   endsAsking,
   (line, check) => inLanguage(line, check.language),
   (line, check) => digitsHeld(line, check.heldDigits),
@@ -159,5 +165,6 @@ export const ASK_RULES = `- ask: the agent's next question, in your words. "Goal
   - line: in the call language, at most three short sentences and 30 words, always in two parts: a brief acknowledgment of what they just said in their terms (2 to 6 words, such as "Two of you, okay.", "Mm, no car.", "Thanks, a walker." or "Just you tonight, alright."), then that goal's question reworded in plain everyday words, the way a calm person on the phone would ask it. Never copy the example. Ask about that one goal only. When you also wrote a reply, leave out the acknowledgment.
   - For example, at the current goal can_leave the resident says "No, I can't really get out on my own.": set canLeave=no; has_car is skipped because canLeave isn't yes; ask is {"goal":"household","line":"Alright, you'd need help getting out. Who's there with you right now, and any pets?"}
   - When a goal is asked again, use wording different from every earlier agent turn. Never start with the first word of the agent's last turn, never say "Got it", and say "Okay" at most once in a call.
+  - Never ask whether they're still there or can hear you: they just spoke.
   - No numerals. The only digits allowed are the address the record already holds, said back when confirming it.
   - The ack's limits apply: never say or imply that help, a driver or a vehicle is coming or being sent, that they are safe, or any time. Never say "we'll", "they'll", "soon", "pick you up", "driver", "crew" or "on the way"; ask "who would drive you out" rather than "who would pick you up". Never give advice.`;
