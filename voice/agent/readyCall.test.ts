@@ -115,3 +115,20 @@ describe("questions in Claude's words", () => {
     assert.equal(call.step, "care");
   });
 });
+
+describe("answers given early", () => {
+  it("never asks a question an earlier answer already gave", async () => {
+    const call = readyCall({
+      "yes": heard({}, { answer: "yes" }),
+      "Me and my husband. He uses an electric wheelchair, and he sleeps upstairs in the back.": heard({ peopleCount: 2, mobility: "power_wheelchair", bedroomFloor: "upstairs", bedroomSide: "back" }),
+      "One person helps him.": heard({ assistanceRequired: "one_person_assist" }),
+    });
+    await call.hear("yes");
+    assert.equal(call.step, "ask_address");
+    call.step = "people";
+    await call.hear("Me and my husband. He uses an electric wheelchair, and he sleeps upstairs in the back.");
+    assert.equal(call.step, "assistance");
+    await call.hear("One person helps him.");
+    assert.equal(call.step, "care");
+  });
+});

@@ -362,10 +362,22 @@ export class ReadyCall implements CallFlow {
   private advance(heard: ReadyHeard, asides: string[]): AgentTurn {
     this.apply(heard.updates);
     this.unsureThisTurn = heard.unsure === true;
-    const transition = STEP_HANDLERS[this.step](this, heard);
+    const transition = this.pastAnswered(STEP_HANDLERS[this.step](this, heard));
     this.moveTo(transition);
     if (this.done && !this.declined) this.save();
     return this.reply(heard, transition, asides);
+  }
+
+  // A question whose answer an earlier one already gave is passed: "Me and my husband, he uses an
+  // electric wheelchair" was then asked how many people live there and whether anyone uses a
+  // wheelchair, and "upstairs, the back bedroom" was asked where they sleep. Each step's handler, run
+  // with nothing new heard, moves on from a step that is answered.
+  private pastAnswered(transition: Transition): Transition {
+    let landed = transition;
+    while (!landed.retry && landed.step !== this.step && PASSABLE.has(landed.step) && !STILL_OPEN[landed.step](this)) {
+      landed = STEP_HANDLERS[landed.step](this, NOTHING_HEARD);
+    }
+    return landed;
   }
 
   // Said before the next question without changing where the call is.
@@ -784,6 +796,11 @@ const GOAL_WHEN: Partial<Record<Step, string>> = {
   readback: "after the note question",
 };
 // Whether a later goal is still to be asked, from the answers before this one.
+// The questions passed when an earlier answer already gave theirs. The helper's number and the
+// read-back are always asked: they confirm rather than collect.
+const PASSABLE = new Set<Step>(["people", "needs", "chair_kind", "assistance", "bedroom", "care", "exit_plan"]);
+const NOTHING_HEARD: ReadyHeard = { answer: null, updates: {}, emergency: false, asksAboutRide: false, wantsRepeat: false, wantsToEnd: false, addressedToAgent: true, acknowledgment: "" };
+
 const STILL_OPEN: Record<Step, (call: ReadyCall) => boolean> = {
   intro: () => false,
   confirm_address: (call) => call.step === "intro" && call.addressOnFile !== undefined,
