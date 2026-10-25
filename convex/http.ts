@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { parseSignUp, parseStatusQuery, statusAnswer } from "./agentPayload";
+import { parseDoorChecksRequest, parseJsonBody } from "./doorCheckPayload";
 import { parseClosures, parsePayload, secretMatches } from "./apifyPayload";
 
 const http = httpRouter();
@@ -63,6 +64,18 @@ const agentStatus = httpAction(async (ctx, request) => {
   return json(statusAnswer(status.warningActive, status.coversPlace, process.env.EVACUATION_LINE_NUMBER));
 });
 
+// The Atlassian Forge app (atlassian/door-checks/) turns the door-check queue into Jira issues. The shared
+// secret lives in the Convex env var ATLASSIAN_APP_SECRET. The answer holds no names and no phone numbers.
+const agentDoorChecks = httpAction(async (ctx, request) => {
+  if (!secretMatches(request.headers.get("authorization"), process.env.ATLASSIAN_APP_SECRET)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  const parsed = parseDoorChecksRequest(parseJsonBody(await request.text()));
+  if (!parsed) return json({ error: "expected optional limit and reportOn (household ids)" }, 400);
+  return json(await ctx.runQuery(internal.doorChecks.forFieldCrews, parsed));
+});
+
+http.route({ path: "/agent/door-checks", method: "POST", handler: agentDoorChecks });
 http.route({ path: "/agent/ready-signup", method: "POST", handler: agentReadySignup });
 http.route({ path: "/agent/status", method: "POST", handler: agentStatus });
 http.route({ path: "/apify/zone-status", method: "POST", handler: zoneStatus });
