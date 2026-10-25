@@ -55,7 +55,7 @@ Fixes since my last note, all with tests: Moss principles go into the prompt as 
 
 Coming next from me: "I don't know that yet." (new fixed line `notKnownYet`, all 10 languages) when they ask about the fire or the way out and the screen has nothing; a read-back that says "from <address>" for someone leaving on their own; "I'm not sure" never counting toward a language-barrier hand-off (three of them handed that same family off); and no bare "I don't know that." to a statement.
 
-## 2026-10-25 03:20
+## 2026-10-25 03:17
 
 **Could you redeploy the DigitalOcean solver service (`dispatch/deploy_digitalocean.sh`) when you have a minute?** Tonight's `dispatch/` changes only reach the live re-planner after a redeploy:
 - `solver.drop_penalty` adds `REASSIGNED_DROP_COST` and `wait_weight` counts a reassigned rider's waiting 4x. The problem marks them with `reassigned: true` (optional; an old service ignores it). Both are tie-breaks among plans with the same expected deaths.

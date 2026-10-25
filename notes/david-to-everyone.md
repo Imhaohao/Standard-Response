@@ -161,7 +161,7 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
 
 `door-fairness.json` was rerun on these deadlines. Baseline worst wait: ours 296 min, without aging 296, nearest-first 286. Isolated homes' worst wait: ours 423, without aging 347, nearest-first 395. Checked before the fire is unchanged (99 / 85 / 54%).
 
-## 2026-10-25 02:55
+## 2026-10-25 02:42
 
 **For the demo's road-close beat (Boris, Brendan):**
 - **"Close this road" now always closes something.** On a routed van it used to close nothing more than half the time (162 of 299 sampled routes), because the last stretch before the door is a short piece of a long curved street. `5a3293a` fixes that in `convex/roadGraph.ts`.
@@ -185,6 +185,6 @@ The crowd model now pulls each car out onto the street in front of its house ins
 - Both heuristics (TS and `heuristic.py`, still in step under the parity test) keep an open offer on its van unless another van saves `CHANGED_OFFER_COST` (600 s), the solvers' ν. They never keep it when only the other van makes the deadline.
 - Also pushed: an offer waiting for the dispatcher's approval goes stale after two minutes on the wall clock, not the night's clock (at 60x it was replaced every re-plan). Refusals are read per open request. And every router reads all closures: the Eaton scenario closes all 1,248 street segments by the end of the night, past the old 1,000 cap.
 
-## 2026-10-25 03:35
+## 2026-10-25 03:25
 
 **New one-row table `roadState` (`version`). Anything that writes `roadClosures` must call `markClosuresChanged(ctx)` from `convex/roads.ts`.** Since the 4,000 cap, the fleet tick read every closure every 0.9 s (over a thousand rows with paths late in a night) just to learn whether any had changed. That's the kind of read load that got `courteous-ptarmigan-590` disabled. Now the tick reads the one row. The vans read the closures only on a tick where one needs a new path, and the re-planner only in its snapshot. `insertClosures`, `roads:setEdgeKey`, Apify's lift, `dispatchCheck:reopenCheckClosures` and the dispatcher's snapping all bump it already. A closure written straight to the table without the bump would sit unseen until something else changed. `closureSetKey` is gone.
