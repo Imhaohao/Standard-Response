@@ -146,3 +146,13 @@ Real households were never called after the warning. Two fixes in `control:issue
 
 - `coverAreaIfNoZone` (`convex/riders.ts`): if no zone has been drawn, the warning now covers every household (`inZone: true`), the same as the seeded town. Homes that signed up at `/ready` or came from the CSV used to stay `inZone: false`, so the dialer and the pickup check skipped them. A drawn zone still decides as before.
 - `retimeArea` (`convex/seed.ts`, was `retimeSimulatedArea`): every located household, real or simulated, gets its `fireArrivalAt` from the stand-in fire when the warning goes out. Before, a real home kept the "+90 min from sign-up" placeholder, so the neighbor who signed up second always looked upwind to `awayFromTheFire` and was never asked. Track D's runner still overwrites these through `households:setEstimates`.
+
+## 2026-10-24 18:45
+
+Pickups are now confirmed by both sides, and each side hears an update when something changes (`convex/pickups.ts`). `pickupStatus` is unchanged; only fields and reasons were added to `pickupPlans`:
+
+- `residentConfirmedAt`, `confirmAttempts`: after the helper says yes (`coming`), the resident is called and asked whether they'll go with them.
+- `helperNotice` (`resident_ready` | `called_off`) and `residentNotice` (`helper_cancelled`), each with an attempts count: a status update still owed to one side. A `fell_through` plan can still owe the helper a "called off" call.
+- New `reason` values: `resident_declined`, `needs_changed` (a later call says a car can't take them), `not_needed` (a later call says they can drive out). I added labels for them to `REASON` in `components/rescue/ready-panel.tsx`; change the wording if you like.
+- `households:update` now calls `reviewPickups`: a recruited neighbor's pickup ends when the resident can leave on their own or needs more than a car, and any live pickup ends when its helper's own call says they can't drive.
+- The stand-in confirms simulated residents and gives simulated notices on the spot, so the map shows the same steps.

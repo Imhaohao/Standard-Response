@@ -113,3 +113,13 @@ Neighbor calls: what one call hears now decides which neighbors 911 calls next (
 ## 2026-10-24 18:20
 
 Real households now reach the dialer after the warning: with no zone drawn, `issueWarning` puts every household in the zone, and every located home gets its fire arrival from the stand-in fire instead of its sign-up placeholder. Before this, `voice:dialQueue` and `pickups:callQueue` stayed empty for `/ready` sign-ups. More pickup-call changes for you follow in my next note.
+
+## 2026-10-24 18:45
+
+Pickup calls now go: ask the helper, have the resident confirm, then a status update to the helper, then the "picked you up?" check. Changes in `convex/pickups.ts` you call from the voice server:
+
+- `startAttempt` and `unanswered` take an optional `purpose`: `"ask"` (the default, as before), `"confirm"`, or `"notice"`. A missed confirm or notice never ends the pickup; a notice is dropped after 2 misses.
+- New `pickups:residentConfirmation { planId, confirmed }`. A yes sets `residentConfirmedAt` and owes the helper `helperNotice: "resident_ready"`. A no ends the plan as `resident_declined` and owes the helper `"called_off"`.
+- New `pickups:noticeGiven { planId, role }` once a side has heard its update.
+- `callQueue` rows add `residentConfirmedAt`, `confirmAttempts`, `helperNotice`, `helperNoticeAttempts`, `residentNotice`, `residentNoticeAttempts` and `reason`, and also include `fell_through` plans that still owe a notice.
+- `residentTold` still works for a voice server that hasn't been redeployed. I'm updating `voice/pickupRunner.ts` and `voice/agent/planCheck.ts` to use the new calls in my next commit.

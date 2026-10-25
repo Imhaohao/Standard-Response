@@ -60,4 +60,102 @@ describe("real households on the night", () => {
     const queue = await t.query(api.pickups.callQueue, {});
     expect(queue.map((plan) => plan._id)).toEqual([plans[0]._id]);
   });
+
+  test("both sides confirm, then the helper hears the resident is ready", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+
+    await t.mutation(api.pickups.startAttempt, { planId: plan._id, role: "helper" });
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: true, etaMinutes: 10 });
+    const [coming] = await t.query(api.pickups.callQueue, {});
+    expect(coming).toMatchObject({ status: "coming", confirmAttempts: 0 });
+    expect(coming.residentConfirmedAt).toBeUndefined();
+
+    await t.mutation(api.pickups.startAttempt, { planId: plan._id, role: "resident", purpose: "confirm" });
+    await t.mutation(api.pickups.residentConfirmation, { planId: plan._id, confirmed: true });
+    const [confirmed] = await t.query(api.pickups.callQueue, {});
+    expect(confirmed).toMatchObject({ status: "coming", confirmAttempts: 1, helperNotice: "resident_ready" });
+    expect(confirmed.residentConfirmedAt).toBeDefined();
+    expect(confirmed.ringing).toBeUndefined();
+
+    await t.mutation(api.pickups.startAttempt, { planId: plan._id, role: "helper", purpose: "notice" });
+    await t.mutation(api.pickups.noticeGiven, { planId: plan._id, role: "helper" });
+    const [told] = await t.query(api.pickups.callQueue, {});
+    expect(told.helperNotice).toBeUndefined();
+
+    await t.mutation(api.pickups.residentAnswered, { planId: plan._id, pickedUp: true });
+    expect((await plansFor(t, resident))[0].status).toBe("done");
+    expect(await t.query(api.pickups.callQueue, {})).toHaveLength(0);
+  });
+
+  test("a resident who says no to the ride ends it, the helper is told, and no other neighbor is asked", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: true, etaMinutes: 10 });
+    await t.mutation(api.pickups.residentConfirmation, { planId: plan._id, confirmed: false });
+
+    const [ended] = await t.query(api.pickups.callQueue, {});
+    expect(ended).toMatchObject({ status: "fell_through", reason: "resident_declined", helperNotice: "called_off" });
+    await t.mutation(api.households.update, { householdId: resident, patch: { peopleCount: 1 } });
+    expect(await plansFor(t, resident)).toHaveLength(1);
+  });
+
+  test("a resident whose later call says they can drive out calls the neighbor off", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: true, etaMinutes: 10 });
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "yes", hasCar: true } });
+    const [ended] = await t.query(api.pickups.callQueue, {});
+    expect(ended).toMatchObject({ status: "fell_through", reason: "not_needed", helperNotice: "called_off" });
+  });
+
+  test("a resident who now needs a power wheelchair is taken off the neighbor's car", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.households.update, { householdId: resident, patch: { mobility: "power_wheelchair" } });
+    const [ended] = await plansFor(t, resident);
+    expect(ended).toMatchObject({ _id: plan._id, status: "fell_through", reason: "needs_changed" });
+    // The helper hadn't said yes yet, so there is nobody to call off.
+    expect(ended.helperNotice).toBeUndefined();
+  });
+
+  test("a helper whose own call says they can't drive after all is dropped, and the resident is told", async () => {
+    const t = setup();
+    const { resident, neighbor } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: true, etaMinutes: 10 });
+    await t.mutation(api.pickups.residentConfirmation, { planId: plan._id, confirmed: true });
+    await t.mutation(api.households.update, { householdId: neighbor, patch: { canLeave: "no" } });
+    const ended = (await plansFor(t, resident)).find((row) => row._id === plan._id);
+    expect(ended).toMatchObject({ status: "fell_through", reason: "helper_declined", residentNotice: "helper_cancelled" });
+  });
+
+  test("a missed confirmation is retried once, then the pickup goes on without it", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: true, etaMinutes: 10 });
+    for (let i = 0; i < 2; i += 1) {
+      await t.mutation(api.pickups.startAttempt, { planId: plan._id, role: "resident", purpose: "confirm" });
+      await t.mutation(api.pickups.unanswered, { planId: plan._id, role: "resident", purpose: "confirm" });
+    }
+    const [row] = await t.query(api.pickups.callQueue, {});
+    expect(row).toMatchObject({ status: "coming", confirmAttempts: 2, residentAttempts: 0 });
+  });
 });

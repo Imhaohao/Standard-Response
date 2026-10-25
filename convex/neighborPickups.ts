@@ -72,9 +72,11 @@ async function widenIfQuiet(ctx: MutationCtx, household: Household, now: number)
   await askNearbyDriver(ctx, household._id);
 }
 
-// Nobody is already being asked or on the way, and we haven't run through our neighbors yet.
+// Nobody is already being asked or on the way, the resident hasn't turned down a neighbor's ride,
+// and we haven't run through our neighbors yet.
 const mayAskAnother = (plans: Doc<"pickupPlans">[]) =>
-  !plans.some((plan) => LIVE.includes(plan.status)) && plans.filter((plan) => plan.recruited).length < MAX_NEIGHBORS_ASKED;
+  !plans.some((plan) => LIVE.includes(plan.status) || plan.reason === "resident_declined") &&
+  plans.filter((plan) => plan.recruited).length < MAX_NEIGHBORS_ASKED;
 
 const plansFor = (ctx: QueryCtx, householdId: Id<"households">) =>
   ctx.db.query("pickupPlans").withIndex("by_householdId", (q) => q.eq("householdId", householdId)).take(20);

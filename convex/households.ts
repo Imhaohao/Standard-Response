@@ -8,6 +8,7 @@ import { askNearbyDriver, askNewDriver } from "./neighborPickups";
 import { busyHelpers } from "./neighborRules";
 import { neighborCallsDue } from "./neighborCalls";
 import { openRequestFor, syncRequest } from "./requests";
+import { reviewPickups } from "./pickups";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
 import { currentPlan, QUEUE_STATUSES } from "./callPlans";
@@ -59,6 +60,7 @@ export async function applyRecordPatch(
     corrections: [...(household.corrections ?? []), ...corrections],
   });
   await syncRequest(ctx, householdId);
+  await reviewPickups(ctx, household);
   await askNearbyDriver(ctx, householdId);
   await askNewDriver(ctx, household);
   if (outcome !== household.outcome && outcome !== "unknown") {

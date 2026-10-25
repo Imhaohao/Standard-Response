@@ -184,7 +184,18 @@ export const pickupFailure = v.union(
   v.literal("helper_unreachable"),
   v.literal("helper_never_came"),
   v.literal("resident_unreachable"),
+  // The resident said no to the ride when we called to confirm it.
+  v.literal("resident_declined"),
+  // A later call changed the resident's needs so a neighbor's car can no longer take them.
+  v.literal("needs_changed"),
+  // A later call said the resident can get out on their own.
+  v.literal("not_needed"),
 );
+
+// What one side of a pickup still has to hear from us. The helper hears that the resident confirmed
+// and will be ready, or that the pickup is off; the resident hears that their helper can't come.
+export const helperNotice = v.union(v.literal("resident_ready"), v.literal("called_off"));
+export const residentNotice = v.literal("helper_cancelled");
 
 export const point = v.object({ lat: v.number(), lng: v.number() });
 
@@ -565,6 +576,15 @@ export default defineSchema({
     helperEtaAt: v.optional(v.number()),
     // When the resident heard that their helper said yes, on the call they were on or a new one.
     residentToldAt: v.optional(v.number()),
+    // Both sides confirm: once the helper says yes, the resident is called and asked whether they'll
+    // go with them. Set when the resident says yes.
+    residentConfirmedAt: v.optional(v.number()),
+    confirmAttempts: v.optional(v.number()),
+    // A status update still owed to one side, and how many times we've tried to give it.
+    helperNotice: v.optional(helperNotice),
+    helperNoticeAttempts: v.optional(v.number()),
+    residentNotice: v.optional(residentNotice),
+    residentNoticeAttempts: v.optional(v.number()),
     updatedAt: v.number(),
     simulated: v.boolean(),
   })

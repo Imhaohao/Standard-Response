@@ -136,6 +136,9 @@ const REASON: Record<NonNullable<Pickup["reason"]>, string> = {
   helper_unreachable: "No answer",
   helper_never_came: "Never came",
   resident_unreachable: "Can't reach them",
+  resident_declined: "Said no to the ride",
+  needs_changed: "Needs a van now",
+  not_needed: "Leaving on their own",
 };
 
 function minutesUntil(at: number | undefined, now: number) {
