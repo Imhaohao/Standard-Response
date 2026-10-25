@@ -771,5 +771,14 @@ describe("a resident who isn't at the home", () => {
     assert.deepEqual(turn.sentences, [EN.awaySafe, EN.goodbye]);
     assert.ok(updates.some((patch) => (patch as { away?: boolean }).away === true));
   });
+
+  // Jerry's call: "I'm burning", then "I don't like that answer" was read as nobody home.
+  it("never ends as away after a fire at the home was raised on the call", () => {
+    const { conversation } = atHold();
+    conversation.respond("I see flames in front of me", heard({ emergency: "flames" }));
+    const turn = conversation.respond("Okay. I don't like that answer.", heard({ awayFromHome: true }));
+    assert.ok(!conversation.done);
+    assert.ok(!turn.sentences.includes(EN.awaySafe));
+  });
 });
 

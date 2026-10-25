@@ -299,7 +299,7 @@ export class Conversation {
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     this.noteChairKind(heard);
-    if (heard.awayFromHome && !this.record.away) return this.markAway(heard);
+    if (heard.awayFromHome && !this.record.away && !this.dangerAtHome()) return this.markAway(heard);
     const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
@@ -575,6 +575,12 @@ export class Conversation {
     return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked, ignored: false };
   }
 
+  // Someone in the home raised a fire or medical emergency on this call. "I'm burning", then "I don't
+  // like that answer" was read as nobody home, and the caller was told they were safe and hung up on.
+  private dangerAtHome() {
+    return [...this.escalated].some((kind) => kind !== "address_unconfirmed" && kind !== "language_barrier");
+  }
+
   // Nobody is at the home: they're counted as safe, and there is nothing more to ask. An emergency
   // they mention is still passed on first.
   private markAway(heard: Interpretation): AgentTurn {
@@ -599,6 +605,7 @@ export class Conversation {
       goals: this.goalsAhead(),
       record: this.record,
       recentTurns: this.history.slice(-HISTORY_TURNS),
+      neighborNames: this.neighborNames,
       utterance,
     };
   }

@@ -70,6 +70,8 @@ export type TurnContext = {
   goals?: GoalPrompt[];
   record: AgentRecord;
   recentTurns: { speaker: "agent" | "resident"; text: string }[];
+  // Other residents on file, so a misheard name ("It bores" for Boris) is still written right.
+  neighborNames?: readonly string[];
   utterance: string;
 };
 
@@ -199,7 +201,7 @@ Other outputs:
   - says_chair_kind: they say which kind of wheelchair it is: manual, one they or someone else pushes, or electric, powered, motorized or battery.
   - says_unsure: they say they don't know or aren't sure, and give no answer to the question.
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
-- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set. When they name the person, start with the name as said ("Boris, bedridden", "Boris, down the road"); a name is enough, so don't ask for an address they say they don't know.
+- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set. When they name the person, start with the name as said ("Boris, bedridden", "Boris, down the road"); a name is enough, so don't ask for an address they say they don't know. Speech-to-text mishears names: when a word in a neighbor mention sounds like a name under "Other residents on file" ("It bores ate twenty burgers" for Boris), write that name.
 - neighbor_danger: true when someone in neighbors is dying, hurt, can't breathe, overdosed or drank or took something dangerous right now ("he's actively dying", "he chugged five bottles"). Then list that person in neighbors again on this turn, even if they were named before, and keep the danger in the words ("Boris, dying"). Leave it out otherwise.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, fr French, hi Hindi, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
 - feeling: when the resident sounds frightened, panicked, desperate or upset (pleading, asking anxiously whether anyone knows they are there, saying not to risk anyone for them), at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
@@ -316,6 +318,7 @@ function promptFor(turn: TurnContext, guidance: Guidance | null) {
     guidanceText(guidance),
     `Record so far: ${JSON.stringify(turn.record)}`,
     history ? `Recent turns:\n${history}` : "",
+    turn.neighborNames?.length ? `Other residents on file: ${turn.neighborNames.join(", ")}` : "",
     goalsText(turn.goals),
     `Agent's last question: ${turn.question}`,
     `Resident just said: ${turn.utterance}`,
