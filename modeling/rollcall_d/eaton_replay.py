@@ -249,17 +249,19 @@ def write() -> dict:
 # population (real census records reweighted to Altadena; not real people).
 FLEET_SIZES = [10, 25, 50, 100, 200]
 DIAL_SECONDS_PER_CALL = 1.0
-LIMITED_MOBILITY = {"walker", "manual_wheelchair", "power_wheelchair", "bedbound"}
+# Needs an accessible vehicle whatever else is true (convex/model.ts ACCESSIBLE_MOBILITY). A walker user who
+# can leave and has a car is leaving, as on the night.
+ACCESSIBLE_MOBILITY = {"manual_wheelchair", "power_wheelchair", "bedbound"}
 POPULATION_BOARDING = {"walks": 2.0, "walker": 5.0, "manual_wheelchair": 10.0, "power_wheelchair": 10.0, "bedbound": 20.0}
 
 
 def needs_ride(household: dict) -> bool:
-    """Mirrors outcomeFor in convex/model.ts."""
-    if household["mobility"] in LIMITED_MOBILITY or "oxygen" in household["medical"]:
+    """Mirrors outcomeFor in convex/model.ts (needs_ride or needs_accessible) and dispatch/sim/population.py outcome_of."""
+    if household["mobility"] in ACCESSIBLE_MOBILITY or "oxygen" in household["medical"]:
         return True
     if household["canLeave"] in ("no", "unsure"):
         return True
-    return not household["hasCar"]
+    return household["canLeave"] == "yes" and not household["hasCar"]
 
 
 def boarding_minutes(household: dict) -> float:

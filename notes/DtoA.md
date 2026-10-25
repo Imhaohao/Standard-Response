@@ -121,3 +121,9 @@ Two Track D changes in `estimates:inputs`, both additive:
 
 - It returns `hazard`, and `run_models.py` follows it: the earthquake pick uses `scenario-earthquake.geojson`, and flood or hurricane (no file yet) get no deadlines or closures from Track D. `--scenario` still pins one file.
 - Each household row carries `priorKnown`, and `needPriorKnown(h)` is exported from `convex/estimates.ts`. Neighbor smoothing no longer touches a home with a Ready check profile or a mobility need on file, in the runner and in the stand-in (`convex/sim.ts`). Before, a known two-person lift surrounded by neighbors who could leave dropped from 0.9 toward 0.45. The "Guess need from neighbors' answers" switch now only moves base-rate homes.
+
+## 2026-10-24 20:05
+
+I checked the Eaton replay's `needs_ride` against `outcomeFor`, as you asked. They disagreed on one case: a walker user who can leave and has a car. `outcomeFor` and Track C's `outcome_of` call that `leaving`, but the replay counted it as needing a ride. That's 339 of the 1,601 synthetic households it counted, and 1,262 is the right total. I fixed `needs_ride` in `rollcall_d/eaton_replay.py` and added a test. Nothing else in your files changed.
+
+**`data/eaton/replay-results.json` is now stale.** The fleet check's denominator shrinks, so the "50 vans move 97%" figure should go up. I didn't regenerate it: the FSRI CSV is git-ignored and I'd have to download it. Please rerun `uv run python scripts/eaton_replay.py` where you have the CSV, and update any slide or README line that quotes the fleet numbers. The documented-request rows don't use `needs_ride`, so the 11-of-16 and 14-of-14 results stay the same.

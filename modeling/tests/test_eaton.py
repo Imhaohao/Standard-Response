@@ -1,4 +1,5 @@
 from rollcall_d.eaton import Record, clean_location, parse_place, parse_time, says_fire, says_help
+from rollcall_d.eaton_replay import needs_ride
 
 
 def record(text):
@@ -35,3 +36,12 @@ def test_picks_out_a_request_for_help_getting_out():
     assert says_help(record("FIRE IN YARD, NEEDS HELP EVAC F.ELD, RP NOT AT LOC"))
     assert says_help(record("2 DISABLED PTS STUCK IN HOME, BACKYARD NOW ON FIRE"))
     assert not says_help(record("KITCHEN SMOKE"))
+
+
+def test_needs_ride_matches_the_contract_outcome():
+    home = {"mobility": "walker", "medical": [], "canLeave": "yes", "hasCar": True}
+    assert not needs_ride(home)  # outcomeFor says "leaving"
+    assert needs_ride({**home, "hasCar": False})
+    assert needs_ride({**home, "mobility": "manual_wheelchair"})
+    assert needs_ride({**home, "canLeave": "unsure"})
+    assert needs_ride({**home, "medical": ["oxygen"]})
