@@ -139,14 +139,16 @@ async function firstFreeStop(ctx: MutationCtx, vehicleId: Id<"vehicles">, leavin
   return Math.max(-1, ...accepted.map((a) => a.stopOrder)) + 1;
 }
 
-// The world moved while the solver ran. Keep only offers the contract will still accept.
+// The world moved while the solver ran. Keep only offers the contract will still accept once this
+// plan's replacements and revocations land: a rider whose accepted pickup it revokes is reassigning
+// by then, and gets the new van in the same plan.
 async function offerStillValid(ctx: MutationCtx, offer: OfferArg, ending: Set<Id<"assignments">>) {
   const request = await ctx.db.get("requests", offer.requestId);
   const vehicle = await ctx.db.get("vehicles", offer.vehicleId);
-  if (!request || !vehicle || !OFFERABLE.has(request.status)) return false;
-  if (!vehicleCanServe(vehicle, request)) return false;
+  if (!request || !vehicle || !vehicleCanServe(vehicle, request)) return false;
   const live = await liveAssignmentsFor(ctx, request._id);
-  return live.every((a) => ending.has(a._id));
+  if (!live.every((a) => ending.has(a._id))) return false;
+  return OFFERABLE.has(request.status) || live.some((a) => a.status === "accepted");
 }
 
 async function validOffers(ctx: MutationCtx, offers: OfferArg[], ending: Set<Id<"assignments">>) {

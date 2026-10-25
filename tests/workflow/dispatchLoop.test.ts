@@ -351,3 +351,32 @@ describe("a route of several trips", () => {
     expect(plan.escalate).toEqual([]);
   });
 });
+
+describe("a plan that revokes a pickup", () => {
+  test("offers that rider a new van in the same plan", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: offer._id });
+    const other = (await t.query(api.vehicles.list, {})).find((v) => v._id !== offer.vehicleId)!;
+    await t.mutation(internal.dispatch.commit, {
+      offers: [{ requestId: request._id, vehicleId: other._id, etaMinutes: 9, sequence: 0 }],
+      replace: [],
+      revoke: [{ assignmentId: offer._id, reason: "the only open route arrives after their deadline" }],
+      etaUpdates: [],
+      escalate: [],
+      closureEdges: [],
+      closuresSeen: 0,
+      plannedAt: Date.now(),
+      solver: "heuristic",
+      solveMs: 1,
+      requestCount: 1,
+      vehicleCount: 2,
+    });
+    const [next] = await liveFor(t, request._id);
+    expect(next?.vehicleId).toBe(other._id);
+    expect(await callbacksFor(t, request._id)).toEqual(["driver_accepted", "reassigning"]);
+  });
+});
