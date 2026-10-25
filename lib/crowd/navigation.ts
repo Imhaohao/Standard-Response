@@ -152,11 +152,29 @@ export function freeSpeedOf(edge: number) {
   return Math.max(EDGES[edge].meters / Math.max(EDGES[edge].seconds, 1), 4);
 }
 
+// When the fire first reaches a cell under a street's shape (its points every third of a cell),
+// NEVER_BURNS if never. Read at the street's midpoint alone, 93 of the 150 streets the scenario fire
+// reaches burn somewhere earlier, a median 16 minutes, and drivers were routed onto them meanwhile.
+function firstFireAlong(ground: Ground, shape: number[]) {
+  let first: number = NEVER_BURNS;
+  for (let p = 0; p + 3 < shape.length; p += 2) {
+    const [ax, ay, bx, by] = shape.slice(p, p + 4);
+    const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / (ground.cell / 3)));
+    for (let k = 0; k <= steps; k++) {
+      const cell = cellIndex(ground, ax + ((bx - ax) * k) / steps, ay + ((by - ay) * k) / steps);
+      if (cell >= 0) first = Math.min(first, ground.fireMinutes[cell]);
+    }
+  }
+  return first;
+}
+
 export class RoadRouter {
   readonly nodeX = new Float64Array(NODE_COUNT);
   readonly nodeY = new Float64Array(NODE_COUNT);
   readonly safe = new Uint8Array(NODE_COUNT);
   readonly edgeSegment = new Int32Array(EDGES.length);
+  // When the fire first reaches any part of each edge, in minutes: from then on it is a wall
+  // somewhere along it.
   readonly edgeFire = new Float64Array(EDGES.length);
   readonly edgeSpeed = new Float64Array(EDGES.length);
   // Lanes in each edge's direction, and the cars that fill it bumper to bumper.
@@ -199,9 +217,7 @@ export class RoadRouter {
       const shape = (edge.geometry ?? [[nodePoint(edge.u).lat, nodePoint(edge.u).lng], [nodePoint(edge.v).lat, nodePoint(edge.v).lng]]).flatMap(
         ([lat, lng]) => toXY({ lat, lng }),
       );
-      const mid = Math.floor(shape.length / 4) * 2;
-      const cell = cellIndex(ground, shape[mid], shape[mid + 1]);
-      this.edgeFire[e] = cell < 0 ? NEVER_BURNS : ground.fireMinutes[cell];
+      this.edgeFire[e] = firstFireAlong(ground, shape);
       for (let p = 2; p < shape.length; p += 2) this.edgeLength[e] += Math.hypot(shape[p] - shape[p - 2], shape[p + 1] - shape[p - 1]);
       return Float64Array.from(shape);
     });

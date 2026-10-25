@@ -62,6 +62,19 @@ describe("route choice", () => {
     assert.ok(late.phi.filter(Number.isFinite).length < router.potential(0, new Set()).phi.filter(Number.isFinite).length);
   });
 
+  it("closes a street from the minute the fire reaches any part of it, not only its middle", () => {
+    let earlierThanMiddle = 0;
+    for (const [edge, shape] of router.edgeShape.entries()) {
+      for (let p = 0; p < shape.length; p += 2) {
+        const cell = cellIndex(ground, shape[p], shape[p + 1]);
+        if (cell >= 0) assert.ok(router.edgeFire[edge] <= ground.fireMinutes[cell], `edge ${edge} burns at ${ground.fireMinutes[cell]} before ${router.edgeFire[edge]}`);
+      }
+      const middle = cellIndex(ground, shape[Math.floor(shape.length / 4) * 2], shape[Math.floor(shape.length / 4) * 2 + 1]);
+      if (middle >= 0 && router.edgeFire[edge] < ground.fireMinutes[middle]) earlierThanMiddle += 1;
+    }
+    assert.ok(earlierThanMiddle > 20, `${earlierThanMiddle} streets burn before their middle does`);
+  });
+
   it("slows a street by the cars on it, down to a standstill floor", () => {
     const cars = new Float64Array(router.edgeJamCars.length);
     assert.ok(router.delays(cars).every((d) => d === 1));
