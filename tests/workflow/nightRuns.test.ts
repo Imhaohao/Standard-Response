@@ -198,6 +198,32 @@ describe("night runs", () => {
     expect(back.canLeave).toBeUndefined();
   });
 
+  test("a profile fixed after a rewind to the warning is what the next rewind to the warning restores", async () => {
+    const t = setup();
+    const { resident } = await signUp(t);
+    await t.mutation(api.ready.start, {});
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.control.rewind, { to: "warning" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    await t.mutation(api.ready.saveFromCall, { householdId: resident, exitPlan: "needs_ride", care: [], mobility: "walker", peopleCount: 2 });
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no", peopleCount: 4 } });
+    await t.mutation(api.control.rewind, { to: "warning" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await home(t, resident)).toMatchObject({ peopleCount: 2, mobility: "walker", ready: { exitPlan: "needs_ride" } });
+  });
+
+  test("a home that called in before the warning still gets the warning call", async () => {
+    const t = setup();
+    const { resident } = await signUp(t);
+    const callId = await t.mutation(api.calls.start, { householdId: resident, direction: "inbound" });
+    await t.mutation(api.calls.end, { callId, answered: true });
+    expect((await home(t, resident))?.callStatus).toBe("complete");
+    await t.mutation(api.control.issueWarning, {});
+    const queued = await t.query(api.voice.dialQueue, { limit: 10 });
+    expect(queued.map((row) => row._id)).toContain(resident);
+  });
+
   test("a rewind waits for a real call to finish", async () => {
     const t = setup();
     const { resident } = await signUp(t);

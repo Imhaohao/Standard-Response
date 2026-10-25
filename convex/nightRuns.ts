@@ -64,14 +64,6 @@ async function saveCheckpoint(ctx: MutationCtx, runId: Id<"nightRuns">, kind: Ch
   }
 }
 
-async function hasCheckpoint(ctx: MutationCtx, runId: Id<"nightRuns">, kind: Checkpoint) {
-  const row = await ctx.db
-    .query("nightRunRows")
-    .withIndex("by_runId_and_kind_and_table", (q) => q.eq("runId", runId).eq("kind", kind).eq("table", "households"))
-    .first();
-  return row !== null;
-}
-
 // The Ready check or the warning starts a run, unless one is already going: its start is the setup
 // that a rewind returns to. Called before either changes a home.
 export async function startRunIfNone(ctx: MutationCtx) {
@@ -81,11 +73,19 @@ export async function startRunIfNone(ctx: MutationCtx) {
 }
 
 // The warning, before it changes any home: the Ready check's results, which a rewind to the warning
-// puts back. Saved once per run.
+// puts back. Taken fresh at each warning, so a profile fixed after a rewind is part of the next one.
 export async function saveWarningCheckpoint(ctx: MutationCtx) {
   await startRunIfNone(ctx);
   const run = await currentRun(ctx);
-  if (run && !(await hasCheckpoint(ctx, run._id, "warning"))) await saveCheckpoint(ctx, run._id, "warning");
+  if (!run) return;
+  for (const table of START_TABLES) {
+    const stale = await ctx.db
+      .query("nightRunRows")
+      .withIndex("by_runId_and_kind_and_table", (q) => q.eq("runId", run._id).eq("kind", "warning").eq("table", table))
+      .take(1000);
+    for (const row of stale) await ctx.db.delete("nightRunRows", row._id);
+  }
+  await saveCheckpoint(ctx, run._id, "warning");
 }
 
 async function nothingToSave(ctx: MutationCtx) {

@@ -17,3 +17,8 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 - **The checkpoint:** `issueWarning` saves a `warning` checkpoint (`nightRunRows.kind: "warning"`) before it changes any home.
 - **After a rewind to the warning:** a new current run opens carrying the old run's `start` and `warning` checkpoints, so a later rewind can still reach either point.
 - **On the call floor:** the Stand-ins menu has both rewinds.
+
+## 2026-10-24 20:35
+
+- **`issueWarning` puts every `complete` home back in the warning-call queue** (`callStatus: "not_called"`, `attempts: 0`). A home that phoned in before the warning went out used to count as already called, so it never got the warning call and its neighbor pairing never started. Its record stays as that call left it.
+- **The `warning` checkpoint is now taken fresh at every warning.** It used to be taken once per run. Now a profile fixed between a rewind and the next warning is what the next rewind to the warning restores.

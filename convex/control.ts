@@ -49,6 +49,15 @@ export const get = query({
   },
 });
 
+// The warning call goes to every home, including one that called us before the warning went out:
+// that call never heard tonight's warning. What it learned stays on the record.
+async function queueForTheWarningCall(ctx: MutationCtx) {
+  for (const household of await ctx.db.query("households").take(1000)) {
+    if (household.callStatus !== "complete") continue;
+    await ctx.db.patch("households", household._id, { callStatus: "not_called", attempts: 0, lastAttemptAt: undefined });
+  }
+}
+
 // Starts the night: seeds the simulated area if empty, opens the lines, starts the stand-in loop.
 export const issueWarning = mutation({
   args: {},
@@ -64,6 +73,7 @@ export const issueWarning = mutation({
     // Before the warning changes any home: the Ready check's results, which a rewind to the warning puts back.
     await saveWarningCheckpoint(ctx);
     if (!empty) await retimeArea(ctx, now);
+    await queueForTheWarningCall(ctx);
     await coverAreaIfNoZone(ctx);
     // Simulated drivers drive only in a simulated town. Real households get the driver-page vans.
     await seedFleetIfEmpty(ctx, now, !(await hasSimulatedHouseholds(ctx)));
