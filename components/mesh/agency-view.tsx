@@ -169,7 +169,7 @@ export function AgencyView() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} className="absolute inset-0">
+      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={clock.minutes} className="absolute inset-0">
         {forecast && <ForecastStreets forecast={forecast} windowIndex={forecastWindow} />}
         {model && model.version > 0 && <EstimatedStreets estimates={estimates} />}
         {roads && <ReportedStreets roads={roads} />}

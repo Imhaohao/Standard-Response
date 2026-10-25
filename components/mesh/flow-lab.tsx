@@ -274,7 +274,7 @@ export function FlowLab() {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
       {/* The fire on the map moves a whole minute at a time, so the 3D surface redraws once per minute, not per frame. */}
-      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={Math.floor(world.minutes)} fronts={hazard?.field.fronts} className="absolute inset-0">
+      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={Math.floor(world.minutes)} className="absolute inset-0">
         <BlockedStreetLayer truth={world.crowd.trulyBlocked()} known={world.agencyKnownBlocked()} />
         <MeetingLayer world={world} />
         <AgentLayer world={world} />

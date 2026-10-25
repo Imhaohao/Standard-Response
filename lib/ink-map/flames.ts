@@ -114,9 +114,30 @@ type Grid = { field: FireField; cellX: number; cellY: number; minutes: number };
 
 const centre = (grid: Grid, col: number, row: number) => [grid.field.region.x0 + (col + 0.5) * grid.cellX, grid.field.region.y0 + (row + 0.5) * grid.cellY];
 
+// The arrival minute anywhere in the field, blended between the four nearest cells.
+function sampleField(grid: Grid, x: number, y: number) {
+  const { field } = grid;
+  const u = Math.min(field.width - 1.001, Math.max(0, (x - field.region.x0) / grid.cellX - 0.5));
+  const v = Math.min(field.height - 1.001, Math.max(0, (y - field.region.y0) / grid.cellY - 0.5));
+  const [c, r] = [Math.floor(u), Math.floor(v)];
+  const [fu, fv] = [u - c, v - r];
+  const at = (cc: number, rr: number) => field.minutes[rr * field.width + cc];
+  return (at(c, r) * (1 - fu) + at(c + 1, r) * fu) * (1 - fv) + (at(c, r + 1) * (1 - fu) + at(c + 1, r + 1) * fu) * fv;
+}
+
+// The direction the fire line runs at a point: across the way arrival time changes fastest. Falls
+// back to `fallback` where the field gives no clear slope (NaN, or flat).
+function lineDirection(grid: Grid, x: number, y: number, fallback: [number, number]): [number, number] {
+  const gx = sampleField(grid, x + grid.cellX, y) - sampleField(grid, x - grid.cellX, y);
+  const gy = sampleField(grid, x, y + grid.cellY) - sampleField(grid, x, y - grid.cellY);
+  const length = Math.hypot(gx, gy);
+  return Number.isFinite(length) && length > 1e-6 ? [-gy / length, gx / length] : fallback;
+}
+
 // A row of tongues standing on the edge where it crosses from a burned cell to an unburned
-// neighbour, at the point the arrival minute passes the clock, spread along the edge so the line
-// of fire is continuous however coarse the field is.
+// neighbour, at the point the arrival minute passes the clock. Each card is turned along the fire
+// line there, and the row is spread along it, so the line of fire is continuous and the flames
+// face out of it however the line runs across the grid.
 function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, number], seed: number): Flame[] {
   const { field, minutes } = grid;
   const a = field.minutes[from[1] * field.width + from[0]];
@@ -127,19 +148,20 @@ function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, numbe
   const [bx, by] = centre(grid, ...to);
   const [dx, dy] = [bx - ax, by - ay];
   const length = Math.hypot(dx, dy);
+  const [x, y] = [ax + dx * t, ay + dy * t];
+  const [tx, ty] = lineDirection(grid, x, y, [-dy / length, dx / length]);
   const count = Math.min(MOST_PER_CROSSING, Math.ceil(length / FLAME_SPACING_METERS));
-  const head = minutes - a < HEAD_MINUTES;
+  const scale = minutes - a < HEAD_MINUTES ? 1 : FLANK_SCALE;
   return Array.from({ length: count }, (_, k) => {
     const s = seed + k * 1.91;
-    const along = (k + hash(s)) / count - 0.5;
-    const scale = head ? 1 : FLANK_SCALE;
+    const along = ((k + hash(s)) / count - 0.5) * length;
     return {
-      x: ax + dx * t - (dy / length) * along * length,
-      y: ay + dy * t + (dx / length) * along * length,
+      x: x + tx * along,
+      y: y + ty * along,
       width: (8 + hash(s + 1) * 4) * scale,
       height: (16 + hash(s + 2) * 14) * scale,
       phase: hash(s + 3),
-      angle: Math.atan2(dx, -dy),
+      angle: Math.atan2(ty, tx),
     };
   });
 }

@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { terrainContours } from "@/lib/ink-map/contours";
 import { AREA_KIND, InkMapData, Point, ROAD_WIDTH } from "@/lib/ink-map/data";
-import { ScenarioFront } from "@/lib/ink-map/fire-field";
+import { FireField, fieldGrid } from "@/lib/ink-map/fire-field";
+import { isolines } from "@/lib/ink-map/isolines";
 import { Frame, fitFrame, frameTransform, LocalProjection, Size } from "./projection";
 
 const CONTOUR_INTERVAL = 25;
@@ -28,13 +29,15 @@ export function PaperSurface({
   data,
   frame,
   size,
-  fronts,
+  field,
+  burns,
   minutes,
 }: {
   data: InkMapData;
   frame: Frame;
   size: Size;
-  fronts: ScenarioFront[];
+  field: FireField | null;
+  burns: boolean;
   minutes: number;
 }) {
   const { scale } = frameTransform(frame, size);
@@ -43,8 +46,6 @@ export function PaperSurface({
   const areas = useMemo(() => groupRings(data, frame, project), [data, frame, project]);
   const roads = useMemo(() => groupRoads(data, frame, project), [data, frame, project]);
   const contours = useMemo(() => contourPath(data, frame, project), [data, frame, project]);
-  const burned = fronts.filter((front) => front.minutes <= minutes);
-  const upcoming = fronts.find((front) => front.minutes > minutes);
 
   return (
     <>
@@ -64,19 +65,31 @@ export function PaperSurface({
           strokeLinecap="round"
         />
       ))}
-      {burned.map((front) => (
-        <path
-          key={front.minutes}
-          d={ringPath(project, front.ring)}
-          fill="var(--signal)"
-          fillOpacity={0.12}
-          stroke="var(--signal)"
-          strokeOpacity={0.5}
-          strokeWidth={1.2}
-        />
-      ))}
-      {upcoming && <path d={ringPath(project, upcoming.ring)} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />}
+      {field && <FlatFire field={field} burns={burns} minutes={minutes} project={project} />}
     </>
+  );
+}
+
+const STILL_BURNING_MINUTES = 15;
+const AHEAD_MINUTES = 30;
+
+// The fire at the minute on the clock, traced from the same arrival times the 3D map shades: the
+// ground it has burned in ash, the last quarter hour of it still burning in flat fire colour, a firm
+// red line on the edge, and a dashed line where it will be in half an hour.
+function FlatFire({ field, burns, minutes, project }: { field: FireField; burns: boolean; minutes: number; project: LocalProjection }) {
+  const outlines = useMemo(() => {
+    const grid = fieldGrid(field);
+    const trace = (level: number) => isolines(grid, level).map((ring) => ringPath(project, ring)).join("");
+    return { edge: trace(minutes), cooled: trace(minutes - STILL_BURNING_MINUTES), ahead: trace(minutes + AHEAD_MINUTES) };
+  }, [field, minutes, project]);
+  if (!outlines.edge) return <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />;
+  return (
+    <g>
+      <path d={outlines.cooled} fill="var(--map-ink)" fillOpacity={0.22} />
+      {burns && <path d={outlines.edge + outlines.cooled} fillRule="evenodd" fill="var(--ember)" fillOpacity={0.55} />}
+      <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />
+      <path d={outlines.edge} fill="none" stroke="var(--signal)" strokeWidth={2.4} strokeLinejoin="round" />
+    </g>
   );
 }
 

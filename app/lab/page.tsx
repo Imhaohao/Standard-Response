@@ -47,7 +47,6 @@ export default function Lab() {
           view={closeupView() ?? { kind: "overview", fit: TOWN_FRAME }}
           hazard={hazard}
           minutes={minutes}
-          fronts={hazard?.field.fronts}
         />
       </div>
     </div>

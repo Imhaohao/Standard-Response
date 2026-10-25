@@ -109,3 +109,15 @@ export function fireStateAt(field: FireField, [x, y]: Point, minutes: number): F
   if (arrival > minutes) return null;
   return minutes - arrival <= BURNING_MINUTES ? "burning" : "burned";
 }
+
+// The field as a grid for tracing outlines (isolines.ts): each cell's arrival minute at its centre.
+export function fieldGrid(field: FireField) {
+  const cellX = (field.region.x1 - field.region.x0) / field.width;
+  const cellY = (field.region.y1 - field.region.y0) / field.height;
+  return {
+    values: field.minutes,
+    width: field.width,
+    height: field.height,
+    at: (col: number, row: number): Point => [field.region.x0 + (col + 0.5) * cellX, field.region.y0 + (row + 0.5) * cellY],
+  };
+}

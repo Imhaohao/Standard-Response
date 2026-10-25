@@ -144,6 +144,7 @@ void main() {
 const FIRE_COMMON = `
 uniform sampler2D tDepth;
 uniform sampler2D tFire;
+uniform float uBurning;
 uniform mat4 uInvProjection;
 uniform mat4 uCameraWorld;
 uniform vec4 uFireRegion;
@@ -233,8 +234,8 @@ void main() {
   float minutes = arrivalMinutes(mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
   float edge = burned * edgeOfBurn(mapXY, max(8.0, uViewMpp * 5.0));
-  float smoulder = edge * (0.6 + 0.3 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.7, -uTime * 0.4)));
-  float glow = max(frontGlow(mapXY, minutes), smoulder);
+  float flicker = 0.75 + 0.25 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.9, -uTime * 0.5));
+  float glow = max(frontGlow(mapXY, minutes) * 0.7, edge) * flicker * uBurning;
   float fresh = burned * (1.0 - smoothstep(0.0, 70.0, uFireNow - minutes));
   color = vec4(glow, fresh + glow * 0.5, 0.0, 1.0);
 }
@@ -288,7 +289,6 @@ uniform sampler2D tForecast;
 uniform vec4 uForecastRegion;
 uniform float uForecastOn;
 uniform float uForecastAhead;
-uniform float uBurning;
 
 // Tone is printed on the town, not on the glass: every dot, hatch and speck is laid out in the
 // camera's own right and up directions but measured in metres, so it slides with the streets when
@@ -671,7 +671,6 @@ uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uPatternScale;
-uniform float uBurning;
 
 // A roof waiting on a ride breathes: the base drew it at full red, and this eases it toward paper.
 vec3 breathe(vec4 base) {
@@ -689,17 +688,51 @@ vec3 sparks(vec3 color, vec2 mapXY, float fresh) {
   return mix(color, vec3(1.0, 0.78, 0.4), spark);
 }
 
+// The map point under a screen point.
+vec2 groundAt(vec2 uv) {
+  vec3 w = worldPosition(uv, texture(tDepth, uv).r);
+  return vec2(w.x, -w.z);
+}
+
+// The fire line's hot core: how close this pixel is to the line where arrival time equals the
+// clock, measured in pixels from the arrival time's change to the next pixel over, so the core is
+// a pixel or two wide at any zoom.
+float coreLine(vec2 uv, float minutes) {
+  vec2 px = 1.0 / uResolution;
+  float dx = arrivalMinutes(groundAt(uv + vec2(px.x, 0.0))) - minutes;
+  float dy = arrivalMinutes(groundAt(uv + vec2(0.0, px.y))) - minutes;
+  float perPixel = max(length(vec2(dx, dy)), 1e-3);
+  return 1.0 - smoothstep(0.4 * uPixelRatio, 1.6 * uPixelRatio, abs(minutes - uFireNow) / perPixel);
+}
+
+// Heat rising off the fire line: the air just above it on screen wobbles, more the closer to the
+// line, with ripples that drift upward. The ripples are fixed to the ground, so they pan with it.
+vec2 heatHaze(vec2 uv) {
+  float heat = texture(tBloom, uv + vec2(0.0, 10.0 * uPixelRatio / uResolution.y)).r;
+  if (heat < 0.02) return uv;
+  vec2 p = groundAt(uv) * 0.09;
+  vec2 ripple = vec2(valueNoise(p + vec2(0.0, -uTime * 2.4)), valueNoise(p + vec2(7.3, -uTime * 2.9))) - 0.5;
+  return uv + ripple * vec2(1.0, 1.6) * smoothstep(0.02, 0.6, heat) * 3.0 * uPixelRatio / uResolution;
+}
+
 void main() {
-  vec4 base = texture(tBase, vUv);
   vec4 bloom = texture(tBloom, vUv);
-  vec3 color = breathe(base);
-  float depth = texture(tDepth, vUv).r;
-  if (uFireOn > 0.5 && uBurning > 0.5 && bloom.g > 0.003 && depth < 1.0) {
-    vec3 w = worldPosition(vUv, depth);
-    vec2 mapXY = vec2(w.x, -w.z);
-    float since = uFireNow - arrivalMinutes(mapXY);
+  bool near = uFireOn > 0.5 && uBurning > 0.5 && bloom.r + bloom.g > 0.003;
+  vec2 uv = near ? heatHaze(vUv) : vUv;
+  vec3 color = breathe(texture(tBase, uv));
+  float depth = texture(tDepth, uv).r;
+  if (near && depth < 1.0) {
+    vec2 mapXY = groundAt(uv);
+    float minutes = arrivalMinutes(mapXY);
+    float since = uFireNow - minutes;
     color = sparks(color, mapXY, step(0.0, since) * (1.0 - smoothstep(10.0, 25.0, since)));
+    float core = coreLine(uv, minutes);
+    // An animated-film glow: an orange halo bleeding out from the line, warming whatever it
+    // touches, and a white-hot core along the line itself.
+    float halo = min(bloom.r, 1.2);
+    color = color * (1.0 + vec3(0.55, 0.22, 0.0) * halo) + uEmber * halo * 0.55;
+    color = mix(color, vec3(1.0, 0.96, 0.78), core * 0.9);
   }
-  fragColor = vec4(color, 1.0);
+  fragColor = vec4(min(color, vec3(1.0)), 1.0);
 }
 `;

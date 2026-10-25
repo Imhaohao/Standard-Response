@@ -2,7 +2,9 @@
 
 import { ArrowUp } from "@phosphor-icons/react";
 import { MapShape } from "@/components/map/layers";
-import { DangerZones, zonesAt } from "@/lib/ink-map/danger";
+import { useMemo } from "react";
+import { DangerZones, ForecastField, forecastBandGrid } from "@/lib/ink-map/danger";
+import { isolines } from "@/lib/ink-map/isolines";
 import { Switch } from "@/components/ui/switch";
 
 const HAZARD = "var(--signal)";
@@ -16,15 +18,20 @@ const BAND_EDGE: Record<number, { dash?: string; width: number; opacity: number 
 };
 const DEFAULT_EDGE = { width: 1, opacity: 0.5 };
 
-export function DangerLayer({ danger, minutes }: { danger: DangerZones; minutes: number }) {
+// The flat map's forecast, traced from the same smooth arrival field the 3D map shades, so the bands
+// slide with the clock instead of jumping every ten minutes.
+export function DangerLayer({ danger, field, minutes }: { danger: DangerZones; field: ForecastField; minutes: number }) {
+  const probabilities = useMemo(() => [...danger.probabilities].sort((a, b) => a - b).slice(0, 3), [danger]);
+  const grids = useMemo(() => probabilities.map((probability, band) => ({ probability, grid: forecastBandGrid(field, band) })), [probabilities, field]);
+  const bands = useMemo(() => grids.map(({ probability, grid }) => ({ probability, rings: isolines(grid, minutes) })), [grids, minutes]);
   return (
     <g>
-      {zonesAt(danger, minutes).map((zone) => {
-        const edge = BAND_EDGE[zone.probability] ?? DEFAULT_EDGE;
+      {bands.map(({ probability, rings }) => {
+        const edge = BAND_EDGE[probability] ?? DEFAULT_EDGE;
         return (
           <MapShape
-            key={zone.probability}
-            rings={zone.rings}
+            key={probability}
+            rings={rings}
             fill={HAZARD}
             fillOpacity={BAND_FILL_OPACITY}
             stroke={HAZARD}

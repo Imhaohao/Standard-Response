@@ -80,7 +80,6 @@ export function RescueMap() {
         mode={mode}
         hazard={hazard}
         minutes={clock.minutes}
-        fronts={hazard?.field.fronts}
         forecast={forecastShown ? forecast : null}
         highlights={highlights}
         onPick={onPick}
@@ -97,7 +96,7 @@ export function RescueMap() {
         }
         underlay={
           <>
-            {danger && forecastShown && mode === "paper" && <DangerLayer danger={danger} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
+            {danger && forecast && forecastShown && mode === "paper" && <DangerLayer danger={danger} field={forecast.field} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
             <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
           </>
         }
@@ -134,7 +133,8 @@ export function RescueMap() {
               <RiderUpload />
             </div>
           </div>
-          <div className="flex flex-wrap-reverse items-end gap-3 p-3 pt-0">
+          {/* Reverse wrapping flips the cross axis: items-start sits every control on the bottom edge. */}
+          <div className="flex flex-wrap-reverse items-start gap-3 p-3 pt-0">
             <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
               {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={putOutFire} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />

@@ -104,7 +104,6 @@ export function MapStage({
   mode: requestedMode = "ink",
   hazard,
   minutes,
-  fronts,
   forecast,
   highlights,
   onPick,
@@ -122,7 +121,6 @@ export function MapStage({
   mode?: SurfaceMode;
   hazard?: Hazard | null;
   minutes?: number;
-  fronts?: { minutes: number; ring: Point[] }[];
   // Forecast bands the 3D map draws on the ground. The flat map has no shader, so it draws none.
   forecast?: StageForecast | null;
   highlights?: Map<number, BuildingState>;
@@ -204,7 +202,7 @@ export function MapStage({
       onContextMenu={onContextPick ? contextMenu : undefined}
       className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
-      <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} fronts={fronts} forecast={forecast} highlights={highlights} onHandle={setHandle} onFail={fail} />
+      <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} forecast={forecast} highlights={highlights} onHandle={setHandle} onFail={fail} />
       {value && (
         <StageContext.Provider value={value}>
           {underlay && <OverlayLayer size={value.size}>{underlay}</OverlayLayer>}
@@ -272,21 +270,20 @@ type SurfaceProps = {
   size: Size | null;
   hazard?: Hazard | null;
   minutes?: number;
-  fronts?: { minutes: number; ring: Point[] }[];
   forecast?: StageForecast | null;
   highlights?: Map<number, BuildingState>;
   onHandle: (handle: InkMapHandle | null) => void;
   onFail: () => void;
 };
 
-function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fronts = [], forecast, highlights = EMPTY, onHandle, onFail }: SurfaceProps) {
+function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, forecast, highlights = EMPTY, onHandle, onFail }: SurfaceProps) {
   if (mode === "ink") {
     return <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes} forecast={forecast} highlights={highlights} onHandle={onHandle} onFail={onFail} />;
   }
   if (!size || !frame) return null;
   return (
     <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">
-      <PaperSurface data={data} frame={frame} size={size} fronts={fronts} minutes={minutes} />
+      <PaperSurface data={data} frame={frame} size={size} field={hazard?.field ?? null} burns={hazard?.burns !== false} minutes={minutes} />
     </svg>
   );
 }

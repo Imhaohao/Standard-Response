@@ -147,3 +147,12 @@ export function forecastField(danger: DangerZones): ForecastField {
   }
   return { minutes, width, height, region };
 }
+
+// One band of the forecast field as a grid for tracing its outline (isolines.ts).
+export function forecastBandGrid(field: ForecastField, band: number) {
+  const values = new Float32Array(field.width * field.height);
+  for (let i = 0; i < values.length; i++) values[i] = field.minutes[i * BANDS + band];
+  const cellX = (field.region.x1 - field.region.x0) / field.width;
+  const cellY = (field.region.y1 - field.region.y0) / field.height;
+  return { values, width: field.width, height: field.height, at: (col: number, row: number): Point => [field.region.x0 + (col + 0.5) * cellX, field.region.y0 + (row + 0.5) * cellY] };
+}

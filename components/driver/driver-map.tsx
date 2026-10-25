@@ -120,7 +120,7 @@ export function DriverMap({ focus, run, vehicle }: { focus: Stop | null; run: St
   if (!data || !view) return <div className="size-full bg-map-paper" aria-hidden />;
 
   return (
-    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} fronts={hazard?.field.fronts} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className="absolute right-3 bottom-3" />}>
+    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className="absolute right-3 bottom-3" />}>
       {vehicle && <VanRoute vehicleId={vehicle._id} />}
       {vehicle && <VanMark vehicle={vehicle} />}
       <StopPins focus={focus} run={run} />
