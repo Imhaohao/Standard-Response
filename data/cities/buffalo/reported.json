@@ -1,0 +1,92 @@
+{
+  "note": "Numbers typed in from published reports. Each table names its source key; sources.md gives the URL and page. Times are local (EST, UTC-5).",
+  "snowfallCumulativeKBUF": {
+    "source": "nws-pns",
+    "alsoChecked": "ncei-ghcnd daily SNOW sums to the same totals at midnight",
+    "points": [
+      { "at": "2022-12-23T07:54:00-05:00", "inches": 0.0, "source": "iem-kbuf", "what": "first hourly report of snow after rain (-SN at 07:54); NWS daily snowfall for 22 Dec was 0.0" },
+      { "at": "2022-12-23T15:00:00-05:00", "inches": 8.1, "source": "nws-pns" },
+      { "at": "2022-12-23T19:00:00-05:00", "inches": 12.2, "source": "nws-pns" },
+      { "at": "2022-12-24T00:00:00-05:00", "inches": 22.3, "source": "ncei-ghcnd", "what": "23 Dec daily snowfall 22.3 in" },
+      { "at": "2022-12-24T09:00:00-05:00", "inches": 27.8, "source": "nws-pns" },
+      { "at": "2022-12-24T21:00:00-05:00", "inches": 34.6, "source": "nws-pns" },
+      { "at": "2022-12-25T00:00:00-05:00", "inches": 40.2, "source": "ncei-ghcnd", "what": "22.3 + 17.9 in" },
+      { "at": "2022-12-25T06:55:00-05:00", "inches": 43.0, "source": "nws-pns" },
+      { "at": "2022-12-26T00:00:00-05:00", "inches": 43.0, "source": "ncei-ghcnd", "what": "+2.8 in on 25 Dec, all of it before 06:55 per the PNS" },
+      { "at": "2022-12-26T10:00:00-05:00", "inches": 49.2, "source": "nws-pns" },
+      { "at": "2022-12-27T00:00:00-05:00", "inches": 50.3, "source": "ncei-ghcnd", "what": "+7.3 in on 26 Dec" },
+      { "at": "2022-12-27T21:08:00-05:00", "inches": 51.9, "source": "nws-pns", "what": "storm total" }
+    ]
+  },
+  "cityOutagesNationalGrid": {
+    "source": "nyu-wagner",
+    "what": "National Grid customers without power in the City of Buffalo",
+    "points": [
+      { "at": "2022-12-23T08:30:00-05:00", "customersOut": 34 },
+      { "at": "2022-12-23T10:00:00-05:00", "customersOut": 3177 },
+      { "at": "2022-12-23T13:00:00-05:00", "customersOut": 6280 },
+      { "at": "2022-12-23T15:00:00-05:00", "customersOut": 11954 },
+      { "at": "2022-12-23T16:00:00-05:00", "customersOut": 14312 },
+      { "at": "2022-12-23T18:00:00-05:00", "customersOut": 20890 },
+      { "at": "2022-12-24T08:00:00-05:00", "customersOut": 19262 },
+      { "at": "2022-12-24T14:00:00-05:00", "customersOut": 20027 },
+      { "at": "2022-12-24T20:00:00-05:00", "customersOut": 20108 },
+      { "at": "2022-12-25T09:00:00-05:00", "customersOut": 19821 },
+      { "at": "2022-12-25T20:00:00-05:00", "customersOut": 10971 },
+      { "at": "2022-12-26T00:00:00-05:00", "customersOut": 9302 },
+      { "at": "2022-12-26T23:00:00-05:00", "customersOut": 4104 },
+      { "at": "2022-12-27T08:00:00-05:00", "customersOut": 3922 },
+      { "at": "2022-12-27T22:00:00-05:00", "customersOut": 485 },
+      { "at": "2022-12-28T20:00:00-05:00", "customersOut": 4 },
+      { "at": "2022-12-28T23:30:00-05:00", "customersOut": 0, "what": "power fully restored in the Buffalo region for National Grid customers" }
+    ],
+    "restorationHalted": { "on": "2022-12-24", "source": "nyu-wagner" },
+    "restorationBegan": { "at": "2022-12-25T12:00:00-05:00", "source": "nyu-wagner" },
+    "failedSubstations": { "what": "3 of the city's 43 substations failed, 2 in East Buffalo and 1 in South Buffalo, together serving about 10,000 customers; a fourth (23 kV) was offline with a cable problem", "source": "nyu-wagner" }
+  },
+  "roadStatusByStreetClass": {
+    "what": "When each class of street stopped and started carrying ordinary vehicles. 'closed' is a legal or physical closure; 'impassable' is the time conditions stopped road operations; 'firstPass' is the first plow pass that reopened it.",
+    "classes": [
+      {
+        "class": "expressway",
+        "osmHighway": ["motorway", "motorway_link", "trunk", "trunk_link"],
+        "examples": "I-190, Kensington Expressway (NY 33), Scajaquada Expressway (NY 198)",
+        "closed": { "at": "2022-12-23T06:00:00-05:00", "source": "nyu-wagner", "what": "NYSDOT routes closed at 06:00; gates shut at 09:00" },
+        "reopened": { "at": "2022-12-29T00:00:00-05:00", "source": "nys-aar", "what": "I-190 and State routes 5, 33 and 198 fully open at midnight" }
+      },
+      {
+        "class": "arterial",
+        "osmHighway": ["primary", "primary_link", "secondary", "secondary_link", "tertiary"],
+        "examples": "Main St, Genesee St, Bailey Ave, Broadway, William St, Walden Ave",
+        "impassable": { "at": "2022-12-23T15:00:00-05:00", "source": "nyu-wagner", "what": "Whiteout conditions began in Buffalo, stopping roadway operations" },
+        "firstPass": { "at": "2022-12-25T07:00:00-05:00", "source": "nyu-wagner", "what": "DPW plowed primary streets to allow National Grid to repair damaged substations; more primary streets including the medical corridor at 15:00" },
+        "legallyOpen": { "at": "2022-12-29T00:01:00-05:00", "source": "wkbw", "what": "City of Buffalo driving ban lifted" }
+      },
+      {
+        "class": "side street",
+        "osmHighway": ["residential", "unclassified", "living_street"],
+        "impassable": { "at": "2022-12-23T15:00:00-05:00", "source": "nyu-wagner", "what": "Same whiteout; no source gives an earlier time for side streets alone" },
+        "firstPass": { "at": "2022-12-28T23:59:00-05:00", "source": "nyu-wagner", "what": "By end of day, DPW had taken at least one pass at clearing every city street" },
+        "legallyOpen": { "at": "2022-12-29T00:01:00-05:00", "source": "wkbw" }
+      }
+    ]
+  },
+  "deaths": {
+    "erieCounty": { "count": 46, "source": "wivb", "what": "Erie County medical examiner, final; 47 including one in Niagara County" },
+    "cityOfBuffalo": { "count": 35, "source": "wivb", "what": "35 in Buffalo and 11 in the suburbs. The NYU Wagner review counts 31 within the city." },
+    "causes": [
+      { "cause": "found outside in the snow", "count": 18, "source": "wivb" },
+      { "cause": "no power or heat", "count": 12, "source": "wivb" },
+      { "cause": "delayed EMS response", "count": 7, "source": "wivb" },
+      { "cause": "found in vehicles", "count": 4, "source": "wivb" },
+      { "cause": "snow-blowing or shoveling", "count": 4, "source": "wivb" }
+    ],
+    "causesNote": "These sum to 45 of 46. Reporting attributes the remaining death to a child who drowned in a hotel pool after the family lost power; that line was not verified against a primary quote."
+  },
+  "emergencyResponse": {
+    "cityCalls911": { "count": 6119, "from": "2022-12-23", "to": "2022-12-26", "districtE": 1736, "source": "nyu-wagner" },
+    "averageResponseHours": { "city": 22.72, "districtE": 30.21, "districtC": 22.28, "source": "nyu-wagner", "what": "Districts C and E cover the East Side" },
+    "worstAverageResponseHours": { "districtE": 40, "districtC": 34, "for": "calls placed on the afternoon of 23 Dec", "source": "nyu-wagner" },
+    "backlog": { "calls": 1100, "source": "nyu-wagner" }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "buffalo",
+  "event": "Buffalo blizzard, East Side of Buffalo, New York",
+  "timezone": "America/New_York",
+  "utcOffset": "-05:00",
+  "sources": {
+    "nws-wsw": "https://mesonet.agron.iastate.edu/cgi-bin/afos/retrieve.py?pil=WSWBUF&sdate=2022-12-19&edate=2022-12-27&limit=200&fmt=text",
+    "nws-pns": "https://mesonet.agron.iastate.edu/cgi-bin/afos/retrieve.py?pil=PNSBUF&sdate=2022-12-21&edate=2022-12-31&limit=100&fmt=text",
+    "nws-winter-summary": "https://www.weather.gov/media/buf/Winter_Summary_2022_23.pdf",
+    "iem-kbuf": "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=BUF&year1=2022&month1=12&day1=22&year2=2022&month2=12&day2=31&tz=America%2FNew_York&format=onlycomma&report_type=3",
+    "ncei-ghcnd": "https://www.ncei.noaa.gov/access/services/data/v1?dataset=daily-summaries&stations=USW00014733&startDate=2022-12-20&endDate=2023-01-02&units=standard&format=csv",
+    "nyu-wagner": "https://wagner.nyu.edu/files/faculty/publications/NYU%20Buffalo%20Blizzard%20Report%20-%20June2023_0.pdf",
+    "nys-aar": "https://www.dhses.ny.gov/system/files/documents/2023/08/nys-aar-on-buffalo-blizzard-response.pdf",
+    "wkbw": "https://www.wkbw.com/news/local-news/blizzard-of-22/driving-ban-in-the-city-of-buffalo-to-be-lifted-early-thursday-morning",
+    "wivb": "https://www.wivb.com/weather-news/buffalo-blizzard-2022/erie-county-medical-examiner-confirms-three-more-blizzard-related-deaths-bringing-total-to-47/amp/",
+    "ap-wsls": "https://www.wsls.com/news/politics/2022/12/28/explainer-how-blizzard-stunned-even-winter-wise-buffalo/"
+  },
+  "minuteZero": {
+    "at": "2022-12-23T09:30:00-05:00",
+    "what": "Erie County's travel ban takes effect (announced 08:45).",
+    "why": "It is the first order that tells everyone to stay off the roads, so from here a household that cannot cope at home needs someone to come to it. It is also the moment a coordinator would start calling.",
+    "source": "nyu-wagner"
+  },
+  "events": [
+    { "at": "2022-12-22T03:54:00-05:00", "kind": "warning", "what": "NWS Buffalo issues a Blizzard Warning for Erie County from 07:00 Friday 23 Dec to 07:00 Sunday 25 Dec: 1 to 3 feet of snow, gusts to 70 mph, a flash freeze, wind chills to 20 below.", "source": "nws-wsw" },
+    { "at": "2022-12-22T12:30:00-05:00", "kind": "order", "what": "Mayor declares a State of Emergency for Buffalo starting 07:00 on 23 Dec.", "source": "nyu-wagner" },
+    { "at": "2022-12-22T20:15:00-05:00", "kind": "advisory", "what": "Erie County travel advisory (driving discouraged, not banned).", "source": "nyu-wagner" },
+    { "at": "2022-12-23T06:00:00-05:00", "kind": "closure", "what": "State commercial vehicle ban; NYSDOT routes such as I-190 and Route 400 close (gates shut at 09:00).", "source": "nyu-wagner" },
+    { "at": "2022-12-23T07:54:00-05:00", "kind": "onset", "what": "Rain turns to snow at the airport; the falling temperature flash-freezes roads mid-morning.", "source": "iem-kbuf", "alsoSource": "nws-winter-summary" },
+    { "at": "2022-12-23T08:39:00-05:00", "kind": "onset", "what": "Gusts over 65 mph and visibility at or below 1/4 mile at the airport: the blizzard begins.", "source": "nws-winter-summary", "alsoSource": "iem-kbuf" },
+    { "at": "2022-12-23T08:45:00-05:00", "kind": "order", "what": "Erie County travel ban announced.", "source": "nyu-wagner" },
+    { "at": "2022-12-23T09:30:00-05:00", "kind": "order", "what": "Erie County travel ban in effect. Minute 0.", "source": "nyu-wagner", "alsoSource": "nys-aar" },
+    { "at": "2022-12-23T09:40:00-05:00", "kind": "peak", "what": "Peak gust at the airport, 72 mph.", "source": "nws-pns" },
+    { "at": "2022-12-23T09:58:00-05:00", "kind": "alert", "what": "City of Buffalo sends the travel ban by BUFFALERT.", "source": "nyu-wagner" },
+    { "at": "2022-12-23T14:00:00-05:00", "kind": "closure", "what": "I-90 (Thruway) closes to non-commercial traffic.", "source": "nyu-wagner" },
+    { "at": "2022-12-23T15:00:00-05:00", "kind": "hazard-reaches-town", "what": "Whiteout conditions begin in Buffalo and stop roadway operations. From here the East Side is treated as unreachable by ordinary vehicles. Minute 330. The airport has 8.1 in of snow by now and 11,954 city customers are without power.", "source": "nyu-wagner", "alsoSource": "nws-pns" },
+    { "at": "2022-12-23T16:54:00-05:00", "kind": "peak", "what": "Lowest NWS-reported wind chill at the airport, -19 F.", "source": "nws-pns" },
+    { "at": "2022-12-23T18:00:00-05:00", "kind": "peak", "what": "Power outages in the city peak at 20,890 National Grid customers.", "source": "nyu-wagner" },
+    { "at": "2022-12-23T20:00:00-05:00", "kind": "response", "what": "Erie County asks the state for National Guard support on Friday evening; the Guard's arrival is delayed by the visibility.", "source": "nys-aar", "timeIsApproximate": true },
+    { "at": "2022-12-24T12:00:00-05:00", "kind": "response", "what": "At one point on Saturday almost every fire truck in Buffalo is stranded, and residents are told emergency services are unavailable. Power restoration is halted.", "source": "ap-wsls", "alsoSource": "nyu-wagner", "timeIsApproximate": true },
+    { "at": "2022-12-24T23:54:00-05:00", "kind": "end-of-peak", "what": "The 37 consecutive hours of blizzard conditions at the airport end late in the evening; the last hourly report at or below 1/4 mile visibility is 00:54 on the 25th.", "source": "nws-winter-summary", "alsoSource": "iem-kbuf" },
+    { "at": "2022-12-25T05:45:00-05:00", "kind": "warning", "what": "The Blizzard Warning is replaced by a Winter Storm Warning until 04:00 Monday.", "source": "nws-wsw" },
+    { "at": "2022-12-25T07:00:00-05:00", "kind": "reopening", "what": "City DPW plows primary streets so National Grid can reach failed substations; more primary streets, including the medical corridor, at 15:00.", "source": "nyu-wagner" },
+    { "at": "2022-12-25T12:00:00-05:00", "kind": "reopening", "what": "National Grid begins restoring power in the Buffalo region.", "source": "nyu-wagner" },
+    { "at": "2022-12-27T00:00:00-05:00", "kind": "advisory", "what": "By Tuesday the region-wide ban is reduced to an advisory; the City of Buffalo keeps its ban.", "source": "nys-aar", "timeIsApproximate": true },
+    { "at": "2022-12-27T21:08:00-05:00", "kind": "end", "what": "Storm-total snowfall at the airport, 51.9 in.", "source": "nws-pns" },
+    { "at": "2022-12-28T23:30:00-05:00", "kind": "reopening", "what": "Power fully restored for National Grid customers in the Buffalo region. By the end of the day DPW has made at least one pass on every city street.", "source": "nyu-wagner" },
+    { "at": "2022-12-29T00:00:00-05:00", "kind": "reopening", "what": "I-190 and State Routes 5, 33 and 198 fully reopen.", "source": "nys-aar" },
+    { "at": "2022-12-29T00:01:00-05:00", "kind": "end", "what": "City of Buffalo driving ban lifted.", "source": "wkbw" }
+  ],
+  "conflicts": [
+    "City deaths: 35 in Buffalo and 11 in the suburbs (WIVB, from the Erie County medical examiner) against 31 within the city (NYU Wagner).",
+    "Thruway closure: 14:00 in the NYU timeline; 13:48 in other reports we did not verify."
+  ]
+}
