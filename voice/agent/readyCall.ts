@@ -555,8 +555,11 @@ const care: Handler = (call, heard) => {
 
 const exitPlan: Handler = (call) => (call.answers.exitPlan ? { step: call.afterExitPlan() } : call.retryOr("note"));
 
-// Giving the name first and the number next is progress, not a failed try.
+// Giving the name first and the number next is progress, not a failed try. "Nobody will pick me
+// up" changes the plan away from a helper, which counted as progress too: a real caller said
+// "nobody" three times and heard the helper question four.
 const helper: Handler = (call) => {
+  if (call.answers.exitPlan !== "helper") return { step: call.afterExitPlan() };
   if (call.answers.helperPhone) return { step: "confirm_phone" };
   if (call.changed) return { step: "helper", progress: true };
   return call.retryOr("note");
