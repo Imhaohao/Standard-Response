@@ -9,6 +9,7 @@ import { canDrive, fitsInACar } from "./neighborRules";
 import { syncRequest } from "./requests";
 import { pickupFailure, pickupPurpose, pickupRole, pickupStatus } from "./schema";
 import { simNow } from "./clock";
+import { scheduleReimbursement } from "./reimburse";
 
 // The pickup check. When a warning covers a household with a helper on file, or tonight's calls
 // pair a home that can't get out with a neighbor who has a car, both sides confirm the pickup:
@@ -110,6 +111,8 @@ async function markDone(ctx: MutationCtx, plan: Plan) {
   // A neighbor's pickup leaves a ride request open behind it; nobody needs that van now.
   await syncRequest(ctx, plan.householdId);
   await logPickup(ctx, plan, `${plan.helperName} picked up ${await placeOf(ctx, plan)}`);
+  // The resident confirmed the volunteer picked them up: their mileage is paid (convex/reimburse.ts).
+  await scheduleReimbursement(ctx, plan);
 }
 
 // The warning reached these homes: start asking their helpers, the ones they named and the neighbors

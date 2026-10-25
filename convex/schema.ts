@@ -219,7 +219,18 @@ export const residentNotice = v.literal("helper_cancelled");
 
 export const point = v.object({ lat: v.number(), lng: v.number() });
 
-export const rideParty = v.union(v.literal("patient"), v.literal("companions"));
+// A volunteer's mileage payment (convex/reimburse.ts). `sending` means an attempt holds it right now;
+// `nothing_owed` is a ride with no distance on file.
+export const reimbursementStatus = v.union(
+  v.literal("pending"),
+  v.literal("sending"),
+  v.literal("paid"),
+  v.literal("failed"),
+  v.literal("not_configured"),
+  v.literal("nothing_owed"),
+);
+
+export const rideParty =v.union(v.literal("patient"), v.literal("companions"));
 
 export const load = v.object({
   seats: v.number(),
@@ -797,4 +808,41 @@ export default defineSchema({
     uploads: v.number(),
     refused: v.number(),
   }).index("by_campaign", ["campaign"]),
+
+  // Capital One Nessie add-on (convex/reimburse.ts). Mileage paid to a volunteer driver for a pickup
+  // the resident confirmed. One row per ride, ever: `rideKey` is the resident's household and the
+  // volunteer, so a rewound night that replays the same pickup is not paid again. Kept on rewind and
+  // reset. `postedAt` is set before a transfer is sent, so a retry looks the transfer up in Nessie
+  // before it sends another.
+  reimbursements: defineTable({
+    rideKey: v.string(),
+    planId: v.id("pickupPlans"),
+    householdId: v.id("households"),
+    volunteerKey: v.string(),
+    volunteerFirstName: v.string(),
+    miles: v.number(),
+    distanceSource: v.union(v.literal("road"), v.literal("straight_line")),
+    ratePerMile: v.number(),
+    amountCents: v.number(),
+    status: reimbursementStatus,
+    attempts: v.number(),
+    claimedAt: v.optional(v.number()),
+    postedAt: v.optional(v.number()),
+    nessieTransferId: v.optional(v.string()),
+    nessieStatus: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    paidAt: v.optional(v.number()),
+  })
+    .index("by_rideKey", ["rideKey"])
+    .index("by_status", ["status"]),
+
+  // The volunteer's Nessie sandbox ids, made the first time they're paid. Only the ids: no bank
+  // numbers. `volunteerKey` is the digits of their phone.
+  volunteerAccounts: defineTable({
+    volunteerKey: v.string(),
+    nessieCustomerId: v.optional(v.string()),
+    nessieAccountId: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_volunteerKey", ["volunteerKey"]),
 });
