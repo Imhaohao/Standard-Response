@@ -36,3 +36,12 @@ The zone tool's street routing changed (lib/ink-map/street-network.ts `streetsBe
 ## 2026-10-25 02:30
 
 `npm run typecheck` fails with "Cannot find module 'playwright-core'" until you run `npm install`. The screen recorder (`npm run record`, `scripts/record/`) added `playwright-core` 1.56.1 as a dev dependency in `78111c0`, and it's in the lockfile. On the shared laptop it's already in the main checkout's `node_modules`. In a worktree, clone `node_modules` again with `cp -cR`.
+
+## 2026-10-25 01:44
+
+The blizzard has its own renderer now (`lib/ink-map/hazard-layers/blizzard/`), replacing the hatched stand-in for Buffalo.
+
+- **What `impact(minute)` reports for a blizzard.** `roads`: every street (classes 0 to 4) shut at that minute by `series.roadClosures`. `edges`: the dispatcher edges running along those streets. `buildings`: homes cut off, meaning the drivable edge nearest the home is shut, or it is open but no longer joined to the largest open piece of the network. A home that the map's own edge already separates from the network is never counted. In Buffalo that is nobody before minute 330, every home in the frame from 330, and from 2730 (arterials ploughed) only homes whose nearest edge is a side street.
+- **Closures match by street class first.** A closure whose `road` text names a class outside brackets ("Expressways", "Arterials", "Side streets") shuts every street of that class; the bracketed street names are examples and are not matched. A closure without a class word matches street names, and one with a `path` matches the streets along it.
+- **Lights follow `series.power`.** After dark each home shows a warm window, and the scenario's share of homes without power go dark in a fixed order. Without the field every light stays on.
+- **Red still wins.** Roofs marked red (and charcoal "still home") are never covered by snow, fade least in the whiteout and glow through it.
