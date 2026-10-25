@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { approvedAnswerDocuments } from "./answerLookup";
-import { APPROVED_ANSWER_IDS, APPROVED_ANSWERS, ApprovedMatch, mayGetApprovedAnswer, withApprovedAnswer } from "./approvedAnswers";
+import { APPROVED_ANSWER_IDS, APPROVED_ANSWERS, ApprovedAnswerId, ApprovedMatch, mayGetApprovedAnswer, withApprovedAnswer } from "./approvedAnswers";
 import { guardAcknowledgment } from "./honesty";
 import type { Interpretation } from "./interpreter";
 
@@ -82,34 +82,53 @@ describe("approved answers", () => {
   });
 
   // Questions the unsafe advice set heard answered from the bank (notes/DtoB.md, Oct 24 18:25),
-  // as Claude restates them, plus going back for a neighbor (Palo Alto Station 6).
-  const UNSAFE = [
-    "Can I go back in for my cat?",
-    "Can I go back inside for my dog?",
-    "Should I run back in for my pills?",
-    "Should I go get Susan down the road?",
-    "Should I turn my oxygen up higher because of the smoke?",
-    "Should I turn up my oxygen?",
-    "Can I use more oxygen?",
-    "Should I just stay here and wait for you to come?",
-    "Should I stay home?",
-    "Should I wait inside?",
-    "How many heart pills should I take?",
-    "Should I take an extra dose of my insulin?",
-    "Can I return for my wheelchair?",
+  // as Claude restates them, plus going back for a neighbor (Palo Alto Station 6), and the safety
+  // answer each may get. Staying or waiting gets none: the ride status line answers it.
+  const UNSAFE: [string, ApprovedAnswerId[]][] = [
+    ["Can I go back in for my cat?", ["go_back_inside", "go_get_someone"]],
+    ["Can I go back inside for my dog?", ["go_back_inside", "go_get_someone"]],
+    ["Should I run back in for my pills?", ["go_back_inside", "go_get_someone"]],
+    ["Should I go get Susan down the road?", ["go_back_inside", "go_get_someone"]],
+    ["Can I return for my wheelchair?", ["go_back_inside", "go_get_someone"]],
+    ["Should I turn my oxygen up higher because of the smoke?", ["medical_change"]],
+    ["Should I turn up my oxygen?", ["medical_change"]],
+    ["Can I use more oxygen?", ["medical_change"]],
+    ["How many heart pills should I take?", ["medical_change"]],
+    ["Should I take an extra dose of my insulin?", ["medical_change"]],
+    ["Should I just stay here and wait for you to come?", []],
+    ["Should I stay home?", []],
+    ["Should I wait inside?", []],
+    ["Should I wait here, or go back for her?", []],
   ];
 
-  it("never answer going back, staying, waiting or changing a dose from the bank", () => {
-    for (const question of UNSAFE) {
-      assert.equal(mayGetApprovedAnswer(question), false, question);
-      const turn = heard({ policyQuestion: question, reply: "I don't know that." });
-      assert.equal(withApprovedAnswer(turn, { ...DOG, score: 0.99 }), turn, question);
+  it("answer going back or changing a dose only with its safety answer, and staying with nothing", () => {
+    for (const [question, allowed] of UNSAFE) {
+      for (const id of APPROVED_ANSWER_IDS) assert.equal(mayGetApprovedAnswer(question, id), allowed.includes(id), `${question} -> ${id}`);
+      const turn = heard({ policyQuestion: question, reply: "Stay where you are until help reaches you." });
+      const answered = withApprovedAnswer(turn, { ...DOG, score: 0.99 });
+      assert.equal(answered.approvedAnswer, undefined, question);
+      assert.equal(answered.reply, "", `${question}: Claude's own words on a dangerous question are never said`);
     }
   });
 
-  it("still answer every phrasing the bank was built from", () => {
+  it("say nothing of Claude's own on a dangerous question when Moss has no answer", () => {
+    const turn = heard({ policyQuestion: "Should I go get my neighbor?", spokenLanguage: "es", reply: "Anotamos a su vecina, pero no vaya a buscarla todavía." });
+    assert.equal(withApprovedAnswer(turn, null).reply, "");
+  });
+
+  it("speak the safety answer when Moss matches it", () => {
+    const turn = withApprovedAnswer(heard({ policyQuestion: "Can I go back in for my cat?", reply: "I don't know that." }), { id: "go_back_inside", score: 0.88, lookupMs: 2 });
+    assert.equal(turn.reply, APPROVED_ANSWERS.go_back_inside.answer.en);
+  });
+
+  it("never give a safety answer to an ordinary question, which keeps Claude's \"I don't know that.\"", () => {
+    const turn = heard({ policyQuestion: "Can I bring my cat?", reply: "I don't know that." });
+    assert.equal(withApprovedAnswer(turn, { id: "go_back_inside", score: 0.99, lookupMs: 2 }), turn);
+  });
+
+  it("still answer every phrasing the bank was built from with its own answer", () => {
     for (const id of APPROVED_ANSWER_IDS) {
-      for (const question of APPROVED_ANSWERS[id].questions) assert.equal(mayGetApprovedAnswer(question), true, question);
+      for (const question of APPROVED_ANSWERS[id].questions) assert.equal(mayGetApprovedAnswer(question, id), true, `${question} -> ${id}`);
     }
   });
 });
