@@ -6,8 +6,8 @@ import { impactAt, NO_IMPACT, type ArrivalIndex } from "../arrival";
 import type { FullscreenPass, HazardFrame, HazardLayer, HazardLayerContext } from "../types";
 import { MAX_BREACHES, MAX_WAVES, waterFragment } from "./glsl";
 import { waterIndex } from "./impact";
-import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type WaterKind, type WaterModel } from "./model";
-import { shoreBytes, shoreFor, type ShoreGrid } from "./shore";
+import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type OpenBreach, type WaterKind, type WaterModel } from "./model";
+import { cellCentre, shoreBytes, shoreFor, type ShoreGrid } from "./shore";
 import { waterField } from "./source";
 
 // The flood, the surge and the tsunami share this layer; each kind's shader (glsl.ts) draws its own
@@ -35,6 +35,30 @@ function arrivalTextureFrom(field: FireField, offset: number): ArrivalTexture {
   texture.needsUpdate = true;
   const { x0, y0, x1, y1 } = field.region;
   return { texture, region: new THREE.Vector4(x0, y0, x1, y1), last: field.fronts[field.fronts.length - 1]?.minutes ?? 0, offset };
+}
+
+const JET_LOOK_METERS = 600;
+const JET_LOOK_MINUTES = 120;
+
+// The way one breach's water went: from the gap toward the middle of the ground near it that the water
+// reached in its first two hours, so the jet fans into the ward and never back over the canal.
+function breachAxis(field: FireField, breach: OpenBreach): Point {
+  const sum = [0, 0];
+  field.minutes.forEach((minutes, index) => {
+    if (minutes < breach.opensAt - 1 || minutes > breach.opensAt + JET_LOOK_MINUTES) return;
+    const [x, y] = cellCentre(field, index);
+    if (Math.hypot(x - breach.at[0], y - breach.at[1]) > JET_LOOK_METERS) return;
+    sum[0] += x - breach.at[0];
+    sum[1] += y - breach.at[1];
+  });
+  const length = Math.hypot(sum[0], sum[1]);
+  return length > 0 ? [sum[0] / length, sum[1] / length] : [0, 0];
+}
+
+function breachAxes(model: WaterModel, field: FireField) {
+  const flat = (model.still?.breaches ?? []).slice(0, MAX_BREACHES).flatMap((breach) => breachAxis(field, breach));
+  const [ax = 0, ay = 0, bx = 0, by = 0] = flat;
+  return new THREE.Vector4(ax, ay, bx, by);
 }
 
 const RAIN_FALL_METERS_PER_SECOND = 9;
@@ -117,6 +141,7 @@ export class WaterLayer implements HazardLayer {
       uStanding: { value: 0 },
       uRising: { value: 0 },
       uBreaches: { value: Array.from({ length: MAX_BREACHES }, () => new THREE.Vector4(0, 0, CLOSED_BREACH, 1)) },
+      uBreachAxes: { value: this.field ? breachAxes(this.model, this.field) : new THREE.Vector4() },
       uWind: { value: new THREE.Vector4() },
       uSwellToward: { value: new THREE.Vector2(0, 1) },
       uRain: { value: new THREE.Vector3(0, -1, 0) },

@@ -45,7 +45,7 @@ export const ROAD_CLOSED_DEPTH = 0.3;
 export const BUILDING_FLOODED_DEPTH = 0.5;
 
 // How far from a breach the water surface still slopes down from the canal's level to the basin's.
-const POUR_EXTRA_METERS = 180;
+const POUR_EXTRA_METERS = 120;
 
 export function basinLevel(model: WaterModel, minutes: number) {
   return (model.still ? levelOf(model.still.basin, minutes) : 0) + model.shift;
@@ -60,7 +60,7 @@ export function breachSourceLevel(still: StillWater, breach: OpenBreach, minutes
   return gauge ? levelOf(gauge.level, minutes) : levelOf(still.basin, minutes);
 }
 
-export const pourReach = (breach: OpenBreach) => breach.width * 2 + POUR_EXTRA_METERS;
+export const pourReach = (breach: OpenBreach) => breach.width * 1.2 + POUR_EXTRA_METERS;
 
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));

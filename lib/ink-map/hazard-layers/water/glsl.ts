@@ -41,6 +41,7 @@ uniform float uBasin;
 uniform float uStanding;
 uniform float uRising;
 uniform vec4 uBreaches[${MAX_BREACHES}];
+uniform vec4 uBreachAxes;
 uniform vec4 uWaves[${MAX_WAVES}];
 uniform float uWaveCount;
 uniform vec4 uTrain;
@@ -118,7 +119,7 @@ float bedAt(vec2 xy, vec2 shore) {
   float ground = groundElevation(xy);
   float shelf = REST_LEVEL - min(${SHELF.shore} + max(shore.y, 0.0) * ${SHELF.slope}, ${SHELF.deepest.toFixed(1)});
   float drawnFlat = step(REST_LEVEL - 0.1, ground);
-  return mix(ground, min(ground, shelf), smoothstep(0.35, 0.65, shore.x) * drawnFlat);
+  return mix(ground, min(ground, shelf), smoothstep(-12.0, 12.0, shore.y) * drawnFlat);
 }
 
 float buildingRed(vec2 uv) {
@@ -171,7 +172,7 @@ float swellLength(vec2 xy) {
 
 float swellPhase(vec2 xy) {
   float wavelength = max(46.0, px(26.0));
-  float warp = (valueNoise(xy / (wavelength * 3.1)) - 0.5) * 1.6 + (valueNoise(xy / (wavelength * 0.8) + 11.0) - 0.5) * 0.3;
+  float warp = (valueNoise(xy / (wavelength * 4.3)) - 0.5) * 2.6 + (valueNoise(xy / (wavelength * 1.3) + 11.0) - 0.5) * 0.6;
   return dot(xy, uSwellToward) / wavelength - uTime * px(18.0) / wavelength + warp;
 }
 
@@ -269,7 +270,15 @@ Water waterAt(vec2 uv) {
   vec3 p = worldPosition(uv, depth);
   vec2 xy = vec2(p.x, -p.z);
   vec2 shore = shoreAt(xy);
-  float standing = smoothstep(0.35, 0.65, shore.x);
+  // The edge of standing water comes from the distance field, which interpolates to a smooth shoreline,
+  // never from the mask's grid cells. Along a coast, low ground just inland is sea too whenever the level
+  // stands over it, so a beach goes under with the surge pixel by pixel; a levee's ward never does.
+  float standing = smoothstep(-12.0, 12.0, shore.y);
+#ifdef FLOOD
+  float seaward = standing;
+#else
+  float seaward = smoothstep(-60.0, -20.0, shore.y);
+#endif
   float level = levelAt(xy, standing, uMinutes);
   float surfaceCode = surfaceAt(uv);
   float ground = isGround(surfaceCode) ? 1.0 : 0.0;
@@ -287,7 +296,7 @@ Water waterAt(vec2 uv) {
   water.reachable = 1.0 - step(NEVER * 0.5, arrival);
   float reachedLand = aaStep(uMinutes - arrival) * water.reachable;
   float under = aaStep(water.gap);
-  water.cover = under * max(standing, reachedLand);
+  water.cover = under * max(seaward, reachedLand);
   water.column = level - bedAt(water.at, shoreAt(water.at));
   water.since = mix(mix(-NEVER, uMinutes - arrival, water.reachable), NEVER, standing);
   water.sheen = (1.0 - under) * reachedLand * (1.0 - standing) * ground;
@@ -479,13 +488,13 @@ vec4 breachJet(vec2 xy) {
     if (breach.z <= uBasin) continue;
     vec2 d = xy - breach.xy;
     float r = length(d);
-    float near = 1.0 - smoothstep(0.0, breach.w * 1.8, r);
+    vec2 axis = i == 0 ? uBreachAxes.xy : uBreachAxes.zw;
+    if (length(axis) < 0.5) continue;
+    float near = 1.0 - smoothstep(0.0, breach.w * 1.2, r);
     float head = clamp((breach.z - uBasin) / 1.5, 0.0, 1.0);
     if (near * head <= strongest) continue;
     strongest = near * head;
-    vec2 outward = r > 0.01 ? d / r : vec2(0.0, 1.0);
-    vec2 axis = towardShore(breach.xy);
-    axis = length(axis) > 0.5 ? axis : outward;
+    vec2 outward = r > 0.01 ? d / r : axis;
     best = vec4(r, atan(axis.x * outward.y - axis.y * outward.x, dot(axis, outward)), near, head);
   }
   return best;
@@ -537,7 +546,7 @@ vec4 printWater(vec4 ink, Water plate, Water key, vec2 uv) {
   vec3 town = texture(tBase, uv).rgb;
   float hidden = mix(smoothstep(0.8, 4.5, key.path) * 0.85, 1.0, key.standing);
   vec3 printed = mix(wash, town * 0.9 * (wash / uPaper), strongInk(town) * (1.0 - hidden));
-  ink = over(ink, printed, plate.cover * pigment() * mix(1.0, 0.35, red));
+  ink = over(ink, printed, plate.cover * mix(pigment(), 1.0, plate.standing) * mix(1.0, 0.35, red));
   float coverage = (0.02 + 0.12 * smoothstep(1.0, 6.0, plate.column)) * (1.0 - plate.standing);
   ink = over(ink, mix(uIndigo, uInk, 0.35), dotTone(coverage) * plate.cover * 0.35 * mix(1.0, 0.3, red));
   return ink;
@@ -563,10 +572,10 @@ vec4 printWetGround(vec4 ink, Water key, vec2 uv) {
 vec4 printBaredBed(vec4 ink, Water key) {
   float density = 0.08 + 0.2 * valueNoise(key.at / 40.0);
   float stipple = step(1.0 - density, hash12(floor(gPattern / (2.2 * uPixelRatio))));
-  float pools = smoothstep(0.6, 0.66, valueNoise(key.at / 22.0) * 0.8 + valueNoise(key.at / 7.0) * 0.25);
+  float pools = smoothstep(0.74, 0.8, valueNoise(key.at / 9.0) * 0.75 + valueNoise(key.at / 3.0) * 0.25);
   ink = over(ink, mix(uPaper, uInk, 0.3), key.bared * 0.3);
   ink = over(ink, uInk, key.bared * stipple * 0.45);
-  ink = over(ink, mix(uPaper, uIndigo, 0.4), key.bared * pools * 0.75);
+  ink = over(ink, mix(uPaper, uIndigo, 0.35), key.bared * pools * 0.6);
   return ink;
 }
 
@@ -597,35 +606,33 @@ vec4 printCurrent(vec4 ink, Water key, vec4 flow, float density, float reach, fl
 `;
 
 const FLOOD_MARKS = `
-// The jet through a breach: deep water rushing out of the gap, white water at the gap itself, and foam
-// streaks fanning out along the flow, racing outward and thinning as the jet spreads.
+// The jet through a breach: thin foam streaks fanning out of the gap along the flow, racing outward,
+// fewer and fainter with distance until they are gone a few hundred metres in.
 vec4 printJet(vec4 ink, Water key) {
   vec4 jet = breachJet(key.at);
   float pour = jet.z * jet.w;
-  float fan = 1.0 - smoothstep(0.7, 1.4, abs(jet.y));
-  vec2 q = vec2(jet.y * 14.0, jet.x / max(60.0, px(20.0)) - uTime * 0.9);
-  float streaks = valueNoise(q) * 0.65 + valueNoise(q * vec2(2.7, 1.9) + 4.1) * 0.35;
-  float foam = (streaks - 0.8 + 0.42 * pour) * fan * step(0.001, pour);
-  float core = smoothstep(0.86, 0.94, jet.z) * step(0.001, jet.w);
-  float wet = max(key.cover, key.standing);
-  ink = over(ink, mix(uIndigo, uInk, 0.55), pour * fan * wet * 0.35);
-  return over(ink, uPaper * 1.02, max(filled(foam * 40.0), core) * wet * 0.95);
+  float fan = 1.0 - smoothstep(0.45, 1.1, abs(jet.y));
+  vec2 q = vec2(jet.y * 46.0, jet.x / max(110.0, px(40.0)) - uTime * 0.7);
+  float ridge = 1.0 - abs(valueNoise(q) * 2.0 - 1.0);
+  float broken = smoothstep(0.35, 0.6, valueNoise(q * vec2(0.5, 3.0) + 7.7));
+  float streak = smoothstep(0.9 - 0.12 * pour, 0.97, ridge) * broken * fan * pour;
+  return over(ink, uPaper * 1.02, streak * key.cover * 0.9);
 }
 
 vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   vec4 flow = flowAt(key);
   ink = printCurrent(ink, key, flow, 0.06 + 0.3 * flow.z * flow.z, 1.3 - 0.5 * flow.z, 0.0);
   float atTheEdge = (1.0 - smoothstep(0.0, 25.0, key.since)) * step(0.0, key.since);
-  ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.12 * atTheEdge, 6.0) * key.cover * (1.0 - key.standing));
+  float roomy = 1.0 - smoothstep(1.0, 2.2, uViewMpp);
+  ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.06 * atTheEdge, 6.0) * key.cover * (1.0 - key.standing) * roomy);
   ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * 0.45);
   ink = printJet(ink, key);
 
-  float width = max(5.0, px(2.5));
+  float lip = max(3.0, px(2.2)) * (0.7 + 0.6 * valueNoise(key.at / 40.0));
   float behind = key.since * flow.w;
   float moving = (1.0 - smoothstep(uArrivalLast - 2.0, uArrivalLast + 8.0, uMinutes)) * step(1.0, flow.w) * key.reachable;
-  Breaker edge = breaker(key.at, behind, dot(key.at, vec2(-flow.y, flow.x)), width, 3.0);
-  float nearWater = step(-0.4, key.level - groundElevation(key.at));
-  return printFoam(ink, mix(-width * 4.0, edge.foam, moving), nearWater * max(key.cover, moving));
+  float band = min(behind, lip - behind);
+  return over(ink, uPaper * 1.02, filled(band) * moving * key.cover * 0.9);
 }
 `;
 
@@ -650,7 +657,8 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   Breaker lead = breaker(key.at, -ahead, along, widthAhead, crestAhead);
   Breaker trail = breaker(key.at, behind, along, widthBehind, crestAhead + 1.0);
   float foam = max(lead.foam - (1.0 - present) * wavelength, trail.foam - (1.0 - presentNext) * wavelength);
-  ink = over(ink, mix(uIndigo, uInk, 0.45), lead.face * present * key.cover * 0.3);
+  float faceRun = smoothstep(0.45, 0.65, valueNoise(vec2(along / (wavelength * 0.7), crestAhead * 3.1 + 0.5)));
+  ink = over(ink, mix(uIndigo, uInk, 0.45), lead.face * present * faceRun * key.cover * (0.12 + 0.14 * hash12(vec2(crestAhead, 9.0))));
   vec2 blown = normalize(toward + uWind.xy * 0.5 + 1e-4);
   ink = over(ink, uPaper, spray(key.at, blown, 0.3 * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.35, ahead)), crestAhead) * key.cover * 0.9);
 
@@ -714,11 +722,12 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   ink = over(ink, uPaper, spray(key.at, travel, (thrown + trailing) * height, crest.y) * arriving * wet);
 
   // Water still running over the land tears into foam that streams with it.
-  float scale = max(10.0, px(6.0));
+  float scale = max(5.0, px(3.0));
   float running = fast * (1.0 - key.standing) * key.cover;
-  float torn = (fbm(key.at / scale - flow.xy * uTime * 0.6) - 0.6) * scale * 1.5;
-  float foam = max(bore.foam - (1.0 - arriving) * width * 6.0, mix(-scale * 4.0, torn, running));
-  return printFoam(ink, foam, max(wet * height, running));
+  vec2 q = key.at / scale - flow.xy * uTime * 0.6;
+  float torn = (valueNoise(q * vec2(1.0, 0.45)) * 0.7 + valueNoise(q * 2.3 + 3.1) * 0.3 - 0.74) * scale;
+  ink = over(ink, uPaper * 1.02, filled(torn) * running * 0.85);
+  return printFoam(ink, bore.foam - (1.0 - arriving) * width * 6.0, wet * height);
 }
 `;
 
