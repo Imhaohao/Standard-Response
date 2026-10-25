@@ -25,6 +25,7 @@ import { handleTurn } from "./textAgent";
 //   WS   /media            Twilio Media Streams audio for every call
 //   POST /turn             the same agent over text, for Track D's persona eval
 //   GET  /health
+//   GET  /live             how many calls this server is holding, so a deploy can wait for them
 
 const MACHINE = /^machine_end|^fax/;
 
@@ -82,6 +83,7 @@ async function turn(req: http.IncomingMessage, res: http.ServerResponse) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   if (req.method === "GET" && url.pathname === "/health") return send(res, 200, "ok");
+  if (req.method === "GET" && url.pathname === "/live") return send(res, 200, JSON.stringify({ calls: liveByCallSid.size }), "application/json");
   if (req.method === "POST" && url.pathname === "/turn") return void turn(req, res);
   if (req.method === "POST" && url.pathname.startsWith("/twilio/")) return void twilioWebhook(req, res, url);
   send(res, 404, "not found");

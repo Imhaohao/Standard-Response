@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p convex && tsc --noEmit -p tests",
     "dev:voice": "tsx watch --env-file=.env.local voice/server.ts",
     "voice": "tsx voice/server.ts",
+    "predeploy:voice": "tsx --env-file=.env.local scripts/voice/deploy-guard.ts",
     "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
     "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts",
     "test:prepare": "tsx --test lib/prepare/*.test.ts",
