@@ -4,6 +4,7 @@ import workflowTest from "@convex-dev/workflow/test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { HOUSEHOLD_BATCH } from "../../convex/nightRuns";
 import schema from "../../convex/schema";
 import { registerHouseholdCounts } from "./householdCounts";
 
@@ -222,6 +223,79 @@ describe("night runs", () => {
     await t.mutation(api.control.issueWarning, {});
     const queued = await t.query(api.voice.dialQueue, { limit: 10 });
     expect(queued.map((row) => row._id)).toContain(resident);
+  });
+
+  test("a town that takes two save steps still finishes the rewind", async () => {
+    const t = setup();
+    const { resident } = await signUp(t);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < HOUSEHOLD_BATCH; i += 1) {
+        await ctx.db.insert("households", {
+          address: `${1000 + i} Palm St`,
+          lat: 34.19,
+          lng: -118.15,
+          callbackNumber: `+15551${String(i).padStart(6, "0")}`,
+          language: "en",
+          callStatus: "not_called",
+          outcome: "unknown",
+          inZone: true,
+          attempts: 0,
+          needPrior: 0.5,
+          needProbability: 0.5,
+          fireArrivalAt: 1,
+          callPriority: 1,
+          simulated: true,
+        });
+      }
+    });
+    await t.mutation(api.control.issueWarning, {});
+    await rewind(t);
+    expect(await count(t, "households")).toBe(HOUSEHOLD_BATCH + 2);
+    expect(await count(t, "calls")).toBe(0);
+    const control = await t.run(async (ctx) => ctx.db.query("control").first());
+    expect(control?.archivingRunId).toBeUndefined();
+    const [run] = await runs(t);
+    expect(run).toMatchObject({ status: "archived", endedBy: "rewind" });
+    expect(await saved(t, run._id, "households")).toHaveLength(HOUSEHOLD_BATCH + 2);
+    expect((await home(t, resident))?.ready?.exitPlan).toBe("helper");
+  });
+
+  test("a save that died is started again when the Ready check is asked to run", async () => {
+    const t = setup();
+    const { resident } = await signUp(t);
+    const before = await home(t, resident);
+    await runTheNight(t, resident);
+    await t.run(async (ctx) => {
+      const control = (await ctx.db.query("control").first())!;
+      const run = (await ctx.db.query("nightRuns").withIndex("by_status", (q) => q.eq("status", "current")).first())!;
+      await ctx.db.patch("nightRuns", run._id, {
+        status: "archiving",
+        endedAt: Date.now() - 120_000,
+        endedBy: "rewind",
+        rewindTo: "start",
+        warningIssuedAt: control.warningIssuedAt,
+        hazard: control.hazard,
+      });
+      await ctx.db.patch("control", control._id, {
+        archivingRunId: run._id,
+        warningIssuedAt: undefined,
+        dialerRunning: false,
+        readyCheckRunning: false,
+        tickGeneration: control.tickGeneration + 1,
+        readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1,
+      });
+    });
+
+    expect(await t.mutation(api.ready.start, {})).toBeNull();
+    expect((await t.run(async (ctx) => ctx.db.query("control").first()))?.readyCheckRunning).toBeFalsy();
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await home(t, resident)).toEqual(before);
+    expect(await count(t, "calls")).toBe(0);
+    const control = await t.run(async (ctx) => ctx.db.query("control").first());
+    expect(control?.archivingRunId).toBeUndefined();
+    await t.mutation(api.ready.start, {});
+    expect((await t.run(async (ctx) => ctx.db.query("control").first()))?.readyCheckRunning).toBe(true);
   });
 
   test("a rewind waits for a real call to finish", async () => {

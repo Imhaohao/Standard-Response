@@ -790,6 +790,13 @@ export default defineSchema({
     endedBy: v.optional(v.union(v.literal("rewind"), v.literal("reset"))),
     // How many `end` rows the run kept.
     savedRows: v.optional(v.number()),
+    // Where a rewind is putting homes back. A reset leaves this unset.
+    rewindTo: v.optional(v.union(v.literal("start"), v.literal("warning"))),
+    // The copy's place, so a step that died can run again from here instead of from the top.
+    archiveStage: v.optional(v.union(v.literal("homes"), v.literal("tables"), v.literal("restore"))),
+    archiveCursor: v.optional(v.string()),
+    archiveSavedRows: v.optional(v.number()),
+    archiveTouchedAt: v.optional(v.number()),
   }).index("by_status", ["status"]),
 
   // One saved document. `doc` is the row without its system fields, which are `docId` and `createdAt`.

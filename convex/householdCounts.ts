@@ -32,16 +32,22 @@ const byCallStatus = new TableAggregate<Counted<CallStatus>>(components.househol
   sortKey: () => null,
 });
 
+async function syncCount(ctx: MutationCtx, aggregate: TableAggregate<Counted<string>>, oldDoc: Doc<"households"> | null, newDoc: Doc<"households"> | null) {
+  if (oldDoc && newDoc) await aggregate.replaceOrInsert(ctx, oldDoc, newDoc, QUEUED);
+  else if (newDoc) await aggregate.insertIfDoesNotExist(ctx, newDoc, QUEUED);
+  else if (oldDoc) await aggregate.deleteIfExists(ctx, oldDoc, QUEUED);
+}
+
 // Registered as the households trigger in functions.ts. Most household writes touch estimates or
-// the record, not these two fields, so they never reach the aggregates.
+// the record, not these two fields, so they never reach the aggregates. A write that changes only
+// one of them leaves the other aggregate alone: each queued update rereads the queue entry.
 export async function syncHouseholdCounts(ctx: MutationCtx, change: Change<DataModel, "households">) {
   const { oldDoc, newDoc } = change;
-  if (oldDoc && newDoc && oldDoc.outcome === newDoc.outcome && oldDoc.callStatus === newDoc.callStatus) return;
-  for (const aggregate of [byOutcome, byCallStatus] as TableAggregate<Counted<string>>[]) {
-    if (oldDoc && newDoc) await aggregate.replaceOrInsert(ctx, oldDoc, newDoc, QUEUED);
-    else if (newDoc) await aggregate.insertIfDoesNotExist(ctx, newDoc, QUEUED);
-    else if (oldDoc) await aggregate.deleteIfExists(ctx, oldDoc, QUEUED);
-  }
+  const outcomeSame = Boolean(oldDoc && newDoc && oldDoc.outcome === newDoc.outcome);
+  const statusSame = Boolean(oldDoc && newDoc && oldDoc.callStatus === newDoc.callStatus);
+  if (outcomeSame && statusSame) return;
+  if (!outcomeSame) await syncCount(ctx, byOutcome as TableAggregate<Counted<string>>, oldDoc, newDoc);
+  if (!statusSame) await syncCount(ctx, byCallStatus as TableAggregate<Counted<string>>, oldDoc, newDoc);
 }
 
 export async function countHouseholds(ctx: QueryCtx) {

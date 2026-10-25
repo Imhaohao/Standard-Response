@@ -201,3 +201,12 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 ## 2026-10-25 02:06
 
 **Voice: four more fixes from the voice exam.** (1) An address is kept only when its street name was said on the call or is on record: Claude wrote "3426 Catherine Road" for "send someone to my mom's house" (`streetWasSaid` in conversation.ts). (2) The honesty guard drops Claude's lines that read as another reviewed language (English on a Spanish call), "while you wait", and claims about where the fire is; the language markers moved from askLine.ts to `voice/agent/languageMarkers.ts`. (3) On hold, a caller who raised flames at the home and then pleads or asks about the ride hears the approved `trapped_by_fire` steps once after the status (`bankText` is now exported from approvedAnswers.ts). (4) No contract change.
+
+## 2026-10-25 03:17
+
+**A rewind that puts every home back in one step no longer sticks the Ready check.** Restoring a home queues a household-count update, and each update rereads that transaction's queue entry, so the bytes grow with the square of the home count. On the dev deployment a rewind of 200 homes crossed Convex's 16 MB read limit, the copy rolled back, and `control.archivingRunId` stayed set. `ready:start` then threw "The last night is still being saved."
+
+- Homes are copied 40 at a time. A reset deletes them in the same size. A count update is queued only for the aggregate whose value changed.
+- `nightRuns` gains optional `rewindTo`, `archiveStage`, `archiveCursor`, `archiveSavedRows` and `archiveTouchedAt`. Nothing else reads them. They record where the copy is, so a dead one starts again from there.
+- `ready:start` and `control:issueWarning` start a dead copy again and return instead of throwing. A throw would undo that restart, and the call floor doesn't catch it. Rewind and reset still refuse while a copy is running.
+- The stuck night on `robust-penguin-834` is saved (7,041 rows) and the homes are back to just before the warning. The Ready check is running again.

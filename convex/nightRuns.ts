@@ -46,6 +46,13 @@ type NightTable = (typeof NIGHT_TABLES)[number] | (typeof SETUP_TABLES)[number];
 
 // One run may read 4,096 rows in total, and each row saved is a read, a write and a delete.
 const BATCH = 500;
+// Putting a home back changes its outcome and call status, and each of those queues a count update.
+// The queue entry is reread on every update, so the bytes add up with the square of the home count.
+// Two hundred homes in one transaction crossed Convex's 16 MB read limit and the save died there.
+// Forty stays near a megabyte. Exported so the test can build a town that takes two steps.
+export const HOUSEHOLD_BATCH = 40;
+// A save step schedules the next one. If that chain stops, the next Ready check or warning starts it again.
+const ARCHIVE_STALE_MS = 45_000;
 
 function saved(runId: Id<"nightRuns">, kind: Kind, table: TableNames, row: { _id: string; _creationTime: number }) {
   const { _id, _creationTime, ...doc } = row;
@@ -99,10 +106,21 @@ async function nothingToSave(ctx: MutationCtx) {
 export async function archiveNight(ctx: MutationCtx, control: Doc<"control">, mode: Mode, to: Checkpoint = "start") {
   const run = await currentRun(ctx);
   if (!run && (await nothingToSave(ctx))) return undefined;
-  const ending = { endedAt: Date.now(), warningIssuedAt: control.warningIssuedAt, hazard: control.hazard, status: "archiving" as const, endedBy: mode };
+  const stage: "homes" | "tables" = mode === "rewind" ? "homes" : "tables";
+  const ending = {
+    endedAt: Date.now(),
+    warningIssuedAt: control.warningIssuedAt,
+    hazard: control.hazard,
+    status: "archiving" as const,
+    endedBy: mode,
+    rewindTo: mode === "rewind" ? to : undefined,
+    archiveStage: stage,
+    archiveSavedRows: 0,
+    archiveTouchedAt: Date.now(),
+  };
   const runId = run ? run._id : await ctx.db.insert("nightRuns", { startedAt: Date.now(), ...ending });
   if (run) await ctx.db.patch("nightRuns", runId, ending);
-  await ctx.scheduler.runAfter(0, internal.nightRuns.archiveStep, { runId, mode, to, stage: mode === "rewind" ? "homes" : "tables", savedRows: 0 });
+  await ctx.scheduler.runAfter(0, internal.nightRuns.archiveStep, { runId, mode, to, stage, savedRows: 0 });
   return runId;
 }
 
@@ -163,35 +181,59 @@ async function checkpointRows(ctx: MutationCtx, runId: Id<"nightRuns">, kind: Ch
   return new Map(rows.map((row) => [row.docId, row.doc as Record<string, unknown>]));
 }
 
+async function savedDocIds(ctx: MutationCtx, runId: Id<"nightRuns">, table: string) {
+  const rows = await ctx.db
+    .query("nightRunRows")
+    .withIndex("by_runId_and_kind_and_table", (q) => q.eq("runId", runId).eq("kind", "end").eq("table", table))
+    .take(1000);
+  return new Set(rows.map((row) => row.docId));
+}
+
 // Rewind: each home is saved as the night left it, then put back as it was at the checkpoint.
+// A page that already has an end row is put back again and not copied twice, so a restarted step is safe.
 async function homesStep(ctx: MutationCtx, runId: Id<"nightRuns">, to: Checkpoint, cursor: string | null) {
-  const page = await ctx.db.query("households").paginate({ numItems: BATCH, cursor });
+  const page = await ctx.db.query("households").paginate({ numItems: HOUSEHOLD_BATCH, cursor });
   const checkpoint = await checkpointRows(ctx, runId, to, "households");
+  const already = await savedDocIds(ctx, runId, "households");
+  let kept = 0;
   for (const home of page.page) {
-    await ctx.db.insert("nightRunRows", saved(runId, "end", "households", home));
+    if (!already.has(home._id)) {
+      await ctx.db.insert("nightRunRows", saved(runId, "end", "households", home));
+      kept += 1;
+    }
     await restoreHome(ctx, home, checkpoint, to);
   }
-  return { done: page.isDone, cursor: page.continueCursor, savedRows: page.page.length };
+  return { done: page.isDone, cursor: page.continueCursor, savedRows: kept };
+}
+
+function tableLimit(table: NightTable, room: number) {
+  return table === "households" ? Math.min(room, HOUSEHOLD_BATCH) : room;
 }
 
 // Saves and clears the night's rows, a batch at a time across tables.
 async function tablesStep(ctx: MutationCtx, runId: Id<"nightRuns">, mode: Mode) {
   const tables: readonly NightTable[] = mode === "reset" ? [...NIGHT_TABLES, ...SETUP_TABLES] : NIGHT_TABLES;
-  let budget = BATCH;
+  let kept = 0;
   for (const table of tables) {
-    const rows = await ctx.db.query(table).take(budget);
+    const room = BATCH - kept;
+    if (room === 0) return { done: false, savedRows: kept };
+    const limit = tableLimit(table, room);
+    const rows = await ctx.db.query(table).take(limit);
     for (const row of rows) {
       await ctx.db.insert("nightRunRows", saved(runId, "end", table, row));
       await ctx.db.delete(table, row._id);
     }
-    budget -= rows.length;
-    if (budget === 0) return { done: false, savedRows: BATCH };
+    kept += rows.length;
+    // A full page may have more behind it. An exact fit costs one extra empty step.
+    if (rows.length === limit && limit > 0) return { done: false, savedRows: kept };
   }
-  return { done: true, savedRows: BATCH - budget };
+  return { done: true, savedRows: kept };
 }
 
 // Rewind: the pickups arranged ahead of time, as they were at the checkpoint.
+// The tables step cleared these first, so any row here means this step already finished.
 async function restorePickups(ctx: MutationCtx, runId: Id<"nightRuns">, to: Checkpoint) {
+  if (await ctx.db.query("pickupPlans").first()) return;
   const checkpoint = await checkpointRows(ctx, runId, to, "pickupPlans");
   for (const plan of checkpoint.values()) {
     const home = await ctx.db.get("households", plan.householdId as Id<"households">);
@@ -224,6 +266,49 @@ async function finish(ctx: MutationCtx, runId: Id<"nightRuns">, savedRows: numbe
 const stage = v.union(v.literal("homes"), v.literal("tables"), v.literal("restore"));
 export const checkpoint = v.union(v.literal("start"), v.literal("warning"));
 
+type ArchivePlace = { stage: "homes" | "tables" | "restore"; cursor?: string | null; savedRows: number };
+
+async function scheduleArchive(ctx: MutationCtx, runId: Id<"nightRuns">, mode: Mode, to: Checkpoint, step: ArchivePlace) {
+  await ctx.db.patch("nightRuns", runId, {
+    archiveStage: step.stage,
+    archiveCursor: step.cursor ?? undefined,
+    archiveSavedRows: step.savedRows,
+    archiveTouchedAt: Date.now(),
+  });
+  await ctx.scheduler.runAfter(0, internal.nightRuns.archiveStep, { runId, mode, to, stage: step.stage, cursor: step.cursor, savedRows: step.savedRows });
+}
+
+function placeOf(run: Doc<"nightRuns">, readyCheckStartedAt: number | undefined): ArchivePlace & { mode: Mode; to: Checkpoint } {
+  const mode: Mode = run.endedBy === "reset" ? "reset" : "rewind";
+  const to: Checkpoint = run.rewindTo ?? (readyCheckStartedAt ? "warning" : "start");
+  const step = run.archiveStage ?? (mode === "reset" ? "tables" : "homes");
+  return { mode, to, stage: step, cursor: run.archiveCursor ?? null, savedRows: run.archiveSavedRows ?? 0 };
+}
+
+// A copy that stopped (the read limit used to kill the first step) is started again from the place it recorded.
+export async function resumeArchiveIfStale(ctx: MutationCtx, control: Doc<"control">) {
+  const runId = control.archivingRunId;
+  if (!runId) return;
+  const run = await ctx.db.get("nightRuns", runId);
+  if (!run || run.status !== "archiving") {
+    await ctx.db.patch("control", control._id, { archivingRunId: undefined });
+    return;
+  }
+  const touched = run.archiveTouchedAt ?? run.endedAt ?? 0;
+  if (Date.now() - touched < ARCHIVE_STALE_MS) return;
+  const { mode, to, ...step } = placeOf(run, control.readyCheckStartedAt);
+  await scheduleArchive(ctx, runId, mode, to, step);
+}
+
+// True while the last night is still being copied. A dead copy is started again before this returns,
+// and that schedule only sticks if the caller does not then throw.
+export async function nightSaveInProgress(ctx: MutationCtx, control: Doc<"control">) {
+  if (!control.archivingRunId) return false;
+  await resumeArchiveIfStale(ctx, control);
+  const fresh = await ctx.db.get("control", control._id);
+  return fresh?.archivingRunId !== undefined;
+}
+
 export const archiveStep = internalMutation({
   args: {
     runId: v.id("nightRuns"),
@@ -236,8 +321,7 @@ export const archiveStep = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { runId, mode, to = "start", stage: step, cursor, savedRows }) => {
-    const next = (args: { stage: "homes" | "tables" | "restore"; cursor?: string | null; savedRows: number }) =>
-      ctx.scheduler.runAfter(0, internal.nightRuns.archiveStep, { runId, mode, to, ...args });
+    const next = (place: ArchivePlace) => scheduleArchive(ctx, runId, mode, to, place);
     if (step === "homes") {
       const result = await homesStep(ctx, runId, to, cursor ?? null);
       const total = savedRows + result.savedRows;
@@ -254,6 +338,24 @@ export const archiveStep = internalMutation({
     }
     await restorePickups(ctx, runId, to);
     await finish(ctx, runId, savedRows, to === "warning");
+    return null;
+  },
+});
+
+// The live night was left archiving after the copy died. Run once: npx convex run nightRuns:resumeStuck
+export const resumeStuck = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const control = await ctx.db.query("control").first();
+    if (!control?.archivingRunId) return null;
+    const run = await ctx.db.get("nightRuns", control.archivingRunId);
+    if (!run || run.status !== "archiving") {
+      await ctx.db.patch("control", control._id, { archivingRunId: undefined });
+      return null;
+    }
+    const { mode, to, ...step } = placeOf(run, control.readyCheckStartedAt);
+    await scheduleArchive(ctx, control.archivingRunId, mode, to, step);
     return null;
   },
 });

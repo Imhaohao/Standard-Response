@@ -11,7 +11,7 @@ import { MAX_RUN_MS, TICK_MS } from "./sim";
 import { simNow } from "./clock";
 import { clockAtSpeed, PLAYBACK_SPEEDS, runningMs } from "../lib/sim-clock";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
-import { archiveNight, Checkpoint, checkpoint, saveWarningCheckpoint } from "./nightRuns";
+import { archiveNight, Checkpoint, checkpoint, nightSaveInProgress, saveWarningCheckpoint } from "./nightRuns";
 import { hangUpStandInReadyCalls } from "./ready";
 
 const DEFAULTS = {
@@ -65,7 +65,7 @@ export const issueWarning = mutation({
   handler: async (ctx) => {
     const control = await controlRow(ctx);
     if (control.warningIssuedAt) return null;
-    if (control.archivingRunId) throw new ConvexError("The last night is still being saved. Try again in a moment");
+    if (await nightSaveInProgress(ctx, control)) return null;
     const clock = clockAtSpeed(control.clock, control.clock?.speed || 1, Date.now());
     const now = clock.simAt;
     const empty = !(await ctx.db.query("households").first());
