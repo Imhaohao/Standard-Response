@@ -80,6 +80,34 @@ describe("pairing at the Ready check", () => {
     expect((await t.query(api.pickups.callQueue, {}))[0]).toMatchObject({ status: "coming", helperNotice: "resident_ready" });
   });
 
+  test("the resident confirms on their own call if they're still on it, and on a call of its own if not", async () => {
+    const t = setup();
+    await fresh(t);
+    const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
+    await t.mutation(api.ready.submit, drives(EAST));
+    await t.mutation(api.control.issueWarning, {});
+    const [pairing] = await plansFor(t, resident);
+    const row = async () => (await t.query(api.pickups.callQueue, {}))[0];
+
+    // The resident's warning call is live when the helper says yes: the confirmation waits for that
+    // call, which asks it on the same line, instead of ringing them a second time.
+    const callId = await t.mutation(api.calls.start, { householdId: resident, direction: "outbound" });
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    await t.mutation(api.pickups.startAttempt, { planId: pairing._id, role: "helper" });
+    await t.mutation(api.pickups.helperAnswered, { planId: pairing._id, coming: true, etaMinutes: 10 });
+    expect(await row()).toMatchObject({ status: "coming", residentAwaitingCall: true, confirmAttempts: 0 });
+
+    // They hang up first: the confirmation is no longer held, so its own call goes out, asking only
+    // about the ride, and the ride counts once they say yes.
+    await t.mutation(api.calls.end, { callId, answered: true });
+    expect(await row()).toMatchObject({ status: "coming", residentAwaitingCall: false, confirmAttempts: 0 });
+    await t.mutation(api.pickups.startAttempt, { planId: pairing._id, role: "resident", purpose: "confirm" });
+    await t.mutation(api.pickups.residentConfirmation, { planId: pairing._id, confirmed: true });
+    const confirmed = await row();
+    expect(confirmed.residentConfirmedAt).toBeDefined();
+    expect(confirmed.helperNotice).toBe("resident_ready");
+  });
+
   test("pairs whichever side signs up first", async () => {
     const t = setup();
     await fresh(t);
