@@ -983,6 +983,62 @@ describe("lines the caller just heard", () => {
   });
 });
 
+describe("help getting out recorded as none on file", () => {
+  // polk-they-know: a walker and "no help needed" on file, and the caller says she can't get out by herself.
+  function walkerHome() {
+    const conversation = new Conversation({
+      language: "en",
+      onFile: { mobility: "walker", assistanceRequired: "none" },
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    return conversation;
+  }
+  const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
+
+  it("asks about help instead of reading back the file's no help after the caller says they can't get out", () => {
+    const conversation = walkerHome();
+    conversation.respond("No, I can't get out by myself.", heard({ answer: "no", updates: { canLeave: "no" } }));
+    const turn = conversation.respond("It's just me.", heard({ updates: { peopleCount: 1 } }));
+    assert.equal(conversation.step, "assistance");
+    assert.match(spoken(turn), new RegExp(EN.askAssistance.replace(/[?]/g, "\\?")));
+    const readback = conversation.respond("Someone has to help me to the door.", heard({ updates: { assistanceRequired: "one_person_assist" } }));
+    assert.equal(conversation.step, "readback");
+    assert.match(spoken(readback), new RegExp(EN.assistance.one_person_assist));
+    assert.doesNotMatch(spoken(readback), new RegExp(EN.assistance.none));
+  });
+
+  it("takes a no to the help question as confirming the file and reads it back", () => {
+    const conversation = walkerHome();
+    conversation.respond("No, I can't get out by myself.", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("It's just me.", heard({ updates: { peopleCount: 1 } }));
+    const readback = conversation.respond("No, I just don't have a car.", heard({ answer: "no" }));
+    assert.equal(conversation.step, "readback");
+    assert.match(spoken(readback), new RegExp(EN.assistance.none));
+  });
+
+  it("never reads back the file's no help when the caller can't say how much help they need", () => {
+    const conversation = walkerHome();
+    conversation.respond("No, I can't get out by myself.", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("It's just me.", heard({ updates: { peopleCount: 1 } }));
+    let turn = conversation.respond("I'm not sure.", heard({ answer: "unclear" }));
+    for (let tries = 0; conversation.step === "assistance" && tries < 3; tries += 1) turn = conversation.respond("I'm not sure.", heard({ answer: "unclear" }));
+    assert.equal(conversation.step, "readback");
+    assert.match(spoken(turn), new RegExp(EN.mobility.walker));
+    assert.doesNotMatch(spoken(turn), new RegExp(EN.assistance.none));
+  });
+
+  it("keeps the file's no help when the caller can leave", () => {
+    const conversation = walkerHome();
+    conversation.respond("Yes, I can.", heard({ answer: "yes", updates: { canLeave: "yes" } }));
+    conversation.respond("No car.", heard({ answer: "no", updates: { hasCar: false } }));
+    conversation.respond("It's just me.", heard({ updates: { peopleCount: 1 } }));
+    assert.notEqual(conversation.step, "assistance");
+  });
+});
+
 describe("a home with a Ready check profile on file", () => {
   // Jerry's Ready check: two people, one needs a person to help them out to the car.
   const ON_FILE = { peopleCount: 2, mobility: "walks", assistanceRequired: "one_person_assist" } as const;

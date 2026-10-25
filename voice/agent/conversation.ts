@@ -174,6 +174,8 @@ export class Conversation {
   private unchangedThisTurn?: { turn: number; line: string };
   // The resident spoke about mobility on this call, so the file's version needs no confirming.
   private mobilityHeard = false;
+  // The resident spoke about help getting out on this call, so the file's version needs no confirming.
+  private assistanceHeard = false;
   // Firefighters told us "wheelchair" alone isn't enough: a battery chair can weigh 400 pounds.
   // Settled once the resident says which kind, or answers the power-chair question.
   private chairKindKnown = false;
@@ -821,6 +823,7 @@ export class Conversation {
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {
     if (updates.mobility !== undefined) this.mobilityHeard = true;
+    if (updates.assistanceRequired !== undefined) this.assistanceHeard = true;
     const changed = changedFields(this.record, keepCantLeave(this.record, updates));
     if (isEmpty(changed)) return;
     this.record = { ...this.record, ...changed };
@@ -961,8 +964,19 @@ export class Conversation {
     if (this.record.peopleCount === undefined) return "household";
     if (this.record.mobility === undefined) return "needs";
     if (this.needsChairKind()) return "chair_kind";
-    if (hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined) return "assistance";
+    if (this.needsAssistanceQuestion()) return "assistance";
     return "readback";
+  }
+
+  // A file's "no help needed" stops counting once the resident says on this call that they can't
+  // leave on their own: "I can't get out by myself" with a walker on file was read back as "no help
+  // needed getting out", and the caller had to agree to it or correct the agent.
+  needsAssistanceQuestion() {
+    if (!hasLimitedMobility(this.record)) return false;
+    const { assistanceRequired } = this.record;
+    if (assistanceRequired === undefined) return true;
+    const fromFile = assistanceRequired === this.onFile.assistanceRequired && !this.assistanceHeard;
+    return fromFile && assistanceRequired === "none" && this.record.canLeave === "no";
   }
 
   household(): Transition {
@@ -983,8 +997,7 @@ export class Conversation {
 
   private afterMobility(): Step {
     if (this.needsChairKind()) return "chair_kind";
-    const needsAssistanceQuestion = hasLimitedMobility(this.record) && this.record.assistanceRequired === undefined;
-    return needsAssistanceQuestion ? "assistance" : "readback";
+    return this.needsAssistanceQuestion() ? "assistance" : "readback";
   }
 
   // "Is it a power wheelchair?" A yes makes it one. A no, or naming either kind, settles it. After two
@@ -1000,10 +1013,11 @@ export class Conversation {
   }
 
   assistance(heard: Interpretation): Transition {
-    if (this.record.assistanceRequired === undefined && heard.answer === "no") {
+    if (heard.answer === "no") {
       this.applyUpdates({ assistanceRequired: "none" }, { assistanceRequired: 0.7 });
+      this.assistanceHeard = true;
     }
-    if (this.record.assistanceRequired !== undefined) return { step: "readback" };
+    if (!this.needsAssistanceQuestion()) return { step: "readback" };
     return this.retryOr("readback");
   }
 
@@ -1226,9 +1240,11 @@ export class Conversation {
     if (this.shortReadback) return LINES[this.language].readbackQuestion;
     if (this.readbackPatch === null) {
       this.fullReadback = this.lastReadback === null;
+      // A file's "no help needed" the resident contradicted and never settled isn't said back as fact.
       this.readbackPatch = this.lastReadback ? changedFields(this.lastReadback, this.record) : {
         ...this.record,
         address: this.record.address === this.confirmedAddress ? undefined : this.record.address,
+        assistanceRequired: this.needsAssistanceQuestion() ? undefined : this.record.assistanceRequired,
       };
     }
     if (this.fullReadback) return readback(this.readbackPatch, this.language, this.readbackIsOnFile());
@@ -1328,7 +1344,7 @@ const STILL_OPEN: Record<Step, (conversation: Conversation) => boolean> = {
   household: (c) => c.record.peopleCount === undefined,
   needs: (c) => c.record.mobility === undefined,
   chair_kind: (c) => c.record.mobility === undefined || c.record.mobility === "manual_wheelchair",
-  assistance: (c) => c.record.assistanceRequired === undefined,
+  assistance: (c) => c.needsAssistanceQuestion(),
   readback: () => true,
   fix: () => false,
   neighbor: () => true,

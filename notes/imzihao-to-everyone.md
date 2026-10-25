@@ -260,3 +260,12 @@ Call summarization didn't regress; the exam's read-back check had fallen behind 
 - It still fails a fact that changed after the last read-back, a summary that leaves a fact out, and an address given later that was never said back. `voice/exam/grade.test.ts` covers each case, and `npm run test:voice` now includes `voice/exam`.
 - Same four items, 3 runs each: summarization 33/42 → 45/45. Agent behavior is unchanged, and no deploy is needed. Exam scores from before and after this commit aren't comparable on summarization.
 - Still open, and not about the read-back: in polk-they-know the read-back keeps an on-file "no help needed" after "I can't get out by myself". The prompt tells Claude that phrase alone says nothing about assistance.
+
+## 2026-10-25 10:51
+
+A Ready check's "no help needed" no longer survives a caller who says on the call that they can't get out. In polk-they-know, "No, I can't get out by myself" with a walker on file was read back as "no help needed getting out", which the judge flagged as a critical invented fact.
+
+- `conversation.ts`: `needsAssistanceQuestion()` asks the help question when a file's `assistanceRequired: "none"` hasn't been heard on this call and the caller said `canLeave: no` with limited mobility. Any answer to that question, a no included, settles it (`assistanceHeard`). The goal table (`STILL_OPEN.assistance`) uses the same rule.
+- If the caller can't say, the read-back leaves help out rather than state the file's "none". **Dispatch still sees the file's "none" in that case**: clearing a household field from a call needs a Convex contract change, and I haven't made one.
+- Exam items: polk-they-know and lahaina-door-es now get the help question, so each caller has an answer for it ("Someone has to help me get out the door." / "Necesito que alguien me ayude a salir."), recorded in `filled`, and `fields` expects `one_person_assist`.
+- polk-they-know, 3 runs, fully judged: honesty 15/18 → 18/18, and data entry 12/12. lahaina-door-es and marshall-fence: 0 critical failures, and nothing failed except turn-time misses during tonight's network drops.
