@@ -191,6 +191,11 @@ export class CrowdSim {
   // Driving seconds lost to crowding on each segment: every sample counts 30 s times the share of
   // the street's free-flow speed the car didn't get.
   readonly segmentLostSeconds: Float64Array;
+  // The same speed samples by directed edge, so each direction of a street has its own speed: an
+  // outbound jam says nothing about the empty lanes heading into the zone. The dispatcher's drive
+  // times read these (convex/traffic.ts).
+  readonly edgeSpeedSum: Float64Array;
+  readonly edgeSpeedSamples: Uint32Array;
 
   private trueShut: Uint8Array;
   private trueBlocked = new Set<number>();
@@ -240,6 +245,8 @@ export class CrowdSim {
     this.segmentSpeedSum = new Float64Array(ground.segments.length);
     this.segmentSpeedSamples = new Uint32Array(ground.segments.length);
     this.segmentLostSeconds = new Float64Array(ground.segments.length);
+    this.edgeSpeedSum = new Float64Array(this.router.edgeSpeed.length);
+    this.edgeSpeedSamples = new Uint32Array(this.router.edgeSpeed.length);
     for (const [i, household] of households.entries()) {
       [this.x[i], this.y[i]] = toXY(household);
       this.people[i] = Math.max(1, household.peopleCount);
@@ -309,6 +316,8 @@ export class CrowdSim {
       segmentSpeedSum: this.segmentSpeedSum.slice(),
       segmentSpeedSamples: this.segmentSpeedSamples.slice(),
       segmentLostSeconds: this.segmentLostSeconds.slice(),
+      edgeSpeedSum: this.edgeSpeedSum.slice(),
+      edgeSpeedSamples: this.edgeSpeedSamples.slice(),
       trueShut: this.trueShut.slice(),
       trueBlocked: new Set(this.trueBlocked),
       edgeCars: this.edgeCars.slice(),
@@ -511,9 +520,11 @@ export class CrowdSim {
     for (let i = 0; i < this.count; i++) {
       const edge = this.edge[i];
       if (this.state[i] !== STATE.moving || edge < 0) continue;
+      const speed = this.routeSpeed(i);
+      this.edgeSpeedSum[edge] += speed;
+      this.edgeSpeedSamples[edge] += 1;
       const segment = this.router.edgeSegment[edge];
       if (segment < 0) continue;
-      const speed = this.routeSpeed(i);
       this.segmentSpeedSum[segment] += speed;
       this.segmentSpeedSamples[segment] += 1;
       const freeSpeed = this.ground.segments[segment].kph / 3.6;

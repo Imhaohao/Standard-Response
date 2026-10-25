@@ -3,6 +3,9 @@ import { cellIndex, Ground, toXY } from "./grid";
 import { NEVER_BURNS } from "../ink-map/fire-field";
 import { Random } from "../mesh/random";
 import { segmentKeyOf } from "../mesh/roads";
+import { JAM_SPACING_METERS, MIN_SPEED_SHARE } from "./greenshields";
+
+export { JAM_SPACING_METERS, MIN_SPEED_SHARE };
 
 // Route choice. Every driver holds a potential over the street graph: phi(n), the fastest drive
 // from intersection n to safety, avoiding streets the fire has reached and the streets that driver
@@ -21,10 +24,6 @@ import { segmentKeyOf } from "../mesh/roads";
 
 const DANGER_MINUTES = 15;
 const DANGER_SLOWDOWN = 5;
-// A stated assumption: at a standstill each car takes 7.5 m of one lane. The dynamics use the same spacing.
-export const JAM_SPACING_METERS = 7.5;
-// The slowest a crowded street gets, as a share of its free speed. The dynamics use the same floor.
-export const MIN_SPEED_SHARE = 0.05;
 
 const NEIGHBOR_OFFSETS: [number, number][] = [
   [1, 0],
@@ -125,6 +124,11 @@ export class IndexHeap {
 // `delay` is each edge's congestion multiplier on its drive time, or null for free flow.
 export type Potential = { minutes: number; phi: Float64Array; delay: Float64Array | null };
 
+// A street's free-flow speed in m/s as the dynamics drive it: its length over its drive time, at least 4 m/s.
+export function freeSpeedOf(edge: number) {
+  return Math.max(EDGES[edge].meters / Math.max(EDGES[edge].seconds, 1), 4);
+}
+
 export class RoadRouter {
   readonly nodeX = new Float64Array(NODE_COUNT);
   readonly nodeY = new Float64Array(NODE_COUNT);
@@ -155,7 +159,7 @@ export class RoadRouter {
       this.outgoing[edge.u].push(e);
       this.incoming[edge.v].push(e);
       this.edgeSegment[e] = segmentIndex.get(segmentKeyOf(edge.key)) ?? -1;
-      this.edgeSpeed[e] = Math.max(edge.meters / Math.max(edge.seconds, 1), 4);
+      this.edgeSpeed[e] = freeSpeedOf(e);
       // A two-way street's lane count covers both directions.
       this.edgeLanes[e] = directed.has(`${edge.v}-${edge.u}`) ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
       this.edgeJamCars[e] = Math.max(1, (edge.meters * this.edgeLanes[e]) / JAM_SPACING_METERS);

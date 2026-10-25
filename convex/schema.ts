@@ -13,6 +13,9 @@ export const trafficForecastFields = {
   issuedAt: v.number(),
   warningIssuedAt: v.number(),
   baseMinute: v.number(),
+  // The night's clock (lib/sim-clock.ts) at baseMinute: window minutes count from here. Missing on
+  // forecasts from before the dispatcher read them; those are left at free flow.
+  baseAt: v.optional(v.number()),
   horizonMinutes: v.number(),
   members: v.number(),
   households: v.number(),
@@ -25,6 +28,8 @@ export const trafficForecastFields = {
       to: v.number(),
       streets: v.array(v.object({ name: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange, cars: forecastRange })),
       segments: v.array(v.object({ key: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange })),
+      // Slowdown by direction (directed edge key), for the dispatcher's drive times (convex/traffic.ts).
+      edges: v.optional(v.array(v.object({ key: v.string(), slowdown: forecastRange }))),
     }),
   ),
 };

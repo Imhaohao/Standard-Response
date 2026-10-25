@@ -19,7 +19,7 @@ const ground = buildGround(cell, JSON.parse(readFileSync(path.join(root, "data/h
 const member = new ForecastMember(ground, households, seed);
 
 function buffersOf(branch: Branch) {
-  return branch.windows.flatMap((w) => [w.entries.buffer, w.speedSum.buffer, w.samples.buffer, w.lost.buffer]) as ArrayBuffer[];
+  return branch.windows.flatMap((w) => [w.entries.buffer, w.speedSum.buffer, w.samples.buffer, w.lost.buffer, w.edgeSpeedSum.buffer, w.edgeSamples.buffer]) as ArrayBuffer[];
 }
 
 parentPort!.on("message", ({ minute, blocked, branchSeed }: MemberRequest) => {

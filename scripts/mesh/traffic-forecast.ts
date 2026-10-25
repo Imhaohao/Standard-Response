@@ -8,7 +8,9 @@
 //   npm run forecast:traffic -- --once
 //
 // Blocked streets are what the agency knows now: confirmed road closures and streets the phone
-// mesh reports blocked. Minute 0 is the warning, on the same wall clock as the scenario fire.
+// mesh reports blocked. Minute 0 is the warning, on the night's clock (lib/sim-clock.ts) like the
+// scenario fire, so a paused or sped-up night is followed. The dispatcher reads each forecast's
+// per-direction slowdowns for its drive times (convex/traffic.ts).
 // It forecasts a simulation, not measured traffic.
 
 import path from "node:path";
@@ -19,6 +21,7 @@ import { closedEdgesFor, edgeKeysOf } from "../../convex/roadGraph";
 import { branchSeed, memberSeed, summarize, TrafficForecast } from "../../lib/crowd/forecast";
 import { SIM_MINUTES_PER_SECOND } from "../../lib/ink-map/hazard";
 import { SEGMENT_INDEX, SEGMENT_LIST, segmentKeyOf } from "../../lib/mesh/roads";
+import { SimClock, simTime } from "../../lib/sim-clock";
 import type { MemberAnswer, MemberRequest, MemberSetup } from "./traffic-forecast-member";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
@@ -61,7 +64,9 @@ async function knownBlocked(now: number) {
   return blocked;
 }
 
+// `now` and `warningIssuedAt` are on the night's clock.
 const minuteOf = (warningIssuedAt: number, now: number) => Math.max(0, ((now - warningIssuedAt) / 1000) * SIM_MINUTES_PER_SECOND);
+const atMinute = (warningIssuedAt: number, minute: number) => warningIssuedAt + (minute / SIM_MINUTES_PER_SECOND) * 1000;
 
 // A worker thread holding one member; one request at a time.
 class Member {
@@ -106,6 +111,7 @@ async function publish(incident: Incident, forecast: TrafficForecast, blocked: n
     ...forecast,
     issuedAt: Date.now(),
     warningIssuedAt: incident.warningIssuedAt,
+    baseAt: atMinute(incident.warningIssuedAt, forecast.baseMinute),
     blockedSegments: blocked,
     computeSeconds,
   });
@@ -114,10 +120,12 @@ async function publish(incident: Incident, forecast: TrafficForecast, blocked: n
   log(`forecast from minute ${forecast.baseMinute.toFixed(0)} in ${computeSeconds.toFixed(0)} s: ${moving} cars on the road in an hour, slowest next: ${next?.name ?? "none"}`);
 }
 
-async function pass(incident: Incident) {
+async function pass(incident: Incident, clock: SimClock | undefined) {
   const started = Date.now();
+  // Phones stamp mesh reports on the wall clock, so their lookup stays on it.
   const blocked = [...(await knownBlocked(started))];
-  const minute = minuteOf(incident.warningIssuedAt, Date.now());
+  const now = simTime(clock, started);
+  const minute = minuteOf(incident.warningIssuedAt, now);
   incident.forecasts += 1;
   const answers = await Promise.all(
     incident.members.map((member, k) => member.request({ minute, blocked, branchSeed: branchSeed(SEED, incident.forecasts, k) })),
@@ -140,7 +148,7 @@ async function main() {
     }
     if (incident?.warningIssuedAt !== warningIssuedAt) incident = startIncident(warningIssuedAt, incident);
     const started = Date.now();
-    await pass(incident);
+    await pass(incident, control.clock);
     if (ONCE) return process.exit(0);
     await sleep(Math.max(0, EVERY_MINUTES * 60_000 - (Date.now() - started)));
   }

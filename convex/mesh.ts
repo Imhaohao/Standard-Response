@@ -182,7 +182,7 @@ export const publishTrafficForecast = mutation({
   args: trafficForecastFields,
   returns: v.null(),
   handler: async (ctx, forecast) => {
-    const sizes = forecast.windows.map((w) => w.segments.length + w.streets.length);
+    const sizes = forecast.windows.map((w) => w.segments.length + w.streets.length + (w.edges?.length ?? 0));
     if (forecast.windows.length > MAX_FORECAST_WINDOWS || forecast.timeline.length > MAX_FORECAST_POINTS || sizes.some((n) => n > MAX_FORECAST_ROWS)) {
       throw new Error("traffic forecast too large");
     }

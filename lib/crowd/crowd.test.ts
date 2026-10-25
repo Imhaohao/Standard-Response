@@ -308,6 +308,30 @@ describe("traffic forecast", () => {
     assert.equal(ensemble.minutes, 15);
   });
 
+  it("forecasts each direction of a street on its own, for the dispatcher's drive times", () => {
+    const ensemble = new TrafficEnsemble(ground, households, 3, 11, params);
+    ensemble.advanceTo(15);
+    const edges = ensemble.forecast().windows.flatMap((window) => window.edges);
+    assert.ok(edges.length > 0, "some street slows in the hour ahead");
+    const keys = new Set(EDGES.map((edge) => edge.key));
+    for (const { key, slowdown } of edges) {
+      assert.ok(keys.has(key), key);
+      // Every member counts, at free flow where it had no cars to measure.
+      assert.equal(slowdown.n, 3);
+      assert.ok(slowdown.median! >= 0.1 && slowdown.median! <= 1);
+    }
+    // Evacuees drive out of the zone, so a slowed direction mostly comes without its opposite.
+    const window = ensemble.forecast().windows[0];
+    const slowed = new Set(window.edges.map((edge) => edge.key));
+    const byKey = new Map(EDGES.map((edge) => [edge.key, edge]));
+    const reverseKeys = (key: string) => {
+      const forward = byKey.get(key)!;
+      return EDGES.filter((edge) => edge.u === forward.v && edge.v === forward.u).map((edge) => edge.key);
+    };
+    const withOpposite = window.edges.filter((edge) => reverseKeys(edge.key).some((back) => slowed.has(back))).length;
+    assert.ok(withOpposite < window.edges.length, `${withOpposite} of ${window.edges.length} slowed both ways`);
+  });
+
   it("gives an empty range for no values and quantiles otherwise", () => {
     assert.deepEqual(rangeOf([]), { median: null, p5: null, p95: null, n: 0 });
     assert.deepEqual(rangeOf([3, null, 1, 2]), { median: 2, p5: 1, p95: 3, n: 3 });

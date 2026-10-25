@@ -1,7 +1,10 @@
+import { EDGES } from "../../convex/roadGraph";
 import { Segment } from "../mesh/roads";
 import { seededRandom } from "../mesh/random";
 import { Ground } from "./grid";
+import { MIN_SPEED_SHARE } from "./greenshields";
 import { CrowdParams, CrowdSim, DEFAULT_CROWD, Household } from "./langevin";
+import { freeSpeedOf } from "./navigation";
 
 // A traffic forecast from the Langevin crowd model, for the agency. An ensemble of simulations of
 // the town follows the incident on the wall clock, each with its own noise (who leaves when, how
@@ -23,6 +26,10 @@ const STREETS_PER_WINDOW = 8;
 const SEGMENTS_PER_WINDOW = 150;
 // Segments losing less than this (median, car-minutes in the window) are left off the map.
 const MIN_LOST_CAR_MINUTES = 0.5;
+// Directed edges for the dispatcher's drive times: the ones whose median slowdown is at least this,
+// most extra drive time first. An edge left out drives at free flow.
+const MIN_EDGE_SLOWDOWN = 0.1;
+const EDGES_PER_WINDOW = 300;
 
 export type Range = { median: number | null; p5: number | null; p95: number | null; n: number };
 
@@ -36,7 +43,14 @@ export function rangeOf(values: (number | null)[]): Range {
 
 type Window = { from: number; to: number };
 
-type Counters = { entries: Uint32Array; speedSum: Float64Array; samples: Uint32Array; lost: Float64Array };
+type Counters = {
+  entries: Uint32Array;
+  speedSum: Float64Array;
+  samples: Uint32Array;
+  lost: Float64Array;
+  edgeSpeedSum: Float64Array;
+  edgeSamples: Uint32Array;
+};
 
 function countersOf(sim: CrowdSim): Counters {
   return {
@@ -44,6 +58,8 @@ function countersOf(sim: CrowdSim): Counters {
     speedSum: sim.segmentSpeedSum.slice(),
     samples: sim.segmentSpeedSamples.slice(),
     lost: sim.segmentLostSeconds.slice(),
+    edgeSpeedSum: sim.edgeSpeedSum.slice(),
+    edgeSamples: sim.edgeSpeedSamples.slice(),
   };
 }
 
@@ -53,6 +69,8 @@ function difference(later: Counters, earlier: Counters): Counters {
     speedSum: later.speedSum.map((value, i) => value - earlier.speedSum[i]),
     samples: later.samples.map((value, i) => value - earlier.samples[i]),
     lost: later.lost.map((value, i) => value - earlier.lost[i]),
+    edgeSpeedSum: later.edgeSpeedSum.map((value, i) => value - earlier.edgeSpeedSum[i]),
+    edgeSamples: later.edgeSamples.map((value, i) => value - earlier.edgeSamples[i]),
   };
 }
 
@@ -86,7 +104,9 @@ export function runBranch(sim: CrowdSim, horizon = FORECAST_HORIZON_MINUTES, win
 export type TimelinePoint = { minute: number; moving: Range; arrived: Range; jammedShare: Range; meanSpeed: Range };
 export type StreetForecast = { name: string; lostCarMinutes: Range; slowdown: Range; cars: Range };
 export type SegmentForecast = { key: string; lostCarMinutes: Range; slowdown: Range };
-export type WindowForecast = { from: number; to: number; streets: StreetForecast[]; segments: SegmentForecast[] };
+// One direction of a street (the road graph's directed edge key), for the dispatcher's drive times.
+export type EdgeForecast = { key: string; slowdown: Range };
+export type WindowForecast = { from: number; to: number; streets: StreetForecast[]; segments: SegmentForecast[]; edges: EdgeForecast[] };
 export type TrafficForecast = {
   baseMinute: number;
   horizonMinutes: number;
@@ -118,6 +138,27 @@ function slowdownOf(counters: Counters, members: number[], segments: Segment[]) 
     samples += counters.samples[s];
   }
   return samples < MIN_SPEED_SAMPLES || free <= 0 ? null : Math.min(1, Math.max(0, 1 - speed / free));
+}
+
+// One direction of one street in one member. A member with too few cars on it to measure is free
+// flow there: a vehicle driving it meets no traffic.
+function edgeSlowdownOf(counters: Counters, edge: number) {
+  const samples = counters.edgeSamples[edge];
+  if (samples < MIN_SPEED_SAMPLES) return 0;
+  return Math.min(1, Math.max(0, 1 - counters.edgeSpeedSum[edge] / (samples * freeSpeedOf(edge))));
+}
+
+// Seconds a slowdown adds to one drive along the edge, by the same floor the dynamics use.
+const extraSeconds = (edge: number, slowdown: number) => EDGES[edge].seconds * (1 / Math.max(MIN_SPEED_SHARE, 1 - slowdown) - 1);
+
+function edgesOf(windows: Counters[]): EdgeForecast[] {
+  const rows: { edge: EdgeForecast; extra: number }[] = [];
+  for (let e = 0; e < EDGES.length; e++) {
+    const slowdown = rangeOf(windows.map((w) => edgeSlowdownOf(w, e)));
+    if ((slowdown.median ?? 0) < MIN_EDGE_SLOWDOWN) continue;
+    rows.push({ edge: { key: EDGES[e].key, slowdown }, extra: extraSeconds(e, slowdown.median!) });
+  }
+  return rows.sort((a, b) => b.extra - a.extra).slice(0, EDGES_PER_WINDOW).map((row) => row.edge);
 }
 
 const lostMinutesOf = (counters: Counters, members: number[]) => members.reduce((sum, s) => sum + counters.lost[s], 0) / 60;
@@ -172,7 +213,13 @@ export function summarize(branches: Branch[], segments: Segment[], baseMinute: n
     timeline: timelineOf(branches),
     windows: windows.map((window, k) => {
       const counters = branches.map((b) => b.windows[k]);
-      return { from: window.from, to: window.to, streets: streetsOf(counters, segments, groups), segments: segmentsOf(counters, segments) };
+      return {
+        from: window.from,
+        to: window.to,
+        streets: streetsOf(counters, segments, groups),
+        segments: segmentsOf(counters, segments),
+        edges: edgesOf(counters),
+      };
     }),
   };
 }
