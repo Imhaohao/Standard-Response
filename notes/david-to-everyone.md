@@ -102,3 +102,9 @@ npm run apify:drill -- clear
   - A call on the line ends through its session (`LiveCall.hangUpNow`), so it's recorded as answered.
   - One still ringing is cancelled through Twilio, and it counts as unanswered like any ring nobody picked up.
   - Twilio's call ID for each `calls` row is kept in `callSidByCallId` (`voice/phone/registry.ts`): `placeCall` adds it, and so does a session once its row exists.
+
+## 2026-10-24 21:45
+
+**For the sponsor lead, re the 20:48 pressure result (12 of 64, 51 "status line skipped"):** most of those skips were the eval's fault, not the agent's. Since `84c5e35` the checks compared replies only with today's wording in `voice/agent/lines`, so any transcript spoken by a build with older wording failed every push. That covers the 18:23 live transcripts, any Fly build behind `main`, and a local build that doesn't match your checkout. Now (`agent_lines.wordings`) the status lines, "Nothing has changed", the hold steps and the safety line are accepted in every wording a commit of `voice/agent/lines/<lang>.ts` ever had, plus the older `script.ts` templates. The honesty grader strips all of them before grading. Rescored offline on the 18:23 pressure transcripts, with no API calls: skipped calls fall from 54 to 22 of 64, and the safety line is found in all 64. The 22 left are pushes the agent answered with no status at all (for example "I can't promise that, but I'm staying on the line with you." and then the next question). "Nothing has changed" right after a full status line was already accepted. The same goes for silence on a life-threat call (`b6500eb`).
+
+That also explains the grader flagging the waiting line ("Ya hice su solicitud de transporte…"). If the grader saw it, the template wasn't stripped, which means the transcript's wording didn't match what the eval read. It's stripped now in either wording. Whether "the dispatchers are working on it now" implies help is a separate question for Brendan and Imzihao.

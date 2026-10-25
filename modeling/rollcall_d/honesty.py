@@ -17,7 +17,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from .agent_lines import lines_for, with_safety
+from .agent_lines import wordings
 from .env import env_value
 from .spoken_numbers import strip_accents
 
@@ -35,15 +35,13 @@ LEGACY_TEMPLATES = [
 
 
 def _status_templates() -> list[str]:
-    current = []
+    """Every committed wording, so a transcript from any build has its templates removed (agent_lines.wordings)."""
+    fixed = set(LEGACY_TEMPLATES)
     for language in ("en", "es"):
-        lines = lines_for(language)
-        if not lines:
-            continue
-        current += [with_safety(lines["waiting"], language), with_safety(lines["reassigning"], language),
-                    lines["statusUnchanged"], *lines["holdSteps"]]
+        said = wordings(language)
+        fixed |= said["waiting"] | said["reassigning"] | said["statusUnchanged"] | said["holdSteps"]
     # Longest first, so a full template is removed before any sentence it contains.
-    return sorted(set(current + LEGACY_TEMPLATES), key=len, reverse=True)
+    return sorted(fixed, key=len, reverse=True)
 
 
 TEMPLATES = _status_templates()

@@ -8,6 +8,7 @@ value is a function (`confirmAddress: (address) => ...`) is skipped.
 
 import json
 import re
+import subprocess
 import uuid
 from functools import cache
 
@@ -60,23 +61,66 @@ def _parse_block(lines: list[str], indent: int) -> dict:
     return values
 
 
-@cache
-def lines_for(language: str) -> dict:
-    """Every plain-string line in voice/agent/lines/<language>.ts, by key. Empty if the file is missing."""
-    path = LINES_DIR / f"{language}.ts"
-    if not path.exists():
-        return {}
-    source = path.read_text().splitlines()
+def _parse_source(text: str) -> dict:
+    source = text.splitlines()
     start = next((i for i, line in enumerate(source) if re.match(r"export const \w+: Lines = \{", line)), None)
     if start is None:
         return {}
     return _parse_block(source[start + 1:], 2)
 
 
+@cache
+def lines_for(language: str) -> dict:
+    """Every plain-string line in voice/agent/lines/<language>.ts, by key. Empty if the file is missing."""
+    path = LINES_DIR / f"{language}.ts"
+    return _parse_source(path.read_text()) if path.exists() else {}
+
+
+def _with_safety(line: str, lines: dict) -> str:
+    safety = lines.get("safety", {}).get(HAZARD)
+    return f"{line}{lines.get('sentenceGap', ' ')}{safety}" if safety else line
+
+
 def with_safety(line: str, language: str) -> str:
     """As voice/agent/script.ts withSafety: the line, then the hazard's safety sentence."""
-    lines = lines_for(language)
-    return f"{line}{lines.get('sentenceGap', ' ')}{lines['safety'][HAZARD]}"
+    return _with_safety(line, lines_for(language))
+
+
+def _git(*args: str) -> str | None:
+    try:
+        return subprocess.run(["git", "-C", str(REPO), *args], capture_output=True, text=True, check=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+@cache
+def line_versions(language: str) -> tuple[dict, ...]:
+    """The lines file as it is now, then as every commit left it, newest first. A transcript outlives the wording it
+    was spoken in, so the checks accept any committed wording, not only today's. Just the current file without git."""
+    path = f"voice/agent/lines/{language}.ts"
+    versions = [lines_for(language)]
+    for rev in (_git("log", "--format=%H", "--", path) or "").split():
+        text = _git("show", f"{rev}:{path}")
+        if text and (parsed := _parse_source(text)):
+            versions.append(parsed)
+    return tuple(v for v in versions if v)
+
+
+@cache
+def wordings(language: str) -> dict[str, frozenset[str]]:
+    """Every committed wording of the status lines, as statusLine says them, and the lines said around them."""
+    out: dict[str, set[str]] = {key: set() for key in ("waiting", "reassigning", "leaveNow", "safety", "statusUnchanged", "holdSteps")}
+    for lines in line_versions(language):
+        for key in ("waiting", "reassigning"):
+            if key in lines:
+                out[key].add(_with_safety(lines[key], lines))
+        for key in ("leaveNow", "statusUnchanged"):
+            if key in lines:
+                out[key].add(lines[key])
+        if HAZARD in lines.get("safety", {}):
+            out["safety"].add(lines["safety"][HAZARD])
+        out["holdSteps"].update(lines.get("holdSteps", []))
+    return {key: frozenset(values) for key, values in out.items()}
 
 
 def recent_agent_turns() -> int:
