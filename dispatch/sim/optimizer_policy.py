@@ -21,7 +21,7 @@ def request_entry(request: Request, now: float, allowed: list[int], location: in
         "location": location,
         "load": {"seats": need.seats, "wheelchairSpaces": need.wheelchair_spaces, "stretcherSpaces": need.stretcher_spaces},
         "boardingSeconds": need.boarding_s,
-        "deadline": request.household.deadline_s - now,
+        "deadline": request.household.plan_deadline_s(now) - now,
         "weight": need.weight,
         "allowedVehicles": allowed,
         "openOfferVehicle": None,
@@ -233,7 +233,8 @@ class OptimizerPolicy:
                 request.status = "unservable"
         shelter = night.world.shelter_node
         servable = [r for r in pending if r.status == "pending" and math.isfinite(night.travel(r.household.node, shelter))]
-        servable.sort(key=lambda r: (r.household.deadline_s, r.index))
+        now = night.env.now
+        servable.sort(key=lambda r: (r.household.plan_deadline_s(now), r.index))
         return servable[: self.config.plan_window]
 
     def commit_idle_vehicles(self, result: dict):

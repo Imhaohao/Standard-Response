@@ -33,6 +33,10 @@ SURGE_SHELTER_BY_MINUTE = 780
 PEAK_OUTAGE_MINUTE = 510
 BUFFALO_CUSTOMERS = 119_548
 POWER_DRAW_SEED = 23
+# Assumption: National Grid's outage map shows a block group out about half an hour after it goes dark.
+OUTAGE_FEED_DELAY_MINUTES = 30
+# Until a home's outage is known, the dispatcher treats it as able to ride out the storm for the no-heat window.
+NO_HEAT_WINDOW_S = 12 * 3600
 
 
 def first_sighting_within(lat, lng, sightings: list[tuple[float, float, float]], radius_m: float) -> np.ndarray:
@@ -208,6 +212,19 @@ def blizzard_need(truth: dict) -> RideNeed | None:
     return ride_need_for({**truth, "canLeave": "no"})
 
 
+def always_known(context: ArrivalContext, households: int) -> np.ndarray:
+    """Fire, water and tsunami: the scenario's fronts are the forecast the dispatcher plans with from the start."""
+    return np.full(households, -np.inf)
+
+
+def outage_reported(context: ArrivalContext, households: int) -> np.ndarray:
+    """Blizzard: the dispatcher learns a home has lost power when the utility's outage feed shows its block group out,
+    OUTAGE_FEED_DELAY_MINUTES after the outage. A call that reaches the home after the outage would tell it sooner;
+    this run doesn't credit that, so it errs late."""
+    power = power_loss_seconds(context.folder, households, np.random.default_rng(POWER_DRAW_SEED))
+    return np.maximum(power, 0.0) + OUTAGE_FEED_DELAY_MINUTES * MINUTE
+
+
 def keep_arrival(arrival_s, context: ArrivalContext) -> np.ndarray:
     return arrival_s
 
@@ -224,6 +241,11 @@ class HazardRule:
     closures: Callable = front_closures
     adjust_arrival: Callable = keep_arrival
     ride_need: Callable = evacuation_need
+    # When the dispatcher learns each home is in danger, and how much later it plans for a home it hasn't heard about.
+    known_at: Callable = always_known
+    unknown_slack_s: float = 0.0
+    # Whether a roof turns "too late" when the hazard's front reaches it, rather than at the pickup deadline.
+    roof_at_front: bool = False
     need_rule: str = "can't leave on its own: no car, or a mobility or medical need a car can't carry (convex/model.ts)"
     notes: list = field(default_factory=list)
 
@@ -249,6 +271,7 @@ RULES: dict[str, HazardRule] = {
         closure_why="a lift van cannot drive through flood water, and nothing should drive into the ward once the walls have failed",
         closures=flood_closures,
         adjust_arrival=flood_last_exit,
+        roof_at_front=True,
     ),
     "surge": HazardRule(
         on_time="aboard by 20:00 on 27 Sep (minute 780), when Lee County told residents to be sheltered, for every home the surge reached",
@@ -257,6 +280,7 @@ RULES: dict[str, HazardRule] = {
         closure_rule="a street closes for good when the surge reaches its midpoint",
         closure_why="a lift van cannot drive through surge water; the shelter time ends pickups well before that",
         adjust_arrival=surge_shelter_by,
+        roof_at_front=True,
     ),
     "tsunami": HazardRule(
         on_time="everyone aboard, and the van able to drive out of the inundation zone, at least 10 min before the first wave reaches any of it",
@@ -266,6 +290,7 @@ RULES: dict[str, HazardRule] = {
         closure_why="the 1960 waves came in a series over hours; nobody re-enters the zone",
         closures=tsunami_closures,
         adjust_arrival=tsunami_last_exit,
+        roof_at_front=True,
     ),
     "blizzard": HazardRule(
         on_time="aboard before the streets become impassable at 15:00 (minute 330), or before the power goes out for a home on oxygen; "
@@ -278,6 +303,8 @@ RULES: dict[str, HazardRule] = {
         closures=street_class_closures,
         adjust_arrival=blizzard_deadline,
         ride_need=blizzard_need,
+        known_at=outage_reported,
+        unknown_slack_s=NO_HEAT_WINDOW_S,
         need_rule="someone 65+ living alone, someone with a mobility or self-care limitation, or someone on oxygen or dialysis; having no car doesn't count in a driving ban",
     ),
 }

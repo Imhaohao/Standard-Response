@@ -26,6 +26,7 @@ function sample(): ReplayFile {
       deadlineS: [2400, 2400, 2400, -1],
       boardedS: [900, -1, -1, -1],
       outcome: [1, 0, 3, 5],
+      arrivalS: [3000, 3000, 3300, -1],
     },
     events: [
       [0, kind("call"), 0, 0],
@@ -75,7 +76,8 @@ test("the running count moves homes from waiting to out on time, or to missed wh
   assert.deepEqual(countAt(replay, 100), { outOnTime: 0, waiting: 0, missed: 0, atRisk: 2 });
   assert.deepEqual(countAt(replay, 600), { outOnTime: 0, waiting: 2, missed: 0, atRisk: 2 });
   assert.deepEqual(countAt(replay, 1000), { outOnTime: 1, waiting: 1, missed: 0, atRisk: 2 });
-  assert.deepEqual(countAt(replay, 3000), { outOnTime: 1, waiting: 0, missed: 1, atRisk: 2 });
+  assert.deepEqual(countAt(replay, 3000), { outOnTime: 1, waiting: 1, missed: 0, atRisk: 2 });
+  assert.deepEqual(countAt(replay, 3300), { outOnTime: 1, waiting: 0, missed: 1, atRisk: 2 });
 });
 
 test("only homes in the hazard's path get a roof, and red roofs match the waiting count at every minute", () => {
@@ -86,5 +88,15 @@ test("only homes in the hazard's path get a roof, and red roofs match the waitin
     assert.equal(states.has(1), false);
     const red = [...states.values()].filter((state) => state === "waiting" || state === "vanComing").length;
     assert.equal(red, countAt(replay, seconds).waiting);
+  }
+});
+
+test("a home turns too late only once the hazard has reached it", () => {
+  const replay = decodeReplay(sample());
+  const arrival = replay.file.homes.arrivalS ?? [];
+  for (let seconds = 0; seconds <= 3600; seconds += 60) {
+    for (const [home, state] of riskStates(replay, seconds)) {
+      if (state === "missed") assert.ok(arrival[home] >= 0 && arrival[home] <= seconds);
+    }
   }
 });

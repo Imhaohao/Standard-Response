@@ -57,6 +57,10 @@ class Household:
     def deadline_s(self) -> float:
         return self.fire_arrival_s - DEADLINE_MARGIN_S
 
+    def plan_deadline_s(self, now: float) -> float:
+        """The deadline the dispatcher plans with at this moment; the true one unless a run says otherwise."""
+        return self.deadline_s
+
 
 @dataclass(frozen=True)
 class VehicleSpec:

@@ -11,7 +11,7 @@ export type ReplayFile = {
   endS: number;
   kinds: string[];
   outcomes: string[];
-  homes: { lat: number[]; lng: number[]; need: number[]; atRisk: number[]; hazardS: number[]; deadlineS: number[]; boardedS: number[]; outcome: number[] };
+  homes: { lat: number[]; lng: number[]; need: number[]; atRisk: number[]; hazardS: number[]; deadlineS: number[]; boardedS: number[]; outcome: number[]; arrivalS?: number[] };
   events: [number, number, number, number][];
   plans: [number, number, number, number][];
   vehicles: { label: string; kind: "van" | "bus" | "ambulance" }[];
@@ -147,7 +147,9 @@ export function riskStateAt(replay: Replay, home: number, seconds: number): Risk
   if (!homes.atRisk[home] || homes.need[home] === 0) return null;
   const boarded = homes.boardedS[home];
   if (boarded >= 0 && boarded <= seconds) return "out";
-  if (homes.hazardS[home] >= 0 && seconds >= homes.hazardS[home]) return "missed";
+  // A home turns "too late" only when the hazard actually reaches it, even if pickups stopped counting earlier.
+  const arrival = (homes.arrivalS ?? homes.hazardS)[home];
+  if (arrival >= 0 && seconds >= arrival) return "missed";
   const state = homeStateAt(replay, home, seconds);
   if (state === "needsRide") return "waiting";
   return state === "vanComing" ? "vanComing" : null;

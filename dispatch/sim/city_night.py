@@ -89,10 +89,18 @@ class LazyTravelTimes(TravelTimes):
 class CityHousehold(Household):
     """A household whose deadline margin depends on the hazard (and, for a tsunami, on how far it is from high ground)."""
     margin_s: float = 10 * MINUTE
+    # When the hazard physically reaches the home, which can be later than the time a pickup stops counting.
+    hazard_at_s: float = math.inf
+    # When the dispatcher learns this home is in danger; until then it plans as if the home could wait.
+    known_at_s: float = -math.inf
+    unknown_slack_s: float = 0.0
 
     @property
     def deadline_s(self) -> float:
         return self.fire_arrival_s - self.margin_s
+
+    def plan_deadline_s(self, now: float) -> float:
+        return self.deadline_s if now >= self.known_at_s else self.deadline_s + self.unknown_slack_s
 
 
 def front_geometry(front: dict):
@@ -141,6 +149,8 @@ class CityInputs:
     nodes: list[int]
     arrival_s: np.ndarray
     margin_s: np.ndarray
+    hazard_at_s: np.ndarray
+    known_at_s: np.ndarray
     closures_s: np.ndarray
     window_end_s: float
     warning_at: float
@@ -148,7 +158,7 @@ class CityInputs:
     shelter_node: int
 
 
-def city_inputs(city_id: str) -> CityInputs:
+def city_inputs(city_id: str, informed: bool = True) -> CityInputs:
     folder = CITIES / city_id
     city = json.loads((folder / "city.json").read_text())
     use_roads(folder / "roads.json")
@@ -162,14 +172,17 @@ def city_inputs(city_id: str) -> CityInputs:
     nodes = [net.snap(a, b) for a, b in zip(lat, lng)]
     closures = rule.closures(net, fronts, scenario, folder)
     context = ArrivalContext(net, fronts, nodes, records, folder, warning_epoch(scenario))
-    arrival = rule.adjust_arrival(arrival_minutes(fronts, lat, lng) * MINUTE, context)
+    front_arrival = arrival_minutes(fronts, lat, lng) * MINUTE
+    arrival = rule.adjust_arrival(front_arrival, context)
+    hazard_at = np.where(np.isfinite(arrival), np.maximum(front_arrival, arrival), np.inf) if rule.roof_at_front else arrival
+    known_at = rule.known_at(context, len(records)) if informed else np.full(len(records), -np.inf)
     margin = rule.margins(len(records))
     staging = net.snap(city["staging"]["lat"], city["staging"]["lng"])
     shelter = net.snap(city["shelter"]["lat"], city["shelter"]["lng"])
     # The night ends with the last household the hazard reaches; homes it never reaches can wait until then.
     reached = arrival[np.isfinite(arrival)]
     window_end = float(reached.max()) if reached.size else max(m for m, _ in fronts) * MINUTE
-    return CityInputs(city, rule, records, nodes, arrival, margin, closures, window_end, warning_epoch(scenario), staging, shelter)
+    return CityInputs(city, rule, records, nodes, arrival, margin, hazard_at, known_at, closures, window_end, warning_epoch(scenario), staging, shelter)
 
 
 def city_household(index: int, record: dict, node: int, inputs: CityInputs, rng) -> CityHousehold:
@@ -182,6 +195,8 @@ def city_household(index: int, record: dict, node: int, inputs: CityInputs, rng)
         need_prior=traits["needPrior"], fire_arrival_s=arrival if at_risk else inputs.window_end_s,
         need=inputs.rule.ride_need({**traits["truth"], "age": traits["age"]}), has_car=bool(record["hasCar"]), at_risk=at_risk,
         margin_s=float(inputs.margin_s[index]),
+        hazard_at_s=float(inputs.hazard_at_s[index]), known_at_s=float(inputs.known_at_s[index]),
+        unknown_slack_s=inputs.rule.unknown_slack_s,
     )
 
 
@@ -255,6 +270,9 @@ def assumptions(inputs: CityInputs) -> list[dict]:
          "a model of today, not the record"),
         ("Call accuracy", "a reached household reports its true need", "optimistic"),
     ]
+    if rule.unknown_slack_s > 0:
+        rows.append(("What the dispatcher knows", "a home's outage becomes known 30 min after it happens, from the utility's outage feed; until then the dispatcher plans as if the home could wait out the 12-hour no-heat window",
+                     "assumption (data/cities/buffalo/sources.md); calls that reach a home after its outage would tell it sooner and aren't credited; the oursBlind row has no outage information at all"))
     return [{"name": n, "value": v, "why": w} for n, v, w in rows]
 
 
@@ -285,8 +303,22 @@ def results_payload(city_id: str, inputs: CityInputs, seeds: int, fleets: list[i
         },
         "results": grouped,
         "onTimeBySeed": per_seed(outputs),
-        "headline": {fleet: {policy: grouped[fleet][policy]["atRiskOnTime"]["median"] for policy in POLICIES} for fleet in grouped},
+        "headline": {fleet: {policy: runs["atRiskOnTime"]["median"] for policy, runs in grouped[fleet].items()} for fleet in grouped},
+        "policies": {
+            "ours": "our calls and the re-planning dispatcher",
+            "today": "today's process: 911 calls shortly before the hazard, nearest free unit, one rider per trip",
+            "oursBlind": "our system with no outage information: every home that needs moving looks equally urgent (blizzard only)",
+        },
     }
+
+
+def run_plan(city_id: str, inputs: CityInputs) -> dict:
+    """Our system and today's process; where the dispatcher's knowledge is part of the model (the blizzard's outage
+    feed), also our system without it, to show what that knowledge is worth."""
+    runs = {policy: (inputs, policy) for policy in POLICIES}
+    if inputs.rule.unknown_slack_s > 0:
+        runs["oursBlind"] = (city_inputs(city_id, informed=False), "ours")
+    return runs
 
 
 def main():
@@ -297,13 +329,14 @@ def main():
     args = parser.parse_args()
     started = time.time()
     inputs = city_inputs(args.city)
+    runs = run_plan(args.city, inputs)
     outputs = []
     for fleet in args.fleets:
         for seed in range(args.seeds):
-            for policy in POLICIES:
-                result = run_one(inputs, seed, fleet, policy)
-                outputs.append((fleet, seed, policy, result))
-                print(f"{args.city} fleet {fleet} seed {seed} {policy}: {result['atRiskOnTime']} of {result['atRisk']} on time ({result['wallSeconds']} s)", flush=True)
+            for label, (run_inputs, policy) in runs.items():
+                result = run_one(run_inputs, seed, fleet, policy)
+                outputs.append((fleet, seed, label, result))
+                print(f"{args.city} fleet {fleet} seed {seed} {label}: {result['atRiskOnTime']} of {result['atRisk']} on time ({result['wallSeconds']} s)", flush=True)
     payload = results_payload(args.city, inputs, args.seeds, args.fleets, outputs, started)
     target = CITIES / args.city / "night-sim-results.json"
     target.write_text(json.dumps(payload, indent=2) + "\n")

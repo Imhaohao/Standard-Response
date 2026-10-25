@@ -199,6 +199,7 @@ def build_replay(night, events: list[tuple], roads_raw: dict, meta: dict) -> dic
             "lat": [e5(h.lat) for h in homes], "lng": [e5(h.lng) for h in homes],
             "need": [need_code(h) for h in homes], "atRisk": [int(h.at_risk) for h in homes],
             "hazardS": [seconds_or_missing(h.fire_arrival_s) if h.at_risk else -1 for h in homes],
+            "arrivalS": [seconds_or_missing(getattr(h, "hazard_at_s", h.fire_arrival_s)) if h.at_risk else -1 for h in homes],
             "deadlineS": [seconds_or_missing(h.deadline_s) if h.at_risk else -1 for h in homes],
             "boardedS": [int(round(boarded[h.index])) if h.index in boarded else -1 for h in homes],
             "outcome": [household_outcome(h, boarded) for h in homes],
