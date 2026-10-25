@@ -48,7 +48,7 @@ function Outcomes({ beat }: { beat: Beat }) {
     <>
       <Show when={beat === "ours"} delay={1.2} className="absolute" style={{ left: 128, top: 200, width: 820 }}>
         <p className="type-deck-figure">{TIMES}×</p>
-        <p className="type-deck-lede mt-8">as many people out in time</p>
+        <p className="type-deck-lede mt-8">as many people out in time as today’s “caveman” system</p>
       </Show>
       <Show when={comparing} delay={0.2} className="absolute" style={{ left: 128, bottom: 96, width: 820 }}>
         <p className="type-deck-note text-on-night-muted">
@@ -84,8 +84,8 @@ function Quote({ shown }: { shown: boolean }) {
         </div>
       </Show>
       <Show when={shown} delay={0.4} className="absolute" style={{ left: 128, top: 90 + QUOTE_PHOTO.height + 56, width: 1664 }}>
-        <blockquote className="type-deck-quote">“Honestly, this one is probably the most at the cutting edge of what we’re already doing and what could be helpful.”</blockquote>
-        <p className="type-deck-lede mt-6 text-on-night-muted">Firefighter, Palo Alto Fire Station 1</p>
+        <blockquote className="type-deck-quote">“Honestly, this is the most cutting-edge emergency services improvement idea I’ve ever heard.”</blockquote>
+        <p className="type-deck-lede mt-6 text-on-night-muted">Jesse, firefighter at Palo Alto Fire Station 1</p>
       </Show>
     </>
   );

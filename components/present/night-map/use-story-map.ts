@@ -8,20 +8,23 @@ import { arrivalMinutesAt, buildFireField, FireField, ScenarioGeoJson, scenarioF
 export type StoryHouse = { id: number; center: Point; arrives: number };
 export type StoryMap = { data: InkMapData; scenario: ScenarioGeoJson; fire: FireField; house: StoryHouse; homes: Point[] };
 
-// The story's house stands in for the Mitchells' home: a house in west Altadena that the scenario
-// fire, which follows the Eaton Fire's path, reaches a few hours into the night. It is not their address.
-const STORY_HOUSE_ARRIVAL_MINUTES = 150;
+// The story's house stands in for the Mitchells' home: the house the fire reaches nearest the block
+// LAist reported, the 100 block of W Terrace St in west Altadena, placed where the replay put it
+// (data/eaton/replay-results.json, "terrace-w-100"). It is a neighbour's roof, not their address.
+const STORY_BLOCK = { lat: 34.19456, lng: -118.1507 };
 
 function pickStoryHouse(data: InkMapData, fire: FireField): StoryHouse | null {
-  let best: StoryHouse | null = null;
+  const [bx, by] = createProjection(data.origin).toLocal(STORY_BLOCK);
+  let best: (StoryHouse & { distance: number }) | null = null;
   for (const building of data.buildings) {
     if (building.kind !== BUILDING_KIND.house) continue;
+    const distance = Math.hypot(building.center[0] - bx, building.center[1] - by);
+    if (best && distance >= best.distance) continue;
     const arrives = arrivalMinutesAt(fire, building.center);
     if (arrives === null) continue;
-    if (best && Math.abs(arrives - STORY_HOUSE_ARRIVAL_MINUTES) >= Math.abs(best.arrives - STORY_HOUSE_ARRIVAL_MINUTES)) continue;
-    best = { id: building.id, center: building.center, arrives };
+    best = { id: building.id, center: building.center, arrives, distance };
   }
-  return best;
+  return best && { id: best.id, center: best.center, arrives: best.arrives };
 }
 
 function useScenario() {
