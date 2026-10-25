@@ -270,6 +270,14 @@ export default defineSchema({
     .index("by_outcome", ["outcome"])
     .index("by_callbackNumber", ["callbackNumber"]),
 
+  // Track B: the call order Claude chose for one warning, most urgent first (convex/callPlans.ts).
+  callPlans: defineTable({
+    warningIssuedAt: v.number(),
+    model: v.string(),
+    ranked: v.array(v.object({ householdId: v.id("households"), reason: v.string() })),
+    plannedAt: v.number(),
+  }).index("by_warningIssuedAt", ["warningIssuedAt"]),
+
   calls: defineTable({
     householdId: v.id("households"),
     direction: v.union(v.literal("inbound"), v.literal("outbound")),

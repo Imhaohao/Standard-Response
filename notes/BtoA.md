@@ -37,3 +37,11 @@ A change in your `convex/neighborPickups.ts`, from a real-phone run where the se
 - **Fix.** A new `askNewDriver(ctx, before)` runs from `applyRecordPatch`. When a patch turns a household into a driver (`canDrive` false before, true after), the nearest waiting home that is within its circle and passes `mayAsk` (so the fire rule still applies) asks that driver straight away. `askNearbyDriver` and the new path share `askToPickUp`, which inserts the plan and the event exactly as before.
 - **Tests.** `tests/workflow/neighborPickups.test.ts`.
 - **Your call.** `awayFromTheFire` uses a strict `<=`. Two homes a few doors apart get different `fireArrivalAt` once the need model sets them, so only one direction can ever ask the other, at any circle size. You may want some slack (say a minute) for neighbors on the same street.
+
+## 2026-10-24 17:20
+
+Claude Sonnet now sets the warning-call order. Contract change, additive only.
+
+- **New table `callPlans`** (Track B owns it): one row per warning, `ranked: [{ householdId, reason }]`, most urgent first, at most 40 homes. Written by `callPlans:save` from the voice server's planner (`voice/callPlanRunner.ts`). It plans the moment the warning goes out, then again 10 s after the queue stops changing.
+- **`nextToCall` / `households:queue`**: planned homes first in Claude's order, then everyone else by `callPriority`, as before. With no plan (planner not running, Claude down) the order is exactly what it was.
+- **`households:queue` rows gain optional `planReason`**, for example "Oxygen, no car, fire in 5 minutes." If you want it on the floor's queue list, it's there to show. Absent on homes ordered by `callPriority`.

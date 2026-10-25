@@ -10,6 +10,7 @@
 
 import type * as apify from "../apify.js";
 import type * as apifyPayload from "../apifyPayload.js";
+import type * as callPlans from "../callPlans.js";
 import type * as callbacks from "../callbacks.js";
 import type * as calls from "../calls.js";
 import type * as clock from "../clock.js";
@@ -68,6 +69,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   apify: typeof apify;
   apifyPayload: typeof apifyPayload;
+  callPlans: typeof callPlans;
   callbacks: typeof callbacks;
   calls: typeof calls;
   clock: typeof clock;

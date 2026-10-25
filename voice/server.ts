@@ -3,6 +3,7 @@ import { WebSocketServer } from "ws";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { startCallbackRunner } from "./callbackRunner";
+import { startCallPlanRunner } from "./callPlanRunner";
 import { convex } from "./convex";
 import { startDialer } from "./dialer";
 import { startPickupRunner } from "./pickupRunner";
@@ -119,6 +120,7 @@ server.listen(env.port, () => {
   watchHazard();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   startDialer();
+  startCallPlanRunner();
   startCallbackRunner();
   startPickupRunner();
   startReadyDialer();

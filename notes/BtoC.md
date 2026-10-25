@@ -27,3 +27,7 @@ I added a third dispatcher, `dispatch/alns.py` (adaptive large neighborhood sear
 - Fast fire, 60 seeds each, on-time pickups against the heuristic (median, 5th to 95th percentile):
   - `hazard_scale=0.35`: OR-Tools −5 (−14 to +6), worse on 44 of 60 seeds. ALNS +7 (+1 to +18), better on 57 of 60.
   - `hazard_scale=0.5`: OR-Tools −3 (−9 to +3). ALNS +2 (−2 to +9), better on 40 of 60.
+
+## 2026-10-24 17:20
+
+`nextToCall` (your `sim.ts` tick uses it) now returns the homes in Claude Sonnet's call plan first (`convex/callPlans.ts`, at most 40), then the rest by `callPriority`. The simulated night is ordered by the plan too while the voice server runs. Without a plan nothing changes. Same filters as before: in zone, `not_called`/`no_answer`, not a busy helper.

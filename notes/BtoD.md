@@ -81,3 +81,7 @@ Repetition fixes from the real calls on `robust-penguin-834` change some `POST /
 - **On hold**, a reply that only rewords one already given is dropped, and a bare "Oh," or "okay" gets no sentence at all.
 - **Interpreter prompt** reads transcripts against the recent questions: "desperately need autism" after the oxygen question is now `medical=oxygen` (guessed), and the misheard word is never said back.
 - Request and response shapes are unchanged.
+
+## 2026-10-24 17:20
+
+`callPriority` is no longer the only call order. Claude Sonnet (`voice/agent/callPlanner.ts`) ranks up to 40 waiting homes from minutes left, `needProbability`, and what the record and Ready plan already say. `nextToCall` dials that order first, then the rest by `callPriority`. Your estimates still feed both. On a 120-home test it moved an oxygen user who can't leave, at need 0 and 5 minutes out, to first place. If you want to measure the plan against the formula, the plan is in `callPlans` with each home's reason.

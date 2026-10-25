@@ -8,6 +8,7 @@ import { askNearbyDriver, askNewDriver, busyHelpers } from "./neighborPickups";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
+import { currentPlan, QUEUE_STATUSES } from "./callPlans";
 
 const recordPatch = v.object({
   canLeave: v.optional(canLeave),
@@ -113,12 +114,16 @@ export const setEstimates = mutation({
   },
 });
 
-const QUEUE_STATUSES = ["not_called", "no_answer"] as const;
+const isQueued = (h: Doc<"households">) => (QUEUE_STATUSES as readonly string[]).includes(h.callStatus);
 
+// Claude's plan for this warning goes first (convex/callPlans.ts), then everyone else by callPriority.
 // A neighbor 911 is asking to drive someone, or who is already on the way, isn't rung for their own
 // warning call at the same time: the pickup call would find the line busy.
 export async function nextToCall(ctx: QueryCtx, limit: number) {
   const busy = await busyHelpers(ctx);
+  const callable = (h: Doc<"households"> | null): h is Doc<"households"> => h !== null && h.inZone && isQueued(h) && !busy.has(h._id);
+  const plan = await currentPlan(ctx);
+  const planned = (await Promise.all([...plan.keys()].map((id) => ctx.db.get("households", id)))).filter(callable);
   const lists = await Promise.all(
     QUEUE_STATUSES.map((callStatus) =>
       ctx.db
@@ -128,11 +133,11 @@ export async function nextToCall(ctx: QueryCtx, limit: number) {
         .take(limit),
     ),
   );
-  return lists
+  const rest = lists
     .flat()
-    .filter((h) => h.inZone && !busy.has(h._id))
-    .sort((a, b) => b.callPriority - a.callPriority)
-    .slice(0, limit);
+    .filter((h) => callable(h) && !plan.has(h._id))
+    .sort((a, b) => b.callPriority - a.callPriority);
+  return [...planned, ...rest].slice(0, limit);
 }
 
 export const queue = query({
@@ -146,10 +151,13 @@ export const queue = query({
       fireArrivalAt: v.number(),
       attempts: v.number(),
       callStatus,
+      // Why Claude put this home where it is. Absent for homes ordered by callPriority.
+      planReason: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, { limit }) => {
     const households = await nextToCall(ctx, limit);
+    const plan = await currentPlan(ctx);
     return households.map((h) => ({
       _id: h._id,
       address: h.address,
@@ -158,6 +166,7 @@ export const queue = query({
       fireArrivalAt: h.fireArrivalAt,
       attempts: h.attempts,
       callStatus: h.callStatus,
+      planReason: plan.get(h._id),
     }));
   },
 });
