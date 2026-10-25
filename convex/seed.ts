@@ -130,8 +130,8 @@ const FLEET: VehicleSeed[] = [
 
 const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.1446, capacity: 1200 }];
 
-async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number) {
-  for (const vehicle of FLEET) {
+async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number, fleet: VehicleSeed[] = FLEET) {
+  for (const vehicle of fleet) {
     const lat = AREA.south + 0.001 + random() * 0.004;
     const lng = AREA.west + random() * (AREA.east - AREA.west);
     await ctx.db.insert("vehicles", { ...vehicle, lat, lng, shiftEndsAt: warningAt + 8 * 60 * 60_000 });
@@ -187,9 +187,12 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, opt
 }
 
 // Seeds the demo fleet and shelter on a deployment that has riders but no vehicles yet.
-export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number) {
+// A night of only real households gets only the vans teammates drive from the driver page:
+// nobody who isn't a real person is sent to pick up a real one.
+export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number, driverPageOnly = false) {
   if (await ctx.db.query("vehicles").first()) return false;
-  await seedFleet(ctx, mulberry32(13), warningAt);
+  const fleet = driverPageOnly ? FLEET.filter((vehicle) => !vehicle.driverIsSimulated) : FLEET;
+  await seedFleet(ctx, mulberry32(13), warningAt, fleet);
   return true;
 }
 

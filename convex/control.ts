@@ -57,9 +57,8 @@ export const issueWarning = mutation({
     const now = clock.simAt;
     if (await ctx.db.query("households").first()) await retimeSimulatedArea(ctx, now);
     else await seedSimulatedArea(ctx, now);
-    // Simulated vans drive only in a simulated town. A night of real households alone gets none, so
-    // nobody who isn't a real person can be sent to pick anyone up.
-    if (await hasSimulatedHouseholds(ctx)) await seedFleetIfEmpty(ctx, now);
+    // Simulated drivers drive only in a simulated town. Real households get the driver-page vans.
+    await seedFleetIfEmpty(ctx, now, !(await hasSimulatedHouseholds(ctx)));
     const tickGeneration = control.tickGeneration + 1;
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration, clock: { ...clock, ranMs: 0 } });
