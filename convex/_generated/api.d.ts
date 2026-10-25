@@ -38,6 +38,7 @@ import type * as model from "../model.js";
 import type * as neighborCalls from "../neighborCalls.js";
 import type * as neighborPickups from "../neighborPickups.js";
 import type * as neighborRules from "../neighborRules.js";
+import type * as nightRuns from "../nightRuns.js";
 import type * as nominations from "../nominations.js";
 import type * as offers from "../offers.js";
 import type * as pickupCover from "../pickupCover.js";
@@ -100,6 +101,7 @@ declare const fullApi: ApiFromModules<{
   neighborCalls: typeof neighborCalls;
   neighborPickups: typeof neighborPickups;
   neighborRules: typeof neighborRules;
+  nightRuns: typeof nightRuns;
   nominations: typeof nominations;
   offers: typeof offers;
   pickupCover: typeof pickupCover;
