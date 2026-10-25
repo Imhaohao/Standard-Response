@@ -7,6 +7,10 @@ import type { PrincipleId } from "../agent/interpreter";
 // (CALL_TAKER_PRINCIPLES) worked out into concrete situations; the dialog index holds every resident
 // turn of the 911 dialog bank with the reading a careful call-taker gave it. Each turn, the resident's
 // words pull the closest few of each into Claude's prompt.
+//
+// Moments are embedded by the resident's words alone and filtered by step. Embedding "Agent: <question>
+// Resident: <answer>" let the long question decide the match: "Peter." pulled a Spanish caller begging
+// for help at 0.57 while the right wheelchair moment scored 0.55.
 
 export const INDEXES = { principles: "rollcall-principles", dialogs: "rollcall-911-dialogs" } as const;
 
@@ -72,7 +76,7 @@ export type Script = {
   turns: ScriptTurn[];
 };
 
-// What a moment looks like to the embedding model, the same on both sides of the search.
+// How a retrieved moment reads in the prompt: the agent's question gives the resident's words their context.
 export const momentText = (agent: string, resident: string) => `Agent: ${agent}\nResident: ${resident}`;
 
 export const principleDocs = (card: PrincipleCard): DocumentInfo[] =>
@@ -85,14 +89,25 @@ export const principleDocs = (card: PrincipleCard): DocumentInfo[] =>
 export const dialogDocs = (script: Script): DocumentInfo[] =>
   script.turns.flatMap((turn, index) => (turn.checked ? [{
     id: `${script.id}-${index}`,
-    text: momentText(turn.agent, turn.resident),
+    text: turn.resident,
     metadata: {
       hazard: script.hazard,
       language: script.language,
       step: turn.step,
+      agent: turn.agent,
       reading: JSON.stringify(turn.reading),
     },
   }] : []));
+
+// Live steps that ask what a script step asks, so they search that step's moments.
+const SCRIPT_STEP_ALIASES: Partial<Record<string, ScriptStep>> = { confirm_away: "confirm_address", chair_kind: "needs" };
+
+// The script step a live turn's stage answers, or null for a stage the dialog bank has no scripts for
+// (the Ready check, a text follow-up), which then searches every step.
+export function scriptStepOf(stage: string): ScriptStep | null {
+  if ((SCRIPT_STEPS as readonly string[]).includes(stage)) return stage as ScriptStep;
+  return SCRIPT_STEP_ALIASES[stage] ?? null;
+}
 
 export type Guidance = {
   principles: { principle: string; situation: string; guidance: string }[];

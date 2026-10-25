@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dialogDocs, guidanceText, momentText, principleDocs, PrincipleCard, Script } from "./bank";
+import { dialogDocs, guidanceText, momentText, principleDocs, PrincipleCard, Script, scriptStepOf } from "./bank";
 import { recall } from "./moss";
 
 const card: PrincipleCard = {
@@ -20,7 +20,7 @@ test("a principle card is searchable in English and Spanish", () => {
   assert.equal(docs[0].metadata?.hazard, "wildfire");
 });
 
-test("each resident turn is one document searched the way a live turn asks", () => {
+test("each resident turn is one document embedded by the resident's words alone", () => {
   const script: Script = {
     id: "s0001",
     hazard: "flood",
@@ -36,7 +36,9 @@ test("each resident turn is one document searched the way a live turn asks", () 
   assert.equal(docs.length, 1, "an unchecked turn is not indexed");
   const [doc] = docs;
   assert.equal(doc.id, "s0001-0");
-  assert.equal(doc.text, momentText("¿Cuántas personas?", "Solo yo"));
+  assert.equal(doc.text, "Solo yo");
+  assert.equal(doc.metadata?.agent, "¿Cuántas personas?");
+  assert.equal(doc.metadata?.step, "household");
   assert.deepEqual(JSON.parse(doc.metadata!.reading), { set: ["peopleCount=1"] });
   assert.equal(doc.metadata?.language, "es");
 });
@@ -54,6 +56,13 @@ test("guidance renders principles first, then past moments with their readings",
 
 test("without Moss keys a turn gets no guidance and doesn't wait", async () => {
   const started = Date.now();
-  assert.equal(await recall("Can everyone leave?", "no", "wildfire", "en"), null);
+  assert.equal(await recall({ utterance: "no", stage: "can_leave", language: "en" }, "wildfire"), null);
   assert.ok(Date.now() - started < 20);
+});
+
+test("a live stage searches the script step that asks the same thing", () => {
+  assert.equal(scriptStepOf("household"), "household");
+  assert.equal(scriptStepOf("confirm_away"), "confirm_address");
+  assert.equal(scriptStepOf("chair_kind"), "needs");
+  assert.equal(scriptStepOf("ready_intro"), null);
 });

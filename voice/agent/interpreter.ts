@@ -416,7 +416,7 @@ export const interpret = (turn: TurnContext) => interpretFor(turn, currentHazard
 
 // For a hazard other than the operator's current one: the dialog bank's checker reads every hazard.
 export async function interpretFor(turn: TurnContext, kind: Hazard): Promise<Interpretation> {
-  const guidance = await recall(turn.question, turn.utterance, kind, turn.language);
+  const guidance = await recall(turn, kind);
   const claudeText = async () => {
     const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(kind, promptFor(turn, guidance))));
     const text = response.content.find((block) => block.type === "text");

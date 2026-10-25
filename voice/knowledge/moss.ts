@@ -3,7 +3,7 @@ import type { Hazard } from "../../convex/hazards";
 import type { Language } from "../../convex/languages";
 import { env } from "../env";
 import { loadMossIndex, MOSS_RETRY_MS, mossConfigured, sharedMossClient } from "../mossLoader";
-import { Guidance, INDEXES, momentText } from "./bank";
+import { Guidance, INDEXES, momentText, scriptStepOf } from "./bank";
 
 // The first layer of every interpreter turn. Both indexes are downloaded once and searched in memory
 // (Moss embeds the query locally), so a lookup costs milliseconds and no network. A turn never waits
@@ -48,18 +48,25 @@ const hazardFilter = (kind: Hazard): MetadataFilter => ({
   ],
 });
 
-const dialogFilter = (kind: Hazard, language: Language): MetadataFilter => {
-  const sameHazard: MetadataFilter = { field: "hazard", condition: { $eq: kind } };
-  if (!BANK_LANGUAGES.includes(language)) return sameHazard;
-  return { $and: [sameHazard, { field: "language", condition: { $eq: language } }] };
+// What a turn needs to search: the resident's words, the step they answer and the call's language.
+export type RecallTurn = { utterance: string; stage: string; language: Language };
+
+const dialogFilter = (kind: Hazard, turn: RecallTurn): MetadataFilter => {
+  const step = scriptStepOf(turn.stage);
+  const conditions: MetadataFilter[] = [
+    { field: "hazard", condition: { $eq: kind } },
+    ...(step ? [{ field: "step", condition: { $eq: step } }] : []),
+    ...(BANK_LANGUAGES.includes(turn.language) ? [{ field: "language", condition: { $eq: turn.language } }] : []),
+  ];
+  return conditions.length === 1 ? conditions[0] : { $and: conditions };
 };
 
 const relevant = (docs: QueryResultDocumentInfo[]) => docs.filter((doc) => doc.score >= MIN_SCORE);
 
-async function search(question: string, utterance: string, kind: Hazard, language: Language): Promise<Guidance> {
+async function search(turn: RecallTurn, kind: Hazard): Promise<Guidance> {
   const [principles, moments] = await Promise.all([
-    client!.query(INDEXES.principles, utterance, { topK: PRINCIPLES_PER_TURN, filter: hazardFilter(kind) }),
-    client!.query(INDEXES.dialogs, momentText(question, utterance), { topK: MOMENTS_PER_TURN, filter: dialogFilter(kind, language) }),
+    client!.query(INDEXES.principles, turn.utterance, { topK: PRINCIPLES_PER_TURN, filter: hazardFilter(kind) }),
+    client!.query(INDEXES.dialogs, turn.utterance, { topK: MOMENTS_PER_TURN, filter: dialogFilter(kind, turn) }),
   ]);
   return {
     principles: relevant(principles.docs).map((doc) => ({
@@ -67,7 +74,7 @@ async function search(question: string, utterance: string, kind: Hazard, languag
       situation: doc.metadata?.situation ?? doc.text,
       guidance: doc.metadata?.guidance ?? "",
     })),
-    moments: relevant(moments.docs).map((doc) => ({ text: doc.text, reading: doc.metadata?.reading ?? "" })),
+    moments: relevant(moments.docs).map((doc) => ({ text: momentText(doc.metadata?.agent ?? "", doc.text), reading: doc.metadata?.reading ?? "" })),
   };
 }
 
@@ -75,14 +82,14 @@ const timeout = (ms: number) => new Promise<null>((resolve) => setTimeout(() => 
 
 // The principles and past moments closest to what the resident just said, or null when the layer is
 // off, still loading, failing or too slow.
-export async function recall(question: string, utterance: string, kind: Hazard, language: Language): Promise<Guidance | null> {
+export async function recall(turn: RecallTurn, kind: Hazard): Promise<Guidance | null> {
   if (!ready) {
     void loadKnowledge();
     return null;
   }
   const started = Date.now();
   const found = await Promise.race([
-    search(question, utterance, kind, language).catch((error: unknown) => {
+    search(turn, kind).catch((error: unknown) => {
       console.error("[knowledge] Moss query failed", error);
       return null;
     }),

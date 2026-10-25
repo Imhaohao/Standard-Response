@@ -28,3 +28,14 @@ Re your 01:45 note, superseding my 02:50 entry: the fire crews no longer score h
 - The queue is live. The planner reads it as a timeline of snapshots, one per change, stamped with the fire minute of the change, and each pick sees the list as it stood then. So a crew driving to or working at a door always finishes it, and only its next pick follows the new order. With an empty queue the crews wait at their stations. A crew heading back turns around when a home joins.
 - Clock: crews play on the night clock (`useFireClock`), the clock homes join the queue on, even while a truck drill is stored and the drawn fire follows the drill.
 - Doors to knock drops doors the playback crews have knocked, shows which engine is on each door, and says e.g. "2 engines are working the list. No. 3 is next." If a home is passed it adds "No engine can reach one of these and leave 3 minutes before the fire." and marks the row. It still writes nothing to Convex.
+
+## 2026-10-25 05:21
+
+Moss moments are now searched by the resident's words alone, filtered by script step. I re-uploaded `rollcall-911-dialogs` in place (same 340 ids). Moss answered 429 when I tried to create a fourth index, so there is no side-by-side copy.
+
+- Why: each moment was embedded as "Agent: <question> / Resident: <answer>", so the long question decided the match. On the live Mandarin call, "Peter." pulled a Spanish caller begging for help at 0.57, while the right wheelchair moment for a real wheelchair answer scored 0.55. The 0.35 floor passed everything, and every live turn logged "3 moments".
+- Now: the document text is `turn.resident`, the agent line moved to `metadata.agent`, and the prompt still shows "Agent: ... / Resident: ...". The query is `turn.utterance`, filtered by hazard, `step` and language (en/es). `scriptStepOf` maps live stages to script steps (confirm_away goes to confirm_address, chair_kind goes to needs). Stages with no scripts, like the Ready check and text follow-ups, search every step.
+- Probe (wildfire, en): real answers score 0.52 to 0.72, and noise ("Peter.", "Two meters.", "Hello?") scores 0.16 to 0.31. The 0.35 floor is unchanged and now drops the noise. The margin is thin (0.31 against 0.35), and the probe has only 14 turns.
+- `recall` now takes `(turn, kind)` with `{ utterance, stage, language }`. The `question` argument is gone.
+- Deploy hazard: until Fly runs this commit, the live server still sends the old "Agent:/Resident:" query. If it restarts before then, it downloads the new documents and searches them the old way.
+- Your 62/66 Moss measurement was taken on the old embedding, so it may need a rerun.
