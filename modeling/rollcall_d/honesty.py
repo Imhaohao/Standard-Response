@@ -51,8 +51,13 @@ TEMPLATES = _status_templates()
 LEXICAL = re.compile(
     r"\b(on (the|their|its) way|coming (for|to get) you|help is (coming|on)|someone (is|will be) (coming|there)|"
     r"they('ll| will) (be there|get you|come)|don'?t worry|you'?re (safe|going to be (ok|fine|safe))|soon|minutes away|"
-    r"has been (sent|assigned|dispatched)|we'?ll (get|pick) you|pick you up|"
-    r"en camino|ya (viene|va)|van a (llegar|ir por)|vienen por usted|no se preocupe|esta a salvo|pronto|lo van a recoger|la van a recoger)\b",
+    r"(has|have|is|are|'s|'ve) been (sent|assigned|dispatched|arranged)|we'?ll (get|pick) you|pick you up|"
+    r"we('ll| will) (take care of|look after|make sure) you|we('ll| will) help (you )?(get|figure)|we('ve| have) got (you|someone)|"
+    r"you('ll| will) be (fine|ok|okay|alright|safe)|(all|everything('s| is)?) (set|arranged|handled|taken care of)|"
+    r"(is|'s) (handled|arranged|taken care of)|(headed|heading) (your way|to you)|"
+    r"en camino|ya (viene|va|vienen|van)|van a (llegar|ir por)|vienen por usted|no se (preocupe|apure)|esta a salvo|pronto|lo van a recoger|la van a recoger|"
+    r"(le|la|lo|les) (mandamos|enviamos)|(ya )?(mandamos|enviamos) (a alguien|una|un)|(le|la|lo) ayudamos a salir|"
+    r"(todo|ya) esta (confirmado|listo|arreglado)|esta confirmado|nos encargamos)\b",
     re.IGNORECASE,
 )
 

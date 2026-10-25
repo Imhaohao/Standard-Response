@@ -5,6 +5,7 @@ Spanish parity) -> data/alignment-results.json.
   uv run python scripts/eval_alignment.py                                            # scripted stand-in: harness check only
   uv run python scripts/eval_alignment.py --endpoint <url> --sets barrier           # one set, merged into the last results
   uv run python scripts/eval_alignment.py --parity-only                              # refresh the parity rows from the last run
+  uv run python scripts/eval_alignment.py --canaries-only                            # regrade the canary lines only
 
 Also writes data/alignment-cards.json (every card, with a plain-language version for a human tester) and
 data/alignment-transcripts.jsonl. Agent lines are graded by the same implied-reassurance grader as the
@@ -85,7 +86,7 @@ def grade_advice(results: list[al.AlignmentRun], grader) -> dict[str, list[dict]
 
 def grader_canaries(grader, advice_grader) -> dict:
     implied, advice = more.canary_lines()
-    return more.canary_summary(grade_lines([line for line, _ in implied], grader), [label for _, label in implied],
+    return more.canary_summary(grade_lines([line for line, _, _ in implied], grader), implied,
                                more.grade_advice([line for line, _ in advice], advice_grader), [label for _, label in advice])
 
 
@@ -155,6 +156,24 @@ def refresh_parity(path: Path) -> None:
     print("Spanish parity gaps:", evals["spanishParity"]["gaps"], "missing:", evals["spanishParity"]["missing"])
 
 
+def refresh_canaries(path: Path, no_model: bool) -> None:
+    """Regrade the canary lines after a grader or its patterns change, without calling the agent."""
+    summary = json.loads(path.read_text())
+    grader = None if no_model else model_grader_or_none()
+    evals = {e["key"]: e for e in summary["evals"]}
+    evals["graderCanaries"] = {"key": "graderCanaries", **grader_canaries(grader, more.AdviceGrader(grader) if grader else None)}
+    summary["evals"] = [evals[k] for k in ORDER if k in evals]
+    path.write_text(json.dumps(summary, indent=1, ensure_ascii=False))
+    print_canaries(evals["graderCanaries"])
+
+
+def print_canaries(block: dict) -> None:
+    canaries = block["graders"]
+    for label, rows in [*((f"implied help, {name}", b) for name, b in canaries["impliedReassurance"].items()), ("advice", canaries["advice"])]:
+        print(f"Canaries, {label}: " + "; ".join(f"{kind} recall {d['recall']}, false positives {d['falsePositives']}/{d['negatives']}"
+                                                  for kind, d in rows.items() if kind in ("lexical", "model")))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--endpoint", help="Track B's text agent base URL; omit to use the scripted stand-in")
@@ -165,9 +184,13 @@ def main() -> None:
     parser.add_argument("--out", default=str(DATA / "alignment-results.json"))
     parser.add_argument("--sets", nargs="+", choices=list(SETS), help="run only these sets and merge them into --out")
     parser.add_argument("--parity-only", action="store_true", help="recompute the parity rows in --out from current eval and honesty results")
+    parser.add_argument("--canaries-only", action="store_true", help="regrade the canary lines into --out without calling the agent")
     args = parser.parse_args()
     if args.parity_only:
         refresh_parity(Path(args.out))
+        return
+    if args.canaries_only:
+        refresh_canaries(Path(args.out), args.no_model)
         return
 
     personas = json.loads((DATA / "personas.json").read_text())
@@ -218,9 +241,7 @@ def main() -> None:
         block = blocks[kind]
         print(f"{block['name']}: {block['passed']}/{block['total']} pass {block['ci95']}; reasons {block['failuresByReason']}; "
               f"implied {block['impliedReassurance']['flagged']}/{block['impliedReassurance']['graded']}; errors {len(block['errors'])}")
-    for name, grader_block in blocks["graderCanaries"]["graders"].items():
-        print(f"Canaries, {name} grader: " + "; ".join(f"{kind} recall {d['recall']}, false positives {d['falsePositives']}/{d['negatives']}"
-                                                         for kind, d in grader_block.items()))
+    print_canaries(blocks["graderCanaries"])
     print("Spanish parity gaps:", blocks["spanishParity"]["gaps"], "missing:", blocks["spanishParity"]["missing"])
 
 

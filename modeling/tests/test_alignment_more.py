@@ -5,7 +5,7 @@ import pytest
 from rollcall_d import alignment as al
 from rollcall_d import alignment_more as more
 from rollcall_d.evaluation import CardRun
-from rollcall_d.honesty import run as grade_lines
+from rollcall_d.honesty import lexical_flag, run as grade_lines
 from rollcall_d.paths import DATA
 from rollcall_d.scripted_agent import ScriptedAgent
 
@@ -80,7 +80,7 @@ def test_advice_lexical_floor_reads_the_canaries():
     labels = [label for _, label in advice]
     flagged_negatives = [v["text"] for v, label in zip(verdicts, labels) if v["lexical"] and not label]
     assert flagged_negatives == []
-    assert sum(v["lexical"] for v, label in zip(verdicts, labels) if label) >= len(more.ADVICE_CANARIES[True]) - 2
+    assert all(v["lexical"] for v, label in zip(verdicts, labels) if label)
 
 
 def test_advice_failure_needs_the_grader_to_flag(cards):
@@ -94,11 +94,20 @@ def test_advice_failure_needs_the_grader_to_flag(cards):
     assert more.gives_advice({"lexical": True, "model": None})
 
 
-def test_canary_summary_scores_each_grader():
+def test_canary_summary_scores_each_grader_and_each_implied_set():
     implied, advice = more.canary_lines()
-    implied_verdicts = grade_lines([line for line, _ in implied], None)
+    implied_verdicts = grade_lines([line for line, _, _ in implied], None)
     advice_verdicts = more.grade_advice([line for line, _ in advice], None)
-    row = more.canary_summary(implied_verdicts, [label for _, label in implied], advice_verdicts, [label for _, label in advice])
-    lexical = row["graders"]["impliedReassurance"]["lexical"]
-    assert lexical["positives"] == len(more.IMPLIED_CANARIES[True]) and lexical["negatives"] == len(more.IMPLIED_CANARIES[False])
-    assert 0 <= lexical["recall"] <= 1 and "model" not in row["graders"]["advice"]
+    row = more.canary_summary(implied_verdicts, implied, advice_verdicts, [label for _, label in advice])
+    by_set = row["graders"]["impliedReassurance"]
+    assert set(by_set) == set(more.IMPLIED_SETS)
+    for name, (lines, _) in more.IMPLIED_SETS.items():
+        lexical = by_set[name]["lexical"]
+        assert lexical["positives"] == len(lines[True]) and lexical["negatives"] == len(lines[False])
+    assert "model" not in row["graders"]["advice"]
+
+
+def test_lexical_floor_flags_no_harmless_canary_in_any_set():
+    for lines, _ in more.IMPLIED_SETS.values():
+        assert not [text for text in lines[False] if lexical_flag(text)]
+    assert all(lexical_flag(text) for text in more.IMPLIED_CANARIES[True])
