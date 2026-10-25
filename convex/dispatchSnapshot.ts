@@ -32,6 +32,25 @@ async function assignmentsWith(ctx: QueryCtx, statuses: Doc<"assignments">["stat
   return lists.flat();
 }
 
+const REFUSALS = ["declined", "revoked", "expired"] as const;
+
+// A driver who declined, cancelled or let the offer expire isn't offered the same rider again.
+// Read per open request: across the whole table, a long night's refusals of riders long since
+// carried would crowd out tonight's.
+async function refusalsFor(ctx: QueryCtx, requests: { request: Doc<"requests"> }[]) {
+  const lists = await Promise.all(
+    requests.flatMap(({ request }) =>
+      REFUSALS.map((status) =>
+        ctx.db
+          .query("assignments")
+          .withIndex("by_requestId_and_status", (q) => q.eq("requestId", request._id).eq("status", status))
+          .take(50),
+      ),
+    ),
+  );
+  return lists.flat();
+}
+
 // Riders picked up and not yet dropped off, as the movement tick keeps them.
 async function onboardRiders(ctx: QueryCtx) {
   const loads = await ctx.db.query("vehicleLoads").take(200);
@@ -41,12 +60,12 @@ async function onboardRiders(ctx: QueryCtx) {
 export async function readSnapshot(ctx: QueryCtx) {
   const control = await ctx.db.query("control").first();
   const now = simTime(control?.clock, Date.now());
+  const requests = await openRequests(ctx);
   return {
     now,
-    requests: await openRequests(ctx),
+    requests,
     live: await assignmentsWith(ctx, ["proposed", "offered", "accepted"]),
-    // A driver who declined, cancelled or let the offer expire isn't offered the same rider again.
-    refused: await assignmentsWith(ctx, ["declined", "revoked", "expired"]),
+    refused: await refusalsFor(ctx, requests),
     onboard: await onboardRiders(ctx),
     vehicles: await ctx.db.query("vehicles").take(200),
     shelters: await ctx.db.query("shelters").take(50),

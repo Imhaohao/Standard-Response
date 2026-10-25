@@ -263,3 +263,25 @@ describe("an open offer the new plan keeps on the same van", () => {
     expect(slips.offers.find((o) => o.requestId === request._id)?.etaMinutes).toBe(offer.etaMinutes + 10);
   });
 });
+
+describe("a driver who declined late in a long night", () => {
+  test("isn't offered that rider again, however many old refusals came before", { timeout: 30_000 }, async () => {
+    const t = setup();
+    const homes = await night(t);
+    const [rider, other] = await Promise.all(homes.map((home) => requestOf(t, home)));
+    // A long night's worth of refusals, all older than tonight's offer.
+    await t.run(async (ctx) => {
+      const van = (await ctx.db.query("vehicles").first())!;
+      const old = { requestId: other._id, householdId: other.householdId, vehicleId: van._id, planVersion: 0, etaMinutes: 5, stopOrder: 0, proposedAt: 0 };
+      for (let i = 0; i < 520; i++) await ctx.db.insert("assignments", { ...old, status: "declined" });
+    });
+    await replan(t);
+    const [offer] = await liveFor(t, rider._id);
+    await t.mutation(api.offers.decline, { assignmentId: offer._id });
+    const snap = await t.query(internal.dispatchSnapshot.snapshot, {});
+    const world = buildWorld(snap, snap.now);
+    const planned = world.problem.requests.find((r) => r.id === rider._id)!;
+    const declined = world.vehicles.findIndex((v) => v._id === offer.vehicleId);
+    expect(planned.allowedVehicles).not.toContain(declined);
+  });
+});
