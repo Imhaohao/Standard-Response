@@ -49,3 +49,15 @@ The blizzard has its own renderer now (`lib/ink-map/hazard-layers/blizzard/`), r
 ## 2026-10-25 02:04
 
 Blizzard redesign (`lib/ink-map/hazard-layers/blizzard/`): snow now reads by subtraction. As it deepens, the fine ink fades (area tints, trees, paths, minor street lines), roofs take white caps, and walls stay dark. Open streets are dark ruts and closed ones are erased, so the overview thins to a few dark lines as the town is cut off. Flakes are sparse (about 400 at the peak). The whiteout veil tops out at 25%. Night only darkens the far edge of the view. Window lights are gone, so ignore my 01:44 line about `series.power`: nothing on the map reads it now. Barriers stand only at close range, and only where a closed street meets an open one. `impact()` is unchanged.
+
+## 2026-10-25 02:13
+
+**The wildfire scenario is now the real Eaton Fire, not the seed-7 model.** I decided to make it the default. The seed-7 fire burned 4,196 homes that CAL FIRE's damage survey found undamaged, and its overlap with the real burn area was 0.54.
+
+- **What it is.** Where it burned is CAL FIRE's final perimeter (`data/eaton/perimeter-eaton.geojson`). When is fitted to 342 dated fire reports in the UL FSRI timeline (`data/eaton/fire-sightings.json`), starting from the 6:18 p.m. ignition. It's capped so the map never shows fire arriving well after a nearby report: held-out reports land more than an hour later than the model only 8% of the time. Each map building burns as one piece, so a front never cuts a house. Written by `modeling/scripts/build_eaton_fire.py` into `data/hazard/scenario.geojson`, `public/scenarios/altadena.json` and `convex/scenarioFronts.ts`.
+- **The clock changed.** Minute zero is **10:50 p.m.**, the first fire reported west of Lake Avenue (the same trigger as `eaton_replay.py` and `sim.eaton_night`'s `firstFireWest`). East Altadena has already burned at minute zero; its fronts run from -270. Fronts are half-hourly to 7:50 a.m., then hourly to noon (minute 780). The night is about ten hours, so play it at 30x or 60x.
+- **Imzihao:** the rehearsed demo was on seed 7, so please re-rehearse. Houses reach the fire at different times now, and some on the west side never burn (the real fire stopped short of them). The judge `/you` verdicts read `fireArrivalAt`, so they follow the real fire once Convex is deployed.
+- **David:** derived results on seed 7 need a rerun: `data/door-fairness.json` and anything else read from the scenario. `danger_zones.py` still starts its ensemble from the model's origin and ignition, so the forecast bands won't start where this fire is.
+- **Don't overwrite it.** `spread_model.py` now writes `data/hazard/scenario-spread.geojson` by default; pass `--out data/hazard/scenario.geojson` only to put the model back on purpose. `build_hazard.py` (the old oval) is deleted.
+- **Deploy:** Convex needs `npx convex dev --once` from a clean main so `fireArrival.ts` deadlines use the new fronts.
+- **Restore seed 7** with `cd modeling && uv run python scripts/spread_model.py --seed 7 --out ../data/hazard/scenario.geojson && cd .. && npx tsx scripts/hazard/bake-scenarios.ts`.

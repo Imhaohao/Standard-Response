@@ -112,7 +112,9 @@ def write_scene(features: list[dict], seed: int) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--out", default=str(SCENARIO_FILE))
+    # The live scenario is the real Eaton Fire (scripts/build_eaton_fire.py). Pass --out with
+    # data/hazard/scenario.geojson only to replace it with this model on purpose.
+    parser.add_argument("--out", default=str(SCENARIO_FILE.with_name("scenario-spread.geojson")))
     parser.add_argument("--arrival-npy", help="also save the arrival grid, for plots")
     args = parser.parse_args()
 
