@@ -22,3 +22,8 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 
 - **`issueWarning` puts every `complete` home back in the warning-call queue** (`callStatus: "not_called"`, `attempts: 0`). A home that phoned in before the warning went out used to count as already called, so it never got the warning call and its neighbor pairing never started. Its record stays as that call left it.
 - **The `warning` checkpoint is now taken fresh at every warning.** It used to be taken once per run. Now a profile fixed between a rewind and the next warning is what the next rewind to the warning restores.
+
+## 2026-10-24 21:00
+
+- **The dispatcher drives in the traffic forecast.** Its drive times now include the Langevin crowd model's forecast, and `robust-penguin-834` already runs it. That covers the solver, revocations, the ETA a rider hears in a callback, and the simulated vans' movement. Each street is slowed by its forecast slowdown in the direction the van drives it (`convex/traffic.ts`; the forecast runner writes the small `meshDriveTimes` table). With no fresh forecast, every street drives at free flow, as before.
+- **The forecast runner is safe to run again** (`npm run forecast:traffic`), now that the deployed backend takes its new fields. This replaces the "don't run it until you deploy" line in `notes/MtoC.md`. With it running, outbound trips with the evacuation take a median 1.3 to 1.4 times longer in the full-population runs, and trips into the zone barely change. `docs/mesh.md` has the numbers.
