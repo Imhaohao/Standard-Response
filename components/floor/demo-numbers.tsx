@@ -11,6 +11,7 @@ import { phoneForPeople } from "@/lib/labels";
 import { isFictionalNumber } from "@/lib/phone-number";
 import { Button } from "../ui/button";
 import { ON_PANEL_FIELD } from "../ui/field";
+import { Switch } from "../ui/switch";
 import { useDismiss } from "../ui/use-dismiss";
 
 type DemoNumber = FunctionReturnType<typeof api.demoNumbers.list>["numbers"][number];
@@ -95,30 +96,39 @@ function HousePicker({ number, onDone }: { number: DemoNumber; onDone: () => voi
   );
 }
 
+// The house a number is on, or, while it's switched off, the house it goes back to.
+function HouseLineOf({ number }: { number: DemoNumber }) {
+  const address = number.home?.address ?? (number.on ? undefined : number.rememberedAddress);
+  return (
+    <span className={`flex min-w-0 flex-1 items-center gap-2 transition-opacity duration-150 ${number.on ? "" : "opacity-55"}`}>
+      <HouseLine weight={number.home ? "fill" : "bold"} className={`size-4 shrink-0 ${number.home ? "" : "text-on-panel-muted"}`} aria-hidden />
+      <span className={`type-small min-w-0 flex-1 truncate ${number.home ? "font-semibold" : "text-on-panel-muted"}`}>{address ? streetLine(address) : "Not on a house"}</span>
+    </span>
+  );
+}
+
 function NumberRow({ number }: { number: DemoNumber }) {
-  const takeOff = useMutation(api.demoNumbers.takeOff);
+  const setOn = useMutation(api.demoNumbers.setOn);
   const remove = useMutation(api.demoNumbers.remove);
   const [picking, setPicking] = useState(false);
   const { error, attempt } = useAttempt();
+  const hasHouse = number.home !== null || number.rememberedAddress !== undefined;
   return (
     <li className="flex flex-col gap-2 border-b border-panel-raised px-3 py-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="type-body font-semibold">{number.name}</span>
-        <span className="type-small tabular-nums text-on-panel-muted">{phoneForPeople(number.phone)}</span>
-      </div>
+      <Switch
+        checked={number.on}
+        onChange={(on) => void attempt(() => setOn({ numberId: number._id, on }), on ? "Couldn't switch the number on" : "Couldn't switch the number off")}
+        label={number.name}
+        hint={phoneForPeople(number.phone)}
+        className={`w-full transition-opacity duration-150 ${number.on ? "" : "opacity-55"}`}
+      />
       {picking ? (
         <HousePicker number={number} onDone={() => setPicking(false)} />
       ) : (
         <div className="flex items-center gap-2">
-          <HouseLine weight={number.home ? "fill" : "bold"} className={`size-4 shrink-0 ${number.home ? "" : "text-on-panel-muted"}`} aria-hidden />
-          <span className={`type-small min-w-0 flex-1 truncate ${number.home ? "font-semibold" : "text-on-panel-muted"}`}>{number.home ? streetLine(number.home.address) : "Not on a house"}</span>
-          {number.home && (
-            <Button variant="onPanelQuiet" size="sm" onClick={() => void attempt(() => takeOff({ numberId: number._id }), "Couldn't take the number off")}>
-              Take off
-            </Button>
-          )}
+          <HouseLineOf number={number} />
           <Button variant="onPanelQuiet" size="sm" onClick={() => setPicking(true)}>
-            {number.home ? "Move" : "Put on a house"}
+            {hasHouse ? "Move" : "Put on a house"}
           </Button>
           <Button
             variant="onPanelQuiet"
@@ -171,7 +181,7 @@ function AddNumberForm() {
 function PutBackButton({ numbers }: { numbers: DemoNumber[] }) {
   const putBack = useMutation(api.demoNumbers.putBack);
   const { error, attempt } = useAttempt();
-  const waiting = numbers.filter((number) => number.rememberedAddress && !number.home).length;
+  const waiting = numbers.filter((number) => number.on && number.rememberedAddress && !number.home).length;
   if (waiting === 0) return null;
   return (
     <div className="flex flex-col gap-2 border-b border-panel-raised p-3">

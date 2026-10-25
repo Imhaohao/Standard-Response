@@ -126,3 +126,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - **Paste for MLH ElevenLabs:** "Every evacuation call can run on ElevenLabs Conversational AI. Each call gets its own agent built from that household's file, and its client tools write the resident's answers straight into our Convex record, so a whole carrier outage is one setting away from a working phone line."
 - **Paste for Armadin, Best Security Hack:** "A phone agent for evacuations is an attack surface: anyone can call it and say anything. We red-team it with spoken prompt injection and pressure attacks graded by two model families. Ride promises are fixed code templates the model can't write. Dispatcher data sits behind Auth0 roles and step-up auth. Every phone number, transcript, Jira issue and payment record is deleted when the incident closes."
 - To demo it, set `VOICE_STACK=elevenlabs` on Fly for one call. Leave it on Cartesia for the main demo.
+
+## 2026-10-25 00:10
+
+**Real phones: each person has an on/off switch.** Off takes the number off its house (`takeRealNumberOff`) so nobody calls it, and the row remembers the house; on puts it back there (`putRealNumber`). It replaces "Take off". Contract: `demoNumbers:takeOff` is gone, and `demoNumbers:setOn({ numberId, on })` and `demoNumbers.paused` (optional) are new. "Put numbers back" skips numbers that are off. Judges' numbers (any phone in `claims`) are never pulled into the list, so the kiosk and `claims:clearAll` stay their only owner.

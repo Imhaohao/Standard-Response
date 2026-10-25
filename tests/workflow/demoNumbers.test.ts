@@ -47,7 +47,7 @@ describe("demo numbers", () => {
     expect(real).toMatchObject({ callbackNumber: "+14152230142", residentName: "Boris", simulated: false, callStatus: "not_called", attempts: 0 });
     expect((await t.query(api.demoNumbers.list, {})).numbers[0]).toMatchObject({ home: { householdId, address: "12 Oak St" }, rememberedAddress: "12 Oak St" });
 
-    await t.mutation(api.demoNumbers.takeOff, { numberId });
+    await t.mutation(api.demoNumbers.setOn, { numberId, on: false });
     const simulated = await t.run(async (ctx) => ctx.db.get("households", householdId));
     expect(simulated).toMatchObject({ callbackNumber: SEEDED_NUMBER, residentName: "Sim Person", simulated: true });
     expect(simulated?.standIn).toBeUndefined();
@@ -71,7 +71,7 @@ describe("demo numbers", () => {
     const householdId = await seededHome(t, "12 Oak St", SEEDED_NUMBER, false);
     const numberId = await t.mutation(api.demoNumbers.add, { name: "Boris", phone: "4152230142" });
     await t.mutation(api.demoNumbers.putOn, { numberId, householdId });
-    await t.mutation(api.demoNumbers.takeOff, { numberId });
+    await t.mutation(api.demoNumbers.setOn, { numberId, on: false });
     expect(await t.run(async (ctx) => ctx.db.get("households", householdId))).toMatchObject({ callbackNumber: SEEDED_NUMBER, simulated: false });
   });
 
@@ -84,10 +84,34 @@ describe("demo numbers", () => {
     expect(unlistedOnHouses).toBe(0);
     expect(numbers[0]).toMatchObject({ phone: "+16502230000", home: { householdId } });
 
-    await t.mutation(api.demoNumbers.takeOff, { numberId: numbers[0]._id });
+    await t.mutation(api.demoNumbers.setOn, { numberId: numbers[0]._id, on: false });
     const freed = await t.run(async (ctx) => ctx.db.get("households", householdId));
     expect(freed).toMatchObject({ callbackNumber: "+16265559000", simulated: true });
     expect(freed?.residentName).toBeUndefined();
+  });
+
+  test("switching a number off remembers its house, and on puts it back there", async () => {
+    const t = setup();
+    const householdId = await seededHome(t, "12 Oak St");
+    const numberId = await t.mutation(api.demoNumbers.add, { name: "Boris", phone: "4152230142" });
+    await t.mutation(api.demoNumbers.putOn, { numberId, householdId });
+
+    await t.mutation(api.demoNumbers.setOn, { numberId, on: false });
+    expect((await t.query(api.demoNumbers.list, {})).numbers[0]).toMatchObject({ on: false, home: null, rememberedAddress: "12 Oak St" });
+    expect(await t.mutation(api.demoNumbers.putBack, {})).toBe(0);
+
+    await t.mutation(api.demoNumbers.setOn, { numberId, on: true });
+    expect((await t.query(api.demoNumbers.list, {})).numbers[0]).toMatchObject({ on: true, home: { householdId } });
+  });
+
+  test("a judge's number on a house stays out of the list", async () => {
+    const t = setup();
+    const householdId = await seededHome(t, "3092 Olive Ave", "+16502230000", false);
+    await t.run(async (ctx) =>
+      ctx.db.insert("claims", { householdId, phone: "+16502230000", claimedAt: Date.now(), record: { language: "en", outcome: "unknown" } }),
+    );
+    expect((await t.query(api.demoNumbers.list, {})).unlistedOnHouses).toBe(0);
+    expect(await t.mutation(api.demoNumbers.addNumbersOnHouses, {})).toBe(0);
   });
 
   test("after a reset, put back finds each number's house by address", async () => {

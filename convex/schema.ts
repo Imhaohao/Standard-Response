@@ -885,10 +885,12 @@ export default defineSchema({
   }).index("by_volunteerKey", ["volunteerKey"]),
 
   // The team's real phones for the demo (convex/demoNumbers.ts). Kept apart from households so a reset
-  // that clears every home keeps them; `address` is the house a number was last put on.
+  // that clears every home keeps them; `address` is the house a number was last put on. A paused
+  // number is off its house but still remembers it.
   demoNumbers: defineTable({
     name: v.string(),
     phone: v.string(),
     address: v.optional(v.string()),
+    paused: v.optional(v.boolean()),
   }).index("by_phone", ["phone"]),
 });
