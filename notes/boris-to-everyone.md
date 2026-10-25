@@ -28,3 +28,7 @@ The water scenarios are on main as v2 files: `public/scenarios/lower-ninth.json`
   - Lower Ninth: be out before the water reaches the home, and route no vans into the ward after 04:30 on 29 Aug (minute 1050).
   - Fort Myers Beach: be aboard by 20:00 on 27 Sep (minute 780), the time Lee County told everyone to be sheltered. The water's arrival is a hard limit, not a target.
   - Hilo: everyone in the evacuation zone must be out before the first wave, 00:07 (minute 212). The killer was the third wave at 01:04, and nobody could have known which wave it would be.
+
+## 2026-10-25 01:40
+
+The zone tool's street routing changed (lib/ink-map/street-network.ts `streetsBetweenCorners`). When the only streets between two clicked corners are more than 2.5 times the straight distance plus 200 m, the boundary now takes the straight line between them. In the foothills it used to drive down into town and back up, which cut zones in half. Zones on the town grid don't change. Saved zones keep their corners, so only a boundary that used to make one of those detours redraws.
