@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { ReactNode, useId } from "react";
 import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { CaretDown, Check, Toolbox } from "@phosphor-icons/react";
-import { AccountChip } from "../account/account-chip";
 import { RestartMenu } from "../control/restart-menu";
 import { BrandMark } from "./brand-mark";
 import { formatSinceWarning } from "@/lib/time";
@@ -149,7 +148,6 @@ export function AppBar({ children }: { children?: ReactNode }) {
       <div className="ml-auto flex max-w-full flex-wrap items-center gap-3">
         {children}
         <RestartMenu />
-        <AccountChip />
       </div>
     </header>
   );

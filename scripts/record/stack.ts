@@ -146,7 +146,6 @@ const appEnv = () => ({
   NEXT_PUBLIC_CONVEX_URL: `http://127.0.0.1:${PORTS.convex}`,
   NEXT_PUBLIC_CONVEX_SITE_URL: `http://127.0.0.1:${PORTS.convexSite}`,
   CONVEX_DEPLOYMENT: "",
-  AUTH0_DOMAIN: "",
   NEXT_TELEMETRY_DISABLED: "1",
 });
 

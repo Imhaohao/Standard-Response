@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { ArrowCounterClockwise, CaretDown, CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
-import type { Role } from "@/lib/access";
-import { useAccount, type Account } from "../account/use-account";
 import { Button } from "../ui/button";
 import { usePopover } from "../ui/use-popover";
 
@@ -144,25 +142,15 @@ export function EndNightActions() {
 }
 
 const PUBLIC_PREFIXES = ["/join", "/you", "/ready"];
-const RESTART_ROLE: Role = "dispatcher";
 
 function isPublicPage(pathname: string) {
   return pathname === "/" || PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-// The team only: anyone while Auth0 is off locally, a signed-in dispatcher once it's on, and never on
-// the pages the public opens.
-function mayRestart(account: Account | undefined, pathname: string) {
-  if (!account || isPublicPage(pathname)) return false;
-  if (!account.enabled) return true;
-  return account.signedIn && account.roles.includes(RESTART_ROLE);
-}
-
 export function RestartMenu() {
-  const account = useAccount();
   const pathname = usePathname();
   const { open, toggle, triggerRef, containerRef, onKeyDown, onBlur } = usePopover();
-  if (!mayRestart(account, pathname)) return null;
+  if (isPublicPage(pathname)) return null;
   return (
     <div ref={containerRef} onKeyDown={onKeyDown} onBlur={onBlur} className="relative">
       <Button
