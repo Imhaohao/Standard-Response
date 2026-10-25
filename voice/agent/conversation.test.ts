@@ -182,6 +182,13 @@ describe("answers that don't answer", () => {
     assert.equal(fresh.step, "neighbor");
   });
 
+  it("never lets \"I won't leave without my son\" turn a recorded no into unsure", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no, I can't get out", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("I'm not leaving without my son", heard({ updates: { canLeave: "unsure" } }));
+    assert.equal(conversation.record.canLeave, "no");
+  });
+
   it("takes \"I don't know\" to the can-leave question as unsure", () => {
     const { conversation } = atCanLeave();
     conversation.respond("I don't know. There's four of us left here.", heard({ answer: "unclear", updates: { peopleCount: 4 } }));
@@ -510,9 +517,10 @@ describe("lines the caller just heard", () => {
   it("answers a second ride question with where it stands instead of the whole status again", () => {
     const { conversation } = atHold();
     const full = conversation.rideLine();
-    // Straight after the full status, the answer to "when?" was just heard.
+    // Straight after the full status, a question still hears where the ride stands, not "Nothing has
+    // changed": the voice exam's reassigned caller never heard that the driver can't reach them.
     const right = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
-    assert.deepEqual(right.sentences, [EN.statusUnchanged]);
+    assert.deepEqual(right.sentences, [conversation.rideAnswer()]);
     conversation.respond("okay, let me get my bag", heard());
     const asked = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
     assert.deepEqual(asked.sentences, [conversation.rideAnswer()]);
@@ -768,7 +776,7 @@ describe("Claude's wording of the next question", () => {
 });
 
 describe("a resident who isn't at the home", () => {
-  it("is marked safe, and the call ends without asking anything else", () => {
+  function awayCall() {
     const updates: object[] = [];
     const conversation = new Conversation({
       language: "en",
@@ -777,10 +785,42 @@ describe("a resident who isn't at the home", () => {
       effects: { updateRecord: (patch) => updates.push(patch), escalate: () => {}, nominate: () => {}, rideStatus: () => null },
     });
     conversation.start();
-    const turn = conversation.respond("no, I already left, I'm at my sister's", heard({ answer: "no", awayFromHome: true }));
+    const markedAway = () => updates.some((patch) => (patch as { away?: boolean }).away === true);
+    return { conversation, markedAway };
+  }
+
+  it("is asked to confirm nobody is there, then the call ends without asking anything else", () => {
+    const { conversation, markedAway } = awayCall();
+    const asked = conversation.respond("no, I already left, I'm at my sister's", heard({ answer: "no", awayFromHome: true }));
+    assert.ok(asked.sentences.includes(EN.confirmAway));
+    assert.ok(!markedAway());
+    const turn = conversation.respond("no, nobody", heard({ answer: "no" }));
     assert.ok(conversation.done);
     assert.deepEqual(turn.sentences, [EN.awaySafe, EN.goodbye]);
-    assert.ok(updates.some((patch) => (patch as { away?: boolean }).away === true));
+    assert.ok(markedAway());
+  });
+
+  // Voice exam: "I'm in the car, he's at our house" was read as nobody home and the ride called off.
+  it("keeps the call going when someone turns out to be at the home", () => {
+    const { conversation, markedAway } = awayCall();
+    conversation.respond("I'm in the car, he's at our house", heard({ answer: "yes", awayFromHome: true }));
+    const turn = conversation.respond("yes, my son is there", heard({ answer: "yes" }));
+    assert.ok(!conversation.done);
+    assert.ok(!markedAway());
+    assert.ok(!turn.sentences.includes(EN.awaySafe));
+  });
+
+  it("keeps the call going after two unclear answers to the confirming question", () => {
+    const { conversation, markedAway } = awayCall();
+    conversation.respond("we just walked outside", heard({ awayFromHome: true }));
+    conversation.respond("what?", heard({ answer: "unclear" }));
+    conversation.respond("um", heard({ answer: "unclear" }));
+    assert.notEqual(conversation.step, "confirm_away");
+    assert.ok(!markedAway());
+  });
+
+  it("never says the resident is safe", () => {
+    assert.ok(!/\bsafe\b/i.test(EN.awaySafe));
   });
 
   // Jerry's call: "I'm burning", then "I don't like that answer" was read as nobody home.

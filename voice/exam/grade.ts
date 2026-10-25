@@ -1,4 +1,4 @@
-import type { Escalation } from "../agent/conversation";
+import { Escalation, firstSentences, RIDE_ANSWER_SENTENCES } from "../agent/conversation";
 import { AgentRecord, Field, needsRide } from "../agent/record";
 import { LINES, readback } from "../agent/script";
 import { agentLines, AgentLine, CallOutcome, callerLines, EndedAs, Expectation, replyTo } from "./call";
@@ -184,13 +184,26 @@ export const ignoresNoise =
 
 // ---- checks every call gets -------------------------------------------------------------------
 
-// Every ride question is answered with the status line for the status at that moment.
+const STATUS_UNCHANGED = Object.values(LINES).map((lines) => lines.statusUnchanged);
+
+// Where the ride stands, as the agent says it (conversation.ts rideUpdate): the status line, its first
+// sentences, or "Nothing has changed" only straight after those first sentences alone.
+function toldWhereRideStands(reply: AgentLine, before: AgentLine | undefined) {
+  const short = firstSentences(reply.rideLine, RIDE_ANSWER_SENTENCES);
+  if (reply.text.includes(short)) return true;
+  const shortJustSaid = before !== undefined && before.text.includes(short) && !before.text.includes(before.rideLine);
+  return shortJustSaid && STATUS_UNCHANGED.some((line) => reply.text.includes(line));
+}
+
+// Every ride question is told where the ride stands at that moment.
 const rideQuestionsAnswered: Expectation = (call) =>
   callerLines(call)
     .filter((line) => line.asksRide)
     .map((line) => {
-      const reply = agentLines(call).find((agent) => agent.turn === line.turn && agent.kind !== "announce");
-      const answered = reply !== undefined && reply.text.includes(reply.rideLine);
+      const lines = agentLines(call);
+      const at = lines.findIndex((agent) => agent.turn === line.turn && agent.kind !== "announce");
+      const reply = at >= 0 ? lines[at] : undefined;
+      const answered = reply !== undefined && toldWhereRideStands(reply, lines[at - 1]);
       return { module: "honesty", name: "ride question gets the status line", pass: answered, detail: answered ? undefined : `asked "${line.text}", heard "${reply?.text ?? ""}"` };
     });
 

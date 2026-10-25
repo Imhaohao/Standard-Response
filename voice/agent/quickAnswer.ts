@@ -32,6 +32,7 @@ const WORDS: Partial<Record<Language, Words>> = {
 // and at the assistance step "yes" doesn't say how much help, so those stay with Claude.
 const YES_NO_STEPS: Record<string, YesNo[]> = {
   confirm_address: ["yes", "no"],
+  confirm_away: ["yes", "no"],
   can_leave: ["yes", "no"],
   has_car: ["yes", "no"],
   readback: ["yes", "no"],

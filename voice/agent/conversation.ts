@@ -21,6 +21,7 @@ export type Escalation = Exclude<Emergency, "none"> | "address_unconfirmed" | "l
 type Step =
   | "ask_address"
   | "confirm_address"
+  | "confirm_away"
   | "can_leave"
   | "has_car"
   | "household"
@@ -36,6 +37,7 @@ type Step =
 const STAGE_OF: Record<Step, Stage> = {
   ask_address: "confirm_address",
   confirm_address: "confirm_address",
+  confirm_away: "confirm_address",
   can_leave: "can_leave",
   has_car: "can_leave",
   household: "household",
@@ -70,6 +72,7 @@ const CLOSE: OutlineStage = {
 export const OUTLINE: Record<Step, OutlineStage> = {
   ask_address: OPEN,
   confirm_address: OPEN,
+  confirm_away: OPEN,
   can_leave: NEEDS,
   has_car: NEEDS,
   household: NEEDS,
@@ -171,6 +174,8 @@ export class Conversation {
   private readonly neighborNames: readonly string[];
   private readonly residentName?: string;
   private triesOnStep = 0;
+  // Where the call picks back up when someone turns out to be at the home after all.
+  private resumeStep: Step = "can_leave";
   private heldTurns = 0;
   private readbacks = 0;
   private missedTurns = 0;
@@ -305,7 +310,8 @@ export class Conversation {
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     this.noteChairKind(heard);
-    if (heard.awayFromHome && !this.record.away && !this.dangerAtHome()) return this.markAway(heard);
+    const away = this.awayTurn(heard);
+    if (away) return away;
     const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
@@ -495,6 +501,9 @@ export class Conversation {
   private whatToDoLines(heard: Interpretation) {
     if (!heard.asksWhatToDo) return [];
     if (this.record.canLeave === "yes" && !needsRide(this.record)) return [LINES[this.language].leaveNow];
+    // "Are we supposed to wait here?" got a packing tip; whether to wait is answered by the status
+    // line, which ends with "If you can leave safely, leave now."
+    if (ASKS_WHETHER_TO_WAIT.test(this.lastResidentLine())) return [this.rideLine()];
     return [this.nextHoldStep(true) ?? this.rideUpdate()];
   }
 
@@ -587,8 +596,35 @@ export class Conversation {
     return [...this.escalated].some((kind) => kind !== "address_unconfirmed" && kind !== "language_barrier");
   }
 
-  // Nobody is at the home: they're counted as safe, and there is nothing more to ask. An emergency
-  // they mention is still passed on first.
+  // Marking a home empty calls off its ride, so one reading of "nobody's home" isn't enough: the agent
+  // asks first. The answer is still read for the step it came on, and the call resumes from there
+  // unless they confirm nobody is there.
+  private awayTurn(heard: Interpretation): AgentTurn | null {
+    if (this.step === "confirm_away") return this.confirmsAway(heard) ? this.markAway(heard) : null;
+    const mayBeAway = heard.awayFromHome && !this.record.away && !this.dangerAtHome();
+    return mayBeAway ? this.askAway(heard) : null;
+  }
+
+  private askAway(heard: Interpretation): AgentTurn {
+    const urgent = this.handleEmergency(heard);
+    const transition = this.advance(heard);
+    this.resumeStep = transition.step;
+    this.moveTo("confirm_away");
+    return this.say("", [...urgent, ...(transition.lines ?? []), LINES[this.language].confirmAway], false);
+  }
+
+  private confirmsAway(heard: Interpretation) {
+    return heard.answer === "no" && heard.updates.peopleCount === undefined && heard.emergency === "none" && !this.dangerAtHome();
+  }
+
+  // Someone is there, or two unclear answers: the call carries on, and the ride request stays open.
+  confirmAway(heard: Interpretation): Transition {
+    if (heard.answer === "yes" || this.triesOnStep + 1 >= MAX_TRIES_PER_STEP) return { step: this.resumeStep };
+    return { step: "confirm_away" };
+  }
+
+  // Nobody is at the home: no ride goes there, and there is nothing more to ask. An emergency they
+  // mention is still passed on first.
   private markAway(heard: Interpretation): AgentTurn {
     const urgent = this.handleEmergency(heard);
     this.applyUpdates({ away: true }, { away: 0.9 });
@@ -651,7 +687,7 @@ export class Conversation {
 
   private applyUpdates(updates: AgentRecord, confidence: Confidence) {
     if (updates.mobility !== undefined) this.mobilityHeard = true;
-    const changed = changedFields(this.record, updates);
+    const changed = changedFields(this.record, keepCantLeave(this.record, updates));
     if (isEmpty(changed)) return;
     this.record = { ...this.record, ...changed };
     this.changesThisTurn = { ...this.changesThisTurn, ...changed };
@@ -904,11 +940,18 @@ export class Conversation {
   private rideUpdate(heard?: Interpretation) {
     const lifeThreat = heard?.emergency !== undefined && heard.emergency !== "none";
     const asked = this.askedThisTurn(heard);
-    const answeredLastTurn = this.lastAgentLine().includes(this.rideAnswer());
-    if (asked && answeredLastTurn && !lifeThreat && this.hasStatus()) return LINES[this.language].statusUnchanged;
+    if (asked && this.gaveRideAnswerLastTurn() && !lifeThreat && this.hasStatus()) return LINES[this.language].statusUnchanged;
     if (!this.rideJustSaid()) return this.rideLine();
     if (!this.hasStatus() || lifeThreat) return "";
     return asked ? this.rideAnswer() : LINES[this.language].statusUnchanged;
+  }
+
+  // The short answer alone, not the full status that starts with the same sentences: "Is the driver
+  // still coming?" straight after the reassigning line got "Nothing has changed" and never heard that
+  // the driver can't reach them.
+  private gaveRideAnswerLastTurn() {
+    const last = this.lastAgentLine();
+    return last.includes(this.rideAnswer()) && !last.includes(this.rideLine());
   }
 
   private askedThisTurn(heard?: Interpretation) {
@@ -1040,7 +1083,8 @@ const FEELING_WORDS = /(frighten|scar(y|ed)|terrif|afraid|worried|fear|asustad|m
 // How far back a status line still counts as just heard. Reaching hold three turns after a
 // status change replayed the whole reassigning line twenty seconds after the first.
 const RECENT_AGENT_TURNS = 3;
-const RIDE_ANSWER_SENTENCES = 2;
+export const RIDE_ANSWER_SENTENCES = 2;
+const ASKS_WHETHER_TO_WAIT = /\b(wait|stay)\b|\besper(o|ar|amos|ase|en)\b|\bqued(o|arme|arnos|amos)\b/i;
 // Speech-to-text punctuates a question, in every language the line speaks.
 const isQuestion = (text: string) => /[?？¿]/.test(text);
 const STILL_ON_THE_LINE = 1;
@@ -1048,7 +1092,14 @@ const STILL_ON_THE_LINE = 1;
 const LINE_CHECK =
   /^(\s*(hello|hi|hey|are you (still )?there|you there|hola|bueno|al[oóô]|allô|oiga|喂|もしもし|여보세요|ал+о|हेलो)( po)?[\s?？¿!.,。]*)+$/iu;
 const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
-const firstSentences = (text: string, count: number) =>
+// "I'm not leaving without my son" after "I can't get out" was read as unsure, and the agent then
+// said "Thanks, I've fixed that" for a change nobody made. Unsure never replaces a recorded no.
+function keepCantLeave(record: AgentRecord, updates: AgentRecord): AgentRecord {
+  if (updates.canLeave !== "unsure" || record.canLeave !== "no") return updates;
+  return { ...updates, canLeave: undefined };
+}
+
+export const firstSentences = (text: string, count: number) =>
   text
     .split(/(?<=[.!?。！？])\s*/u)
     .filter(Boolean)
@@ -1081,6 +1132,7 @@ const GOAL_WHEN: Partial<Record<Step, string>> = {
 const STILL_OPEN: Record<Step, (conversation: Conversation) => boolean> = {
   ask_address: () => false,
   confirm_address: () => true,
+  confirm_away: () => false,
   can_leave: (c) => c.record.canLeave === undefined,
   has_car: (c) => c.record.hasCar === undefined && c.record.canLeave !== "no",
   household: (c) => c.record.peopleCount === undefined,
@@ -1171,6 +1223,7 @@ function keepsQuestion(heard: Interpretation) {
 const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpretation) => Transition> = {
   ask_address: (c, heard) => c.askAddress(heard),
   confirm_address: (c, heard) => c.confirmAddress(heard),
+  confirm_away: (c, heard) => c.confirmAway(heard),
   can_leave: (c) => c.canLeave(),
   has_car: (c, heard) => c.hasCar(heard),
   household: (c) => c.household(),
@@ -1187,6 +1240,7 @@ const STEP_HANDLERS: Record<Step, (conversation: Conversation, heard: Interpreta
 const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
   ask_address: (c) => c.askAddressQuestion(),
   confirm_address: (c) => c.addressQuestion(),
+  confirm_away: (c) => LINES[c.language].confirmAway,
   can_leave: (c) => LINES[c.language].askCanLeave,
   has_car: (c) => LINES[c.language].askHasCar,
   household: (c) => (c.record.pets === undefined ? LINES[c.language].askHousehold : LINES[c.language].askPeople),
@@ -1203,6 +1257,7 @@ const QUESTIONS: Record<Step, (conversation: Conversation) => string> = {
 const QUESTIONS_AGAIN: Record<Step, (conversation: Conversation) => string> = {
   ask_address: (c) => c.askAddressAgain(),
   confirm_address: (c) => c.addressAgain(),
+  confirm_away: (c) => LINES[c.language].confirmAwayAgain,
   can_leave: (c) => LINES[c.language].askAgain.canLeave,
   has_car: (c) => LINES[c.language].askAgain.hasCar,
   household: (c) => LINES[c.language].askAgain.household,
