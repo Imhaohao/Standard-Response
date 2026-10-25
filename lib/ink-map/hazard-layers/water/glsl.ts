@@ -166,10 +166,6 @@ vec3 frontFlow(vec2 xy) {
 // Flood and surge: one level over the reached ground, standing water at its own level, and through an
 // open breach a surface sloping down from the canal's level to the basin's. The surge adds a swell.
 const STILL_LEVEL = `
-float swellLength(vec2 xy) {
-  return max(46.0, px(26.0)) * (0.8 + 0.45 * valueNoise(xy / 900.0 + 3.0));
-}
-
 float swellPhase(vec2 xy) {
   float wavelength = max(46.0, px(26.0));
   float warp = (valueNoise(xy / (wavelength * 4.3)) - 0.5) * 2.6 + (valueNoise(xy / (wavelength * 1.3) + 11.0) - 0.5) * 0.6;
