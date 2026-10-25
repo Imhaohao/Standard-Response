@@ -120,11 +120,21 @@ export async function revokeAssignment(ctx: MutationCtx, assignmentId: Id<"assig
   await queueCallback(ctx, assignment, "reassigning");
 }
 
-// The rider no longer needs a ride. Ends every live assignment without calling them.
+// The rider no longer needs a ride. Ends every live assignment without calling them. A driver
+// who had accepted loses the stop, so the audit trail and the rescue map's feed say why.
 export async function closeAssignmentsFor(ctx: MutationCtx, requestId: Id<"requests">) {
   for (const assignment of await liveAssignmentsFor(ctx, requestId)) {
-    const status = assignment.status === "accepted" ? "revoked" : "replaced";
-    await ctx.db.patch("assignments", assignment._id, { status, respondedAt: await simNow(ctx) });
+    const accepted = assignment.status === "accepted";
+    const status = accepted ? "revoked" : "replaced";
+    const at = await simNow(ctx);
+    await ctx.db.patch("assignments", assignment._id, { status, respondedAt: at });
+    const refs = { requestId, assignmentId: assignment._id, planVersion: assignment.planVersion };
+    await audit(ctx, status, accepted ? "Accepted pickup called off: the rider no longer needs a ride" : "Offer withdrawn: the rider no longer needs a ride", refs);
+    if (!accepted) continue;
+    const vehicle = await ctx.db.get("vehicles", assignment.vehicleId);
+    const household = await ctx.db.get("households", assignment.householdId);
+    const message = `${vehicle?.label ?? "A vehicle"}'s pickup at ${household?.address ?? "a rider"} called off: they no longer need a ride`;
+    await ctx.db.insert("events", { kind: "dispatch", message, householdId: assignment.householdId, at });
   }
 }
 
