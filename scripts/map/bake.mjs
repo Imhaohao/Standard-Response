@@ -150,7 +150,7 @@ const AREA_KIND = { park: 0, grass: 1, water: 2, school: 3, parking: 4, cemetery
 const AREA_BY_TAG = {
   park: AREA_KIND.park, garden: AREA_KIND.park, nature_reserve: AREA_KIND.wild, playground: AREA_KIND.park, recreation_ground: AREA_KIND.park,
   grass: AREA_KIND.grass, meadow: AREA_KIND.grass, grassland: AREA_KIND.grass, disc_golf_course: AREA_KIND.park,
-  water: AREA_KIND.water, reservoir: AREA_KIND.water, basin: AREA_KIND.water, bay: AREA_KIND.water, riverbank: AREA_KIND.water,
+  water: AREA_KIND.water, reservoir: AREA_KIND.water, basin: AREA_KIND.water, riverbank: AREA_KIND.water,
   school: AREA_KIND.school, religious: AREA_KIND.school,
   parking: AREA_KIND.parking, cemetery: AREA_KIND.cemetery, grave_yard: AREA_KIND.cemetery,
   golf_course: AREA_KIND.golf, pitch: AREA_KIND.pitch,
@@ -342,9 +342,10 @@ async function bakeWater() {
   const water = await readJson("water");
   const coastlines = water.filter((e) => e.tags?.natural === "coastline" && e.geometry).map((e) => localRing(e.geometry));
   // Relations (rivers and canals mapped as multipolygons) are filled with their islands cut out.
-  const relations = water.filter((e) => e.type === "relation");
+  // A bay polygon (natural=bay) is a name over open water and its islands, not the water itself.
+  const relations = water.filter((e) => e.type === "relation" && e.tags?.natural !== "bay");
   const multipolygons = relations.map((e) => (e.members ?? []).filter((m) => m.geometry).map((m) => localRing(m.geometry)));
-  const ways = water.filter((e) => e.type === "way" && e.tags?.natural !== "coastline");
+  const ways = water.filter((e) => e.type === "way" && e.tags?.natural !== "coastline" && e.tags?.natural !== "bay");
   return { elements: ways, sea: waterRings({ coastlines, multipolygons }, EXTENT_BOX) };
 }
 

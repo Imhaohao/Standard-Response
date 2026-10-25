@@ -99,8 +99,8 @@ function fromDraft({ verified, pad, closeups, ...city }: Draft): City & { verifi
 
 // Boxes checked against OpenStreetMap on 2026-10-25: Paradise's town boundary (relation 3983857),
 // the Lower Ninth Ward place node and the Inner Harbor Navigation Canal (relation 2189784), Fort
-// Myers Beach's boundary (relation 1216971), and Hilo Bay (node 368391211). Paradise's and Buffalo's
-// detail boxes are the ones their scenario data uses (data/cities/<id>).
+// Myers Beach's boundary (relation 1216971), and Hilo Bay (node 368391211). Each detail box also holds
+// every front of its scenario in public/scenarios.
 const DRAFTS: Draft[] = [
   {
     id: "paradise",
@@ -108,7 +108,7 @@ const DRAFTS: Draft[] = [
     event: { name: "Camp Fire", date: "2018-11-08", kind: "wildfire" },
     verified: true,
     origin: { lat: 39.77, lng: -121.61 },
-    detail: { south: 39.72, north: 39.82, west: -121.67, east: -121.55 },
+    detail: { south: 39.715, north: 39.82, west: -121.68, east: -121.55 },
     pad: { extent: 0.015, terrain: 0.035 },
     terrainZoom: 14,
     terrainCellMeters: 20,
@@ -135,8 +135,8 @@ const DRAFTS: Draft[] = [
     name: "Fort Myers Beach",
     event: { name: "Hurricane Ian storm surge", date: "2022-09-28", kind: "surge" },
     verified: true,
-    origin: { lat: 26.435, lng: -81.925 },
-    detail: { south: 26.398, north: 26.472, west: -81.975, east: -81.875 },
+    origin: { lat: 26.4475, lng: -81.9375 },
+    detail: { south: 26.405, north: 26.49, west: -81.995, east: -81.88 },
     pad: { extent: 0.012, terrain: 0.025 },
     terrainZoom: 15,
     terrainCellMeters: 10,
@@ -149,9 +149,9 @@ const DRAFTS: Draft[] = [
     name: "Buffalo East Side",
     event: { name: "Buffalo blizzard", date: "2022-12-23", kind: "blizzard" },
     verified: true,
-    origin: { lat: 42.9075, lng: -78.8325 },
-    detail: { south: 42.87, north: 42.945, west: -78.87, east: -78.795 },
-    pad: { extent: 0.01, terrain: 0.025 },
+    origin: { lat: 42.9, lng: -78.84 },
+    detail: { south: 42.855, north: 42.945, west: -78.89, east: -78.79 },
+    pad: { extent: 0.005, terrain: 0.02 },
     terrainZoom: 14,
     terrainCellMeters: 15,
     osmSnapshot: "2022-12-22T00:00:00Z",
@@ -163,8 +163,8 @@ const DRAFTS: Draft[] = [
     name: "Hilo",
     event: { name: "1960 Chile tsunami", date: "1960-05-23", kind: "tsunami" },
     verified: true,
-    origin: { lat: 19.72, lng: -155.08 },
-    detail: { south: 19.7, north: 19.74, west: -155.11, east: -155.05 },
+    origin: { lat: 19.724, lng: -155.08 },
+    detail: { south: 19.7, north: 19.748, west: -155.11, east: -155.05 },
     pad: { extent: 0.012, terrain: 0.025 },
     terrainZoom: 15,
     terrainCellMeters: 10,

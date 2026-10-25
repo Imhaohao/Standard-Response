@@ -30,11 +30,11 @@ const QUERIES = {
 };
 
 // Floods, surges and tsunamis need to know where the water is. The sea comes as coastline ways
-// (land on their left) that bake.mjs closes into polygons; rivers, canals, bays and lakes as areas.
+// (land on their left) that bake.mjs closes into polygons; rivers, canals and lakes as areas.
 if (CITY) {
   QUERIES.water =
-    `(way["natural"="coastline"](${EXTENT_BOX});way["natural"~"water|bay"](${EXTENT_BOX});` +
-    `relation["natural"~"water|bay"](${EXTENT_BOX});way["waterway"="riverbank"](${EXTENT_BOX});` +
+    `(way["natural"="coastline"](${EXTENT_BOX});way["natural"="water"](${EXTENT_BOX});` +
+    `relation["natural"="water"](${EXTENT_BOX});way["waterway"="riverbank"](${EXTENT_BOX});` +
     `relation["waterway"="riverbank"](${EXTENT_BOX});way["landuse"="basin"](${EXTENT_BOX}););out geom;`;
 }
 
