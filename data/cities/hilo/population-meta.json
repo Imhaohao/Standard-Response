@@ -1,0 +1,21 @@
+{
+ "label": "Synthetic population for simulation. Real ACS PUMS household records reweighted to real block-group and tract totals; not real people.",
+ "city": "hilo",
+ "name": "Hilo, Hawaii",
+ "event": "Chile tsunami, May 23, 1960",
+ "source": "ACS 2019-2023 5-year: PUMS (HI PUMAs 00200), B11001, B11007, B25044 by block group, B18101 by tract, from www2.census.gov bulk files. Buildings: OpenStreetMap residential buildings in the detail box, retrieved via Overpass. Care facilities: OpenStreetMap.",
+ "era": "Today's census describes today's Hilo. The 1960 inundation zone downtown and at Waiakea was cleared after the tsunami and is now largely parks, so today's households there are far fewer than in 1960.",
+ "blockGroups": 11,
+ "buildings": 5777,
+ "households": 5814,
+ "needHelp": 1153,
+ "ipfWorstRelativeError": {
+  "households": 0.0,
+  "hasMember65": 0.0158,
+  "alone65": 0.0,
+  "noVehicle": 0.0,
+  "disabled65 (tract)": 0.0
+ },
+ "seed": 13,
+ "assumptions": "ACS has no wheelchair, bed or oxygen variables; see modeling/rollcall_d/population.py for the mapping and its rates."
+}

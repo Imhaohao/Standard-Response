@@ -1,0 +1,39 @@
+{
+ "id": "hilo",
+ "name": "Hilo, Hawaii",
+ "event": "Chile tsunami, May 23, 1960",
+ "hazard": "tsunami",
+ "detail": {
+  "south": 19.7,
+  "north": 19.74,
+  "west": -155.11,
+  "east": -155.05
+ },
+ "state": {
+  "fips": "15",
+  "abbr": "hi"
+ },
+ "timezone": "Pacific/Honolulu",
+ "censusYear": "ACS 2019-2023 (today's town, not 1960's)",
+ "roadBox": {
+  "south": 19.689999999999998,
+  "north": 19.75,
+  "west": -155.12,
+  "east": -155.04000000000002
+ },
+ "staging": {
+  "name": "Hawaii County Civil Defense, Ululani Street",
+  "lat": 19.7158,
+  "lng": -155.0848,
+  "record": "today's civil defense office; civil defense ran the 1960 response",
+  "source": "https://dod.hawaii.gov/blog/1960-hilo-tsunami-response/"
+ },
+ "shelter": {
+  "name": "Hilo High School, Waianuenue Avenue",
+  "lat": 19.7218,
+  "lng": -155.0963,
+  "capacity": 1200,
+  "record": "high-ground school; no 1960 record names it",
+  "source": "none for 1960; a plausible high-ground facility"
+ }
+}
