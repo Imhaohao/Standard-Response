@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { InkMapData, terrainHeight } from "./data";
 import type { FireField } from "./fire-field";
 
-// Flames as objects standing in the town: rows of licking tongues along every burning edge,
-// and a scatter of smaller ones over ground that burned in the last few minutes. They are real
+// Flames as objects standing in the town: rows of licking tongues along every burning edge, and
+// behind it a field of them dying down over the last quarter hour of burned ground. They are real
 // geometry, so they stand up from the hills, hide behind houses and look different from every
 // angle. Each one is a flat card turned along the fire line, with the tongues drawn on it; the set is
 // re-placed only when the fire's minute changes.
@@ -14,7 +14,8 @@ const MOST_PER_CROSSING = 24;
 const FLANK_SCALE = 0.65;
 const HEAD_MINUTES = 6;
 const STILL_BURNING_MINUTES = 15;
-const INSIDE_SHARE = 0.12;
+const BEHIND_TRIES = 18;
+const BEHIND_DENSITY = 0.8;
 
 export const FLAME_VERTEX = `
 precision highp float;
@@ -166,23 +167,42 @@ function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, numbe
   });
 }
 
-// A low tongue now and then over ground the fire crossed in the last quarter hour.
-function flameInside(grid: Grid, col: number, row: number, index: number): Flame[] {
+// Flames behind the line: the ground the fire crossed in the last quarter hour is still burning,
+// thickest and tallest just behind the line and thinning out and dying down toward the ash. Each
+// spot is tried a few times per cell; how many survive, and how tall, falls with how long ago the
+// fire passed that exact spot. They turn along the fire line like the flames on it.
+function flamesBehind(grid: Grid, col: number, row: number, index: number): Flame[] {
   const since = grid.minutes - grid.field.minutes[index];
-  if (since < 0 || since > STILL_BURNING_MINUTES || hash(index * 3.7) > INSIDE_SHARE) return [];
-  const [x, y] = centre(grid, col, row);
-  const seed = index * 7.13;
-  return [{ x: x + (hash(seed) - 0.5) * grid.cellX, y: y + (hash(seed + 0.5) - 0.5) * grid.cellY, width: 4 + hash(seed + 1) * 2, height: 6 + hash(seed + 2) * 5, phase: hash(seed + 3), angle: hash(seed + 4) * Math.PI }];
+  if (since < 0 || since > STILL_BURNING_MINUTES + 2) return [];
+  const [cx, cy] = centre(grid, col, row);
+  const flames: Flame[] = [];
+  for (let k = 0; k < BEHIND_TRIES; k++) {
+    const seed = index * 7.13 + k * 3.31;
+    const x = cx + (hash(seed) - 0.5) * grid.cellX;
+    const y = cy + (hash(seed + 0.5) - 0.5) * grid.cellY;
+    const burning = 1 - (grid.minutes - sampleField(grid, x, y)) / STILL_BURNING_MINUTES;
+    if (!(burning > 0) || hash(seed + 0.9) > burning ** 1.6 * BEHIND_DENSITY) continue;
+    const [tx, ty] = lineDirection(grid, x, y, [1, 0]);
+    flames.push({
+      x,
+      y,
+      width: (6 + hash(seed + 1) * 4) * (0.5 + 0.5 * burning),
+      height: (8 + hash(seed + 2) * 14) * (0.25 + 0.75 * burning),
+      phase: hash(seed + 3),
+      angle: Math.atan2(ty, tx),
+    });
+  }
+  return flames;
 }
 
 const NEIGHBOURS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-function flamesInCell(grid: Grid, col: number, row: number): Flame[] {
+function flamesOnEdge(grid: Grid, col: number, row: number): Flame[] {
   const { field, minutes } = grid;
   const index = row * field.width + col;
   // Written as "not at or before" so a cell with no arrival time (NaN) counts as never reached.
   if (!(field.minutes[index] <= minutes)) return [];
-  const flames = flameInside(grid, col, row, index);
+  const flames: Flame[] = [];
   NEIGHBOURS.forEach(([dc, dr], side) => {
     const c = col + dc;
     const r = row + dr;
@@ -197,13 +217,25 @@ export type Bounds = { x0: number; y0: number; x1: number; y1: number };
 // Every flame over the map's own ground; past the most the GPU should draw, an even thinning.
 function flamesAt(field: FireField, minutes: number, bounds: Bounds): Flame[] {
   const grid = { field, minutes, cellX: (field.region.x1 - field.region.x0) / field.width, cellY: (field.region.y1 - field.region.y0) / field.height };
-  const flames: Flame[] = [];
+  const onEdge: Flame[] = [];
+  const behind: Flame[] = [];
   for (let row = 0; row < field.height; row++) {
-    for (let col = 0; col < field.width; col++) flames.push(...flamesInCell(grid, col, row));
+    for (let col = 0; col < field.width; col++) {
+      onEdge.push(...flamesOnEdge(grid, col, row));
+      if (field.minutes[row * field.width + col] <= minutes) behind.push(...flamesBehind(grid, col, row, row * field.width + col));
+    }
   }
-  const onMap = flames.filter((flame) => flame.x >= bounds.x0 && flame.x <= bounds.x1 && flame.y >= bounds.y0 && flame.y <= bounds.y1);
-  const step = Math.max(1, onMap.length / MOST_FLAMES);
-  return step === 1 ? onMap : Array.from({ length: Math.floor(onMap.length / step) }, (_, i) => onMap[Math.floor(i * step)]);
+  // The line itself always draws in full; the flames behind it share what the GPU budget leaves.
+  const edge = thinTo(onMap(onEdge, bounds), MOST_FLAMES);
+  return [...edge, ...thinTo(onMap(behind, bounds), MOST_FLAMES - edge.length)];
+}
+
+const onMap = (flames: Flame[], bounds: Bounds) => flames.filter((flame) => flame.x >= bounds.x0 && flame.x <= bounds.x1 && flame.y >= bounds.y0 && flame.y <= bounds.y1);
+
+// An even thinning down to `most`, so a dropped flame never leaves a visible gap in one place.
+function thinTo(flames: Flame[], most: number) {
+  const step = Math.max(1, flames.length / Math.max(1, most));
+  return step === 1 ? flames : Array.from({ length: Math.floor(flames.length / step) }, (_, i) => flames[Math.floor(i * step)]);
 }
 
 export class FlameField {
