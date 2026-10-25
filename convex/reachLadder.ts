@@ -294,6 +294,32 @@ export const steps = query({
   },
 });
 
+// The call floor's "No answer" list: only homes past their first miss, read by call status through
+// the index instead of scanning every household on every write. A live call counts when it is a
+// retry. Steps still waiting come first, soonest next step first; door checks last.
+const UNANSWERED_STATUSES = ["no_answer", "texted", "door_check", "in_call"] as const;
+const UNANSWERED_PER_STATUS = 300;
+
+const isRetry = (row: LadderView) => row.step !== "first_call";
+const dueOrder = (row: LadderView) => row.nextStepAt ?? (row.step === "door_check" ? Infinity : -Infinity);
+
+export const unanswered = query({
+  args: {},
+  returns: v.array(ladderView),
+  handler: async (ctx) => {
+    const rows: LadderView[] = [];
+    for (const status of UNANSWERED_STATUSES) {
+      const homes = await ctx.db
+        .query("households")
+        .withIndex("by_callStatus_and_callPriority", (q) => q.eq("callStatus", status))
+        .order("desc")
+        .take(UNANSWERED_PER_STATUS);
+      rows.push(...homes.filter((home) => home.inZone).map(viewOf).filter(isRetry));
+    }
+    return rows.sort((a, b) => (dueOrder(a) === dueOrder(b) ? 0 : dueOrder(a) < dueOrder(b) ? -1 : 1));
+  },
+});
+
 export const forHousehold = query({
   args: { householdId: v.id("households") },
   returns: v.union(ladderView, v.null()),

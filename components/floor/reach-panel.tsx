@@ -58,15 +58,23 @@ const LADDER = [
 ] as const;
 
 // "Never treat silence as safe": the path an unanswered home takes, and how many are on each step.
-function RetryLadder() {
+// Each step opens the list of those homes and when their next step fires.
+function RetryLadder({ onOpen }: { onOpen: () => void }) {
   const counts = useQuery(api.households.counts);
   return (
     <ol className="flex items-center justify-between gap-1" aria-label="Unanswered homes">
       {LADDER.map(({ status, label, Icon }, index) => (
         <Fragment key={status}>
-          <li className="flex items-center gap-2 bg-panel-raised px-2.5 py-1.5" title={label}>
-            <Icon weight="bold" className="size-4 shrink-0" aria-label={label} />
-            <AnimatedNumber value={counts?.callStatus[status] ?? 0} className="type-figure text-xl" />
+          <li>
+            <button
+              type="button"
+              onClick={onOpen}
+              title={label}
+              className="flex items-center gap-2 bg-panel-raised px-2.5 py-1.5 hover:bg-panel-raised/70 focus-visible:outline-2 focus-visible:outline-on-panel"
+            >
+              <Icon weight="bold" className="size-4 shrink-0" aria-label={label} />
+              <AnimatedNumber value={counts?.callStatus[status] ?? 0} className="type-figure text-xl" />
+            </button>
           </li>
           {index < LADDER.length - 1 && <ArrowRight weight="bold" className="size-3 text-on-panel-muted" aria-hidden />}
         </Fragment>
@@ -75,7 +83,7 @@ function RetryLadder() {
   );
 }
 
-export function ReachPanel() {
+export function ReachPanel({ onOpenLadder }: { onOpenLadder: () => void }) {
   const { counts, total } = useKindCounts();
   const answered = total - (counts.get("waiting") ?? 0) - (counts.get("on_phone") ?? 0);
   return (
@@ -86,7 +94,7 @@ export function ReachPanel() {
       </p>
       <ReachChart counts={counts} total={total} />
       <Legend counts={counts} />
-      <RetryLadder />
+      <RetryLadder onOpen={onOpenLadder} />
     </section>
   );
 }

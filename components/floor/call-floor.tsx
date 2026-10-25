@@ -14,12 +14,13 @@ import { StandInWarning } from "../rescue/unreached-panel";
 import { ActivityList } from "./activity-list";
 import { FloorControls } from "./floor-controls";
 import { FloorMap } from "./floor-map";
+import { LadderList } from "./ladder-list";
 import { LineList } from "./line-list";
 import { ListeningPanel } from "./listening-panel";
 import { QueueList } from "./queue-list";
 import { ReachPanel } from "./reach-panel";
 
-type Tab = "lines" | "queue" | "activity";
+type Tab = "lines" | "queue" | "ladder" | "activity";
 
 // What the Ready check already knows before anyone is warned.
 function useReadyCount() {
@@ -93,7 +94,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`type-small flex h-10 flex-1 items-center justify-center gap-1.5 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
+      className={`type-small flex h-10 flex-auto items-center justify-center gap-1.5 whitespace-nowrap px-1.5 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-on-panel ${
         active ? "text-on-panel shadow-[inset_0_-2px_0_var(--on-panel)]" : "text-on-panel-muted hover:text-on-panel"
       }`}
     >
@@ -134,40 +135,73 @@ function useFollowedCall() {
   };
 }
 
-// Before the warning only the Ready check is calling: no reach to count and no warning queue yet.
+type TabsProps = {
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  warned: boolean;
+  lines: number;
+  open: boolean;
+  onToggle: () => void;
+};
+
+function ListTabs({ tab, onTab, warned, lines, open, onToggle }: TabsProps) {
+  return (
+    <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
+      <TabButton active={tab === "lines"} onClick={() => onTab("lines")}>
+        On the phone <span className="tabular-nums text-on-panel-muted">{lines}</span>
+      </TabButton>
+      {warned && (
+        <TabButton active={tab === "queue"} onClick={() => onTab("queue")}>
+          Next to call
+        </TabButton>
+      )}
+      {warned && (
+        <TabButton active={tab === "ladder"} onClick={() => onTab("ladder")}>
+          No answer
+        </TabButton>
+      )}
+      <TabButton active={tab === "activity"} onClick={() => onTab("activity")}>
+        Activity
+      </TabButton>
+      <button
+        type="button"
+        aria-label={open ? "Hide the lists" : "Show the lists"}
+        aria-expanded={open}
+        onClick={onToggle}
+        className="grid w-10 shrink-0 place-items-center text-on-panel-muted hover:text-on-panel focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+      >
+        <CaretDown weight="bold" className={`size-4 transition-transform duration-150 ${open ? "" : "-rotate-90"}`} />
+      </button>
+    </div>
+  );
+}
+
+// Before the warning only the Ready check is calling: no reach to count, no warning queue and
+// nobody on the reach ladder yet.
 function WorkColumn({ floor, warned }: { floor: ReturnType<typeof useFollowedCall>; warned: boolean }) {
   const [chosenTab, setTab] = useState<Tab>("lines");
   const [open, setOpen] = useState(true);
-  const tab = !warned && chosenTab === "queue" ? "lines" : chosenTab;
+  const tab = !warned && (chosenTab === "queue" || chosenTab === "ladder") ? "lines" : chosenTab;
+  const openLadder = () => {
+    setTab("ladder");
+    setOpen(true);
+  };
   return (
     <div className="pointer-events-auto flex min-h-0 w-[23rem] max-w-[40vw] shrink-0 flex-col gap-3">
-      {warned && <ReachPanel />}
+      {warned && <ReachPanel onOpenLadder={openLadder} />}
       <section className={`flex min-h-0 flex-col overflow-hidden card ${open ? "flex-1" : ""}`}>
-        <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
-          <TabButton active={tab === "lines"} onClick={() => setTab("lines")}>
-            On the phone <span className="tabular-nums text-on-panel-muted">{floor.calls.length}</span>
-          </TabButton>
-          {warned && (
-            <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>
-              Next to call
-            </TabButton>
-          )}
-          <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
-            Activity
-          </TabButton>
-          <button
-            type="button"
-            aria-label={open ? "Hide the lists" : "Show the lists"}
-            aria-expanded={open}
-            onClick={() => setOpen(!open)}
-            className="grid w-10 shrink-0 place-items-center text-on-panel-muted hover:text-on-panel focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-          >
-            <CaretDown weight="bold" className={`size-4 transition-transform duration-150 ${open ? "" : "-rotate-90"}`} />
-          </button>
-        </div>
+        <ListTabs
+          tab={tab}
+          onTab={setTab}
+          warned={warned}
+          lines={floor.calls.length}
+          open={open}
+          onToggle={() => setOpen(!open)}
+        />
         <div role="tabpanel" hidden={!open} className="min-h-0 flex-1 overflow-y-auto">
           {tab === "lines" && <LineList calls={floor.calls} selectedId={floor.reviewing ? null : floor.shownId} onSelect={floor.pin} />}
           {tab === "queue" && <QueueList />}
+          {tab === "ladder" && <LadderList />}
           {tab === "activity" && <ActivityList selectedCallId={floor.reviewing ? floor.shownId : null} onOpenCall={floor.review} />}
         </div>
       </section>

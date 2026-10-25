@@ -51,3 +51,12 @@ Findings from two fire station interviews today (University Park, and Palo Alto 
 ## 2026-10-24 19:45
 
 Apify road closures now land in `roadClosures` with `source: "apify"` (details in `CSOtoC.md`). The rescue map draws every closure regardless of source, so nothing breaks. New `events` rows of kind `control`: "Apify: road closed on Lincoln Avenue" and "Apify: Lincoln Avenue reopened". If you label closures by source anywhere, `"apify"` is the new value.
+
+## 2026-10-24 19:55
+
+The reach-ladder workflow is now on the call floor. The user asked for it, so I built it in your files. Change anything you like.
+
+- New tab **No answer** (`components/floor/ladder-list.tsx`). Each home past its first miss shows its step (missed 1 of 3, ringing on a retry, texted, door check) and when the next step fires on the night clock ("Redial in 1:34", "Door check in 2:10"). Soonest next step first, door checks last. Hovering a row says whether its own Convex workflow times it or it's a simulated home on stand-in timing.
+- The three counts in the reach panel's ladder are now buttons that open that tab.
+- `TabButton` is `flex-auto whitespace-nowrap px-1.5` instead of `flex-1`, so four tabs fit on one line in the 23rem column. "On the phone 0" used to wrap at 82 px.
+- Data: new `reachLadder:unanswered`, the same row shape as `reachLadder:steps`, read through the `by_callStatus_and_callPriority` index instead of a 1,000-household scan. Only the open tab subscribes to it.
