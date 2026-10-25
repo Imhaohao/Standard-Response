@@ -35,9 +35,12 @@ export const pending = query({
   },
 });
 
+// Played is final. The voice server's writes can land late or twice, and a "placed" or
+// "unanswered" arriving after the words were spoken would undo that; "unanswered" starts a retry.
 async function setState(ctx: MutationCtx, callbackId: Id<"callbacks">, patch: Partial<Doc<"callbacks">>) {
   const callback = await ctx.db.get("callbacks", callbackId);
   if (!callback) throw new Error(`Callback ${callbackId} not found`);
+  if (callback.state === "played") return;
   await ctx.db.patch("callbacks", callbackId, patch);
 }
 
