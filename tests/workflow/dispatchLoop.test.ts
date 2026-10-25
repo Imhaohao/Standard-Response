@@ -137,3 +137,34 @@ describe("a closure after the driver accepted", () => {
     expect(otherAfter.stopOrder).toBe(otherBefore.stopOrder);
   });
 });
+
+describe("a closure lifted and another started between two ticks", () => {
+  test("still sends the van around the new one and re-plans", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: offer._id });
+    // A closure far from the run, snapped by a re-plan, so the van's path is planned around it.
+    const far = EDGES.find((edge) => nodePoint(edge.u).lat > 34.199)!;
+    await t.mutation(api.roads.addClosures, { closures: [{ edgeKey: far.key, path: [nodePoint(far.u), nodePoint(far.v)], source: "manual" }] });
+    await replan(t);
+    await tick(t, 1);
+    const before = await t.run(async (ctx) => (await ctx.db.query("vehicleRoutes").collect()).find((r) => r.vehicleId === offer.vehicleId)!);
+
+    // One batch lifts the far closure and closes every street at the rider's corner, already snapped.
+    const corner = cutOff(HOMES[0]).map((closure) => closure.edgeKey);
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("roadClosures").collect()) await ctx.db.delete("roadClosures", row._id);
+      await ctx.db.insert("roadClosures", { path: [nodePoint(nearestNode(HOMES[0]))], source: "manual", edgeKeys: corner, confirmed: true, at: Date.now() });
+    });
+    await tick(t, 1);
+
+    const after = await t.run(async (ctx) => (await ctx.db.query("vehicleRoutes").collect()).find((r) => r.vehicleId === offer.vehicleId)!);
+    expect(after.closuresSeen).not.toBe(before.closuresSeen);
+    expect(after.legSeconds).toEqual([]);
+    const state = await t.run(async (ctx) => await ctx.db.query("dispatchState").first());
+    expect(state?.replanStartedAt).toBeDefined();
+  });
+});

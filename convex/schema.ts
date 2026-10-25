@@ -621,7 +621,8 @@ export default defineSchema({
   dispatchState: defineTable({
     replanStartedAt: v.optional(v.number()),
     lastReplanAt: v.number(),
-    // Closures already planned around. A new one triggers a re-plan right away.
+    // The closures already planned around (closureSetKey in convex/roadGraph.ts). Any added or
+    // lifted closure changes it and triggers a re-plan right away.
     closuresSeen: v.number(),
     lastSolver: v.optional(v.union(v.literal("heuristic"), v.literal("ortools"), v.literal("alns"))),
     lastSolveMs: v.optional(v.number()),
@@ -641,7 +642,7 @@ export default defineSchema({
     legSeconds: v.array(v.number()),
     // Road seconds already driven along `path`.
     progressSeconds: v.number(),
-    // Closures this path was computed around. When it changes, the path is recomputed.
+    // The closures this path was computed around (closureSetKey). When it changes, the path is recomputed.
     closuresSeen: v.number(),
     // Boarding: the vehicle waits at the pickup until then.
     dwellUntil: v.optional(v.number()),

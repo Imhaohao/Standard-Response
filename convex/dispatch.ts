@@ -9,6 +9,7 @@ import { audit, escalateHousehold, OFFERABLE } from "./requests";
 import { vehicleCanServe } from "./model";
 import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
+import { closureSetKey } from "./roadGraph";
 import type { Snapshot } from "./dispatchSnapshot";
 import { simNow } from "./clock";
 
@@ -50,11 +51,11 @@ async function hasLiveRuns(ctx: MutationCtx) {
 export async function maybeReplan(ctx: MutationCtx, now: number) {
   const state = await stateRow(ctx);
   if (state.replanStartedAt && now - state.replanStartedAt < REPLAN_LOCK_MS) return;
-  const closures = (await ctx.db.query("roadClosures").take(1000)).length;
-  const closureAdded = closures !== state.closuresSeen;
+  const closures = closureSetKey(await ctx.db.query("roadClosures").take(1000));
+  const closuresChanged = closures !== state.closuresSeen;
   const since = now - state.lastReplanAt;
   const due = (since >= REPLAN_EVERY_MS && (await hasUrgentWork(ctx))) || (since >= REFRESH_EVERY_MS && (await hasLiveRuns(ctx)));
-  if (!closureAdded && !due) return;
+  if (!closuresChanged && !due) return;
   await ctx.db.patch("dispatchState", state._id, { replanStartedAt: now });
   await ctx.scheduler.runAfter(0, internal.dispatch.replan, {});
 }

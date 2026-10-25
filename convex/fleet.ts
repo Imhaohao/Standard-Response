@@ -7,7 +7,7 @@ import { completeAssignment } from "./offers";
 import { maybeReplan } from "./dispatch";
 import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
-import { closedEdgeSet, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
+import { closedEdgeSet, closureSetKey, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
 import { trafficEdgeTime, trafficForDispatch } from "./traffic";
 import { nextStop, positionAt, RunState } from "./vehicleRun";
 import { simNow } from "./clock";
@@ -245,7 +245,7 @@ export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {
     now,
     tickSeconds: tickMs / 1000,
     closed: closedEdgeSet(closures.filter((closure) => closure.confirmed)),
-    closuresSeen: closures.filter((closure) => closure.edgeKeys !== undefined).length,
+    closuresSeen: closureSetKey(closures.filter((closure) => closure.edgeKeys !== undefined)),
     shelters: await ctx.db.query("shelters").take(50),
     edgeTime: () => (edgeTime ??= trafficForDispatch(ctx, now).then((traffic) => trafficEdgeTime(traffic, now))),
   };

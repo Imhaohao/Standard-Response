@@ -240,6 +240,18 @@ export function closedEdgeSet(closures: { edgeKeys?: string[] }[]) {
   return closed;
 }
 
+// One number for a set of closures. It changes whenever a closure is added or lifted, even when one
+// of each happens between two looks (an Apify batch can lift one and start another), which a count misses.
+export function closureSetKey(closures: { _id: string }[]) {
+  let mix = 0;
+  for (const { _id } of closures) {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < _id.length; i++) hash = Math.imul(hash ^ _id.charCodeAt(i), 0x01000193);
+    mix ^= hash;
+  }
+  return closures.length * 2 ** 32 + (mix >>> 0);
+}
+
 export function streetNames(edges: number[]) {
   return [...new Set(edges.map((index) => EDGES[index].name).filter(Boolean))];
 }
