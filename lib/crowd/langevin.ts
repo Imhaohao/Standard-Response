@@ -202,7 +202,8 @@ export class CrowdSim {
   private agentPotential: (Potential | null)[];
   private lastRefresh = -Infinity;
   private nextDecision = 0;
-  private hashHead = new Map<number, number>();
+  // Head of each hash cell's list of moving cars (-1 for none), and the next car in each list.
+  private hashHead: Int32Array;
   private hashNext: Int32Array;
   private hashKey: Int32Array;
   private hashCols: number;
@@ -232,6 +233,7 @@ export class CrowdSim {
     this.hashNext = new Int32Array(n);
     this.hashKey = new Int32Array(n);
     this.hashCols = Math.ceil((ground.cols * ground.cell) / HASH_CELL) + 1;
+    this.hashHead = new Int32Array(this.hashCols * (Math.ceil((ground.rows * ground.cell) / HASH_CELL) + 1));
     if (params.lookAhead > HASH_CELL) throw new Error(`lookAhead ${params.lookAhead} m is past the ${HASH_CELL} m neighbour search`);
     this.router = new RoadRouter(ground, params.safeLat);
     this.segmentEntries = new Uint32Array(ground.segments.length);
@@ -312,7 +314,7 @@ export class CrowdSim {
       edgeCars: this.edgeCars.slice(),
       potentials: new Map(this.potentials),
       agentPotential: [...this.agentPotential],
-      hashHead: new Map<number, number>(),
+      hashHead: new Int32Array(this.hashHead.length),
       hashNext: new Int32Array(this.count),
       hashKey: new Int32Array(this.count),
     });
@@ -565,13 +567,13 @@ export class CrowdSim {
   }
 
   private rebuildHash() {
-    this.hashHead.clear();
+    this.hashHead.fill(-1);
     for (let i = 0; i < this.count; i++) {
       if (this.state[i] !== STATE.moving) continue;
       const key = this.hashOf(this.x[i], this.y[i]);
       this.hashKey[i] = key;
-      this.hashNext[i] = this.hashHead.get(key) ?? -1;
-      this.hashHead.set(key, i);
+      this.hashNext[i] = this.hashHead[key];
+      this.hashHead[key] = i;
     }
   }
 
@@ -603,11 +605,13 @@ export class CrowdSim {
     const key = this.hashKey[i];
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
-        for (let j = this.hashHead.get(key + dr * this.hashCols + dc) ?? -1; j !== -1; j = this.hashNext[j]) {
+        for (let j = this.hashHead[key + dr * this.hashCols + dc] ?? -1; j !== -1; j = this.hashNext[j]) {
           const dx = this.x[j] - this.x[i];
           const dy = this.y[j] - this.y[i];
+          // Most cars in the nine cells are past the look-ahead: skip them before the square root.
+          if (j === i || dx * dx + dy * dy >= lookAhead * lookAhead) continue;
           const d = Math.hypot(dx, dy);
-          if (j === i || d < 1e-6 || d >= lookAhead) continue;
+          if (d < 1e-6 || d >= lookAhead) continue;
           const forward = dx * hx + dy * hy;
           if (forward < gap && this.follows(i, j, dx, dy, forward)) {
             gap = forward;
