@@ -133,14 +133,6 @@ async function statusTokenFor(ctx: QueryCtx, householdId: Id<"households">, phon
   return claim && claim.phone === phone ? (claim.statusToken ?? null) : null;
 }
 
-async function numberAlreadyHasHome(ctx: QueryCtx, phone: string) {
-  const owner = await ctx.db
-    .query("households")
-    .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", phone))
-    .first();
-  return owner !== null;
-}
-
 // From the judge's phone (/join) or the kiosk's own form. A US number without a country code gets +1.
 export const submitPhone = mutation({
   args: { code: v.string(), phone: v.string() },
@@ -150,7 +142,6 @@ export const submitPhone = mutation({
     const found = await openSession(ctx, code);
     if (found.phoneSubmissions >= PHONE_TRIES_PER_SESSION) throw new ConvexError("Too many tries on this code. Scan the new code on the big screen.");
     const dialable = dialableNumber(phone);
-    if (await numberAlreadyHasHome(ctx, dialable)) throw new ConvexError("That number already has a house on the map. Each phone takes one.");
     await ctx.db.patch("kioskSessions", found._id, { phone: dialable, phoneSubmissions: found.phoneSubmissions + 1 });
     return { phoneEnding: dialable.slice(-4) };
   },
@@ -225,11 +216,7 @@ async function takeableHome(ctx: QueryCtx, householdId: Id<"households">) {
   const home = await ctx.db.get("households", householdId);
   if (!home || !isDemoHouse(home) || !located(home)) throw new ConvexError("That house isn't open. Pick another.");
   if (home.callStatus === "in_call") throw new ConvexError("Our agent is on a call with that house. Pick another.");
-  const claim = await ctx.db
-    .query("claims")
-    .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
-    .first();
-  if (claim) throw new ConvexError("Another judge just took that house. Pick another.");
+  if (await claimOn(ctx, householdId)) throw new ConvexError("Another judge just took that house. Pick another.");
   if ((await openRequestsFor(ctx, householdId)).length > 0) throw new ConvexError("That house already has a ride request. Pick another.");
   return home;
 }
@@ -263,6 +250,7 @@ export const claim = mutation({
     if (position >= MAX_CLAIMS) throw new ConvexError("Every demo house is taken for now.");
     if (expectedPosition !== undefined && expectedPosition !== position) throw new ConvexError("Another person registered. Review the updated demo role and try again.");
     const answers = { ...cleaned, ...demoProfileFor(position) };
+    await giveBackHouseOf(ctx, found.phone);
     const home = await takeableHome(ctx, householdId);
     await putRealNumber(ctx, householdId, found.phone, answers.residentName);
     const { residentName, ...fields } = answers;
@@ -283,6 +271,33 @@ export const claim = mutation({
     return { address: home.address };
   },
 });
+
+async function claimOn(ctx: QueryCtx, householdId: Id<"households">) {
+  return await ctx.db
+    .query("claims")
+    .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+    .first();
+}
+
+async function forgetSignInsFor(ctx: MutationCtx, householdId: Id<"households">) {
+  for (const kiosk of await ctx.db.query("kioskSessions").take(500)) {
+    if (kiosk.householdId === householdId) await ctx.db.delete("kioskSessions", kiosk._id);
+  }
+}
+
+// One phone holds one house, so a judge who picks again gives back the house their number is on.
+async function giveBackHouseOf(ctx: MutationCtx, phone: string) {
+  const current = await ctx.db
+    .query("households")
+    .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", phone))
+    .first();
+  if (!current) return;
+  if (current.callStatus === "in_call") throw new ConvexError("Our agent is on a call with your house right now. Try again when it ends.");
+  const claim = await claimOn(ctx, current._id);
+  if (claim) await releaseClaim(ctx, claim);
+  else await takeRealNumberOff(ctx, current._id);
+  await forgetSignInsFor(ctx, current._id);
+}
 
 async function releaseClaim(ctx: MutationCtx, claim: Doc<"claims">) {
   const home = await ctx.db.get("households", claim.householdId);
@@ -333,14 +348,9 @@ export const releaseHouse = internalMutation({
   args: { householdId: v.id("households") },
   returns: v.object({ released: v.boolean() }),
   handler: async (ctx, { householdId }) => {
-    const claim = await ctx.db
-      .query("claims")
-      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
-      .first();
+    const claim = await claimOn(ctx, householdId);
     if (!claim || !(await releaseClaim(ctx, claim))) return { released: false };
-    for (const kiosk of await ctx.db.query("kioskSessions").take(500)) {
-      if (kiosk.householdId === householdId) await ctx.db.delete("kioskSessions", kiosk._id);
-    }
+    await forgetSignInsFor(ctx, householdId);
     return { released: true };
   },
 });

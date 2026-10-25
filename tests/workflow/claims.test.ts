@@ -73,7 +73,7 @@ describe("judge kiosk claims", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("two judges can't take the same house, and one phone takes one house", async () => {
+  test("two judges can't take the same house, and a phone that picks again gives back its old house", async () => {
     const t = setup();
     const householdId = await demoHouse(t, "12 Oak St", "+16265551001");
     const other = await demoHouse(t, "14 Oak St", "+16265551002");
@@ -82,8 +82,15 @@ describe("judge kiosk claims", () => {
     await t.mutation(api.claims.claim, { code: first, householdId, record: RECORD });
     await expect(t.mutation(api.claims.claim, { code: second, householdId, record: RECORD })).rejects.toThrow(/isn't open/);
     await expect(t.mutation(api.claims.claim, { code: first, householdId: other, record: RECORD })).rejects.toThrow(/already took a house/);
-    const third = await t.mutation(api.claims.startKiosk, {});
-    await expect(t.mutation(api.claims.submitPhone, { code: third, phone: "415-223-0142" })).rejects.toThrow(/already has a house/);
+
+    const again = await signedIn(t, "415-223-0142");
+    expect(await t.mutation(api.claims.claim, { code: again, householdId: other, record: RECORD })).toEqual({ address: "14 Oak St" });
+    const [oldHome, newHome] = await t.run(async (ctx) => Promise.all([ctx.db.get("households", householdId), ctx.db.get("households", other)]));
+    expect(oldHome).toMatchObject({ callbackNumber: "+16265551001" });
+    expect(newHome).toMatchObject({ callbackNumber: "+14152230142", simulated: false });
+    const claims = await t.run(async (ctx) => ctx.db.query("claims").collect());
+    expect(claims.map((claim) => claim.householdId)).toEqual([other]);
+    expect(await t.query(api.claims.session, { code: first })).toBeNull();
   });
 
   test("a rider-list house with a 555 number is open, and a house with someone's real number never shows", async () => {
