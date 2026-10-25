@@ -21,6 +21,7 @@
     "test:voice": "tsx --test voice/*.test.ts voice/agent/*.test.ts voice/phone/*.test.ts voice/knowledge/*.test.ts",
     "test:workflow": "vitest run tests/workflow --environment edge-runtime",
     "test:incident": "vitest run tests/incident --environment edge-runtime",
+    "test:offers": "vitest run convex/offers.test.ts --environment edge-runtime",
     "stress:convex": "tsx scripts/stress/run.ts",
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
     "exam:triage": "tsx --env-file=.env.local scripts/droid/triage.ts",

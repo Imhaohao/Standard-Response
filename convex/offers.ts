@@ -72,6 +72,8 @@ async function acceptedStopOrder(ctx: MutationCtx, offer: Doc<"assignments">) {
 export async function acceptAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
   const refs = { requestId: assignment.requestId, assignmentId, planVersion: assignment.planVersion };
+  // A repeated Accept from the same phone: report the acceptance it already made, and write nothing.
+  if (assignment.status === "accepted") return "accepted" as const;
   if (assignment.status !== "offered") {
     await audit(ctx, "stale_accept_rejected", `Accept on a ${assignment.status} offer rejected`, refs);
     return "changed" as const;
