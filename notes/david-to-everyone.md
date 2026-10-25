@@ -220,3 +220,7 @@ The voice agent repeats itself less. Nothing in the contract changed, but the pr
 - **A named feeling is said once per call**, not just never twice in a row. Different wordings still pass.
 - **Interpreter prompt:** `feeling` and `reply` are told not to reuse sentences the agent already said on the call.
 - Live after the voice server redeploy, which I'm running now.
+
+## 2026-10-25 10:04
+
+**Blocker: `robust-penguin-834` runs a Convex schema that isn't on `main`.** Its `control` row has a `closeSimulated` field, and no commit or checkout on this laptop has it. So `npx convex dev --once` from `main` fails schema validation. If it passed, it would overwrite whatever unpushed functions wrote that field. Whoever deployed it: please push it, or tell me it can go. Until then, the 09:47 change (`voice:dialQueue` lists only the team's phones) isn't live on Convex. The voice server's `mayDialOnWarning` gate goes out with the next Fly deploy either way.
