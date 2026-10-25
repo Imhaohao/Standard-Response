@@ -217,7 +217,7 @@ def build_replay(night, events: list[tuple], roads_raw: dict, meta: dict) -> dic
 
 def write_replay(replay_id: str, payload: dict) -> None:
     SCENARIOS.mkdir(parents=True, exist_ok=True)
-    target = SCENARIOS / f"{replay_id}-replay.json"
+    target = SCENARIOS / f"{replay_id}.json"
     target.write_text(json.dumps(payload, separators=(",", ":")))
     print(f"wrote {target} ({target.stat().st_size / 1e6:.2f} MB, {len(payload['events'])} events, {len(payload['legs'])} legs)")
 
@@ -231,7 +231,7 @@ def traced(simulate, *args):
     return night, stream, events
 
 
-def city_replay(city_id: str, seed: int, fleet: int) -> None:
+def city_replay(city_id: str, seed: int, fleet: int, replay_id: str) -> None:
     from .city_night import CITIES, build_city_world, city_inputs, city_metrics, simulate
 
     inputs = city_inputs(city_id)
@@ -245,7 +245,7 @@ def city_replay(city_id: str, seed: int, fleet: int) -> None:
         "staging": {"name": inputs.city["staging"]["name"], "lat": e5(inputs.city["staging"]["lat"]), "lng": e5(inputs.city["staging"]["lng"])},
         "shelter": {"name": inputs.city["shelter"]["name"], "lat": e5(inputs.city["shelter"]["lat"]), "lng": e5(inputs.city["shelter"]["lng"])},
     }
-    write_replay(city_id, build_replay(night, events, roads_raw, meta))
+    write_replay(replay_id, build_replay(night, events, roads_raw, meta))
 
 
 def altadena_replay(seed: int, fleet: int, scenario: str) -> None:
@@ -266,7 +266,7 @@ def altadena_replay(seed: int, fleet: int, scenario: str) -> None:
         "staging": {"name": STAGING["name"], "lat": e5(STAGING["lat"]), "lng": e5(STAGING["lng"])},
         "shelter": {"name": SHELTER["name"], "lat": e5(SHELTER["lat"]), "lng": e5(SHELTER["lng"])},
     }
-    write_replay("altadena", build_replay(night, events, json.loads(ROADS_FILE.read_text()), meta))
+    write_replay("altadena-replay", build_replay(night, events, json.loads(ROADS_FILE.read_text()), meta))
 
 
 def main():
@@ -275,11 +275,12 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--fleet", type=int, default=25)
     parser.add_argument("--scenario", default="firstFireWest", help="Altadena only")
+    parser.add_argument("--named", action="store_true", help="write <city>-replay-<fleet>.json, which the scene opens with &fleet=")
     args = parser.parse_args()
     if args.city == "altadena":
         altadena_replay(args.seed, args.fleet, args.scenario)
     else:
-        city_replay(args.city, args.seed, args.fleet)
+        city_replay(args.city, args.seed, args.fleet, f"{args.city}-replay-{args.fleet}" if args.named else f"{args.city}-replay")
 
 
 if __name__ == "__main__":

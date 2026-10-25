@@ -5,7 +5,7 @@
  "hazard": "tsunami",
  "detail": {
   "south": 19.7,
-  "north": 19.74,
+  "north": 19.748,
   "west": -155.11,
   "east": -155.05
  },
@@ -17,7 +17,7 @@
  "censusYear": "ACS 2019-2023 (today's town, not 1960's)",
  "roadBox": {
   "south": 19.689999999999998,
-  "north": 19.75,
+  "north": 19.758000000000003,
   "west": -155.12,
   "east": -155.04000000000002
  },

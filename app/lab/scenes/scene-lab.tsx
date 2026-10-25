@@ -24,6 +24,10 @@ export type SceneParams = {
   frame: string | null;
   chrome: boolean;
   replay: boolean;
+  // Which replay to play: the default 25-van night, or a larger fleet written as <city>-replay-<vans>.json.
+  replayFleet: number | null;
+  // The running count shows by default; tally=0 leaves it off a clean plate.
+  tally: boolean;
 };
 
 const DEFAULT_SPEED = 5;
@@ -80,7 +84,7 @@ export function SceneLab({ params }: { params: SceneParams }) {
   const frame = frameByName(city, frameName);
   const aspect = useWindowAspect();
   const view = useMemo(() => (aspect ? cityView(city, frame, aspect) : null), [city, frame, aspect]);
-  const replay = useReplay(params.replay ? city.id : null);
+  const replay = useReplay(params.replay ? city.id : null, params.replayFleet);
   const last = Math.max(scenarioLastMinute(hazard), replayLastMinute(replay));
   const playback = usePlayback(last, { minutes: params.minutes ?? 0, play: params.play, speed: params.speed ?? DEFAULT_SPEED });
   const first = useStartNearArrival(hazard, params.minutes, playback.setMinutes);
@@ -121,7 +125,7 @@ export function SceneLab({ params }: { params: SceneParams }) {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
       <SceneMap data={data} view={view} hazard={hazard} minutes={playback.minutes} replay={replay} highlights={highlights} onRenderer={setRenderer} />
-      {count && (
+      {count && params.tally && (
         <div className="pointer-events-none absolute start-4 top-4">
           <ReplayTally count={count} />
         </div>
