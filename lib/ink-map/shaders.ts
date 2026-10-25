@@ -546,39 +546,31 @@ float burningShare(float minutes) {
   return step(0.0, since) * (1.0 - smoothstep(12.0, 18.0, since)) * uFireOn * uBurning;
 }
 
-// Everything the fire has reached is still the fire, so the whole burned area is one deep orange
-// zone rather than rings of grey that each need a legend. It is not a gradient: noise roughens how
-// long ago the fire passed, so the lighter, fresher ground breaks into tongues and islands, and
-// patches of hot orange and dark scorch are scattered over it, more of the hot near the line and
-// more of the scorch deep inside. All of it is fixed to the ground, so it pans with the town.
+// Everything the fire has reached is still the fire, so the whole burned area is one dark orange
+// zone rather than rings of grey that each need a legend. This is only its floor, which never moves:
+// darker scorched patches with torn edges, more of them deep inside, over ground that is a little
+// brighter where the fire passed recently. Noise roughens how long ago that was, so the brighter
+// ground breaks into tongues and islands instead of a ring. The glowing embers that move over it are
+// drawn every frame by the fire pass.
 vec3 fireGround(vec2 mapXY, float since) {
   float age = since + (fbm(mapXY * 0.02) - 0.5) * 45.0;
-  float heat = 1.0 - smoothstep(0.0, 70.0, age);
+  float fresh = 1.0 - smoothstep(0.0, 70.0, age);
   // Warped by a finer noise, so the patches' edges tear into jags and slivers instead of rounding off.
   vec2 tear = vec2(valueNoise(mapXY * 0.16), valueNoise(mapXY * 0.16 + 9.7)) - 0.5;
   float patches = fbm(mapXY * 0.05 + 31.0 + tear * 1.1);
   float edge = fwidth(patches) + 0.015;
-  float hot = smoothstep(0.6 - edge, 0.6 + edge, patches + heat * 0.16);
-  float scorched = 1.0 - smoothstep(0.4 - edge, 0.4 + edge, patches + heat * 0.12);
-  vec3 deep = mix(uEmber, uRed, 0.3) * 0.8;
-  vec3 bright = mix(uEmber, vec3(1.0, 0.8, 0.45), 0.45);
+  float scorched = 1.0 - smoothstep(0.42 - edge, 0.42 + edge, patches + fresh * 0.1);
+  vec3 deep = mix(uEmber, uRed, 0.25) * 0.72;
+  vec3 recent = mix(uEmber, uRed, 0.1) * 0.88;
   vec3 scorch = mix(uRed, uInk, 0.55);
-  vec3 ground = mix(deep, bright, heat * 0.45);
-  ground = mix(ground, bright, hot * 0.8);
-  ground = mix(ground, scorch, scorched * 0.65);
-  // Coals: a sparse scatter of small bright flecks, mostly in the hot patches.
-  // They fade out zoomed out, where a fleck is under a pixel and would only shimmer.
-  vec2 coalAt = mapXY * 0.6 + 4.1;
-  float coalSize = max(fwidth(coalAt).x, fwidth(coalAt).y);
-  float coal = step(0.93 - hot * 0.07, valueNoise(coalAt)) * mix(0.25, 1.0, hot) * (1.0 - smoothstep(0.25, 0.6, coalSize));
-  return mix(ground, vec3(1.0, 0.86, 0.55), coal * 0.65);
+  return mix(mix(deep, recent, fresh * 0.6), scorch, scorched * 0.7);
 }
 
 // Homes in the zone: a burning one is the brightest thing on the map for its quarter hour, and a
 // burned-out one is dark maroon, so either reads as a house against the ground around it.
 vec3 fireBuilding(float surface, float burning) {
   vec3 burnedOut = mix(uRed, uInk, surface == S_ROOF ? 0.45 : 0.6);
-  vec3 alight = surface == S_ROOF ? mix(uEmber, vec3(1.0, 0.86, 0.5), 0.45) : uRed;
+  vec3 alight = surface == S_ROOF ? mix(uEmber, vec3(1.0, 0.7, 0.3), 0.3) : uRed;
   return mix(burnedOut, alight, burning);
 }
 
@@ -707,7 +699,9 @@ precision highp float;
 precision highp sampler2D;
 in vec2 vUv;
 out vec4 fragColor;
+${SURFACE_GLSL}
 ${FIRE_COMMON}
+uniform sampler2D tShade;
 uniform sampler2D tBase;
 uniform sampler2D tBloom;
 uniform vec2 uResolution;
@@ -731,17 +725,24 @@ vec3 sparks(vec3 color, vec2 mapXY, float fresh) {
   float lit = step(0.93, hash12(id)) * clamp(fresh, 0.0, 1.0);
   float twinkle = smoothstep(0.35, 1.0, sin(uTime * (1.5 + 3.0 * hash12(id + 7.0)) + hash12(id + 3.0) * 6.28));
   float spark = lit * twinkle * (1.0 - smoothstep(0.12, 0.38, length(fract(cell) - 0.5)));
-  return mix(color, vec3(1.0, 0.78, 0.4), spark);
+  return mix(color, vec3(1.0, 0.62, 0.25), spark);
 }
 
-// Pockets still alight deep in the burned area: soft patches of glow that swell, fade and drift as
-// the noise under them moves, so the inside of the fire never sits still.
-vec3 pockets(vec3 color, vec2 mapXY, float since) {
-  if (since < 0.0) return color;
-  float slow = valueNoise(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04));
-  float quick = valueNoise(mapXY * 0.04 + vec2(-uTime * 0.18, uTime * 0.12));
-  float glow = smoothstep(0.42, 0.7, slow * 0.55 + quick * 0.45);
-  return color * (1.0 + vec3(0.5, 0.25, 0.05) * glow) + vec3(1.0, 0.72, 0.35) * glow * 0.22;
+// Embers smouldering over the whole burned area. Two noises warp each other while both drift, so
+// a patch of glow crawls, splits and merges instead of sliding across the map, and each patch
+// breathes on its own beat. A fine grain flickers inside it, like coals catching and dimming. It
+// glows red at the rim and orange at the core, never yellow: burned ground glows like coals, not
+// flame. Only the ground smoulders; the houses and trees keep their own colours.
+vec3 smoulder(vec3 color, vec2 mapXY, float since, float surface) {
+  if (since < 0.0 || (surface != S_TERRAIN && surface != S_ROAD && surface < S_LANDUSE)) return color;
+  vec2 p = mapXY * 0.03;
+  vec2 warp = vec2(valueNoise(p * 0.7 + vec2(uTime * 0.11, 0.0)), valueNoise(p * 0.7 + vec2(5.2, -uTime * 0.09))) - 0.5;
+  float broad = valueNoise(p + warp * 2.0 + vec2(-uTime * 0.07, uTime * 0.05));
+  float fine = valueNoise(mapXY * 0.12 + warp * 3.0 + vec2(uTime * 0.2, -uTime * 0.15));
+  float grain = valueNoise(mapXY * 0.35 + vec2(uTime * 0.9, -uTime * 1.3));
+  float glow = smoothstep(0.48, 0.78, broad * 0.65 + fine * 0.35) * (0.6 + 0.4 * sin(uTime * 1.7 + broad * 12.0));
+  float heat = glow * (0.55 + 0.45 * grain) * mix(0.6, 1.0, 1.0 - smoothstep(10.0, 60.0, since));
+  return color + mix(uRed, uEmber, heat) * heat * 0.5;
 }
 
 // The map point under a screen point.
@@ -761,10 +762,11 @@ float coreLine(vec2 uv, float minutes) {
   return 1.0 - smoothstep(0.4 * uPixelRatio, 1.6 * uPixelRatio, abs(minutes - uFireNow) / perPixel);
 }
 
-// Heat rising off the fire line: the air just above it on screen wobbles, more the closer to the
-// line, with ripples that drift upward. The ripples are fixed to the ground, so they pan with it.
+// Heat rising off the fire: the air just above the line on screen wobbles hard, and over the rest of
+// the burned area it shimmers gently, with ripples that drift upward. The ripples are fixed to the ground, so they pan with it.
 vec2 heatHaze(vec2 uv) {
-  float heat = texture(tBloom, uv + vec2(0.0, 10.0 * uPixelRatio / uResolution.y)).r;
+  vec2 bloom = texture(tBloom, uv + vec2(0.0, 10.0 * uPixelRatio / uResolution.y)).rg;
+  float heat = max(bloom.r, min(bloom.g, 1.0) * 0.3);
   if (heat < 0.02) return uv;
   vec2 p = groundAt(uv) * 0.09;
   vec2 ripple = vec2(valueNoise(p + vec2(0.0, -uTime * 2.4)), valueNoise(p + vec2(7.3, -uTime * 2.9))) - 0.5;
@@ -781,7 +783,7 @@ void main() {
     vec2 mapXY = groundAt(uv);
     float minutes = arrivalMinutes(mapXY);
     float since = uFireNow - minutes;
-    color = pockets(color, mapXY, since);
+    color = smoulder(color, mapXY, since, floor(texture(tShade, uv).g * 255.0 + 0.5));
     color = sparks(color, mapXY, step(0.0, since) * (1.0 - 0.6 * smoothstep(10.0, 40.0, since)));
     float core = coreLine(uv, minutes);
     // An animated-film glow: an orange halo bleeding out from the line, warming whatever it
