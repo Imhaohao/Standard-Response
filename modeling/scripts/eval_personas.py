@@ -12,8 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from concurrent.futures import ThreadPoolExecutor  # noqa: E402
 
-from rollcall_d.agent_lines import HAZARD  # noqa: E402
-from rollcall_d.alignment_more import hazards_spoken, probe_hazard  # noqa: E402
+from rollcall_d.agent_lines import HAZARD, hazards_spoken, probe_hazard  # noqa: E402
 from rollcall_d.evaluation import CardRun, HttpAgent, run_all, run_card, summarize  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
 from rollcall_d.scripted_agent import ScriptedAgent  # noqa: E402

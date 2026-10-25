@@ -8,6 +8,7 @@ value is a function (`confirmAddress: (address) => ...`) is skipped.
 
 import json
 import re
+import uuid
 from functools import cache
 
 from .paths import REPO
@@ -82,3 +83,21 @@ def recent_agent_turns() -> int:
     """How many agent turns back a status line still counts as just heard (conversation.ts RECENT_AGENT_TURNS)."""
     found = CONVERSATION.exists() and re.search(r"const RECENT_AGENT_TURNS = (\d+);", CONVERSATION.read_text())
     return int(found.group(1)) if found else 3
+
+
+# POST /turn speaks for the hazard picked on the shared call floor (voice/hazard.ts), not one the eval chooses. The cards
+# and the status lines the evals expect are for HAZARD, so a call that spoke another hazard's safety line isn't scored.
+
+
+def hazards_spoken(texts: list[str], language: str) -> set[str]:
+    safety = lines_for(language).get("safety", {})
+    return {hazard for hazard, line in safety.items() if any(line in text for text in texts)}
+
+
+def probe_hazard(agent) -> str | None:
+    """The hazard the agent speaks for right now: one call with a ride on the list, asked about the ride."""
+    body = {"sessionId": f"hazard-probe-{uuid.uuid4().hex[:8]}", "language": "en", "text": "", "requestStatus": "received"}
+    agent.turn(body)
+    reply = agent.turn({**body, "text": "Is someone coming to get me?"})["reply"]
+    spoken = hazards_spoken([reply], "en")
+    return min(spoken) if len(spoken) == 1 else None
