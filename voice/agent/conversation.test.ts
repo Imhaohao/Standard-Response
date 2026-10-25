@@ -480,6 +480,21 @@ describe("the read-back's address", () => {
   });
 });
 
+describe("acknowledgments that show what was heard", () => {
+  it("drops a bare 'Thanks.'", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("Two of us use walkers.", heard({ acknowledgment: "Thanks." }));
+    assert.equal(turn.acknowledgment, "");
+  });
+
+  it("lets Claude reflect why someone isn't sure they can leave, instead of a fixed echo", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("We're not leaving without our dog.", heard({ updates: { canLeave: "unsure" }, acknowledgment: "You won't leave without your dog." }));
+    assert.equal(turn.acknowledgment, "You won't leave without your dog.");
+    assert.ok(!turn.sentences.join(" ").includes(EN.leaveEcho.unsure));
+  });
+});
+
 describe("asked to stay on the line", () => {
   const STAY = "Yes, I'm staying on the line with you.";
 

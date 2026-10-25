@@ -59,7 +59,9 @@ type EchoPart = (changed: AgentRecord, lines: Lines) => string | undefined;
 // Whole clauses ("you can't leave on your own") are a sentence each; the short household facts
 // share one ("2 people, with pets."), so the echo never crams a clause into a list.
 const ECHO_CLAUSES: EchoPart[] = [
-  (changed, lines) => (changed.canLeave ? lines.leaveEcho[changed.canLeave] : undefined),
+  // "Unsure" stands for hesitation, "I don't know" and "not without my dog" alike, and "You're not sure
+  // you can leave" to "We're not leaving without our dog" misstated the caller, so Claude reflects it.
+  (changed, lines) => (changed.canLeave && changed.canLeave !== "unsure" ? lines.leaveEcho[changed.canLeave] : undefined),
   (changed, lines) => (changed.hasCar === true ? lines.hasCarEcho : undefined),
 ];
 const ECHO_FACTS: EchoPart[] = [

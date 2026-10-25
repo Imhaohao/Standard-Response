@@ -680,7 +680,7 @@ export class Conversation {
     if (normalized === "") return text;
     const previous = this.lastAcknowledgment;
     this.lastAcknowledgment = normalized;
-    if (normalized === previous || /\bgot it\b/.test(normalized)) return "";
+    if (normalized === previous || /\bgot it\b/.test(normalized) || GENERIC_ACKS.has(normalized)) return "";
     if (firstWord(normalized) !== firstWord(previous)) return text;
     const rest = text.trim().replace(/^\S+?[,.!]?\s+/u, "");
     return rest === text.trim() ? "" : rest.charAt(0).toUpperCase() + rest.slice(1);
@@ -1286,6 +1286,9 @@ function isBrief(text: string) {
   return [...bare].length <= BRIEF_UNSPACED_CHARACTERS;
 }
 
+// A bare "Thanks." shows nothing was heard; the voice exam failed it under show_you_heard, and the
+// phone's own "Mm-hm" already covers the pause.
+const GENERIC_ACKS = new Set(["thanks", "thank you", "okay", "ok", "alright", "all right", "right", "mm", "mmhm", "great", "good", "gracias", "vale", "bueno", "muy bien", "está bien", "de acuerdo", "entendido"]);
 const normalizeAck = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim();
 const firstWord = (normalized: string) => normalized.split(" ")[0];
 
