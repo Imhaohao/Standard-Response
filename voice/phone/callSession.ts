@@ -3,26 +3,29 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
 import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversation";
-import { AgentRecord, FIELDS } from "../agent/record";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { Transcriber } from "./cartesia";
+import { ElevenLabsCall } from "./elevenLabsCall";
+import { householdCallFor, onFileRecord } from "./householdCall";
 import { interrupts, isBackchannel } from "./interruption";
 import { isOutboundFlowMode, outboundFlowFor } from "./outboundFlows";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
 import { CallSpeech } from "./speech";
-import { hangUp, StreamParameters } from "./twilio";
+import { CallMode, hangUp, StreamParameters } from "./twilio";
+import { env } from "../env";
 
 // One live phone call: Twilio audio in, Cartesia speech-to-text, the conversation, Cartesia voice out.
 
-// Silence after a finalized transcript before we treat the resident's turn as over. Speech-to-text
-// ends a complete sentence with a stop mark, so we answer fast. A transcript that trails off
+// Silence after a finalized transcript before we treat the resident's turn as over. A stop mark only
+// ends a sentence, not the turn: older residents often add a second sentence after a breath ("I'm at
+// 12 Oak Street. It's the blue house."), and 300 ms cut that breath off. A transcript that trails off
 // ("my address is...", "现在在，") means the resident paused mid-thought, so we wait longer. Many
 // transcripts, Chinese ones especially, carry no mark either way; they get the middle wait, and a
 // resident who keeps talking is still heard (takeTurn reads the rest again).
-const TURN_GAP_MS = 300;
-const UNMARKED_TURN_GAP_MS = 600;
-const UNFINISHED_TURN_GAP_MS = 1300;
+const TURN_GAP_MS = 700;
+const UNMARKED_TURN_GAP_MS = 1000;
+const UNFINISHED_TURN_GAP_MS = 1800;
 const SENTENCE_END = /[.?!。？！]["'”」』)]?$/;
 const TRAILING_OFF = /(\.\.\.|…|[,、，:;\-–—])$/;
 // The resident kept talking while Claude read their first words: read it all again, this many times
@@ -45,7 +48,7 @@ const TRANSFER_PAUSE_MS = 1500;
 const QUIET_MS = { answer: 7000, moment: 20_000, hold: 30_000, goodbye: 2000 } as const;
 type Waiting = keyof typeof QUIET_MS;
 
-type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
+export type TwilioStart = { streamSid: string; callSid: string; customParameters: StreamParameters };
 type TwilioMessage =
   | { event: "start"; start: TwilioStart }
   | { event: "media"; media: { payload: string; track?: string } }
@@ -67,12 +70,21 @@ function waitingAfter(turn: AgentTurn, holding: boolean): Waiting {
   return turn.givesTime ? "moment" : "answer";
 }
 
+// The household call runs on whichever stack VOICE_STACK picks; scripted calls stay on ours.
+const HOUSEHOLD_MODES = new Set<CallMode>(["survey", "inbound"]);
+type MediaSession = { begin(): Promise<void>; hearAudio(base64: string): void; markPlayed(): void; finish(answered: boolean | null): Promise<void> };
+
+function sessionFor(socket: WebSocket, start: TwilioStart): MediaSession {
+  if (env.voiceStack === "elevenlabs" && HOUSEHOLD_MODES.has(start.customParameters.mode)) return new ElevenLabsCall(socket, start);
+  return new CallSession(socket, start);
+}
+
 export function handleMediaStream(socket: WebSocket) {
-  let session: CallSession | null = null;
+  let session: MediaSession | null = null;
   socket.on("message", (raw) => {
     const message = JSON.parse(raw.toString()) as TwilioMessage;
     if (message.event === "start") {
-      session = new CallSession(socket, message.start);
+      session = sessionFor(socket, message.start);
       session.begin().catch((error) => {
         console.error("[call] failed to start", error);
         session?.finish(false);
@@ -149,12 +161,8 @@ class CallSession implements LiveCall {
   }
 
   private async resolveHousehold(): Promise<Id<"households">> {
-    if (this.params.mode === "survey") {
-      this.callId = this.params.callId as Id<"calls">;
-      return this.params.householdId as Id<"households">;
-    }
-    const householdId = await convex().mutation(api.households.findOrCreateByPhone, { callbackNumber: this.params.from ?? "unknown" });
-    this.callId = await convex().mutation(api.calls.start, { householdId, direction: "inbound" });
+    const { householdId, callId } = await householdCallFor(this.params);
+    this.callId = callId;
     return householdId;
   }
 
@@ -248,8 +256,11 @@ class CallSession implements LiveCall {
     try {
       const act = await this.conversation.read(utterance);
       clearTimeout(backchannel);
-      // They kept talking while Claude read the first part: answer all of it together instead.
-      if (this.heardSoFar.trim() !== utterance && this.rereads < MAX_REREADS) {
+      // They kept talking while Claude read the first part: answer all of it together instead. Any
+      // speech counts, not only a finished transcript, so the reply never starts over a resident who
+      // is mid-sentence; their next transcript restarts the turn timer.
+      const resumed = this.lastSpeechAt !== spokeAt || this.heardSoFar.trim() !== utterance;
+      if (resumed && this.rereads < MAX_REREADS) {
         this.rereads += 1;
         return;
       }
@@ -422,11 +433,3 @@ class CallSession implements LiveCall {
   }
 }
 
-// What the agency already has on file for this home, so the agent confirms instead of asking cold.
-function onFileRecord(household: Record<string, unknown>): AgentRecord {
-  const record: Record<string, unknown> = {};
-  for (const field of FIELDS) {
-    if (field !== "address" && household[field] !== undefined) record[field] = household[field];
-  }
-  return record as AgentRecord;
-}

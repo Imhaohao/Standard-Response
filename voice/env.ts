@@ -57,6 +57,18 @@ export const env = {
     voiceFor: (language: string) =>
       language === "es" ? required("CARTESIA_VOICE_ES") : process.env[`CARTESIA_VOICE_${language.toUpperCase()}`] || required("CARTESIA_VOICE_EN"),
   },
+  // Which stack runs the household call (inbound and survey). "cartesia" is our own loop: Cartesia
+  // speech-to-text, the Conversation state machine on Claude, Cartesia voice. "elevenlabs" hands the
+  // whole call to an ElevenLabs Conversational AI agent (voice/phone/elevenLabsCall.ts). Callbacks,
+  // pickup checks and Ready checks are scripted and always run on Cartesia.
+  voiceStack: optional("VOICE_STACK", process.env.ELEVENLABS_API_KEY ? "elevenlabs" : "cartesia") as "cartesia" | "elevenlabs",
+  elevenlabs: {
+    apiKey: () => required("ELEVENLABS_API_KEY"),
+    voiceId: optional("ELEVENLABS_VOICE_ID", "cjVigY5qzO86Huf0OWal"),
+    llm: optional("ELEVENLABS_AGENT_LLM", "gemini-2.5-flash"),
+    // "patient" waits longer before deciding the resident is done; "normal" and "eager" answer sooner.
+    turnEagerness: optional("ELEVENLABS_TURN_EAGERNESS", "patient"),
+  },
   // Numbers the dialer may ring. "*" allows any. Everything else is skipped, so a fictional
   // rider list can never ring a stranger.
   dialAllowlist: listFrom("DIAL_ALLOWLIST"),
