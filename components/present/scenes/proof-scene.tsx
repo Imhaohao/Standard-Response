@@ -3,6 +3,7 @@
 import { PRODUCT_NAME } from "@/lib/brand";
 import { Photo } from "../photo";
 import type { Beat } from "../script";
+import { Percent } from "../percent";
 import { Show } from "../show";
 import { FireNights, NIGHTS_SIZE } from "./proof/fire-nights";
 import { HomeField } from "./proof/home-field";
@@ -16,8 +17,7 @@ function Outcome({ shown, out, label, left }: { shown: boolean; out: number; lab
       <Show when={shown}>
         <p className="type-deck-figure">
           {percentOf(out)}
-          {/* Nexa Rust has no percent sign, so it comes from the condensed display face. */}
-          <span className="font-display">%</span>
+          <Percent />
         </p>
         <p className="type-deck-label mt-8">{label}</p>
         <p className="type-deck-note mt-1 text-on-night-muted tabular-nums">

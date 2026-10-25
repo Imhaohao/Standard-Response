@@ -20,7 +20,7 @@ export function Stage({ children }: { children: ReactNode }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-night">
       <div
-        className="relative shrink-0 overflow-hidden bg-night text-on-night"
+        className="relative shrink-0 overflow-hidden bg-night font-deck text-on-night"
         style={{ width: STAGE.width, height: STAGE.height, transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }}
       >
         {children}

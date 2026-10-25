@@ -8,6 +8,7 @@ import type { GeometryCollection, Topology } from "topojson-specification";
 import usAtlas from "us-atlas/states-albers-10m.json";
 import { cameraMove, sceneMove } from "../motion";
 import type { Beat } from "../script";
+import { Percent } from "../percent";
 import { Show } from "../show";
 import { DISASTERS, type DisasterKind, type LabelSide } from "./disasters";
 
@@ -87,7 +88,10 @@ function EightyPercent({ shown }: { shown: boolean }) {
   return (
     <>
       <Show when={shown} delay={0.2} className="absolute" style={{ left: 128, top: 250, width: 720 }}>
-        <p className="type-deck-figure text-signal">80%</p>
+        <p className="type-deck-figure text-signal">
+          80
+          <Percent />
+        </p>
         <p className="type-deck-lede mt-10">of people with disabilities can’t evacuate right away without difficulty</p>
       </Show>
       <div className="absolute grid grid-cols-5 gap-x-6 gap-y-10" style={{ left: 940, top: 270 }} aria-hidden>

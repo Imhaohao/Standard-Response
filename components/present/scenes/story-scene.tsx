@@ -19,9 +19,12 @@ function intoHouse(at: ScreenPoint | null): Frame {
   return { left: x - MARK / 2, top: y - MARK / 2, width: MARK, height: MARK, borderRadius: MARK / 2, opacity: 0 };
 }
 const CARD: Frame = { left: 1150, top: 150, width: 640, height: 450, borderRadius: 32, opacity: 1 };
+// Anthony's portrait is a small, upright photo, so it stands full height on the right rather than
+// stretching across the stage.
+const PORTRAIT: Frame = { left: 1000, top: 0, width: 920, height: STAGE.height, borderRadius: 0, opacity: 1 };
 
 function portraitFrame(beat: Beat, houseAt: ScreenPoint | null): Frame {
-  if (beat === "anthony") return FULL;
+  if (beat === "anthony") return PORTRAIT;
   if (beat === "calls") return CARD;
   if (isAtOrAfter(beat, "gone")) return { ...CARD, opacity: 0 };
   if (isAtOrAfter(beat, "family")) return intoHouse(houseAt);
@@ -85,7 +88,7 @@ export function StoryScene({ beat, houseAt }: { beat: Beat; houseAt: ScreenPoint
       >
         <span />
       </Show>
-      <Show when={beat === "anthony"} delay={0.3} className="absolute" style={{ left: 128, bottom: 120 }}>
+      <Show when={beat === "anthony"} delay={0.3} className="absolute" style={{ left: 128, bottom: 120, width: 820 }}>
         <p className="type-deck-title">Anthony Mitchell</p>
         <p className="type-deck-lede mt-4 text-on-night-muted">68, west Altadena</p>
       </Show>

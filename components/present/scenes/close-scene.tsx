@@ -12,7 +12,7 @@ import { Wordmark } from "../wordmark";
 
 // Portraits arrive about when each name is said in "the Anthonys, Justins, and Roselands".
 const PORTRAITS: { photo: PhotoName; name: string; delay: number }[] = [
-  { photo: "mitchells", name: "Anthony and Justin", delay: 0.5 },
+  { photo: "mitchells", name: "Anthony Mitchell", delay: 0.5 },
   { photo: "roseland", name: "Roseland", delay: 1.9 },
 ];
 

@@ -20,6 +20,7 @@ export function Photo({ name, compact = false }: { name: PhotoName; compact?: bo
       }}
       onError={() => setMissing(true)}
       className="size-full object-cover grayscale"
+      style={{ objectPosition: "focus" in photo ? photo.focus : undefined }}
     />
   );
 }

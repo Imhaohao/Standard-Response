@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
-/* Faces we have no license to publish: Nexa Rust (a Fontfabric trial) sets the name Standard Response, numbers and
-   big display text. The files are gitignored and live only on the presenting laptop. Without them the name
-   falls back to Verlag, then League Spartan, and the big type to Sofia Sans Condensed. Each weight range stops the browser from synthesizing a bolder copy of the one face. */
+/* Faces we have no license to publish: Nexa Rust (a Fontfabric trial) sets the name Standard Response,
+   numbers and big display text, and Mustica Pro (Alifinart Studio, free version, one weight) sets the
+   deck's body text. The files are gitignored and live only on the presenting laptop. Without them the name
+   falls back to Verlag, then League Spartan, the big type to Sofia Sans Condensed and the deck's body to
+   Public Sans. Each weight range stops the browser from synthesizing a bolder copy of the one face. */
+@font-face {
+  font-family: "Mustica Pro";
+  src: url("/brand-fonts/MusticaPro-SemiBold.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
 @font-face {
   font-family: "Verlag";
   src: url("/brand-fonts/Verlag-Black.woff2") format("woff2");
@@ -56,6 +64,7 @@
   --on-night-muted: oklch(0.72 0.01 70);
   /* The name Standard Response, and numbers and big display text. See the @font-face rules above. */
   --brand-face: "Nexa Rust Sans", "Verlag", var(--font-league-spartan), sans-serif;
+  --deck-body-face: "Mustica Pro", var(--font-public-sans), sans-serif;
   --big-face: "Nexa Rust Sans", var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
 }
 
@@ -89,6 +98,7 @@
   --font-display: var(--font-sofia-condensed);
   --font-brand: var(--brand-face);
   --font-big: var(--big-face);
+  --font-deck: var(--deck-body-face);
   --shadow-float: var(--shadow-float);
   --shadow-popover: var(--shadow-popover);
   --shadow-device: var(--shadow-device);
