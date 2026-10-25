@@ -108,7 +108,7 @@ export function guidanceText(guidance: Guidance | null): string {
   return [
     principles.length ? `Principles that fit this moment:\n${principles.join("\n")}` : "",
     moments.length
-      ? `Similar moments from the 911 dialog bank, with the reading a careful call-taker gave. They are other callers: read only what this resident said.\n${moments.join("\n\n")}`
+      ? `Similar moments from the 911 dialog bank, with the reading a careful call-taker gave. They are other callers: read only what this resident said. They show how to read answers to the agent's questions, and none of those callers asked one of their own, so a field a reading leaves out says nothing about this resident: set policy_question from this resident's words alone.\n${moments.join("\n\n")}`
       : "",
   ]
     .filter((part) => part !== "")
