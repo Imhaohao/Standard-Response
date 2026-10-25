@@ -142,6 +142,8 @@ export class CallSession implements LiveCall {
   private quietTimer: NodeJS.Timeout | null = null;
   private rereads = 0;
   private thinking = false;
+  // A reading of the words heard so far, started before the turn ended (readAhead).
+  private ahead: { conversation: CallFlow; utterance: string; reading: Promise<() => AgentTurn> } | null = null;
   // The resident stopped the agent mid-turn and hasn't been answered yet.
   private cutOff = false;
   private residentSpoke = false;
@@ -284,7 +286,26 @@ export class CallSession implements LiveCall {
 
   private hear(text: string) {
     this.heardSoFar = `${this.heardSoFar} ${text}`;
+    this.readAhead();
     this.waitForTurnEnd();
+  }
+
+  // Claude starts reading the moment the words are final instead of when the turn gap runs out (0.7
+  // to 1.8 s later). Reading changes nothing (CallFlow.read), so a reading the resident talks past is
+  // dropped and the whole turn is read when it ends.
+  private readAhead() {
+    const utterance = this.heardSoFar.trim();
+    if (this.thinking || !this.conversation || this.reachedMachine || utterance === "") return;
+    const reading = this.conversation.read(utterance, this.line.rehear?.bind(this.line));
+    reading.catch(() => undefined);
+    this.ahead = { conversation: this.conversation, utterance, reading };
+  }
+
+  private readingFor(conversation: CallFlow, utterance: string) {
+    const ahead = this.ahead;
+    this.ahead = null;
+    if (ahead && ahead.conversation === conversation && ahead.utterance === utterance) return ahead.reading;
+    return conversation.read(utterance, this.line.rehear?.bind(this.line));
   }
 
   // Each word heard pushes the end of the resident's turn back.
@@ -330,7 +351,7 @@ export class CallSession implements LiveCall {
       });
     }, BACKCHANNEL_AFTER_MS);
     try {
-      const act = await this.conversation.read(utterance, this.line.rehear?.bind(this.line));
+      const act = await this.readingFor(this.conversation, utterance);
       clearTimeout(backchannel);
       // They kept talking while Claude read the first part: answer all of it together instead. Only
       // new words count. "Hello?" said into the wait asks whether we're there, and reading again only
