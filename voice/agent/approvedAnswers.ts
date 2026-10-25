@@ -174,8 +174,8 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   },
   heat_inside: {
     answer: {
-      en: "Drink water now, even if you're not thirsty. A fan alone won't cool you enough, so use wet cloths or a cool shower. If you feel confused or dizzy, or your skin is hot and dry, tell me now.",
-      es: "Tome agua ya, aunque no tenga sed. Un ventilador solo no basta, así que use trapos mojados o una ducha fresca. Si se siente confundido o mareado, o tiene la piel caliente y seca, dígamelo de inmediato.",
+      en: "Heat inside can mean the fire is close. If the way out is clear, leave now. If you can't get out, close every door and window, drink water, and cool off with wet cloths. If you feel confused or dizzy, tell me now.",
+      es: "El calor adentro puede significar que el fuego está cerca. Si la salida está libre, salga ya. Si no puede salir, cierre todas las puertas y ventanas, tome agua y refrésquese con trapos mojados. Si se siente confundido o mareado, dígamelo de inmediato.",
     },
     questions: ["It's so hot in here, what do I do?", "It's getting really hot, what should I do?", "I'm burning up in here, what do I do?", "The heat is unbearable, what do I do?"],
     safetyFor: "fire_at_home",
