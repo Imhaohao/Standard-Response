@@ -1,4 +1,4 @@
-# Cal Hacks 13.0 plan: assisted evacuation coordination
+# Cal Hacks 13.0 plan: Standard Response
 
 We connect an evacuation warning to a confirmed, needs-matched ride for people who can't leave on their own. Wildfire is the first demonstration.
 
@@ -7,7 +7,7 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 | Submissions close | Sun Oct 25, 8:50am Pacific |
 | Judging at our table | Sun Oct 25, 10:30am |
 | Closing ceremony | Sun Oct 25, 2pm |
-| Product name | Open |
+| Product name | Standard Response |
 
 ## Summary
 
@@ -537,7 +537,6 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 
 ## Open decisions
 
-- Product name
 - Owners for Tracks C and D, and for the rest of the team work outside the tracks
 - Whether Cartesia's speech-to-text holds up on 8 kHz phone audio
 - Which neighbor-question and "can't leave" wording residents and advocates find natural
