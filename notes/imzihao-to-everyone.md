@@ -239,3 +239,15 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 Demo kiosk registrations alternate a mobile van helper and a bedbound resident, starting with the helper. The role is assigned in the claim transaction. `claims:draft` adds the registration position; existing inputs remain supported. Claim restoration also saves the prior optional Ready profile.
 
 For fewer than 10 active kiosk claims, claimed residents can be paired with claimed helpers regardless of mobility, distance or fire timing. These remain recruited pickup plans: helpers must agree, residents must confirm, and van requests stay open. Ordinary Ready sign-ups and vehicle compatibility keep their existing rules. Clearing a claim removes its demo pairings.
+
+## 2026-10-25 08:31
+
+The interpreters (warning call, pickup check, Ready check) no longer use the API's JSON-schema output format. Each now asks for JSON in its system prompt. `voice/agent/jsonReply.ts` holds the rule and the extractor, and the Bitdeer backup uses the same ones. Each parse function still drops any value outside its allowed choices.
+
+- Bench, 36 turns, interpreter only: p50 1,285 → 922 ms, p90 1,705 → 1,050 ms, worst 1,913 → 1,185 ms. Readings matched on 34 of 36 turns.
+- Full voice exam: 93.9%, 3 critical (09:41 run: 89.5%, 7 critical). Turn p95 1,551 → 1,277 ms, and p50 850 → 837 ms.
+- A/B on the same code (eaton-mitchell, eaton-mitchell-es, lahaina-senior-home, polk-they-know, 3 runs each): plain JSON is equal or better on every module. Critical failures 3 → 2, decision 21/24 → 24/24, conduct 55/75 → 66/78.
+- **Call summarization fell from 30/30 at 09:41 to about 77% on current main, with or without this change.** After a "No" that doesn't change the record, the call moves on without a second read-back (eaton-mitchell), and the read-back leaves out canLeave. My 04:42 commit "Confirm only changed call details" is the first suspect. I'm looking at it next.
+- The Cartesia line now logs `voice started Nms after the message left` on each turn. Our "first audio" figure is stamped when the text is sent, so this new line is the first measure of Cartesia's own start time.
+- I did not cut the 400 ms turn settle. Claude starts reading when the words arrive, so the settle runs at the same time as the read, and the fastest read is 671 ms.
+- I also pushed `0c4775c` (kiosk demo roles). It sat unpushed under my commit, and its 05:34 note says it was meant for main.

@@ -4,6 +4,7 @@ import { env } from "../env";
 import { Hazard, hazardEscalation, HazardEscalation, HAZARDS } from "../../convex/hazards";
 import { currentHazard } from "../hazard";
 import { withFallback } from "./fallbackModel";
+import { jsonReply, jsonRule } from "./jsonReply";
 import { WARM_UP_TEXT, warmer } from "./warmUp";
 import type { Answer } from "./interpreter";
 import type { Language } from "./script";
@@ -74,6 +75,7 @@ const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
 const SYSTEM = forEachHazard(systemFor);
 const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
+const CLAUDE_SYSTEM = forEachHazard((kind) => `${SYSTEM[kind]}\n\n${jsonRule(OUTPUT_SCHEMA[kind])}`);
 
 let client: Anthropic | null = null;
 
@@ -117,9 +119,8 @@ function request(kind: Hazard, user: string, maxTokens = 256) {
   return client.messages.create({
     model: env.anthropicModel,
     max_tokens: maxTokens,
-    system: SYSTEM[kind],
+    system: CLAUDE_SYSTEM[kind],
     messages: [{ role: "user", content: user }],
-    output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA[kind] } },
     ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
   });
 }
@@ -131,13 +132,6 @@ export const warmPlanInterpreter = (kind?: Hazard) =>
 export const interpretPlanAnswer: PlanInterpret = async (turn) => {
   const kind = currentHazard();
   const user = promptFor(turn);
-  const claudeText = async () => {
-    const response = await request(kind, user);
-    const text = response.content.find((block) => block.type === "text");
-    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-      throw new Error(`Plan interpreter returned no text (stop_reason ${response.stop_reason})`);
-    }
-    return text.text;
-  };
+  const claudeText = async () => jsonReply(await request(kind, user), "Plan interpreter");
   return parse(await withFallback(claudeText, { system: SYSTEM[kind], user, schema: OUTPUT_SCHEMA[kind], maxTokens: 256 }));
 };

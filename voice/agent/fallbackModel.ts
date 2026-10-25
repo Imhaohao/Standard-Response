@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../env";
+import { jsonObjectIn, jsonRule } from "./jsonReply";
 
 // Backup for the three interpreters when Claude is down, slow or refusing this account mid-call. The same system prompt,
 // user text and JSON schema go to a Bitdeer AI Model Studio model (OpenAI-compatible chat
@@ -33,17 +34,7 @@ function isOutage(error: unknown): boolean {
   return typeof error.status === "number" && (error.status >= SERVER_ERROR || error.status === RATE_LIMITED);
 }
 
-function jsonObjectIn(content: string): string {
-  const start = content.indexOf("{");
-  const end = content.lastIndexOf("}");
-  if (start === -1 || end < start) throw new Error("Bitdeer reply holds no JSON object");
-  const candidate = content.slice(start, end + 1);
-  JSON.parse(candidate);
-  return candidate;
-}
-
 function bodyFor(request: FallbackRequest) {
-  const schemaRule = `Reply with one JSON object and nothing else, matching this JSON Schema:\n${JSON.stringify(request.schema)}`;
   return {
     model: env.bitdeer.model(),
     max_tokens: request.maxTokens,
@@ -53,7 +44,7 @@ function bodyFor(request: FallbackRequest) {
     // (and can spend the whole token budget); switched off, Qwen3.8-27B answers in about 0.5 s.
     chat_template_kwargs: { enable_thinking: false, thinking: false },
     messages: [
-      { role: "system", content: `${request.system}\n\n${schemaRule}` },
+      { role: "system", content: `${request.system}\n\n${jsonRule(request.schema)}` },
       { role: "user", content: request.user },
     ],
   };

@@ -46,8 +46,14 @@ export class CartesiaVoice implements CallVoice {
   // Messages leave in order; each waits for any voice change before it.
   private outbox: Promise<void> = Promise.resolve();
   private quietUntil = 0;
+  // When the last message left, until Cartesia starts voicing it: how long synthesis takes to start.
+  private voiceStartFrom: number | null = null;
 
-  constructor(private readonly send: Send, private readonly useVoice: (language: Language) => void) {}
+  constructor(
+    private readonly send: Send,
+    private readonly useVoice: (language: Language) => void,
+    private readonly log: (message: string) => void = () => {},
+  ) {}
 
   get speaking() {
     return this.agentSpeaking || (this.sentAt !== null && Date.now() - this.sentAt < START_GRACE_MS);
@@ -69,6 +75,7 @@ export class CartesiaVoice implements CallVoice {
       this.send({ type: "message", content: spokenForm(text), interruptible: true });
       this.send({ type: "response_end" });
       this.sentAt = Date.now();
+      this.voiceStartFrom = this.sentAt;
       onFirstAudio?.();
       setTimeout(() => this.notifyIfIdle(), START_GRACE_MS);
     });
@@ -87,6 +94,8 @@ export class CartesiaVoice implements CallVoice {
 
   agentState(value: unknown) {
     if (value === "speaking") {
+      if (this.voiceStartFrom !== null) this.log(`voice started ${Date.now() - this.voiceStartFrom}ms after the message left`);
+      this.voiceStartFrom = null;
       this.agentSpeaking = true;
       this.sentAt = null;
       return;
@@ -136,7 +145,11 @@ export class CartesiaLine implements CallLine {
     private readonly voiceFor: (language: Language) => string = env.cartesia.voiceFor,
     private readonly timing: CartesiaTiming = LIVE_TIMING,
   ) {
-    this.voice = new CartesiaVoice((message) => this.send(message), (language) => this.useVoice(language));
+    this.voice = new CartesiaVoice(
+      (message) => this.send(message),
+      (language) => this.useVoice(language),
+      (message) => console.log(`[call ${callSid}] ${message}`),
+    );
   }
 
   listen(language: Language, hearing: Hearing) {

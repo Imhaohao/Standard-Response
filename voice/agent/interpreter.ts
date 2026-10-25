@@ -9,6 +9,7 @@ import { currentHazard } from "../hazard";
 import { Guidance, guidanceText } from "../knowledge/bank";
 import { recall } from "../knowledge/moss";
 import { withFallback } from "./fallbackModel";
+import { jsonReply, jsonRule } from "./jsonReply";
 import { WARM_UP_TEXT, warmer } from "./warmUp";
 import type { ApprovedMatch } from "./approvedAnswers";
 import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
@@ -244,6 +245,7 @@ const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
 export const SYSTEM = forEachHazard(systemFor);
 export const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
+const CLAUDE_SYSTEM = forEachHazard((kind) => `${SYSTEM[kind]}\n\n${jsonRule(OUTPUT_SCHEMA[kind])}`);
 
 // Made on the first turn, so the state machine can be loaded (and tested) without a key.
 let client: Anthropic | null = null;
@@ -339,7 +341,7 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     policyQuestion: textOf(raw.policy_question),
     saysChairKind: flags.has("says_chair_kind"),
     awayFromHome: flags.has("away_from_home"),
-    neighborAddresses: listOf(raw.neighbors) as string[],
+    neighborAddresses: listOf(raw.neighbors).filter((item): item is string => typeof item === "string"),
     neighborInDanger: raw.neighbor_danger === true,
     spokenLanguage: languageFrom(raw.language, fallbackLanguage),
     acknowledgment: textOf(raw.ack),
@@ -398,9 +400,9 @@ function request(kind: Hazard, content: string, maxTokens = 1024) {
     model: env.anthropicModel,
     max_tokens: maxTokens,
     // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
-    system: [{ type: "text" as const, text: SYSTEM[kind], cache_control: { type: "ephemeral" as const } }],
+    system: [{ type: "text" as const, text: CLAUDE_SYSTEM[kind], cache_control: { type: "ephemeral" as const } }],
     messages: [{ role: "user" as const, content }],
-    output_config: { effort: "low" as const, format: { type: "json_schema" as const, schema: OUTPUT_SCHEMA[kind] } },
+    output_config: { effort: "low" as const },
   };
   const standard = () =>
     anthropic().messages.create(
@@ -417,14 +419,9 @@ export const interpret = (turn: TurnContext) => interpretFor(turn, currentHazard
 // For a hazard other than the operator's current one: the dialog bank's checker reads every hazard.
 export async function interpretFor(turn: TurnContext, kind: Hazard): Promise<Interpretation> {
   const guidance = await recall(turn, kind);
-  const claudeText = async () => {
-    const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(kind, promptFor(turn, guidance))));
-    const text = response.content.find((block) => block.type === "text");
-    if (response.stop_reason === "refusal" || !text || text.type !== "text") {
-      throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);
-    }
-    return text.text;
-  };
+  // A reply with no JSON object loses the race instead of failing the turn.
+  const claudeText = () =>
+    Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(kind, promptFor(turn, guidance)).then((response) => jsonReply(response, "Interpreter"))));
   const answer = await withFallback(claudeText, { system: SYSTEM[kind], user: promptFor(turn, guidance), schema: OUTPUT_SCHEMA[kind], maxTokens: 1024 });
   return parse(answer, turn.language, kind);
 }

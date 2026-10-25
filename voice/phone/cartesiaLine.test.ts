@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CartesiaLine, CartesiaTiming, SocketSink } from "./cartesiaLine";
+import { CartesiaLine, CartesiaTiming, CartesiaVoice, SocketSink } from "./cartesiaLine";
 
 // CartesiaLine against a fake socket: what it sends Cartesia and what it tells the call session.
 
@@ -23,6 +23,20 @@ function lineWithHearing() {
 }
 
 describe("cartesia line", () => {
+  it("logs how long Cartesia took to start voicing a message, once per message", async () => {
+    const logged: string[] = [];
+    const voice = new CartesiaVoice(() => {}, () => {}, (message) => void logged.push(message));
+    voice.say(["Two people."], "en");
+    await voice.sent();
+    await pause(15);
+    voice.agentState("speaking");
+    voice.agentState("idle");
+    voice.agentState("speaking");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /^voice started \d+ms after the message left$/);
+    assert.ok(Number(/(\d+)ms/.exec(logged[0])![1]) >= 10);
+  });
+
   it("sets the listening language and the voice when it starts listening", () => {
     const { sent } = lineWithHearing();
     assert.deepEqual(sent, [
