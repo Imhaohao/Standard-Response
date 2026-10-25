@@ -16,7 +16,8 @@ from . import door, need
 from .addresses import AddressBook, match
 from .census import base_rate
 from .convex_io import Convex
-from .hazard import Scenario
+from .geo import meters_between
+from .hazard import DEFAULT_HAZARD, Scenario
 from .travel import RoadGraph
 
 MINUTE_MS = 60_000
@@ -46,24 +47,19 @@ class PassResult:
     incident_key: float | None
 
 
-class ModelRunner:
-    def __init__(self, convex: Convex, config: RunnerConfig, scenario: Scenario | None = None, roads: RoadGraph | None = None):
-        self.convex = convex
-        self.config = config
-        self.scenario = scenario or Scenario.load()
-        self.roads = roads or RoadGraph.load()
-        self.osm_book = AddressBook.from_osm()
-        self.started_at_ms = time.time() * 1000
+class HazardTiming:
+    """When one scenario's fronts reach each home and each street segment."""
+
+    def __init__(self, scenario: Scenario, roads: RoadGraph, config: RunnerConfig):
+        self.scenario = scenario
         self._arrival_cache: dict[tuple[float, float], float] = {}
-        self.edge_close_minutes = self._edge_close_minutes() if config.closures else {}
+        self.edge_close_minutes = self._edge_close_minutes(roads, config.closure_margin_meters) if config.closures else {}
 
-    # ---- hazard -------------------------------------------------------------------------------
-
-    def _edge_close_minutes(self) -> dict[str, tuple[float, list[dict]]]:
+    def _edge_close_minutes(self, roads: RoadGraph, margin_meters: float) -> dict[str, tuple[float, list[dict]]]:
         """Scenario minute at which each street segment closes, with its path for the map."""
-        margin = self.scenario.buffered(self.config.closure_margin_meters)
+        margin = self.scenario.buffered(margin_meters)
         closes = {}
-        for edge in self.roads.undirected_edges():
+        for edge in roads.undirected_edges():
             samples = _densify(edge.coords, step=25.0)
             minute = min(margin.arrival_minutes(lat, lng) for lat, lng in samples)
             closes[edge.edge_key] = (minute, [{"lat": lat, "lng": lng} for lat, lng in edge.coords])
@@ -74,6 +70,29 @@ class ModelRunner:
         if key not in self._arrival_cache:
             self._arrival_cache[key] = self.scenario.arrival_minutes(lat, lng)
         return self._arrival_cache[key]
+
+
+class ModelRunner:
+    """Follows the hazard the operator picked (`control.hazard`), unless a scenario is pinned. A hazard with no
+    scenario file gets no deadlines or closures from us: the households keep the ones they have."""
+
+    def __init__(self, convex: Convex, config: RunnerConfig, scenario: Scenario | None = None, roads: RoadGraph | None = None):
+        self.convex = convex
+        self.config = config
+        self.pinned = scenario
+        self.roads = roads or RoadGraph.load()
+        self.osm_book = AddressBook.from_osm()
+        self.started_at_ms = time.time() * 1000
+        self._timings: dict[str, HazardTiming | None] = {}
+
+    # ---- hazard -------------------------------------------------------------------------------
+
+    def timing(self, inputs: dict) -> HazardTiming | None:
+        key = "pinned" if self.pinned else inputs.get("hazard") or DEFAULT_HAZARD
+        if key not in self._timings:
+            scenario = self.pinned or Scenario.for_hazard(key)
+            self._timings[key] = HazardTiming(scenario, self.roads, self.config) if scenario else None
+        return self._timings[key]
 
     def anchor_ms(self, inputs: dict) -> float:
         """Minute zero of the scenario: the warning, else the zone being drawn, else runner start."""
@@ -86,17 +105,21 @@ class ModelRunner:
     def scenario_minutes_now(self, inputs: dict) -> float:
         return (inputs["now"] - self.anchor_ms(inputs)) / MINUTE_MS * self.config.time_scale
 
-    def arrival_ms(self, inputs: dict, lat: float, lng: float) -> float:
-        return self.anchor_ms(inputs) + self.arrival_minutes(lat, lng) * MINUTE_MS / self.config.time_scale
+    def arrival_ms(self, inputs: dict, lat: float, lng: float) -> float | None:
+        timing = self.timing(inputs)
+        if timing is None:
+            return None
+        return self.anchor_ms(inputs) + timing.arrival_minutes(lat, lng) * MINUTE_MS / self.config.time_scale
 
     def due_closures(self, inputs: dict) -> list[dict]:
-        if not self.config.closures:
+        timing = self.timing(inputs)
+        if timing is None:
             return []
         existing = {c["edgeKey"] for c in inputs["closures"] if c.get("edgeKey")}
         minute_now = self.scenario_minutes_now(inputs)
         due = [
             {"edgeKey": key, "path": path, "source": "hazard"}
-            for key, (minute, path) in self.edge_close_minutes.items()
+            for key, (minute, path) in timing.edge_close_minutes.items()
             if minute <= minute_now and key not in existing
         ]
         return due
@@ -111,7 +134,8 @@ class ModelRunner:
         rows = []
         for h in households:
             p = probabilities.get(h["_id"], h["needProbability"])
-            arrival = self.arrival_ms(inputs, h["lat"], h["lng"]) if h.get("lat") is not None else h["fireArrivalAt"]
+            arrival = self.arrival_ms(inputs, h["lat"], h["lng"]) if h.get("lat") is not None else None
+            arrival = h["fireArrivalAt"] if arrival is None else arrival
             p_changed = abs(p - h["needProbability"]) > PROBABILITY_EPSILON
             arrival_changed = abs(arrival - h["fireArrivalAt"]) > ARRIVAL_EPSILON_MS
             if p_changed or arrival_changed:
@@ -186,8 +210,20 @@ class ModelRunner:
             "lng": point.lng,
             "needPrior": prior,
             "needProbability": round(nominated, 4),
-            "fireArrivalAt": round(self.arrival_ms(inputs, point.lat, point.lng)),
+            "fireArrivalAt": round(self._arrival_at_new_point(inputs, point.lat, point.lng)),
         })
+
+    def _arrival_at_new_point(self, inputs: dict, lat: float, lng: float) -> float:
+        """The scenario's arrival there; with no scenario, the deadline of the nearest home we know, and with
+        none of those, now. A new home is never given more time than its neighbors."""
+        arrival = self.arrival_ms(inputs, lat, lng)
+        if arrival is not None:
+            return arrival
+        located = [h for h in inputs["households"] if h.get("lat") is not None]
+        if not located:
+            return inputs["now"]
+        nearest = min(located, key=lambda h: meters_between((lat, lng), (h["lat"], h["lng"])))
+        return nearest["fireArrivalAt"]
 
     # ---- one pass -----------------------------------------------------------------------------
 
@@ -216,7 +252,7 @@ class ModelRunner:
             "estimated": len(rows),
             "doorScored": len(scores),
             "closuresAdded": len(closures),
-            "scenarioMinute": round(self.scenario_minutes_now(inputs), 1),
+            **({"scenarioMinute": round(self.scenario_minutes_now(inputs), 1)} if self.timing(inputs) else {}),
             **match_counts,
         }
         self.convex.mutation("estimates:reportRun", {
@@ -228,8 +264,6 @@ class ModelRunner:
 
 
 def _densify(coords: list[tuple[float, float]], step: float) -> list[tuple[float, float]]:
-    from .geo import meters_between
-
     out = [coords[0]]
     for a, b in zip(coords, coords[1:]):
         n = max(1, math.ceil(meters_between(a, b) / step))

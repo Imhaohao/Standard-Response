@@ -3,6 +3,7 @@ import { Doc } from "./_generated/dataModel";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { simNow } from "./clock";
+import { hazardOf } from "./hazards";
 
 // Track D's model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
 // It never reads `personas`: the models see only what a real agency would know.
@@ -139,6 +140,7 @@ export const inputs = query({
     return {
       now: await simNow(ctx),
       warningIssuedAt: orNull(control?.warningIssuedAt),
+      hazard: hazardOf(control?.hazard),
       zone: zoneInput(zone),
       state: (await stateRow(ctx)) ?? DEFAULT_STATE,
       households: households.map(toHouseholdInput),

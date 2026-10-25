@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d.convex_io import Convex  # noqa: E402
-from rollcall_d.hazard import SCENARIO_FILE, Scenario  # noqa: E402
+from rollcall_d.hazard import Scenario  # noqa: E402
 from rollcall_d.runner import ModelRunner, RunnerConfig  # noqa: E402
 
 
@@ -29,14 +29,15 @@ def main() -> None:
     parser.add_argument("--margin", type=float, default=150.0, help="closure safety margin in meters")
     parser.add_argument("--no-closures", action="store_true", help="don't add hazard closures")
     parser.add_argument("--keep-stand-in", action="store_true")
-    parser.add_argument("--scenario", type=Path, default=SCENARIO_FILE,
-                        help="hazard fronts to use, e.g. data/hazard/scenario-spread.geojson from the spread model")
+    parser.add_argument("--scenario", type=Path,
+                        help="pin these hazard fronts, e.g. data/hazard/scenario-spread.geojson from the spread model; "
+                             "by default the runner uses the scenario for the hazard picked on the call floor")
     args = parser.parse_args()
 
     convex = Convex()
     config = RunnerConfig(time_scale=args.time_scale, closure_margin_meters=args.margin, closures=not args.no_closures)
-    runner = ModelRunner(convex, config, scenario=Scenario.load(args.scenario))
-    print(f"Track D models on {convex.url}: {len(runner.edge_close_minutes)} street segments timed against the scenario")
+    runner = ModelRunner(convex, config, scenario=Scenario.load(args.scenario) if args.scenario else None)
+    print(f"Track D models on {convex.url}, scenario: {args.scenario or 'the hazard picked on the call floor'}")
     if not args.keep_stand_in:
         convex.mutation("control:setStandIns", {"simulateNeedModel": False})
         print("Need-model stand-in switched off")

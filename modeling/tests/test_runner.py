@@ -61,3 +61,24 @@ def test_one_pass_writes_every_model():
     assert result.stats["closuresAdded"] > 0  # half an hour into a fast scenario, streets near the origin are closed
     closures = [a for n, a in fake.calls if n == "roads:addClosures"][0]["closures"]
     assert all(c["source"] == "hazard" and c["edgeKey"].count("-") == 2 for c in closures)
+
+
+def test_a_hazard_without_a_scenario_writes_no_deadlines_or_closures():
+    now = time.time() * 1000
+    inputs = {**world(now, now - 30 * 60_000), "hazard": "flood", "openNominations": []}
+    fake = FakeConvex(inputs)
+    result = ModelRunner(fake, RunnerConfig(), roads=RoadGraph.load()).run_pass()
+    assert result.stats["closuresAdded"] == 0 and "scenarioMinute" not in result.stats
+    written = [row for n, a in fake.calls if n == "households:setEstimates" for row in a["estimates"]]
+    assert all(row["fireArrivalAt"] == round(now) for row in written)  # the deadlines on file, untouched
+
+
+def test_the_runner_follows_the_hazard_switch():
+    now = time.time() * 1000
+    inputs = {**world(now, now - 30 * 60_000), "openNominations": []}
+    runner = ModelRunner(FakeConvex(inputs), RunnerConfig(closures=False), roads=RoadGraph.load())
+    home = inputs["households"][0]
+    wildfire = runner.arrival_ms({**inputs, "hazard": "wildfire"}, home["lat"], home["lng"])
+    earthquake = runner.arrival_ms({**inputs, "hazard": "earthquake"}, home["lat"], home["lng"])
+    assert wildfire is not None and earthquake is not None and wildfire != earthquake
+    assert runner.arrival_ms({**inputs, "hazard": "hurricane"}, home["lat"], home["lng"]) is None

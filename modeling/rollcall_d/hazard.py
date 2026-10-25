@@ -18,6 +18,14 @@ from .paths import HAZARD
 
 SCENARIO_FILE = HAZARD / "scenario.geojson"
 LABEL = "Scenario input, not a forecast"
+# The scenario file for each hazard the operator can pick, as in convex/hazards.ts SCENARIO_FILES.
+SCENARIO_FILES = {
+    "wildfire": "scenario.geojson",
+    "earthquake": "scenario-earthquake.geojson",
+    "flood": "scenario-flood.geojson",
+    "hurricane": "scenario-hurricane.geojson",
+}
+DEFAULT_HAZARD = "wildfire"
 
 
 @dataclass(frozen=True)
@@ -42,6 +50,12 @@ class Scenario:
             for f in collection["features"]
         ]
         return cls(fronts, collection.get("metadata"))
+
+    @classmethod
+    def for_hazard(cls, hazard: str) -> "Scenario | None":
+        """The scenario for a hazard, or None when it has no file yet (no deadlines or closures are invented)."""
+        path = HAZARD / SCENARIO_FILES.get(hazard, SCENARIO_FILES[DEFAULT_HAZARD])
+        return cls.load(path) if path.exists() else None
 
     def _spread_rate_at_end(self) -> float:
         """Meters per minute the front was growing over the last interval, by equivalent radius."""
