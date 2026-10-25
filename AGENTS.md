@@ -44,6 +44,8 @@ Several sessions run on the same machine, and on a Mac GPU memory comes out of t
 - Open one browser at a time, and close it before you finish a step. Don't leave a Playwright MCP page open between turns.
 - Run one heavy command at a time (`tsc`, `next build`, the Python models). Never `npm ci` in a worktree: clone with `cp -cR <main>/node_modules <worktree>/`.
 - Map code: every GPU allocation is width × height × bytes. Keep screen targets under the renderer's pixel budget, and release WebGL contexts on dispose (`InkMapRenderer.dispose`).
+- No `flat` varyings in any shader. Chrome on a Mac emulates them through Metal by rewriting every draw's index buffer, and the map's GPU process went past 13 GB in two seconds.
+- To measure a browser's memory, read the process footprint (`top -stats pid,mem`), not RSS. RSS leaves out GPU memory, and a 14 GB GPU process showed 57 MB of RSS.
 
 ## This is NOT the Next.js you know
 
