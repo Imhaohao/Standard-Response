@@ -12,7 +12,7 @@ import { useSimNow } from "@/lib/use-sim-now";
 type Screen = { href: string; label: string; also?: string[] };
 
 const SCREENS: Screen[] = [
-  { href: "/", label: "Call floor" },
+  { href: "/dashboard", label: "Call floor" },
   { href: "/map", label: "Rescue map" },
   { href: "/system", label: "Under the hood" },
   { href: "/phone", label: "Simulated phone" },

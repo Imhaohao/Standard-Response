@@ -253,7 +253,7 @@ npx convex dev          # local backend, terminal 1
 npx next dev -p 3100    # the app, terminal 2 — http://localhost:3100
 ```
 
-Screens: `/` call floor, `/map` rescue map, `/driver` driver page, `/phone` simulated handset,
+Screens: `/dashboard` call floor, `/map` rescue map, `/driver` driver page, `/phone` simulated handset,
 `/system` under the hood, `/lab` the map bench (both surfaces, a fire scrubber, nothing else).
 
 The team also has a shared Convex deployment and a live voice server on Fly. Brendan's note

@@ -62,3 +62,11 @@ Neighbors named on a call can now be found by name, and a neighbor in danger goe
 - New `voice:neighborNames({ householdId })` returns the other residents' names only. The agent uses it to say "Thanks, I've passed on Boris Nezlobin." instead of asking for an address the caller doesn't know.
 - The interpreter keeps `emergency` for people in the caller's home. A neighbor who is dying sets the new `neighbor_danger` field instead, so the caller is no longer marked urgent for someone else.
 - Name matching lives in `lib/name-on-file.ts`: a first or last name as a whole word, and two people who both fit means no match.
+
+## 2026-10-24 22:45
+
+The call floor moved from `/` to `/dashboard`, still dispatcher-only.
+
+- `lib/access.ts` gates `/dashboard` with the dispatcher role and no longer gates `/`. The app bar's "Call floor" link, the README and HANDOFF point at `/dashboard`.
+- `/` is becoming the public sign-in page for judges. Until it lands, `app/page.tsx` only redirects to `/dashboard`, so old bookmarks still work.
+- Auth0 logins started without a `returnTo` land on `/`. The proxy always sends one for gated screens, so nothing changes there.

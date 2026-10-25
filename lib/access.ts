@@ -10,6 +10,7 @@ type Claims = Record<string, unknown>;
 
 // The at-risk list (names, addresses, medical needs) shows on these screens, so they need a role.
 const SCREEN_ROLES: { prefix: string; roles: Role[] }[] = [
+  { prefix: "/dashboard", roles: ["dispatcher"] },
   { prefix: "/map", roles: ["dispatcher"] },
   { prefix: "/system", roles: ["dispatcher"] },
   { prefix: "/phone", roles: ["dispatcher"] },
@@ -17,7 +18,6 @@ const SCREEN_ROLES: { prefix: string; roles: Role[] }[] = [
 ];
 
 export function rolesFor(path: string): Role[] | null {
-  if (path === "/") return ["dispatcher"];
   return SCREEN_ROLES.find(({ prefix }) => path === prefix || path.startsWith(`${prefix}/`))?.roles ?? null;
 }
 

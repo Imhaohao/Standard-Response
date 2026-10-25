@@ -1,0 +1,49 @@
+modules:
+  scheduledTrigger:
+    - key: door-check-sync-trigger
+      function: door-check-sync
+      interval: fiveMinute
+  rovo:agent:
+    - key: door-check-agent
+      name: Door check helper
+      description: Tells a field crew which unreached homes to knock on first.
+      prompt: >
+        You help field crews during an evacuation. When asked which door checks are most urgent near a
+        street, call the urgent-door-checks action with the street name and read back the homes in the
+        order the action returns them. Give the address, the need level, the language and why the home is
+        on the list. Never guess a home that the action did not return.
+      conversationStarters:
+        - Which door checks are most urgent near Mariposa St?
+      actions:
+        - urgent-door-checks
+  action:
+    - key: urgent-door-checks
+      name: Urgent door checks near a street
+      function: urgent-door-checks-fn
+      actionVerb: GET
+      description: Returns the highest-priority homes nobody has reached whose address contains the street name.
+      inputs:
+        street:
+          title: Street
+          type: string
+          required: true
+          description: A street name or part of an address, for example "Mariposa".
+  function:
+    - key: door-check-sync
+      handler: index.syncDoorChecks
+      timeoutSeconds: 300
+    - key: urgent-door-checks-fn
+      handler: index.urgentDoorChecks
+      timeoutSeconds: 60
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+  external:
+    fetch:
+      backend:
+        - "*.convex.site"
+app:
+  runtime:
+    name: nodejs22.x
+  id: ari:cloud:ecosystem::app/REPLACE-WITH-forge-register

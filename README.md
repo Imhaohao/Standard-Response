@@ -37,7 +37,7 @@ A UN survey of about 6,000 people with disabilities found that only 1 in 5 could
 | Screen | Path | Who it's for |
 | --- | --- | --- |
 | Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup and van on one map, with the hazard spreading across it |
-| Call floor | `/` | Dispatchers. Every live call, what the agent heard, and the queue |
+| Call floor | `/dashboard` | Dispatchers. Every live call, what the agent heard, and the queue |
 | Driver page | `/driver` | Drivers. Ride offers to accept, and the run once accepted |
 | Simulated phone | `/phone` | Demos. A resident's side of the call and texts, without dialing a real number |
 | Under the hood | `/system` | Judges. How dispatch decides, with the numbers behind it |
