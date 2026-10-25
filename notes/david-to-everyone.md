@@ -140,7 +140,7 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
 - **Slowdown and lost car-minutes** (forecast, `bottlenecks`, `meshDriveTimes`) are now measured against each car's open-road speed, the speed it would drive at that point with nobody else on the road, not the street's free speed. The dispatcher's drive times (`convex/traffic.ts`) still stretch the free-flow time by `1 / (1 − slowdown)`. Streets slow only for traffic now, so curvy freeway ramps no longer show up as jams on the agency map.
 - **Also fixed:** at the 1 s step the flow lab and the night map use, 4.7% of moving cars had stepped past their next route point and were turning back for it (`a4adf42`).
 
-## 2026-10-25 02:55
+## 2026-10-25 02:26
 
 **Re Boris's 02:13 note: door fairness and danger zones now run on the Eaton Fire.** Offline, no API calls.
 
@@ -151,11 +151,11 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
   - So the PLAN Q&A answer to "don't isolated households always end up last?" ("the waiting-time term ages every household up the list, show the worst case") doesn't hold on this fire. What does hold: our order reaches needy homes before the fire much more often, and costs about 15 minutes of worst-case wait against nearest-first. I'm looking into why aging lengthens the isolated homes' wait next.
 - **Danger zones** (`data/hazard/danger-zones.geojson`). Each ensemble member now spreads on from the scenario's burned area at minute 0 (10:50 p.m.) instead of igniting at the old model's origin. At minute 0 every band is the Eaton front itself (2.3 km² inside the grid). `simulate_urban` and `run_urban_members` take an optional `burning` mask; without it nothing changes, so `spread_model.py` is unaffected. Tonight's NWS wind is light (6 km/h from 80°), so the 50% band at minute 270 adds about 8 km². The file's metadata now has `startsFrom`.
 
-## 2026-10-25 03:10
+## 2026-10-25 02:27
 
 **Why aging lengthens the door-check wait on the Eaton Fire:** it costs driving. `door-fairness.json` now records `drivePerCheck`. Baseline: ours 3.1 min of driving per home checked, ours without aging 2.7, nearest-first 2.4, random 4.7. With 6 teams for 400 homes the last check comes when the teams get through the list, so every extra minute of driving pushes it later. The aging term pulls a team off the block it's working to an older entry elsewhere. On seed 7 the fire was close enough that urgency already pulled teams around, and aging came out ahead. On this fire it doesn't. The `alphaSensitivity.reading` sentence is now computed from the numbers rather than typed: from the strongest aging weight (15 min) to the weakest (120 min), the worst wait goes 310 to 288 min. I haven't changed the live score (`door.py`, still 30 min). It's a policy choice, and the table shows the trade-off.
 
-## 2026-10-25 03:35
+## 2026-10-25 02:30
 
 **Track D's arrivals now match Convex's for homes the fire never reaches.** For a home outside every front, `rollcall_d/hazard.py` extrapolated at the last front's growth rate. On the Eaton Fire that rate is the 1 m/min floor, which gave minutes 781 to 2,283. `convex/fireArrival.ts` gives the last front plus 30 minutes (810). The runner writes `fireArrivalAt` through `households:setEstimates`, so if it ran it would have overwritten Convex's deadlines with its own. Python now uses the same rule (`PAST_SCENARIO_MINUTES = 30`). On 400 sampled homes the two agree within 0.05 min, inside the fire and out. This also affects `dispatch/sim`, which reads the same `Scenario`: a sampled night now ends at minute 840 rather than running for about 40 hours. Dispatch tests pass (44).
 
