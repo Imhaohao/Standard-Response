@@ -363,7 +363,7 @@ float pigment() {
 const BREAKER = `
 struct Breaker { float foam; float face; };
 
-Breaker breaker(vec2 xy, float behind, float along, float width, float seed) {
+Breaker breaker(vec2 xy, float behind, float along, float width, float seed, float tail) {
   Breaker b;
   float lean = clamp(-behind / width, 0.0, 2.0);
   float fingers = ridged(vec2(along / (width * 1.7) + lean * 0.45, seed * 1.7));
@@ -371,7 +371,7 @@ Breaker breaker(vec2 xy, float behind, float along, float width, float seed) {
   float edge = behind + reach;
   vec2 streak = vec2(along / (width * 0.8), behind / (width * 3.2) - uTime * 0.12);
   float torn = fbm(streak + seed * 3.1) * 0.75 + valueNoise(xy / (width * 0.4) + seed) * 0.35;
-  float thinning = smoothstep(width * 0.7, width * 9.0, behind);
+  float thinning = smoothstep(width * 0.7, width * tail, behind);
   float holes = smoothstep(0.62, 0.8, valueNoise(xy / (width * 0.33) + seed * 2.3 + vec2(uTime * 0.2, 0.0)));
   float solid = width * (0.85 - holes * 0.9) - behind;
   float patches = (torn - 0.47 - 0.4 * thinning) * width * 1.5;
@@ -598,7 +598,7 @@ vec4 printFoam(vec4 ink, float foam, float strength) {
 // Current over pale water in deep indigo; over the darkest water in pale lines, as the woodblock cuts them.
 vec4 printCurrent(vec4 ink, Water key, vec4 flow, float density, float reach, float seed) {
   float strokes = flowStrokes(key.at, flow.xy, flow.z, density, reach, seed) * key.cover;
-  vec3 color = mix(mix(uIndigo, uInk, 0.5), uPaper, smoothstep(0.42, 0.52, plateTone(key.column)) * (1.0 - key.standing));
+  vec3 color = mix(mix(uIndigo, uInk, 0.5), mix(uIndigo, uPaper, 0.35), smoothstep(0.42, 0.52, plateTone(key.column)) * (1.0 - key.standing));
   return over(ink, color, strokes * (0.4 + 0.4 * flow.z));
 }
 `;
@@ -610,27 +610,24 @@ vec4 printJet(vec4 ink, Water key) {
   vec4 jet = breachJet(key.at);
   float pour = jet.z * jet.w;
   float fan = 1.0 - smoothstep(0.45, 1.1, abs(jet.y));
-  vec2 q = vec2(jet.y * 46.0, jet.x / max(110.0, px(40.0)) - uTime * 0.7);
+  vec2 q = vec2(jet.y * 38.0, jet.x / max(70.0, px(26.0)) - uTime * 0.7);
   float ridge = 1.0 - abs(valueNoise(q) * 2.0 - 1.0);
   float broken = smoothstep(0.35, 0.6, valueNoise(q * vec2(0.5, 3.0) + 7.7));
-  float streak = smoothstep(0.9 - 0.12 * pour, 0.97, ridge) * broken * fan * pour;
-  return over(ink, uPaper * 1.02, streak * key.cover * 0.9);
+  float clear = smoothstep(25.0, 60.0, jet.x);
+  float streak = smoothstep(0.93 - 0.08 * pour, 0.98, ridge) * broken * fan * pour * clear;
+  return over(ink, uPaper * 1.02, streak * key.cover * (1.0 - key.standing) * 0.85);
 }
 
 vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   vec4 flow = flowAt(key);
-  ink = printCurrent(ink, key, flow, 0.06 + 0.3 * flow.z * flow.z, 1.3 - 0.5 * flow.z, 0.0);
+  ink = printCurrent(ink, key, flow, (0.06 + 0.3 * flow.z * flow.z) * (1.0 - key.standing), 1.3 - 0.5 * flow.z, 0.0);
   float atTheEdge = (1.0 - smoothstep(0.0, 25.0, key.since)) * step(0.0, key.since);
   float roomy = 1.0 - smoothstep(1.0, 2.2, uViewMpp);
   ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.06 * atTheEdge, 6.0) * key.cover * (1.0 - key.standing) * roomy);
   ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * 0.45);
   ink = printJet(ink, key);
 
-  float lip = max(3.0, px(2.2)) * (0.7 + 0.6 * valueNoise(key.at / 40.0));
-  float behind = key.since * flow.w;
-  float moving = (1.0 - smoothstep(uArrivalLast - 2.0, uArrivalLast + 8.0, uMinutes)) * step(1.0, flow.w) * key.reachable;
-  float band = min(behind, lip - behind);
-  return over(ink, uPaper * 1.02, filled(band) * moving * key.cover * 0.9);
+  return ink;
 }
 `;
 
@@ -648,17 +645,17 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   float behind = (1.0 - fract(phase)) * wavelength;
   float along = dot(key.at, across);
   float shallow = 1.0 - smoothstep(0.6, 3.5, key.column);
-  float present = smoothstep(0.35, 0.5, valueNoise(vec2(along / (wavelength * 2.2), crestAhead * 7.3))) * breaking;
-  float presentNext = smoothstep(0.35, 0.5, valueNoise(vec2(along / (wavelength * 2.2), (crestAhead + 1.0) * 7.3))) * breaking;
-  float widthAhead = wavelength * (0.06 + 0.1 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead, 3.0)));
-  float widthBehind = wavelength * (0.06 + 0.1 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead + 1.0, 3.0)));
-  Breaker lead = breaker(key.at, -ahead, along, widthAhead, crestAhead);
-  Breaker trail = breaker(key.at, behind, along, widthBehind, crestAhead + 1.0);
+  float present = smoothstep(0.5, 0.62, valueNoise(vec2(along / (wavelength * (0.8 + 1.6 * hash12(vec2(crestAhead, 5.0)))), crestAhead * 7.3))) * breaking;
+  float presentNext = smoothstep(0.5, 0.62, valueNoise(vec2(along / (wavelength * (0.8 + 1.6 * hash12(vec2(crestAhead + 1.0, 5.0)))), (crestAhead + 1.0) * 7.3))) * breaking;
+  float widthAhead = wavelength * (0.025 + 0.05 * shallow) * (0.5 + 1.0 * hash12(vec2(crestAhead, 3.0)));
+  float widthBehind = wavelength * (0.025 + 0.05 * shallow) * (0.5 + 1.0 * hash12(vec2(crestAhead + 1.0, 3.0)));
+  Breaker lead = breaker(key.at, -ahead, along, widthAhead, crestAhead, 2.5);
+  Breaker trail = breaker(key.at, behind, along, widthBehind, crestAhead + 1.0, 2.5);
   float foam = max(lead.foam - (1.0 - present) * wavelength, trail.foam - (1.0 - presentNext) * wavelength);
   float faceRun = smoothstep(0.45, 0.65, valueNoise(vec2(along / (wavelength * 0.7), crestAhead * 3.1 + 0.5)));
-  ink = over(ink, mix(uIndigo, uInk, 0.45), lead.face * present * faceRun * key.cover * (0.12 + 0.14 * hash12(vec2(crestAhead, 9.0))));
+  ink = over(ink, mix(uIndigo, uInk, 0.45), lead.face * present * faceRun * key.cover * (0.06 + 0.1 * hash12(vec2(crestAhead, 9.0))));
   vec2 blown = normalize(toward + uWind.xy * 0.5 + 1e-4);
-  ink = over(ink, uPaper, spray(key.at, blown, 0.3 * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.35, ahead)), crestAhead) * key.cover * 0.9);
+  ink = over(ink, uPaper, spray(key.at, blown, 0.12 * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.35, ahead)), crestAhead) * key.cover * 0.9);
 
   float open = key.standing * (1.0 - breaking);
   ink = over(ink, mix(uIndigo, uInk, 0.45), flowStrokes(key.at, across, 0.5, 0.12, 1.1, 41.0) * open * key.cover * 0.55);
@@ -704,7 +701,7 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   float behind = crest.x * speed;
   float height = clamp(crest.y / 4.0, 0.25, 1.0);
   float width = max(12.0, px(5.0)) * mix(0.8, 1.5, height);
-  Breaker bore = breaker(key.at, behind, dot(key.at, across), width, crest.y * 3.1);
+  Breaker bore = breaker(key.at, behind, dot(key.at, across), width, crest.y * 3.1, mix(6.0, 2.5, smoothstep(0.0, 60.0, metresInland(key.at))));
   float arriving = step(-1.5, crest.x);
   float wet = max(key.cover, key.bared);
   ink = over(ink, mix(uIndigo, uInk, 0.5), bore.face * arriving * key.cover * 0.55 * height);
@@ -713,7 +710,7 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   float fast = smoothstep(0.55, 0.9, flow.z);
   ink = printCurrent(ink, key, flow, 0.03 + 0.22 * fast, 1.3 - 0.5 * fast, 23.0);
   float churned = (1.0 - smoothstep(0.0, 12.0, crest.x)) * step(0.0, crest.x);
-  ink = over(ink, uInk, debris(key.at, flow.xy, 0.02 + 0.25 * churned * (1.0 - key.standing), 9.0) * key.cover);
+  ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.08 * churned * (1.0 - key.standing), 9.0) * key.cover);
   ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * key.standing * 0.4);
   float thrown = (1.0 - smoothstep(0.0, width * 4.0, -behind)) * step(behind, 0.0) * 0.6;
   float trailing = smoothstep(width, width * 2.5, behind) * (1.0 - smoothstep(width * 4.0, width * 10.0, behind)) * 0.3;
@@ -724,7 +721,7 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   float scale = max(5.0, px(3.0));
   float running = fast * (1.0 - key.standing) * key.cover;
   vec2 q = key.at / scale - flow.xy * uTime * 0.6;
-  float torn = (valueNoise(q * vec2(1.0, 0.45)) * 0.7 + valueNoise(q * 2.3 + 3.1) * 0.3 - 0.74) * scale;
+  float torn = (valueNoise(q * vec2(1.0, 0.45)) * 0.7 + valueNoise(q * 2.3 + 3.1) * 0.3 - 0.82) * scale;
   ink = over(ink, uPaper * 1.02, filled(torn) * running * 0.85);
   return printFoam(ink, bore.foam - (1.0 - arriving) * width * 6.0, wet * height);
 }
