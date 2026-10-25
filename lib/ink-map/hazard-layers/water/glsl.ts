@@ -717,7 +717,8 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * key.standing * 0.4);
   float thrown = (1.0 - smoothstep(0.0, width * 4.0, -behind)) * step(behind, 0.0) * 0.6;
   float trailing = smoothstep(width, width * 2.5, behind) * (1.0 - smoothstep(width * 4.0, width * 10.0, behind)) * 0.3;
-  ink = over(ink, uPaper, spray(key.at, travel, (thrown + trailing) * height, crest.y) * arriving * wet);
+  float upTheShore = (1.0 - smoothstep(0.0, width * 3.0, -behind)) * step(behind, 0.0) * (1.0 - key.standing);
+  ink = over(ink, uPaper, spray(key.at, travel, (thrown + trailing) * height, crest.y) * arriving * max(wet, upTheShore));
 
   // Water still running over the land tears into foam that streams with it.
   float scale = max(5.0, px(3.0));
