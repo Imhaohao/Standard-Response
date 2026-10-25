@@ -4,9 +4,9 @@
  "event": "Camp Fire, November 8, 2018",
  "hazard": "wildfire",
  "detail": {
-  "south": 39.72,
+  "south": 39.715,
   "north": 39.82,
-  "west": -121.67,
+  "west": -121.68,
   "east": -121.55
  },
  "state": {

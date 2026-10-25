@@ -6,9 +6,9 @@
  "source": "ACS 2019-2023 5-year: PUMS (CA PUMAs 00700), B11001, B11007, B25044 by block group, B18101 by tract, from www2.census.gov bulk files. Buildings: CAL FIRE damage inspections for the Camp Fire (every residential structure, any damage class), https://services1.arcgis.com/jUJYIo9tSA7EHvfZ/arcgis/rest/services/POSTFIRE_MASTER_DATA_SHARE/FeatureServer/0. Care facilities: OpenStreetMap.",
  "era": "Housing is the town as it stood on November 8, 2018 (CAL FIRE inspected every structure in the burn area). Households = inspected housing units x 0.916, the 2010 occupancy rate for the Town of Paradise (https://www.bcag.org/documents/demographics/2020_census/2020Census_H3_Housing_2020-2010_RedistrictingFile_BC.pdf). Ages, living alone, cars and disability follow today's ACS shares for the same block groups, which describe the people who returned, not the 2018 town.",
  "blockGroups": 36,
- "buildings": 14750,
- "households": 14325,
- "needHelp": 1837,
+ "buildings": 14935,
+ "households": 14496,
+ "needHelp": 1878,
  "ipfWorstRelativeError": {
   "households": 0.0001,
   "hasMember65": 0.011,
