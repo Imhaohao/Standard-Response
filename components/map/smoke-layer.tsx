@@ -26,7 +26,10 @@ const DRIFT_METERS = 1000;
 const RISE_METERS = 650;
 const PUFF_METERS = 60;
 const MAX_PUFF_PIXELS = 280;
-const FRAME_MS = 33;
+// Smoke drifts over seconds, so 15 frames a second is plenty, and soft puffs gain nothing from retina
+// pixels: the two full-screen canvases stay at 1x, a quarter of the memory and fill work.
+const FRAME_MS = 66;
+const SMOKE_SCALE = 1;
 const OUTLINE_PX = 1.5;
 const SHADOW_OPACITY = 0.5;
 const SMOKE_OPACITY = 0.55;
@@ -190,7 +193,7 @@ function paintSmoke(context: CanvasRenderingContext2D, paint: Paint, puffs: Puff
 }
 
 function setUpCanvas(canvas: HTMLCanvasElement, width: number, height: number): Paint | null {
-  const scale = Math.min(2, window.devicePixelRatio || 1);
+  const scale = SMOKE_SCALE;
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
   const context = canvas.getContext("2d");
