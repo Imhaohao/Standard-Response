@@ -113,8 +113,10 @@ async function main() {
   else await recordScenes(scenes, options.homes);
 }
 
+// A browser the watchdog killed can leave Playwright's pipe open, so a failed run exits outright
+// instead of waiting on it.
 main().catch((error) => {
   console.error(error);
   stopStack(root);
-  process.exitCode = 1;
+  process.exit(1);
 });

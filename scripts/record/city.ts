@@ -57,7 +57,7 @@ const REELS: CityClip[] = [
     city: "altadena",
     about: "West Altadena, the Eaton Fire: the fire runs down into the neighbourhoods while the replay's red roofs clear and vans run",
     frames: { tall: "west" },
-    segments: [{ from: 300, to: 560, seconds: 15 }],
+    segments: [{ from: 240, to: 520, seconds: 15 }],
     replay: true,
   },
 ];
@@ -143,6 +143,11 @@ function sceneUrl(appUrl: string, clip: CityClip, aspect: Aspect) {
   return `${appUrl}/lab/scenes?${query}`;
 }
 
+// The smoke layer (components/map/smoke-layer.tsx) animates on the wall clock, so stepped frame by
+// frame it freezes into flat grey discs. It is the only aria-hidden absolute canvas in the scene lab;
+// the map's WebGL canvas is `block size-full` and carries no aria-hidden.
+const STEPPED_CSS = "canvas[aria-hidden].pointer-events-none.absolute.inset-0{display:none!important}";
+
 async function sceneReady(page: Page) {
   await page.waitForFunction(() => window.__scene !== undefined, null, { timeout: 60_000 });
   await page.evaluate(() => Promise.race([window.__scene!.ready, new Promise((resolve) => setTimeout(resolve, 55_000))]));
@@ -185,6 +190,7 @@ async function filmCityClip(appUrl: string, outDir: string, clip: CityClip, aspe
     // own readiness (sceneReady) is what counts.
     await page.goto(sceneUrl(appUrl, clip, aspect), { waitUntil: "commit" });
     await sceneReady(page);
+    await page.addStyleTag({ content: STEPPED_CSS });
     frames = await stepFrames(page, clip, aspect, dir);
   } finally {
     await closeBrowser(browser);
