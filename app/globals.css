@@ -103,7 +103,7 @@
   --color-night-raised: var(--night-raised);
   --color-on-night: var(--on-night);
   --color-on-night-muted: var(--on-night-muted);
-  --font-sans: var(--font-public-sans);
+  --font-sans: var(--font-fira-sans);
   --font-display: var(--font-sofia-condensed);
   --font-brand: var(--brand-face);
   --font-big: var(--big-face);
@@ -121,11 +121,11 @@
 body {
   background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-public-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
-/* Type scale: Public Sans for reading, Sofia Sans Condensed for anything read from across the room. */
+/* Type scale: Fira Sans for reading, Sofia Sans Condensed for anything read from across the room. */
 @layer components {
   .type-display {
     font-family: var(--big-face);
