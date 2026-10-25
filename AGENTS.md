@@ -35,6 +35,16 @@
 
 <!-- BEGIN:nextjs-agent-rules -->
 
+## Memory: the team shares one 16 GB laptop
+
+Several sessions run on the same machine, and on a Mac GPU memory comes out of the same RAM. When it runs out, the whole machine freezes: cursor, audio, Bluetooth.
+
+- Reuse the dev server on :3100. Start your own only when you must, and stop it the moment you're done.
+- Never open the 3D map in headless Chromium. It draws WebGL on the CPU (SwiftShader), and one tab reached 14 GB. Use a headed browser (`channel: "chrome"`, `headless: false`), take what you need, and close the browser in the same command.
+- Open one browser at a time, and close it before you finish a step. Don't leave a Playwright MCP page open between turns.
+- Run one heavy command at a time (`tsc`, `next build`, the Python models). Never `npm ci` in a worktree: clone with `cp -cR <main>/node_modules <worktree>/`.
+- Map code: every GPU allocation is width × height × bytes. Keep screen targets under the renderer's pixel budget, and release WebGL contexts on dispose (`InkMapRenderer.dispose`).
+
 ## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
