@@ -289,6 +289,11 @@ export class CrowdSim {
   private laneOrder: Int32Array;
   private laneLeader: Int32Array;
   private laneGap: Float64Array;
+  // The cars moving at the start of the step (see `collectMoving`), and when the fire reaches each
+  // household's home.
+  private moving: Int32Array;
+  private movingCount = 0;
+  private fireAtHome: Float64Array;
   // What `neighborsOf` gathers from the cars around one car: their push, and the car it follows.
   private near = { rx: 0, ry: 0, gap: Infinity, leader: -1 };
   // Each edge's distance along it to each shape point, and the speed its bend at each interior
@@ -325,6 +330,7 @@ export class CrowdSim {
     this.hashNext = new Int32Array(n);
     this.hashKey = new Int32Array(n);
     this.edgeAt = new Float64Array(n);
+    this.moving = new Int32Array(n);
     this.laneOrder = new Int32Array(n);
     this.laneLeader = new Int32Array(n);
     this.laneGap = new Float64Array(n);
@@ -361,6 +367,7 @@ export class CrowdSim {
       this.state[i] = household.canLeave === "yes" && household.hasCar ? STATE.home : STATE.waiting;
       this.goal[i] = this.router.nearestNode(this.x[i], this.y[i]);
     }
+    this.fireAtHome = Float64Array.from({ length: n }, (_, i) => this.fireMinutesAt(i));
     const drivewayOnto = (edge: number) => this.router.edgeSpeed[edge] < DRIVEWAY_MAX_SPEED;
     this.entry = Array.from({ length: n }, (_, i) => this.router.streetPoints(this.x[i], this.y[i], drivewayOnto));
     this.trueShut = new Uint8Array(ground.speed.length);
@@ -445,6 +452,7 @@ export class CrowdSim {
       hashNext: new Int32Array(this.count),
       hashKey: new Int32Array(this.count),
       edgeAt: new Float64Array(this.count),
+      moving: new Int32Array(this.count),
       laneStart: new Int32Array(this.laneStart.length),
       laneOrder: new Int32Array(this.count),
       laneLeader: new Int32Array(this.count),
@@ -463,11 +471,11 @@ export class CrowdSim {
     const { dt, tau, temperature, lateralTau, lateralTemperature } = this.params;
     const along = ouCoefficients(dt, tau, temperature);
     const across = ouCoefficients(dt, lateralTau, lateralTemperature);
-    for (let i = 0; i < this.count; i++) {
-      if (this.state[i] === STATE.moving) this.kickDriftNoiseDrift(i, dt, along, across);
-    }
+    this.collectMoving();
+    for (let k = 0; k < this.movingCount; k++) this.kickDriftNoiseDrift(this.moving[k], dt, along, across);
     this.computeForces();
-    for (let i = 0; i < this.count; i++) {
+    for (let k = 0; k < this.movingCount; k++) {
+      const i = this.moving[k];
       if (this.state[i] !== STATE.moving) continue;
       this.vx[i] += (this.fx[i] * dt) / 2;
       this.vy[i] += (this.fy[i] * dt) / 2;
@@ -840,10 +848,17 @@ export class CrowdSim {
     return row * this.hashCols + col;
   }
 
+  // The cars moving at the start of this step, in index order: each step's loops go over these
+  // rather than every household, most of which are at home or out of the zone.
+  private collectMoving() {
+    this.movingCount = 0;
+    for (let i = 0; i < this.count; i++) if (this.state[i] === STATE.moving) this.moving[this.movingCount++] = i;
+  }
+
   private rebuildHash() {
     this.hashHead.fill(-1);
-    for (let i = 0; i < this.count; i++) {
-      if (this.state[i] !== STATE.moving) continue;
+    for (let k = 0; k < this.movingCount; k++) {
+      const i = this.moving[k];
       const key = this.hashOf(this.x[i], this.y[i]);
       this.hashKey[i] = key;
       this.hashNext[i] = this.hashHead[key];
@@ -853,8 +868,8 @@ export class CrowdSim {
 
   private computeForces() {
     this.rebuildHash();
-    for (let i = 0; i < this.count; i++) {
-      if (this.state[i] !== STATE.moving) continue;
+    for (let k = 0; k < this.movingCount; k++) {
+      const i = this.moving[k];
       this.advanceRoute(i);
       const [tx, ty] = this.aim(i);
       const distance = Math.hypot(tx - this.x[i], ty - this.y[i]) || 1;
@@ -863,7 +878,8 @@ export class CrowdSim {
       if (this.edge[i] >= 0) this.edgeAt[i] = this.alongEdge(i);
     }
     this.orderLanes();
-    for (let i = 0; i < this.count; i++) {
+    for (let k = 0; k < this.movingCount; k++) {
+      const i = this.moving[k];
       if (this.state[i] === STATE.moving) this.forceOn(i);
     }
   }
@@ -888,12 +904,13 @@ export class CrowdSim {
     const start = this.laneStart;
     start.fill(0);
     const onStreet = (i: number) => this.state[i] === STATE.moving && this.edge[i] >= 0;
-    for (let i = 0; i < this.count; i++) if (onStreet(i)) start[this.edge[i] + 1] += 1;
+    const moving = this.moving.subarray(0, this.movingCount);
+    for (const i of moving) if (onStreet(i)) start[this.edge[i] + 1] += 1;
     for (let e = 1; e < start.length; e++) start[e] += start[e - 1];
     const fill = start.slice(0, -1);
-    for (let i = 0; i < this.count; i++) if (onStreet(i)) this.laneOrder[fill[this.edge[i]]++] = i;
+    for (const i of moving) if (onStreet(i)) this.laneOrder[fill[this.edge[i]]++] = i;
     this.linkLanes();
-    for (let i = 0; i < this.count; i++) if (onStreet(i) && this.laneLeader[i] < 0) this.linkAcrossJunction(i);
+    for (const i of moving) if (onStreet(i) && this.laneLeader[i] < 0) this.linkAcrossJunction(i);
   }
 
   // Each car's leader in its lane on its own edge: the next car forward in it.
@@ -1084,12 +1101,17 @@ export class CrowdSim {
     return corner > 0 ? Math.min(wanted, forward - this.params.tau * corner) : wanted;
   }
 
-  // Anyone the scenario fire reaches before they get out.
+  // Anyone the scenario fire reaches before they get out. A household still at home is where it
+  // started, so the fire reaches it when it reaches its home.
   private settle() {
     const minutes = this.minutes;
     for (let i = 0; i < this.count; i++) {
       const state = this.state[i];
       if (state === STATE.arrived || state === STATE.overrun) continue;
+      if (state !== STATE.moving) {
+        if (this.fireAtHome[i] <= minutes) this.state[i] = STATE.overrun;
+        continue;
+      }
       const cell = cellIndex(this.ground, this.x[i], this.y[i]);
       if (cell >= 0 && isBurning(this.ground, cell, minutes)) this.state[i] = STATE.overrun;
     }
