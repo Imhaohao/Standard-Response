@@ -20,19 +20,23 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d.area import EAST, NORTH, SOUTH, WEST  # noqa: E402
-from rollcall_d.ensemble import draw_members, run_members, burn_quantiles, scenario_members  # noqa: E402
+from rollcall_d.ensemble import burn_quantiles, draw_members, run_urban_members, urban_scenario_members  # noqa: E402
+from rollcall_d.fire_ground import load_ground  # noqa: E402
 from rollcall_d.geo import metric_to_geojson, to_xy  # noqa: E402
 from rollcall_d.paths import HAZARD  # noqa: E402
-from rollcall_d.spread import Grid, SpreadConfig, front_polygon  # noqa: E402
+from rollcall_d.spread import Grid, front_polygon  # noqa: E402
 from rollcall_d.weather import fetch_wind  # noqa: E402
 
 PROBABILITIES = [0.1, 0.5, 0.9]
 LAST_MINUTE = 270
 FRAME_STEP = 10
 WINDOW_HOURS = 5
-VIRTUAL_ORIGIN = (34.2085, -118.1205)  # where the front enters, as in spread_model.py
+# The scenario's grid, origin and ignition (scripts/spread_model.py), so the forecast runs over the same ground.
+VIRTUAL_ORIGIN = (34.2085, -118.1205)
+IGNITION_MINUTE = -18.0
 MARGIN_METERS = 600.0
-CELL_METERS = 25.0
+UPWIND_MARGIN_METERS = 1500.0
+CELL_METERS = 10.0
 LABEL = "Forecast from live wind, not a prediction of this fire"
 
 
@@ -40,19 +44,20 @@ def study_grid() -> Grid:
     west, south = to_xy(SOUTH, WEST)
     east, north = to_xy(NORTH, EAST)
     ox, oy = to_xy(*VIRTUAL_ORIGIN)
-    bounds = (min(west, ox) - MARGIN_METERS, min(south, oy) - MARGIN_METERS, max(east, ox) + MARGIN_METERS, max(north, oy) + MARGIN_METERS)
+    bounds = (min(west, ox) - MARGIN_METERS, min(south, oy) - MARGIN_METERS,
+              max(east, ox) + UPWIND_MARGIN_METERS, max(north, oy) + UPWIND_MARGIN_METERS)
     return Grid(bounds, CELL_METERS)
 
 
-def choose_members(base: SpreadConfig, wind: str, count: int, seed: int):
+def choose_members(wind: str, count: int, seed: int):
     """Members from live NWS wind, or from the scenario wind when asked or when the NWS fails."""
     if wind == "scenario":
-        return scenario_members(base, count, seed), {"source": "scenario", "note": "Scenario wind by request"}
+        return urban_scenario_members(count, seed), {"source": "scenario", "note": "Scenario wind by request"}
     lat, lng = (SOUTH + NORTH) / 2, (WEST + EAST) / 2
     try:
         forecast = fetch_wind(lat, lng, WINDOW_HOURS)
     except Exception as error:  # any network or shape failure falls back, and the file says why
-        return scenario_members(base, count, seed), {"source": "scenario", "note": f"NWS unreachable: {error}"}
+        return urban_scenario_members(count, seed), {"source": "scenario", "note": f"NWS unreachable: {error}"}
     first = forecast.hours[0]
     summary = {
         "source": "nws",
@@ -80,17 +85,18 @@ def zone_features(grid: Grid, quantiles: dict[float, np.ndarray]) -> list[dict]:
 
 def build(members_count: int, wind: str, seed: int, out: Path) -> None:
     started = time.monotonic()
-    base = SpreadConfig(VIRTUAL_ORIGIN, cell=CELL_METERS)
     grid = study_grid()
-    members, wind_summary = choose_members(base, wind, members_count, seed)
-    quantiles = burn_quantiles(run_members(grid, base, members), PROBABILITIES)
+    ground = load_ground(grid, seed)
+    members, wind_summary = choose_members(wind, members_count, seed)
+    arrivals = run_urban_members(grid, ground, VIRTUAL_ORIGIN, IGNITION_MINUTE, LAST_MINUTE + FRAME_STEP, members)
+    quantiles = burn_quantiles(arrivals, PROBABILITIES)
     rates = [m.head_rate for m in members]
     collection = {
         "type": "FeatureCollection",
         "metadata": {
             "name": "West Altadena danger zones",
             "label": LABEL,
-            "generator": "scripts/danger_zones.py (spread-model ensemble under NWS wind)",
+            "generator": "scripts/danger_zones.py (ensemble of the scenario's ground-aware spread model under NWS wind)",
             "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "members": len(members),
             "probabilities": PROBABILITIES,
@@ -98,7 +104,7 @@ def build(members_count: int, wind: str, seed: int, out: Path) -> None:
             "cellMeters": CELL_METERS,
             "headRateMetersPerMinute": {"p10": round(float(np.percentile(rates, 10)), 1), "p50": round(float(np.median(rates)), 1), "p90": round(float(np.percentile(rates, 90)), 1)},
             "wind": wind_summary,
-            "assumptions": "Head rate is 10% of the 10 m wind (Cruz & Alexander 2019), at least 3 m/min. Shape from Anderson (1983) at 0.4 of the 10 m wind. Direction error 20 degrees, speed error 25%. Uniform fuel.",
+            "assumptions": "Each member is the scenario's spread model (rollcall_d/urban_spread.py over rollcall_d/fire_ground.py: washes never burn, roads and open space slow it, embers cross) with its wind walking around that member's heading and speed. Members scatter around the forecast wind with 20 degrees of direction error and 25% speed error.",
         },
         "features": zone_features(grid, quantiles),
     }

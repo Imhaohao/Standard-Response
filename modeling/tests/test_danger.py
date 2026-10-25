@@ -51,3 +51,16 @@ def test_quantile_means_share_of_members_burned_by_that_minute():
     assert q[0.2][0, 0] == 10.0  # one of five members burned it by minute 10
     assert q[0.6][0, 0] == 30.0  # three of five by minute 30
     assert q[0.9][0, 0] == 1e4  # only four of five ever burn it
+
+
+def test_a_members_wind_walks_around_its_own_mean():
+    import math
+
+    from rollcall_d import urban_spread
+
+    walk = urban_spread.wind_walk(3, 0.0, 600.0, mean_heading=90.0, mean_kmh=20.0)
+    headings = [math.degrees(h) for h in walk.headings]
+    assert abs(np.mean(headings) - 90.0) < 20
+    assert abs(np.mean(walk.speeds) - 20.0) < 6
+    default = urban_spread.wind_walk(3, 0.0, 600.0)
+    assert abs(np.mean([math.degrees(h) for h in default.headings]) - urban_spread.MEAN_HEADING_DEGREES) < 20

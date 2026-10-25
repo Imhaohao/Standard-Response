@@ -17,6 +17,8 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from . import urban_spread
+from .fire_ground import Ground
 from .spread import Grid, SpreadConfig, simulate
 from .weather import WindHour
 
@@ -81,6 +83,29 @@ def run_members(grid: Grid, base: SpreadConfig, members: list[Member]) -> np.nda
                          length_to_breadth=member.length_to_breadth, seed=member.seed)
         runs.append(np.nan_to_num(simulate(grid, config), nan=NEVER, posinf=NEVER))
     return np.minimum(np.stack(runs), NEVER)
+
+
+def urban_scenario_members(count: int, seed: int) -> list[Member]:
+    """Fallback when no live wind, for the ground-aware model: the scenario's Santa Ana mean with the forecast-error spread."""
+    rng = random.Random(seed)
+    members = []
+    for index in range(count):
+        speed = urban_spread.MEAN_WIND_KMH * math.exp(rng.gauss(0.0, SPEED_SD))
+        heading = (urban_spread.MEAN_HEADING_DEGREES + rng.gauss(0.0, DIRECTION_SD)) % 360.0
+        members.append(Member(heading, speed, urban_spread.head_rate(speed), length_to_breadth_for(speed), seed * 1000 + index))
+    return members
+
+
+def run_urban_members(grid: Grid, ground: Ground, origin: tuple[float, float], ignition_minute: float, until: float,
+                      members: list[Member]) -> np.ndarray:
+    """As run_members, over real ground (urban_spread): each member's wind walks around its own heading and speed,
+    so the forecast bands respect the same washes, roads and open ground as the scenario fire."""
+    runs = []
+    for member in members:
+        arrival, _ = urban_spread.simulate_urban(grid, ground, origin, ignition_minute, until, member.seed,
+                                                 mean_heading=member.heading_degrees, mean_kmh=member.speed_kmh)
+        runs.append(np.minimum(np.nan_to_num(arrival, nan=NEVER, posinf=NEVER), NEVER).astype(np.float32))
+    return np.stack(runs)
 
 
 def burn_quantiles(arrivals: np.ndarray, probabilities: list[float]) -> dict[float, np.ndarray]:

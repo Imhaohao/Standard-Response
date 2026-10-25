@@ -67,17 +67,19 @@ class WindWalk:
         return self.headings[step], self.speeds[step]
 
 
-def wind_walk(seed: int, start: float, end: float) -> WindWalk:
+def wind_walk(seed: int, start: float, end: float, mean_heading: float = MEAN_HEADING_DEGREES, mean_kmh: float = MEAN_WIND_KMH) -> WindWalk:
+    """The walk swings and gusts around `mean_heading` and `mean_kmh`: the Santa Ana night by default, or a
+    forecast's wind for the danger-zone ensemble. Rates stay calibrated to MEAN_WIND_KMH either way."""
     rng = random.Random(seed)
     walk = WindWalk(math.floor(start / WIND_STEP_MINUTES) * WIND_STEP_MINUTES)
-    deviation, speed = 0.0, MEAN_WIND_KMH
+    deviation, speed = 0.0, mean_kmh
     for _ in range(int((end - walk.start) / WIND_STEP_MINUTES) + 2):
         deviation += -HEADING_PULL * deviation + rng.gauss(0, HEADING_JITTER_DEGREES)
         if rng.random() < SHIFT_CHANCE:
             deviation += rng.choice((-1, 1)) * rng.uniform(*SHIFT_DEGREES)
-        speed += SPEED_PULL * (MEAN_WIND_KMH - speed) + rng.gauss(0, SPEED_JITTER_KMH)
+        speed += SPEED_PULL * (mean_kmh - speed) + rng.gauss(0, SPEED_JITTER_KMH)
         speed = min(max(speed, SPEED_RANGE_KMH[0]), SPEED_RANGE_KMH[1])
-        walk.headings.append(math.radians(MEAN_HEADING_DEGREES + deviation))
+        walk.headings.append(math.radians(mean_heading + deviation))
         walk.speeds.append(speed)
     return walk
 
@@ -180,9 +182,10 @@ def _throw_ember(search: Search, index: int, now: float) -> None:
         heapq.heappush(search.heap, (start, landing))
 
 
-def simulate_urban(grid: Grid, ground: Ground, origin: tuple[float, float], ignition_minute: float, until: float, seed: int) -> tuple[np.ndarray, WindWalk]:
+def simulate_urban(grid: Grid, ground: Ground, origin: tuple[float, float], ignition_minute: float, until: float, seed: int,
+                   mean_heading: float = MEAN_HEADING_DEGREES, mean_kmh: float = MEAN_WIND_KMH) -> tuple[np.ndarray, WindWalk]:
     """Arrival minutes at every cell (inf where it never burns by `until`), and the wind that drove it."""
-    walk = wind_walk(seed, ignition_minute, until)
+    walk = wind_walk(seed, ignition_minute, until, mean_heading, mean_kmh)
     fuel = ground.fuel.ravel()
     slowness = np.where(fuel > 0, 1.0 / np.maximum(fuel, 1e-6), np.inf)
     search = Search(grid, slowness.tolist(), [math.inf] * fuel.size, random.Random(seed + 1), walk, ground.ember_source.ravel().tolist(), fuel.tolist())
