@@ -24,24 +24,25 @@ export type DispatchTraffic = {
   windows: { from: number; to: number; edges: { key: string; slowdown: number }[] }[];
 };
 
-// The newest forecast, if it was made for the current incident.
-export async function currentTrafficForecast(ctx: QueryCtx) {
+async function newestFor<T extends "meshTrafficForecasts" | "meshDriveTimes">(ctx: QueryCtx, table: T) {
   const control = await ctx.db.query("control").first();
-  const latest = await ctx.db.query("meshTrafficForecasts").withIndex("by_issuedAt").order("desc").first();
+  const latest = await ctx.db.query(table).withIndex("by_issuedAt").order("desc").first();
   if (!latest || control?.warningIssuedAt === undefined || latest.warningIssuedAt !== control.warningIssuedAt) return null;
   return latest;
 }
 
+// The agency view's forecast: the newest, if it was made for the current incident.
+export async function currentTrafficForecast(ctx: QueryCtx) {
+  return await newestFor(ctx, "meshTrafficForecasts");
+}
+
+// The dispatcher's cut of the same forecast (`meshDriveTimes`, a few tens of kB, read every re-plan).
 export async function trafficForDispatch(ctx: QueryCtx, now: number): Promise<DispatchTraffic | null> {
-  const forecast = await currentTrafficForecast(ctx);
-  if (!forecast || forecast.baseAt === undefined || now - forecast.baseAt > TRAFFIC_STALE_MS) return null;
+  const latest = await newestFor(ctx, "meshDriveTimes");
+  if (!latest || now - latest.baseAt > TRAFFIC_STALE_MS) return null;
   return {
-    baseAt: forecast.baseAt,
-    windows: forecast.windows.map((window) => ({
-      from: window.from,
-      to: window.to,
-      edges: (window.edges ?? []).flatMap(({ key, slowdown }) => (slowdown.median === null ? [] : [{ key, slowdown: slowdown.median }])),
-    })),
+    baseAt: latest.baseAt,
+    windows: latest.windows.map(({ from, to, edgeKeys, slowdowns }) => ({ from, to, edges: edgeKeys.map((key, i) => ({ key, slowdown: slowdowns[i] })) })),
   };
 }
 

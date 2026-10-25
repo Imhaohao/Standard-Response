@@ -1,10 +1,11 @@
 import { v } from "convex/values";
 import { MutationCtx, query, QueryCtx } from "./_generated/server";
+import { TableNames } from "./_generated/dataModel";
 import { internalMutation, mutation } from "./functions";
 import { DEFAULT_TRAINING, GlobalModel, INITIAL_MODEL, isValidMix, Mix, UPLOAD_MIN_MASS } from "../lib/mesh/federated";
 import { coarsenTime, consensusOf, isValidReport, REPORT_TTL_MS, RoadReport } from "../lib/mesh/reports";
 import { addToRound, closeRound, emptyRound, freshOptimizerState, OpenRound, roundIsReady } from "../lib/mesh/rounds";
-import { trafficForecastFields } from "./schema";
+import { trafficForecastArgs } from "./schema";
 import { currentTrafficForecast } from "./traffic";
 
 // Mesh add-on: what phones upload when one of them has internet, and what the agency reads back.
@@ -20,6 +21,7 @@ const FORECASTS_KEPT = 3;
 const MAX_FORECAST_WINDOWS = 6;
 const MAX_FORECAST_POINTS = 40;
 const MAX_FORECAST_ROWS = 400;
+const MAX_FORECAST_EDGES = 800;
 
 const reportArg = v.object({
   id: v.string(),
@@ -178,18 +180,34 @@ export const rounds = query({
   },
 });
 
-// Written by the traffic forecast runner. Keeps the last few forecasts and drops older ones.
+async function keepNewest(ctx: MutationCtx, table: "meshTrafficForecasts" | "meshDriveTimes") {
+  const older = await ctx.db.query(table).withIndex("by_issuedAt").order("desc").take(FORECASTS_KEPT + 10);
+  for (const row of older.slice(FORECASTS_KEPT)) await ctx.db.delete(table, row._id);
+}
+
+// Written by the traffic forecast runner. The forecast goes to the agency view; its slowdowns by
+// direction go to the dispatcher's drive times. Keeps the last few of each.
 export const publishTrafficForecast = mutation({
-  args: trafficForecastFields,
+  args: trafficForecastArgs,
   returns: v.null(),
-  handler: async (ctx, forecast) => {
-    const sizes = forecast.windows.map((w) => w.segments.length + w.streets.length + (w.edges?.length ?? 0));
-    if (forecast.windows.length > MAX_FORECAST_WINDOWS || forecast.timeline.length > MAX_FORECAST_POINTS || sizes.some((n) => n > MAX_FORECAST_ROWS)) {
-      throw new Error("traffic forecast too large");
-    }
-    await ctx.db.insert("meshTrafficForecasts", forecast);
-    const older = await ctx.db.query("meshTrafficForecasts").withIndex("by_issuedAt").order("desc").take(FORECASTS_KEPT + 10);
-    for (const row of older.slice(FORECASTS_KEPT)) await ctx.db.delete("meshTrafficForecasts", row._id);
+  handler: async (ctx, { windows, ...forecast }) => {
+    const tooLarge =
+      windows.length > MAX_FORECAST_WINDOWS ||
+      forecast.timeline.length > MAX_FORECAST_POINTS ||
+      windows.some((w) => w.segments.length + w.streets.length > MAX_FORECAST_ROWS || w.edges.length > MAX_FORECAST_EDGES);
+    if (tooLarge) throw new Error("traffic forecast too large");
+    await ctx.db.insert("meshTrafficForecasts", { ...forecast, windows: windows.map(({ from, to, streets, segments }) => ({ from, to, streets, segments })) });
+    await ctx.db.insert("meshDriveTimes", {
+      issuedAt: forecast.issuedAt,
+      warningIssuedAt: forecast.warningIssuedAt,
+      baseAt: forecast.baseAt,
+      windows: windows.map(({ from, to, edges }) => {
+        const measured = edges.filter((edge) => edge.slowdown.median !== null);
+        return { from, to, edgeKeys: measured.map((edge) => edge.key), slowdowns: measured.map((edge) => edge.slowdown.median!) };
+      }),
+    });
+    await keepNewest(ctx, "meshTrafficForecasts");
+    await keepNewest(ctx, "meshDriveTimes");
     return null;
   },
 });
@@ -206,7 +224,8 @@ export const clear = internalMutation({
   returns: v.number(),
   handler: async (ctx) => {
     let removed = 0;
-    for (const table of ["meshReports", "meshModels", "meshRound", "meshTrafficForecasts"] as const) {
+    const tables: TableNames[] = ["meshReports", "meshModels", "meshRound", "meshTrafficForecasts", "meshDriveTimes"];
+    for (const table of tables) {
       for (const row of await ctx.db.query(table).take(READ_LIMIT)) {
         await ctx.db.delete(table, row._id);
         removed += 1;

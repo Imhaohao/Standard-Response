@@ -9,12 +9,18 @@ export const canLeave = v.union(v.literal("yes"), v.literal("no"), v.literal("un
 
 // Mesh add-on traffic forecast (lib/crowd/forecast.ts). Every figure is a range over ensemble members.
 const forecastRange = v.object({ median: v.union(v.number(), v.null()), p5: v.union(v.number(), v.null()), p95: v.union(v.number(), v.null()), n: v.number() });
+const forecastWindow = {
+  from: v.number(),
+  to: v.number(),
+  streets: v.array(v.object({ name: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange, cars: forecastRange })),
+  segments: v.array(v.object({ key: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange })),
+};
 export const trafficForecastFields = {
   issuedAt: v.number(),
   warningIssuedAt: v.number(),
   baseMinute: v.number(),
   // The night's clock (lib/sim-clock.ts) at baseMinute: window minutes count from here. Missing on
-  // forecasts from before the dispatcher read them; those are left at free flow.
+  // forecasts made before it was recorded.
   baseAt: v.optional(v.number()),
   horizonMinutes: v.number(),
   members: v.number(),
@@ -22,16 +28,14 @@ export const trafficForecastFields = {
   blockedSegments: v.number(),
   computeSeconds: v.number(),
   timeline: v.array(v.object({ minute: v.number(), moving: forecastRange, arrived: forecastRange, jammedShare: forecastRange, meanSpeed: forecastRange })),
-  windows: v.array(
-    v.object({
-      from: v.number(),
-      to: v.number(),
-      streets: v.array(v.object({ name: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange, cars: forecastRange })),
-      segments: v.array(v.object({ key: v.string(), lostCarMinutes: forecastRange, slowdown: forecastRange })),
-      // Slowdown by direction (directed edge key), for the dispatcher's drive times (convex/traffic.ts).
-      edges: v.optional(v.array(v.object({ key: v.string(), slowdown: forecastRange }))),
-    }),
-  ),
+  windows: v.array(v.object(forecastWindow)),
+};
+// What the runner sends: the forecast, plus each window's slowdown by direction of each street
+// (directed edge key), which `mesh:publishTrafficForecast` keeps apart in `meshDriveTimes`.
+export const trafficForecastArgs = {
+  ...trafficForecastFields,
+  baseAt: v.number(),
+  windows: v.array(v.object({ ...forecastWindow, edges: v.array(v.object({ key: v.string(), slowdown: forecastRange })) })),
 };
 
 export const mobility = v.union(
@@ -633,7 +637,8 @@ export default defineSchema({
     clock: v.optional(v.object({ speed: v.number(), realAt: v.number(), simAt: v.number(), ranMs: v.number() })),
   }),
 
-  // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow: nothing above reads these.
+  // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow, except that the dispatcher
+  // reads `meshDriveTimes` for its drive times (convex/traffic.ts).
   // Anonymous road reports that phones passed to each other offline and a phone with internet
   // uploaded. No phone, person or uploader id is stored; times are rounded to the minute.
   meshReports: defineTable({
@@ -673,6 +678,15 @@ export default defineSchema({
   // The traffic forecast the Langevin crowd model runner (scripts/mesh/traffic-forecast.ts) publishes
   // for the agency view. Simulated traffic of the synthetic town, with ranges over ensemble members.
   meshTrafficForecasts: defineTable(trafficForecastFields).index("by_issuedAt", ["issuedAt"]),
+  // The same forecast cut down to what the dispatcher's drive times read (convex/traffic.ts) on
+  // every re-plan: per window, the median slowdown of each direction of a street that slows.
+  // `edgeKeys[i]` goes with `slowdowns[i]`.
+  meshDriveTimes: defineTable({
+    issuedAt: v.number(),
+    warningIssuedAt: v.number(),
+    baseAt: v.number(),
+    windows: v.array(v.object({ from: v.number(), to: v.number(), edgeKeys: v.array(v.string()), slowdowns: v.array(v.number()) })),
+  }).index("by_issuedAt", ["issuedAt"]),
 
   // Readiness survey add-on (lib/prepare, convex/prepare.ts). Separate from the core flow and the
   // mesh: nothing else reads these. Households' answers never arrive here, only mixes of five or

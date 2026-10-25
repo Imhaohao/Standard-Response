@@ -29,7 +29,7 @@ const MIN_LOST_CAR_MINUTES = 0.5;
 // Directed edges for the dispatcher's drive times: the ones whose median slowdown is at least this,
 // most extra drive time first. An edge left out drives at free flow.
 const MIN_EDGE_SLOWDOWN = 0.1;
-const EDGES_PER_WINDOW = 300;
+const EDGES_PER_WINDOW = 600;
 
 export type Range = { median: number | null; p5: number | null; p95: number | null; n: number };
 
