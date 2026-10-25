@@ -37,7 +37,7 @@ function addressPart(address: string | undefined, leaving: boolean, lines: Lines
   return leaving ? lines.fromAddress(address) : lines.atAddress(address);
 }
 
-function readbackParts(record: AgentRecord, lines: Lines) {
+export function readbackParts(record: AgentRecord, lines: Lines) {
   const leaving = record.canLeave === "yes" && record.hasCar !== false && !record.mobility;
   return [
     leaving ? lines.leavingOnOwn : undefined,

@@ -251,3 +251,12 @@ The interpreters (warning call, pickup check, Ready check) no longer use the API
 - The Cartesia line now logs `voice started Nms after the message left` on each turn. Our "first audio" figure is stamped when the text is sent, so this new line is the first measure of Cartesia's own start time.
 - I did not cut the 400 ms turn settle. Claude starts reading when the words arrive, so the settle runs at the same time as the read, and the fastest read is 671 ms.
 - I also pushed `0c4775c` (kiosk demo roles). It sat unpushed under my commit, and its 05:34 note says it was meant for main.
+
+## 2026-10-25 09:05
+
+Call summarization didn't regress; the exam's read-back check had fallen behind the agent. Since 80753b7, a correction after the first summary is read back on its own ("Thanks, I've fixed that. Needs two people to lift. Is that right?"), and an address confirmed at the greeting isn't repeated. `readsBack` still required the last read-back to be the full summary of the final record with the intro line, so every correct partial read-back failed.
+
+- New check (`voice/exam/grade.ts`): every fact the full summary would state must be said back after it last changed, either in the full summary or in a correction's read-back. The address also counts when the caller confirmed it ("Are you at …?" then yes). The harness now records the turn each field last changed (`fieldChangedAt` in `CallOutcome`).
+- It still fails a fact that changed after the last read-back, a summary that leaves a fact out, and an address given later that was never said back. `voice/exam/grade.test.ts` covers each case, and `npm run test:voice` now includes `voice/exam`.
+- Same four items, 3 runs each: summarization 33/42 → 45/45. Agent behavior is unchanged, and no deploy is needed. Exam scores from before and after this commit aren't comparable on summarization.
+- Still open, and not about the read-back: in polk-they-know the read-back keeps an on-file "no help needed" after "I can't get out by myself". The prompt tells Claude that phrase alone says nothing about assistance.

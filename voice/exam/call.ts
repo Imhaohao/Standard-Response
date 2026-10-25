@@ -1,5 +1,5 @@
 import { AgentTurn, Conversation, Escalation } from "../agent/conversation";
-import type { AgentRecord } from "../agent/record";
+import type { AgentRecord, Field } from "../agent/record";
 import { Language, RequestStatus, RideStatus, statusLine } from "../agent/script";
 import { pinnedStatus } from "../textAgent";
 import type { ModuleId } from "./rubric";
@@ -89,6 +89,8 @@ export type CallOutcome = {
   nominations: { address: string; turn: number }[];
   // The caller turn of the last record change (language switches aside).
   lastChangeTurn: number;
+  // The caller turn each field last changed on.
+  fieldChangedAt: Partial<Record<Field, number>>;
   endedAs: EndedAs;
   // Steps the agent reached that the script has no line for; the caller said "I'm not sure."
   unscripted: Step[];
@@ -118,6 +120,7 @@ class ExamCall {
       escalations: [],
       nominations: [],
       lastChangeTurn: 0,
+      fieldChangedAt: {},
       endedAs: "done",
       unscripted: [],
     };
@@ -210,8 +213,9 @@ class ExamCall {
   }
 
   private recordChanged(patch: AgentRecord & { language?: string }) {
-    const fields = Object.keys(patch).filter((field) => field !== "language");
+    const fields = Object.keys(patch).filter((field): field is Field => field !== "language");
     if (fields.length > 0) this.outcome.lastChangeTurn = this.turn;
+    for (const field of fields) this.outcome.fieldChangedAt[field] = this.turn;
   }
 
   private logAgent(turn: AgentTurn, kind: TurnKind, ms?: number) {

@@ -1,6 +1,6 @@
 import { Escalation, firstSentences, RIDE_ANSWER_SENTENCES } from "../agent/conversation";
 import { AgentRecord, Field, needsRide } from "../agent/record";
-import { LINES, readback } from "../agent/script";
+import { echo, Language, LINES, readbackParts } from "../agent/script";
 import { agentLines, AgentLine, CallOutcome, callerLines, EndedAs, Expectation, replyTo } from "./call";
 import { Check, ModuleId, TURN_BUDGET_MS } from "./rubric";
 
@@ -139,19 +139,53 @@ export const nominated =
     return [{ module: "memory", name: `neighbor ${address} kept digit for digit`, pass: found, detail: found ? undefined : `nominations: ${shown(call.nominations.map((n) => n.address))}` }];
   };
 
-const lastReadback = (call: CallOutcome) =>
-  agentLines(call).filter((line) => line.text.includes(LINES[call.item.language].readbackIntro)).at(-1);
+// The full summary, or after a correction only what changed ("Thanks, I've fixed that. Needs two
+// people to lift. Is that right?"); either asks the caller to confirm what it states.
+const isReadback = (line: AgentLine, language: Language) =>
+  line.text.includes(LINES[language].readbackIntro) || (line.step === "readback" && line.text.includes(LINES[language].readbackQuestion));
 
-// The read-back is spoken, and after the last correction, so the caller heard what dispatch will use.
+const comparable = (text: string) => text.toLowerCase().replace(/[.。!！?？]+$/, "").trim();
+
+// The words that state a field's final value: its part of the full summary in this record, or its echo
+// in a partial read-back. None when the summary doesn't state the field ("can't leave" is echoed when
+// it is answered, never summarized), so it isn't part of the read-back.
+function phrasesFor(field: Field, record: AgentRecord, language: Language): string[] {
+  const lines = LINES[language];
+  const without = new Set(readbackParts({ ...record, [field]: undefined }, lines));
+  const parts = readbackParts(record, lines).filter((part) => !without.has(part));
+  if (parts.length === 0) return [];
+  return [...parts, echo({ [field]: record[field] }, language)].filter(Boolean).map(comparable);
+}
+
+// A final fact the caller never heard read back after it last changed. The address also counts when
+// the caller confirmed it: their yes to "Are you at 12 Oak St?" records it, one turn after it was asked.
+function unheard(call: CallOutcome, readbacks: AgentLine[]): Field[] {
+  const language = call.item.language;
+  return (Object.keys(call.record) as Field[]).filter((field) => {
+    const changedAt = call.fieldChangedAt[field] ?? 0;
+    if (field === "address") {
+      const address = call.record.address ?? "";
+      return !agentLines(call).some((line) => line.turn >= changedAt - 1 && line.text.includes(address));
+    }
+    const phrases = phrasesFor(field, call.record, language);
+    if (phrases.length === 0) return false;
+    return !readbacks.some((line) => line.turn >= changedAt && phrases.some((phrase) => comparable(line.text).includes(phrase)));
+  });
+}
+
+// The read-back is spoken, and every fact dispatch will use was read back after it last changed.
 export const readsBack: Expectation = (call) => {
-  const last = lastReadback(call);
-  const checks: Check[] = [{ module: "summarization", name: "read-back spoken", pass: Boolean(last), detail: last ? undefined : "no read-back before the call ended" }];
-  if (!last) return checks;
+  const language = call.item.language;
+  const spoken = agentLines(call).some((line) => line.text.includes(LINES[language].readbackIntro));
+  const checks: Check[] = [{ module: "summarization", name: "read-back spoken", pass: spoken, detail: spoken ? undefined : "no read-back before the call ended" }];
+  if (!spoken) return checks;
+  const readbacks = agentLines(call).filter((line) => isReadback(line, language));
+  const last = readbacks.at(-1)!;
   const current = last.turn >= call.lastChangeTurn;
   checks.push({ module: "summarization", name: "read-back after the last correction", pass: current, detail: current ? undefined : `last read-back on turn ${last.turn}, record changed on turn ${call.lastChangeTurn}` });
   if (!current) return checks;
-  const matches = last.text.includes(readback(call.record, call.item.language));
-  checks.push({ module: "summarization", name: "read-back matches the record", pass: matches, detail: matches ? undefined : last.text });
+  const missing = unheard(call, readbacks);
+  checks.push({ module: "summarization", name: "read-back matches the record", pass: missing.length === 0, detail: missing.length ? `never read back after its last change: ${missing.join(", ")}` : undefined });
   return checks;
 };
 
