@@ -42,6 +42,9 @@ export type Interpretation = {
   asksFire?: boolean;
   // "Which way should I go?": the screen's fastest drive out answers it.
   asksRoute?: boolean;
+  // "Will you stay on the line with me?": Claude's reply answers it, even when it also reads as a
+  // plea about the ride.
+  asksToStay?: boolean;
   // "¿Puede venir mi perro?" restated as "Can my dog come?", for the approved-answer lookup
   // (approvedAnswers.ts). Empty when they asked no such question.
   policyQuestion: string;
@@ -109,7 +112,7 @@ const objectOf = (properties: Record<string, object>) => ({
 // as both medical and flames, and the wrong escalation won.
 // Names say what the resident does: a bare "repeat" was read as "the resident is repeating
 // themselves" and held a question for eleven turns, and "ends" hung up on "I won't leave without my son".
-const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "asks_fire", "asks_route", "says_chair_kind", "says_unsure", "away_from_home", "mistranscribed"] as const;
+const CONDITIONS = ["asks_ride", "asks_stay", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "asks_fire", "asks_route", "says_chair_kind", "says_unsure", "away_from_home", "mistranscribed"] as const;
 type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
@@ -213,6 +216,7 @@ Other outputs:
 - answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise. When the agent read something back and asked "Is that right?" (or confirmed an address), agreement without the word yes is yes: "thank you", "okay", "mm-hm", "that's it", "correct", "감사합니다", "谢谢", "gracias". Only a correction or a no is no.
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none. Fear, panic or hurrying to leave is not an emergency on its own: "We're panicking to evacuate" is none. Only for someone in this home: a neighbor or someone down the road who is hurt or dying is listed in neighbors with neighbor_danger true, and emergency stays none.
 - flags: each of these that holds for this utterance, else an empty list.
+  - asks_stay: they ask the agent to stay on the line or not to hang up ("Will you stay on the line with me?", "Please don't hang up on me.", "Can you stay with me until they come?"). Write reply for it ("Yes, I'm staying on the line with you."), even when asks_ride holds too.
   - away_from_home: nobody is at the home now. The resident says they aren't there (already left, at work, out of town, staying with family) and no one else is there either. Not when they're away but calling about someone who is at the home ("I'm in the car, he's at our house"): then give the household's address instead. Not "I'm not sure", and not a wrong address they then correct.
   - asks_ride: they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also any plea for help ("please, help us", "please hurry", "get them here now", "send someone"), asking whether anyone knows they are there, or whether to wait. Not asking whether the agent will stay on the line: reply answers that ("Yes, I'm staying on the line with you."). Also for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put". Also when they state a ride, driver, van or pickup as already settled, whoever they say told them (family, an earlier caller, a text, an app or this agent): "my daughter says you already sent a driver", "my phone says my ride is confirmed", "you told me someone accepted", even after an answer in the same breath ("Two people. She says it's all arranged anyway."). The status line is what corrects it.
   - asks_repeat: they ask the agent to say it again because they didn't hear or understand the question, or check the line is there ("Hello? Hello?"). Not when they repeat themselves, and not when they ask about something said earlier in the call ("what was the first question I asked?", "what did you ask me before?"): that is a question of their own, and it gets a reply.
@@ -331,6 +335,7 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     asksWhatToDo: flags.has("asks_what_to_do"),
     asksFire: flags.has("asks_fire"),
     asksRoute: flags.has("asks_route"),
+    asksToStay: flags.has("asks_stay"),
     policyQuestion: textOf(raw.policy_question),
     saysChairKind: flags.has("says_chair_kind"),
     awayFromHome: flags.has("away_from_home"),

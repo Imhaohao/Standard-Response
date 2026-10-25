@@ -473,6 +473,24 @@ describe("nobody can understand each other", () => {
   });
 });
 
+describe("asked to stay on the line", () => {
+  const STAY = "Yes, I'm staying on the line with you.";
+
+  it("answers a caller on hold who asks the agent to stay, even when it also read as a plea about the ride", () => {
+    const { conversation } = atHold();
+    conversation.respond("They know I'm in here, right?", heard({ asksAboutRide: true }));
+    const turn = conversation.respond("Will you stay on the line with me?", heard({ asksAboutRide: true, asksToStay: true, reply: STAY }));
+    assert.ok(turn.sentences.includes(STAY));
+    assert.ok(!turn.sentences.includes(EN.statusUnchanged));
+  });
+
+  it("still answers 'Is someone coming?' with the status alone, not Claude's yes", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("Is someone coming?", heard({ asksAboutRide: true, reply: STAY }));
+    assert.ok(!turn.sentences.includes(STAY));
+  });
+});
+
 describe("speech the agent can't read", () => {
   it("hands a caller in a language we don't speak to a person even when Claude called it not meant for us", () => {
     const { conversation, escalations } = call();

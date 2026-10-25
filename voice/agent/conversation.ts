@@ -483,8 +483,10 @@ export class Conversation {
   // the line with you." from Claude, which a caller hears as yes, someone is coming.
   private claudeAnswer(heard: Interpretation, answer: GuardResult, feeling: string[]) {
     if (answer.blocked) return this.holding ? [this.rideUpdate(heard)] : [];
+    // "Will you stay on the line with me?" was read as a ride plea too, and the caller who asked the
+    // agent to stay heard only "Nothing has changed" (voice exam, stay_with_them).
     const repeatsFeeling = feeling.length > 0 && FEELING_WORDS.test(answer.text);
-    return repeatsFeeling || heard.asksAboutRide ? [] : this.freshReply(answer.text);
+    return repeatsFeeling || (heard.asksAboutRide && !heard.asksToStay) ? [] : this.freshReply(answer.text);
   }
 
   // Facts the resident just gave are said back from templates, so "two people, with pets" is heard
@@ -518,6 +520,7 @@ export class Conversation {
   private rideLines(heard: Interpretation) {
     if (this.holding && heard.wantsRepeat) return [this.repeatOnHold()];
     if (this.holding && heard.emergency !== "none") return this.rideJustSaid() ? [] : [this.rideLine()];
+    if (heard.asksToStay && this.rideJustSaid()) return [];
     return heard.asksAboutRide ? [this.rideUpdate(heard)] : [];
   }
 
