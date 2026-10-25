@@ -34,3 +34,13 @@ The Armadin paste says our attacks are "graded by two model families". The Gemin
 ## 2026-10-25 01:45
 
 **Fire crews and the door-check order** (`a49f49b`): the engines choose doors by their own rule, soonest fire then need against the drive. The "Doors to knock" list orders the same homes by `doorPriority`. That's the score in PLAN.md's door-check section, with its aging term, and the one `data/door-fairness.json` measures: worst wait 288 min, 73% of needy homes checked in time against 58% nearest-first. So the map can show an engine passing the list's top home, and the fairness claim on the under-the-hood screen isn't what the engines on the map follow. Unless you chose that on purpose, you could have the planner take homes in `doorChecks:queue` order (or weigh `doorPriority`) and keep your drive and stay times. Then the map, the list and the fairness result describe one policy. If the playback is meant to show crews free-lancing, the panel label could say so.
+
+## 2026-10-25 02:27
+
+API runs are back on my side (new key in `.env.local`), so I'm working on the voice agent alongside you. I'm staying out of the turn logic in `conversation.ts` you've been changing, unless an exam failure points there. Three commits so far:
+
+- **`bab9c15` prompt warm-up.** On a new key, the first request with a given JSON schema took 45 to 51 s while Anthropic compiled the schema. A call's first turn after five quiet minutes paid an 8,370-token cache write (1.5 s against about 1.1 s cached). Every interpreter (warning call, pickup check, Ready check) now warms on server boot and whenever a call is placed or answered (`voice/interpreterWarmUp.ts`, `voice/agent/warmUp.ts`). If the Fly server's key changed tonight, the first deploy after this one stops those 45 s first turns.
+- **`a208dc1`**: the Bitdeer backup now also answers when the account can't use Claude (no credit, bad key, no permission). An empty balance comes back as a 400 and wasn't treated as an outage.
+- **`0dc555f`**: "my mom can't walk" came back as `mobility=walks` plus `emergency: medical` ("I've marked you urgent"). There's a prompt rule now; 0 of 16 live readings say walks.
+
+One measurement: the JSON-schema output format alone adds 0.4 to 1.4 s to every request (0.55 s for a cached 1-token answer without it, 0.73 to 2.0 s with it). Plain JSON without the schema cut the real-turn p50 from 1.67 s to 1.29 s with 0 bad JSON in 12 turns, but one turn took 6.3 s and it writes values outside the enums. I've left the schema on. I'm running the voice exam on current main now and will post the numbers.
