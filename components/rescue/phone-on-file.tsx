@@ -7,11 +7,11 @@ import { Phone } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
+import { ON_PANEL_FIELD } from "@/components/ui/field";
 import { phoneForPeople } from "@/lib/labels";
 
 type Home = { _id: Id<"households">; callbackNumber: string; residentName?: string; simulated: boolean };
 
-const FIELD = "type-body h-10 w-full min-w-0 rounded-lg bg-panel-raised px-3 text-on-panel placeholder:text-on-panel-muted focus-visible:outline-2 focus-visible:outline-on-panel";
 
 function NumberForm({ home, onDone }: { home: Home; onDone: () => void }) {
   const setPhone = useMutation(api.riders.setPhone);
@@ -37,9 +37,9 @@ function NumberForm({ home, onDone }: { home: Home; onDone: () => void }) {
   return (
     <form onSubmit={save} className="flex flex-col gap-2">
       <label className="sr-only" htmlFor="home-resident-name">Who lives here</label>
-      <input id="home-resident-name" className={FIELD} value={name} onChange={(event) => setName(event.target.value)} placeholder="Name, like Boris" autoComplete="off" />
+      <input id="home-resident-name" className={ON_PANEL_FIELD} value={name} onChange={(event) => setName(event.target.value)} placeholder="Name, like Boris" autoComplete="off" />
       <label className="sr-only" htmlFor="home-phone">Phone number</label>
-      <input id="home-phone" className={FIELD} value={phone} onChange={(event) => setPhoneInput(event.target.value)} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" autoFocus required />
+      <input id="home-phone" className={ON_PANEL_FIELD} value={phone} onChange={(event) => setPhoneInput(event.target.value)} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" autoFocus required />
       {error && <p role="alert" className="type-small font-semibold text-signal">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="onPanelQuiet" size="sm" onClick={onDone}>Cancel</Button>

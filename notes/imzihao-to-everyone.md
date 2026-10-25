@@ -87,3 +87,11 @@ The call floor moved from `/` to `/dashboard`, still dispatcher-only.
 | Capital One Nessie | Volunteer neighbors who drive someone out get mileage paid (IRS charitable rate) through Nessie, exactly once per confirmed pickup. | Nessie key and agency account id on Convex |
 
 Also new: closing the incident deletes real rider data everywhere (Convex, Elastic, Jira, payment records) after a 72-hour window (Convex scheduler and a daily cron). That line is for Microsoft's responsible-design question.
+
+## 2026-10-24 23:01
+
+**Real phones on houses: one shared path, and a list on the call floor.**
+- **Contract:** `riders:setPhone({ householdId, phone, residentName? })` keeps its signature, and the new `riders:clearPhone({ householdId })` takes a real number off. Both go through `putRealNumber` / `takeRealNumberOff` in `convex/riders.ts`, the only code that should put a real number on a house or take one off. CDO's claim flow: call these instead of patching `callbackNumber`.
+- **What's kept:** when a real number replaces a fictional (555-exchange) one, the house's old number, name and `simulated` flag go in the new optional `households.standIn`. Taking the number off restores them exactly. A house made for one person (no stand-in) gets a placeholder `+16265559xxx` and becomes simulated. Any number change resets the house's call queue.
+- **Call floor:** "Real phones" in the bar (`components/floor/demo-numbers.tsx`) lists the team's phones (`demoNumbers` table, `convex/demoNumbers.ts`). Each one shows its house and can be put on, moved or taken off. Only a house with a fictional number can take one, so a real number is never overwritten. The list survives `control:reset`, and "Put N numbers back on their houses" puts each number back by address. The six team numbers on Olive Avenue are already in the list.
+- **Not changed:** the voice server still dials only numbers in Fly's `DIAL_ALLOWLIST`, so a phone added to the list rings only once it's in that list.

@@ -1,12 +1,13 @@
 import { ConvexError, v } from "convex/values";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
 import { insidePolygon, located, Point } from "./model";
 import { fileLanguageOf } from "./languages";
 import { simNow } from "./clock";
 import { timingForHome } from "./fireArrival";
+import { isFictionalNumber } from "../lib/phone-number";
 
 // The agency's rider list. Columns, in any order:
 // rider_id, name, address, lat, lng, phone, language, mobility, assistance
@@ -153,7 +154,7 @@ export const currentZone = query({
 });
 
 // "(626) 555-0142", "626-555-0142" and "+1 626 555 0142" all become "+16265550142".
-function dialableNumber(input: string) {
+export function dialableNumber(input: string) {
   const digits = input.replace(/\D/g, "");
   if (/^\d{10}$/.test(digits)) return `+1${digits}`;
   if (/^1\d{10}$/.test(digits)) return `+${digits}`;
@@ -161,30 +162,81 @@ function dialableNumber(input: string) {
   throw new ConvexError("That doesn't look like a phone number");
 }
 
-// A simulated home's call status came from the stand-in, so it starts over for the real voice agent.
+// A home's call status came from calls to its old number, so it starts over for the new one.
 const freshQueueEntry = { callStatus: "not_called" as const, attempts: 0, lastAttemptAt: undefined, ladder: undefined };
 
-// Rescue map: puts a real person's number on a home. A simulated home becomes a real rider, so the
-// voice agent dials this number instead of the stand-in playing the call.
+const PLACEHOLDER_PREFIX = "+1626555";
+const FIRST_PLACEHOLDER = 9000;
+
+async function homeFreeForNumberChange(ctx: MutationCtx, householdId: Id<"households">) {
+  const household = await ctx.db.get("households", householdId);
+  if (!household) throw new ConvexError("That home is gone");
+  if (household.callStatus === "in_call") throw new ConvexError("Wait for the call on the line to end");
+  return household;
+}
+
+async function ownerOf(ctx: QueryCtx, callbackNumber: string) {
+  return await ctx.db
+    .query("households")
+    .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
+    .first();
+}
+
+// A fictional number no home has, for a home whose real number comes off with nothing to restore.
+async function unusedPlaceholder(ctx: QueryCtx) {
+  for (let suffix = FIRST_PLACEHOLDER; suffix <= 9999; suffix++) {
+    const number = `${PLACEHOLDER_PREFIX}${suffix}`;
+    if (!(await ownerOf(ctx, number))) return number;
+  }
+  throw new ConvexError("No placeholder numbers are left");
+}
+
+// The only way a real number goes on a home. The voice agent dials it, and a simulated home becomes a
+// real rider so the stand-in stops playing its calls. The fictional number and name it replaces are
+// kept in `standIn`, so taking the real number off puts the home back as it was.
+export async function putRealNumber(ctx: MutationCtx, householdId: Id<"households">, phone: string, residentName?: string) {
+  const household = await homeFreeForNumberChange(ctx, householdId);
+  const callbackNumber = dialableNumber(phone);
+  const owner = await ownerOf(ctx, callbackNumber);
+  if (owner && owner._id !== householdId) throw new ConvexError(`${owner.address} already has that number`);
+  const name = residentName?.trim();
+  const keepStandIn = !household.standIn && isFictionalNumber(household.callbackNumber);
+  const standIn = { callbackNumber: household.callbackNumber, residentName: household.residentName, simulated: household.simulated };
+  await ctx.db.patch("households", householdId, {
+    callbackNumber,
+    simulated: false,
+    ...(name ? { residentName: name } : {}),
+    ...(keepStandIn ? { standIn } : {}),
+    ...(callbackNumber !== household.callbackNumber ? freshQueueEntry : {}),
+  });
+  return household;
+}
+
+// The only way a real number comes off a home. It gets back the fictional number and name it had;
+// a home that was made for this number gets a placeholder and is simulated from then on.
+export async function takeRealNumberOff(ctx: MutationCtx, householdId: Id<"households">) {
+  const household = await homeFreeForNumberChange(ctx, householdId);
+  if (!household.standIn && isFictionalNumber(household.callbackNumber)) return;
+  const restored = household.standIn ?? { callbackNumber: await unusedPlaceholder(ctx), residentName: undefined, simulated: true };
+  await ctx.db.patch("households", householdId, { ...freshQueueEntry, ...restored, standIn: undefined });
+}
+
+// Rescue map: puts a real person's number on a home.
 export const setPhone = mutation({
   args: { householdId: v.id("households"), phone: v.string(), residentName: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, { householdId, phone, residentName }) => {
-    const household = await ctx.db.get("households", householdId);
-    if (!household) throw new ConvexError("That home is gone");
-    if (household.callStatus === "in_call") throw new ConvexError("Wait for the call on the line to end");
-    const callbackNumber = dialableNumber(phone);
-    const owner = await ctx.db
-      .query("households")
-      .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
-      .first();
-    if (owner && owner._id !== householdId) throw new ConvexError(`${owner.address} already has that number`);
-    const name = residentName?.trim();
-    await ctx.db.patch("households", householdId, {
-      callbackNumber,
-      ...(name ? { residentName: name } : {}),
-      ...(household.simulated ? { ...freshQueueEntry, simulated: false } : {}),
-    });
+    await putRealNumber(ctx, householdId, phone, residentName);
+    return null;
+  },
+});
+
+// Rescue map: takes the real number off a home and puts back what it had.
+export const clearPhone = mutation({
+  args: { householdId: v.id("households") },
+  returns: v.null(),
+  handler: async (ctx, { householdId }) => {
+    await takeRealNumberOff(ctx, householdId);
     return null;
   },
 });

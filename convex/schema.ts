@@ -312,6 +312,9 @@ export default defineSchema({
     // The reach ladder workflow for a real rider nobody has reached yet.
     ladder: v.optional(reachLadder),
     simulated: v.boolean(),
+    // What a home had before a real number replaced its fictional one, so taking the number off puts
+    // it back (convex/riders.ts).
+    standIn: v.optional(v.object({ callbackNumber: v.string(), residentName: v.optional(v.string()), simulated: v.boolean() })),
   })
     .index("by_callStatus_and_callPriority", ["callStatus", "callPriority"])
     .index("by_outcome", ["outcome"])
@@ -845,4 +848,12 @@ export default defineSchema({
     nessieAccountId: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_volunteerKey", ["volunteerKey"]),
+
+  // The team's real phones for the demo (convex/demoNumbers.ts). Kept apart from households so a reset
+  // that clears every home keeps them; `address` is the house a number was last put on.
+  demoNumbers: defineTable({
+    name: v.string(),
+    phone: v.string(),
+    address: v.optional(v.string()),
+  }).index("by_phone", ["phone"]),
 });

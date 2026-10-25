@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { FunctionReturnType } from "convex/server";
 import { ConvexError } from "convex/values";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowCounterClockwise, Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Hazard } from "@/convex/hazards";
@@ -12,6 +12,8 @@ import { SegmentedControl } from "../ui/segmented-control";
 import { AnimatedNumber } from "../ui/animated-number";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
+import { useDismiss } from "../ui/use-dismiss";
+import { DemoNumbers } from "./demo-numbers";
 
 export type ControlState = FunctionReturnType<typeof api.control.get>;
 
@@ -107,24 +109,6 @@ function EndNightButtons() {
   );
 }
 
-function useDismiss(open: boolean, close: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) close();
-    };
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && close();
-    window.addEventListener("pointerdown", onPointer);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
-  return ref;
-}
-
 // Each piece of the system has a stand-in until someone switches it to Real. The switches are
 // for the team, not the audience, so they live behind one button.
 function StandIns({ control }: { control: ControlState }) {
@@ -191,6 +175,7 @@ export function FloorControls({ control }: { control: ControlState | undefined }
     return (
       <>
         <HazardPicker hazard={control.hazard} />
+        <DemoNumbers />
         <StandIns control={control} />
       </>
     );
@@ -209,6 +194,7 @@ export function FloorControls({ control }: { control: ControlState | undefined }
       <div className="max-sm:order-1">
         <DialerToggle running={control.dialerRunning} />
       </div>
+      <DemoNumbers />
       <StandIns control={control} />
     </>
   );

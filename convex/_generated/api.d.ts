@@ -18,6 +18,7 @@ import type * as calls from "../calls.js";
 import type * as clock from "../clock.js";
 import type * as control from "../control.js";
 import type * as crons from "../crons.js";
+import type * as demoNumbers from "../demoNumbers.js";
 import type * as dispatch from "../dispatch.js";
 import type * as dispatchCheck from "../dispatchCheck.js";
 import type * as dispatchProblem from "../dispatchProblem.js";
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   clock: typeof clock;
   control: typeof control;
   crons: typeof crons;
+  demoNumbers: typeof demoNumbers;
   dispatch: typeof dispatch;
   dispatchCheck: typeof dispatchCheck;
   dispatchProblem: typeof dispatchProblem;
