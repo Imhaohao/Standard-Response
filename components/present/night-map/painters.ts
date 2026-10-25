@@ -1,6 +1,6 @@
 import type { Point } from "@/lib/ink-map/data";
 import type { ScreenPoint } from "@/lib/ink-map/renderer";
-import type { CrowdDot } from "./crowd";
+import { JAMMED_PACE, type CrowdDot, type StreetFlow } from "./crowd";
 import type { Census, Home } from "./town";
 
 export type Project = (point: Point) => ScreenPoint;
@@ -189,4 +189,26 @@ export function paintCrowd(ctx: Ctx, project: Project, dots: CrowdDot[], style: 
   ctx.shadowBlur = 14;
   for (const p of jammed) ctx.fillRect(p.x - 3.5, p.y - 3.5, 7, 7);
   ctx.restore();
+}
+
+// Slow traffic is amber and stopped traffic red, the colours every maps app uses; streets moving
+// freely stay green. Busier streets draw wider.
+const SLOW_PACE = 0.75;
+
+function flowColor(pace: number, palette: Palette) {
+  if (pace < JAMMED_PACE) return palette.signal;
+  if (pace < SLOW_PACE) return palette.ride;
+  return palette.leaving;
+}
+
+export function paintTraffic(ctx: Ctx, project: Project, flows: StreetFlow[], style: { glow: boolean; palette: Palette }) {
+  for (const flow of flows) {
+    const jammed = flow.pace < JAMMED_PACE;
+    strokeRoute(ctx, project, flow.path, {
+      color: flowColor(flow.pace, style.palette),
+      width: Math.min(5 + flow.cars * 0.6, 13),
+      progress: 1,
+      glow: style.glow && jammed ? 14 : 0,
+    });
+  }
 }

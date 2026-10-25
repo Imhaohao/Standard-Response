@@ -11,6 +11,7 @@ import { CROWD_RUNS, layersFor, type Layers } from "./layers";
 import {
   paintCensus,
   paintCrowd,
+  paintTraffic,
   paintMarker,
   paintRequests,
   paintRescuer,
@@ -28,6 +29,8 @@ import type { Town } from "./town";
 const CROWD_SPEED = 30;
 const CROWD_BUDGET_MS = 10;
 const FLICKER_MS = 130;
+// A street needs this many cars on it before it is coloured, so one car alone does not paint a road.
+const TRAFFIC_MIN_CARS = 2;
 const ROUTE_DRAW_MS = 1800;
 const EVERYONE_ROUTES = 60;
 
@@ -91,13 +94,14 @@ function paintPlan(paint: Paint, layers: Layers, scene: Scene) {
     ctx.globalAlpha = 1;
   }
   if (layers.rescuers) for (const rescuer of plan.rescuers) paintRescuer(ctx, project(rescuer.start), rescuer.kind, palette);
-  if (layers.routes !== "off" || layers.candidates) paintMarker(ctx, project(plan.safe), { color: palette.leaving, night: palette.night, radius: 13, rings: false, elapsed });
+  if (layers.routes === "draw" || layers.candidates) paintMarker(ctx, project(plan.safe), { color: palette.leaving, night: palette.night, radius: 13, rings: false, elapsed });
 }
 
 function paintPeople(paint: Paint, layers: Layers, scene: Scene) {
   const { ctx, project, elapsed, palette } = paint;
   const { town, crowd, close } = scene;
-  if (layers.crowd !== "off") paintCrowd(ctx, project, crowd.movingDots(), { jams: layers.crowd === "jams", alpha: layers.crowd === "faint" ? 0.3 : 1, palette });
+  if (layers.crowd === "flow" || layers.crowd === "jams") paintTraffic(ctx, project, crowd.streetFlow(TRAFFIC_MIN_CARS), { glow: layers.crowd === "jams", palette });
+  if (layers.crowd !== "off") paintCrowd(ctx, project, crowd.movingDots(), { jams: false, alpha: layers.crowd === "faint" ? 0.3 : 0.7, palette });
   if (layers.roseland !== "off") {
     paintMarker(ctx, project(town.roseland.at), { color: palette.signal, night: palette.night, radius: 14, rings: true, elapsed });
   }
