@@ -19,7 +19,7 @@ const FIRST_NAMES = [
 type Persona = Omit<Doc<"personas">, "_id" | "_creationTime" | "householdId">;
 type Truth = Persona["truth"];
 
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
   let a = seed;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -95,7 +95,7 @@ async function currentHazard(ctx: MutationCtx) {
 
 const HOUSEHOLD_COUNT = 200;
 
-type VehicleSeed = Omit<Doc<"vehicles">, "_id" | "_creationTime" | "lat" | "lng" | "shiftEndsAt">;
+export type VehicleSeed = Omit<Doc<"vehicles">, "_id" | "_creationTime" | "lat" | "lng" | "shiftEndsAt">;
 
 const van = (label: string, driverName: string, crewSize: number, driverIsSimulated = true): VehicleSeed => ({
   label,
@@ -110,7 +110,7 @@ const van = (label: string, driverName: string, crewSize: number, driverIsSimula
 });
 
 // Maria's and Luis's vans are driven from the driver page during the demo.
-const FLEET: VehicleSeed[] = [
+export const FLEET: VehicleSeed[] = [
   van("Van 12", "Maria", 2, false),
   van("Van 7", "Luis", 2, false),
   van("Van 3", "Dwayne", 1),
@@ -123,7 +123,7 @@ const FLEET: VehicleSeed[] = [
 
 const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.1446, capacity: 1200 }];
 
-async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number, fleet: VehicleSeed[] = FLEET) {
+export async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number, fleet: VehicleSeed[] = FLEET) {
   for (const vehicle of fleet) {
     const lat = AREA.south + 0.001 + random() * 0.004;
     const lng = AREA.west + random() * (AREA.east - AREA.west);

@@ -58,3 +58,6 @@ data/eaton/fsri-timeline-eaton.csv
 
 # Audio for the pitch deck stays on the presenting laptop.
 /public/present/*.mp3
+
+# Screen recordings and the recording stack (scripts/record)
+/video/recordings/

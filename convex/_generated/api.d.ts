@@ -15,6 +15,7 @@ import type * as apifyPayload from "../apifyPayload.js";
 import type * as callPlans from "../callPlans.js";
 import type * as callbacks from "../callbacks.js";
 import type * as calls from "../calls.js";
+import type * as censusSeed from "../censusSeed.js";
 import type * as claims from "../claims.js";
 import type * as clock from "../clock.js";
 import type * as control from "../control.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   callPlans: typeof callPlans;
   callbacks: typeof callbacks;
   calls: typeof calls;
+  censusSeed: typeof censusSeed;
   claims: typeof claims;
   clock: typeof clock;
   control: typeof control;

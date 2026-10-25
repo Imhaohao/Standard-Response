@@ -57,8 +57,8 @@
   },
   "devDependencies": {
     "@convex-dev/batch-worker": "0.3.3",
-    "@factory/droid-sdk": "^0.10.0",
     "@edge-runtime/vm": "^5.0.0",
+    "@factory/droid-sdk": "^0.10.0",
     "@tailwindcss/turbopack": "^4",
     "@types/d3-geo": "^3.1.0",
     "@types/node": "^20",
@@ -71,6 +71,7 @@
     "convex-test": "^0.0.65",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "playwright-core": "1.56",
     "pngjs": "^7.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
