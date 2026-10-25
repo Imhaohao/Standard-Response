@@ -16,7 +16,7 @@ const offer = v.object({
 });
 
 export const proposal = v.object({
-  solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools")),
+  solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools"), v.literal("alns")),
   solveMs: v.number(),
   offers: v.array(offer),
   // Open offers this plan changes. They end silently.

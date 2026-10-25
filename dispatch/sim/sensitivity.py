@@ -38,18 +38,21 @@ def level_entry(key: str, label: str, level: float, runs: list[dict]) -> dict:
             "heuristic": policy_block(heuristic)["pickupsOnTime"],
             "ortools": policy_block(ortools)["pickupsOnTime"],
             "ortoolsRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in ortools]),
-            "alnsPickupsOnTimeDifference": comparison(heuristic, alns, "heuristic", "alns")["difference"]["pickupsOnTime"],
+        },
+        "dispatchOnlyAlns": {
+            "pickupsOnTimeDifference": comparison(heuristic, alns, "heuristic", "alns")["difference"]["pickupsOnTime"],
+            "heuristic": policy_block(heuristic)["pickupsOnTime"],
             "alns": policy_block(alns)["pickupsOnTime"],
             "alnsRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in alns]),
         },
         "combined": {
-            "pickupsOnTimeDifference": comparison(today, ortools, "today", "ours")["difference"]["pickupsOnTime"],
+            "pickupsOnTimeDifference": comparison(today, alns, "today", "ours")["difference"]["pickupsOnTime"],
             "today": policy_block(today)["pickupsOnTime"],
-            "ours": policy_block(ortools)["pickupsOnTime"],
+            "ours": policy_block(alns)["pickupsOnTime"],
             "todayRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in today]),
-            "oursRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in ortools]),
+            "oursRidersNeverPickedUp": summarize([r["ridersNeverPickedUp"] for r in alns]),
         },
-        "needers": summarize([r["needers"] for r in ortools]),
+        "needers": summarize([r["needers"] for r in alns]),
     }
 
 
@@ -68,7 +71,7 @@ def describe(entries: list[dict]) -> str:
 
 
 def dont_help_line(entries: list[dict]) -> str:
-    gaps = [(e, e["dispatchOnly"]["pickupsOnTimeDifference"]) for e in entries]
+    gaps = [(e, e["dispatchOnlyAlns"]["pickupsOnTimeDifference"]) for e in entries]
     behind = [e for e, g in gaps if g["p95"] < 0]
     unclear = [e for e, g in gaps if g["p5"] <= 0 <= g["p95"]]
     smallest = min((e for e in entries if e["factor"] == "fleetSize"), key=lambda e: e["level"])
@@ -76,6 +79,6 @@ def dont_help_line(entries: list[dict]) -> str:
     return (
         f"With {int(smallest['level'])} vehicles our full process still leaves a median {unreached['median']:.0f} of "
         f"{smallest['needers']['median']:.0f} riders unpicked (5th to 95th percentile {unreached['p5']:.0f} to {unreached['p95']:.0f}); "
-        f"a dispatcher cannot send vans that do not exist. Dispatch only, the optimizer finished fewer on-time pickups than "
+        f"a dispatcher cannot send vans that do not exist. Dispatch only, the ALNS optimizer finished fewer on-time pickups than "
         f"the heuristic at: {describe(behind)}. It showed no clear difference at: {describe(unclear)}."
     )

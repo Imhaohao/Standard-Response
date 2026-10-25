@@ -36,6 +36,7 @@ export type SensitivityRow = {
   factorLabel: string;
   level: number;
   dispatchOnly: { pickupsOnTimeDifference: Spread };
+  dispatchOnlyAlns: { pickupsOnTimeDifference: Spread };
   combined: { pickupsOnTimeDifference: Spread };
 };
 
@@ -52,7 +53,7 @@ export type Exploration = {
 export type Simulator = {
   label: string;
   seeds: number;
-  results: { dispatchOnly: SimComparison; outreachOnly: SimComparison; combined: SimComparison; todayProcess: { headline: string } };
+  results: { dispatchOnly: SimComparison; dispatchOnlyAlns: SimComparison; alnsVsOrtools: SimComparison; outreachOnly: SimComparison; combined: SimComparison; todayProcess: { headline: string } };
   whereWeDontHelp?: string | string[];
   sensitivity?: SensitivityRow[];
   sensitivitySeeds?: number;

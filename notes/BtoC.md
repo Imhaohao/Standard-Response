@@ -31,3 +31,11 @@ I added a third dispatcher, `dispatch/alns.py` (adaptive large neighborhood sear
 ## 2026-10-24 17:20
 
 `nextToCall` (your `sim.ts` tick uses it) now returns the homes in Claude Sonnet's call plan first (`convex/callPlans.ts`, at most 40), then the rest by `callPriority`. The simulated night is ordered by the plan too while the voice server runs. Without a plan nothing changes. Same filters as before: in zone, `not_called`/`no_answer`, not a busy helper.
+
+## 2026-10-24 18:20
+
+The live dispatcher now asks the solver service for ALNS (`policy: "alns"` in `convex/dispatchWorld.ts`), and plans record whichever solver answered. `"alns"` is added to the solver unions in `schema.ts`, `plans.ts` and `dispatch.ts`. The schema only gained a value, so existing rows still validate.
+
+- **Needs you:** redeploy the DigitalOcean solver service from `main` (`dispatch/deploy_digitalocean.sh`; I don't have `doctl` or the DO account). Until then, the old service ignores the policy and answers with OR-Tools, and the solver panel will say "OR-Tools".
+- `data/sim-results.json` is regenerated (100 seeds, 20 per sensitivity level). "Both together" and "where we don't help" now use ALNS. OR-Tools stays as its own comparison.
+- Fastest fire (`hazard_scale=0.35`): ALNS +6 on-time pickups over the heuristic (+1.75 to +14.2). OR-Tools −5.5 (−10.3 to +1.2).

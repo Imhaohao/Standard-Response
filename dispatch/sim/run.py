@@ -48,7 +48,7 @@ def build_results(main: list[dict]) -> dict:
     heuristic_911, today = runs_of(main, "heuristic_911"), runs_of(main, "today_911")
     dispatch = comparison(heuristic, ortools, "heuristic", "ortools")
     outreach = comparison(heuristic_911, heuristic, "today911Requests", "ourOutreachRequests")
-    combined = comparison(today, ortools, "today", "ours")
+    combined = comparison(today, alns, "today", "ours")
     dispatch["headline"] = headline(dispatch, "heuristic", "ortools", seeds, "Dispatch only, identical requests at identical times")
     dispatch_alns = comparison(heuristic, alns, "heuristic", "alns")
     dispatch_alns["headline"] = headline(dispatch_alns, "heuristic", "alns", seeds, "Dispatch only (ALNS), identical requests at identical times")

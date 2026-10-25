@@ -8,6 +8,7 @@ import { RangeRow } from "./range";
 import { DoorFairness, Simulator, Spread } from "./results";
 
 const COMPARISONS = [
+  { key: "dispatchOnlyAlns", label: "ALNS vs heuristic" },
   { key: "dispatchOnly", label: "OR-Tools vs heuristic" },
   { key: "outreachOnly", label: "Our calls vs 911 alone" },
   { key: "combined", label: "Both together" },

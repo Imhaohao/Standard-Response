@@ -11,7 +11,7 @@ import { Panel } from "../ui/panel";
 import { Disclosure } from "./disclosure";
 import { Tag } from "../ui/tag";
 
-const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools" } as const;
+const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools", alns: "ALNS" } as const;
 
 const CHANGE_KINDS = [
   { kind: "offer", label: "Offered" },

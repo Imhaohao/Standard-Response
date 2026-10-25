@@ -366,12 +366,12 @@ export default defineSchema({
 
   plans: defineTable({
     version: v.number(),
-    solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools")),
+    solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools"), v.literal("alns")),
     solveMs: v.number(),
     // Track C: the size of the problem this plan solved, for the solver panel.
     requestCount: v.optional(v.number()),
     vehicleCount: v.optional(v.number()),
-    // Why the heuristic ran instead of OR-Tools ("solver service unreachable"), when it did.
+    // Why the heuristic ran instead of the solver service ("solver service unreachable"), when it did.
     fallbackReason: v.optional(v.string()),
     changes: v.array(
       v.object({
@@ -509,7 +509,7 @@ export default defineSchema({
     lastReplanAt: v.number(),
     // Closures already planned around. A new one triggers a re-plan right away.
     closuresSeen: v.number(),
-    lastSolver: v.optional(v.union(v.literal("heuristic"), v.literal("ortools"))),
+    lastSolver: v.optional(v.union(v.literal("heuristic"), v.literal("ortools"), v.literal("alns"))),
     lastSolveMs: v.optional(v.number()),
     lastFallbackReason: v.optional(v.string()),
     lastError: v.optional(v.string()),

@@ -259,7 +259,7 @@ export function buildWorld(snap: Snapshot, now: number) {
   const matrix = locations.nodes.map((from) => locations.nodes.map((to) => context.travel.seconds(from, to)));
 
   const problem: Problem = {
-    policy: "ortools",
+    policy: "alns",
     locations: locations.nodes.map(nodePoint),
     matrix,
     vehicles: problemVehicles,
@@ -291,6 +291,9 @@ function solverHeaders(): Record<string, string> {
   return token ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` } : { "Content-Type": "application/json" };
 }
 
+// A service built before ALNS ignores the policy and answers with OR-Tools; the plan records which one ran.
+const SERVICE_SOLVERS = ["alns", "ortools", "heuristic"] as const;
+
 async function askSolverService(url: string, problem: Problem): Promise<Solution> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SOLVER_TIMEOUT_MS);
@@ -304,17 +307,17 @@ async function askSolverService(url: string, problem: Problem): Promise<Solution
     if (!response.ok) throw new Error(`solver service returned ${response.status}`);
     const body: unknown = await response.json();
     if (!isSolution(body)) throw new Error("solver service sent an unreadable plan");
-    return { ...body, solver: "ortools" };
+    return { ...body, solver: SERVICE_SOLVERS.find((name) => name === body.solver) ?? "ortools" };
   } finally {
     clearTimeout(timer);
   }
 }
 
-// OR-Tools when the service answers in time, otherwise the heuristic. The plan records why.
+// The solver service (ALNS) when it answers in time, otherwise the heuristic. The plan records why.
 export async function solve(problem: Problem): Promise<{ solution: Solution; fallbackReason?: string }> {
   const url = process.env.SOLVER_URL;
   if (problem.requests.length === 0) {
-    return { solution: { routes: [], dropped: [], solver: url ? "ortools" : "heuristic", solveMs: 0 } };
+    return { solution: { routes: [], dropped: [], solver: url ? "alns" : "heuristic", solveMs: 0 } };
   }
   if (!url) return { solution: solveHeuristic(problem), fallbackReason: "no solver service configured" };
   try {

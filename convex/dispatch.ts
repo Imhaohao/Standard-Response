@@ -14,7 +14,7 @@ import { simNow } from "./clock";
 
 // Track C's real dispatcher. Every few seconds, and right away when a road closes, it snapshots the
 // world, forecasts each vehicle's accepted run, revokes pickups a closure has made unreachable in
-// time, and asks OR-Tools (or the heuristic when the solver service is down) for new offers.
+// time, and asks the ALNS solver service (or the heuristic when it is down) for new offers.
 // Every write goes through writePlan, so the contract's rules hold for this dispatcher too.
 
 const REPLAN_EVERY_MS = 5_000;
@@ -91,7 +91,7 @@ export const commitArgs = {
   escalate: v.array(v.id("households")),
   closureEdges: v.array(v.object({ closureId: v.id("roadClosures"), edgeKeys: v.array(v.string()), streets: v.array(v.string()) })),
   closuresSeen: v.number(),
-  solver: v.union(v.literal("heuristic"), v.literal("ortools")),
+  solver: v.union(v.literal("heuristic"), v.literal("ortools"), v.literal("alns")),
   solveMs: v.number(),
   requestCount: v.number(),
   vehicleCount: v.number(),
@@ -244,7 +244,7 @@ export const fail = internalMutation({
   },
 });
 
-// Solver panel: what the re-planner did last, and whether the OR-Tools service is configured.
+// Solver panel: what the re-planner did last, and whether the solver service is configured.
 export const status = query({
   args: {},
   handler: async (ctx) => {

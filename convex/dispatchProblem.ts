@@ -27,7 +27,7 @@ export type ProblemRequest = {
 };
 
 export type Problem = {
-  policy: "ortools" | "heuristic";
+  policy: "alns" | "ortools" | "heuristic";
   locations: { lat: number; lng: number }[];
   matrix: (number | null)[][];
   vehicles: ProblemVehicle[];
@@ -41,7 +41,7 @@ export type PlannedStop = { request: string; kind: "pickup" | "dropoff"; shelter
 export type Solution = {
   routes: { vehicle: string; stops: PlannedStop[] }[];
   dropped: string[];
-  solver: "ortools" | "heuristic";
+  solver: "alns" | "ortools" | "heuristic";
   solveMs: number;
 };
 

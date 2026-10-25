@@ -10,7 +10,7 @@ import { RangeRow } from "./range";
 import { ExplorationScenario, MeanSpread, NeedModel, NeedScores, SensitivityRow, Simulator, Spread } from "./results";
 
 type Factor = "fleetSize" | "answerRate" | "hazardSpeed" | "call911Lead";
-type Comparison = "combined" | "dispatchOnly";
+type Comparison = "combined" | "dispatchOnlyAlns" | "dispatchOnly";
 
 const FACTORS: readonly { value: Factor; label: string; level: (value: number) => string }[] = [
   { value: "fleetSize", label: "Fleet", level: (value) => `${value} vehicles` },
@@ -21,6 +21,7 @@ const FACTORS: readonly { value: Factor; label: string; level: (value: number) =
 
 const COMPARISONS: readonly { value: Comparison; label: string }[] = [
   { value: "combined", label: "Both together" },
+  { value: "dispatchOnlyAlns", label: "ALNS vs heuristic" },
   { value: "dispatchOnly", label: "OR-Tools vs heuristic" },
 ];
 
