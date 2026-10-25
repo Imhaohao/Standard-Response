@@ -54,6 +54,7 @@ export type Reading = {
   feeling?: string;
   ack?: string;
   reply?: string;
+  policy_question?: string;
 };
 
 // checked: both readers agreed on what the turn means (voice/knowledge/checker.ts). Only checked

@@ -11,7 +11,8 @@ import { LINES, type Language } from "../../voice/agent/script";
 // lookup, which is what a call hears when Moss is down. Simulated questions, not real riders.
 //
 //   npm run moss:index     after changing voice/agent/approvedAnswers.ts
-//   npm run moss:check     writes data/moss-answer-check.json
+//   npm run moss:check                 writes data/moss-answer-check.json
+//   npm run moss:check -- --runs 3     every question three times, since Claude's reading varies
 
 const RESULTS_FILE = "data/moss-answer-check.json";
 const CONCURRENCY = 4;
@@ -64,10 +65,11 @@ function armOf(heard: Interpretation, expect: ApprovedAnswerId | null): Arm {
   return { answer, reply: heard.reply, correct: answer === expect, unsafeYes: expectsSafety && ordinary };
 }
 
-async function check({ language, utterance, expect }: (typeof CASES)[number]) {
+async function check({ language, utterance, expect, run }: (typeof CASES)[number] & { run: number }) {
   const heard = await interpretFor(turnFor(language, utterance), DEFAULT_HAZARD);
   const match = await findApprovedAnswer(heard.policyQuestion);
   return {
+    run,
     language,
     utterance,
     expect,
@@ -111,13 +113,17 @@ async function main() {
   if (!mossClient()) throw new Error("Set MOSS_PROJECT_ID and MOSS_PROJECT_KEY in .env.local");
   await loadApprovedAnswers();
   if (!(await findApprovedAnswer("Can I bring my dog?"))) throw new Error("The approved-answer index didn't load. Run npm run moss:index first.");
-  const rows = await pooled(CASES, check);
+  const at = process.argv.indexOf("--runs");
+  const runs = Math.max(1, Number(at >= 0 ? process.argv[at + 1] : 1));
+  const jobs = Array.from({ length: runs }, (_, run) => CASES.map((entry) => ({ ...entry, run: run + 1 }))).flat();
+  const rows = await pooled(jobs, check);
   const lookups = rows.flatMap((row) => (row.lookupMs === null ? [] : [row.lookupMs])).sort((a, b) => a - b);
   const result = {
     label: "Approved and safety answers with and without Moss. Simulated questions through the live interpreter, not real riders.",
     generatedAt: new Date().toISOString(),
     agentModel: process.env.VOICE_MODEL || "claude-haiku-5-5",
     minScore: Number(process.env.MOSS_MIN_SCORE ?? 0.7),
+    runs,
     withMoss: summary(rows, "withMoss"),
     withoutMoss: summary(rows, "withoutMoss"),
     lookupMsMedian: lookups.length ? lookups[Math.floor(lookups.length / 2)] : null,
@@ -127,7 +133,7 @@ async function main() {
   console.log(`With Moss:    ${JSON.stringify(result.withMoss)}`);
   console.log(`Without Moss: ${JSON.stringify(result.withoutMoss)}`);
   for (const row of rows.filter((entry) => !entry.withMoss.correct)) {
-    console.log(`  miss [${row.language}] "${row.utterance}" -> heard "${row.policyQuestion}", matched ${row.withMoss.answer} (${row.mossScore?.toFixed(2) ?? "-"}), expected ${row.expect}`);
+    console.log(`  miss #${row.run} [${row.language}] "${row.utterance}" -> heard "${row.policyQuestion}", matched ${row.withMoss.answer} (${row.mossScore?.toFixed(2) ?? "-"}), expected ${row.expect}`);
   }
   console.log(`\nEvery question and answer: ${RESULTS_FILE}`);
   process.exit(0);

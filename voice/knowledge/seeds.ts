@@ -73,6 +73,10 @@ const TWISTS = [
   "isn't sure whether they can leave",
   "says it's just them, then remembers someone else is home",
   "speech-to-text garbles a word or two",
+  "asks whether they can bring a pet, their oxygen, a walker or a family member along",
+  "asks whether the ride costs anything, or what the shelter has",
+  "asks whether to go back inside, or back for a pet or a neighbor",
+  "asks whether to take extra medicine or turn their oxygen up because of the smoke",
 ];
 
 const MOBILITY = ["walks", "walks", "walker", "manual_wheelchair", "power_wheelchair", "bedbound"];
