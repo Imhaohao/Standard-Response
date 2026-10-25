@@ -5,10 +5,8 @@
 // Lake, with 25 vans. Only the process differs. Other pairs from the same table:
 //   10:50 p.m., 50 vans: today 68, ours 642
 //   3:25 a.m. (the real order), 50 vans: today 43, ours 356
-const SAME_NIGHT = "Calls from 10:50 p.m., the first fire west of Lake, 25 vans";
-
 export const NIGHT_OUTCOME = {
   households: 662,
-  today: { out: 39, setup: SAME_NIGHT },
-  ours: { out: 641, setup: SAME_NIGHT },
+  today: { out: 39 },
+  ours: { out: 641 },
 } as const;

@@ -5,78 +5,97 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 import type { Beat } from "../script";
 import { Show } from "../show";
-import { STAGE } from "../stage";
+import { STAGE, stageCanvasRatio } from "../stage";
 import { Wordmark } from "../wordmark";
-import { CallPile, DRAINS, PILE } from "./dispatch/call-pile";
+import { AREA as ROOM, CALL_RADIUS, CallTubes, TUBE, tubeCenter, type Call } from "./dispatch/call-tubes";
 
-const AREA = { left: STAGE.width - PILE.columns * PILE.cell - 140, top: 50, width: PILE.columns * PILE.cell, height: PILE.rows * PILE.cell };
+const AREA = { left: STAGE.width - ROOM.width - 140, top: 50, ...ROOM };
 const SEAT = { size: 112, top: AREA.top + AREA.height + 22 };
-const GRAIN = 3.6;
-const PREFILL_TICKS = 600;
+// With reduced motion the room is shown this far into the beat, already backed up, and holds still.
+const STILL_SECONDS = 10;
+const MAX_STEP = 0.05;
 
 type SeatRings = React.RefObject<(HTMLSpanElement | null)[]>;
+type Colors = { call: string; tube: string };
 
-function drawPile(ctx: CanvasRenderingContext2D, pile: CallPile, colors: { call: string; floor: string }) {
-  ctx.clearRect(0, 0, AREA.width, AREA.height + 4);
-  ctx.fillStyle = colors.call;
+function drawCall(ctx: CanvasRenderingContext2D, call: Call) {
+  ctx.globalAlpha = call.alpha;
   ctx.beginPath();
-  for (let row = 0; row < PILE.rows; row++) {
-    for (let column = 0; column < PILE.columns; column++) {
-      if (!pile.grid[row * PILE.columns + column]) continue;
-      const [x, y] = [column * PILE.cell + PILE.cell / 2, row * PILE.cell + PILE.cell / 2];
-      ctx.moveTo(x + GRAIN, y);
-      ctx.arc(x, y, GRAIN, 0, Math.PI * 2);
-    }
-  }
+  ctx.arc(call.x, call.y, CALL_RADIUS, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = colors.floor;
-  let from = 0;
-  for (const drain of [...DRAINS, PILE.columns]) {
-    ctx.fillRect(from * PILE.cell, AREA.height, (drain - from) * PILE.cell, 3);
-    from = drain + 1;
+}
+
+function drawTubes(ctx: CanvasRenderingContext2D, color: string) {
+  ctx.fillStyle = color;
+  for (let tube = 0; tube < TUBE.count; tube++) {
+    ctx.beginPath();
+    ctx.roundRect(tubeCenter(tube) - TUBE.width / 2, TUBE.top, TUBE.width, TUBE.bottom - TUBE.top + 4, TUBE.width / 2);
+    ctx.fill();
   }
 }
 
-function lightSeats(pile: CallPile, rings: SeatRings) {
-  for (const [d, ring] of rings.current.entries()) if (ring) ring.style.opacity = pile.isAnswering(d) ? "1" : "0";
+function drawRoom(ctx: CanvasRenderingContext2D, room: CallTubes, colors: Colors) {
+  ctx.clearRect(0, 0, AREA.width, AREA.height);
+  drawTubes(ctx, colors.tube);
+  ctx.fillStyle = colors.call;
+  for (const line of room.lines) {
+    if (line.answering) drawCall(ctx, line.answering);
+    for (const call of line.waiting) drawCall(ctx, call);
+  }
+  for (const call of room.spilled) drawCall(ctx, call);
+  ctx.globalAlpha = 1;
 }
 
-// Runs the pile while the beat is up. With reduced motion the pile starts already backed up and holds still.
-function usePile(running: boolean, canvasRef: React.RefObject<HTMLCanvasElement | null>, rings: SeatRings) {
+function lightSeats(room: CallTubes, rings: SeatRings) {
+  for (const [d, ring] of rings.current.entries()) if (ring) ring.style.opacity = room.isAnswering(d) ? "1" : "0";
+}
+
+function readColors(): Colors {
+  const css = getComputedStyle(document.documentElement);
+  return { call: css.getPropertyValue("--signal").trim(), tube: css.getPropertyValue("--night-raised").trim() };
+}
+
+// Runs the room while the beat is up. With reduced motion it starts already backed up and holds still.
+function useRoom(running: boolean, canvasRef: React.RefObject<HTMLCanvasElement | null>, rings: SeatRings) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !running) return;
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const ratio = stageCanvasRatio();
     canvas.width = AREA.width * ratio;
-    canvas.height = (AREA.height + 4) * ratio;
+    canvas.height = AREA.height * ratio;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const css = getComputedStyle(document.documentElement);
-    const colors = { call: css.getPropertyValue("--signal").trim(), floor: css.getPropertyValue("--on-night-muted").trim() };
-    const pile = new CallPile();
+    const colors = readColors();
+    const room = new CallTubes();
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (still) for (let i = 0; i < PREFILL_TICKS; i++) pile.step();
+    if (still) {
+      while (room.seconds < STILL_SECONDS) room.step(1 / 60);
+      drawRoom(ctx, room, colors);
+      return;
+    }
     let frame = 0;
-    const tick = () => {
-      if (!still) pile.step();
-      drawPile(ctx, pile, colors);
-      lightSeats(pile, rings);
-      if (!still) frame = requestAnimationFrame(tick);
+    let last = performance.now();
+    const tick = (now: number) => {
+      room.step(Math.min(MAX_STEP, (now - last) / 1000));
+      last = now;
+      drawRoom(ctx, room, colors);
+      lightSeats(room, rings);
+      frame = requestAnimationFrame(tick);
     };
-    tick();
+    frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [running, canvasRef, rings]);
 }
 
-// The four dispatchers sit under the four ways through; a seat's ring flashes red as it picks up a call.
+// The four dispatchers sit under their four lines; a seat's ring flashes red as it picks up a call.
 function Seats({ shown, ringRef }: { shown: boolean; ringRef: (d: number) => (node: HTMLSpanElement | null) => void }) {
   return (
     <Show when={shown} rise={0} className="absolute inset-0">
-      {DRAINS.map((column, d) => (
+      {Array.from({ length: TUBE.count }, (_, d) => (
         <span
-          key={column}
+          key={d}
           className="absolute flex items-center justify-center rounded-full bg-night-raised text-on-night"
-          style={{ left: AREA.left + column * PILE.cell + PILE.cell / 2 - SEAT.size / 2, top: SEAT.top, width: SEAT.size, height: SEAT.size }}
+          style={{ left: AREA.left + tubeCenter(d) - SEAT.size / 2, top: SEAT.top, width: SEAT.size, height: SEAT.size }}
         >
           <span ref={ringRef(d)} className="absolute inset-0 rounded-full ring-4 ring-signal transition-opacity duration-150" style={{ opacity: 0 }} />
           <Headset size={56} weight="regular" aria-hidden />
@@ -97,13 +116,13 @@ export function DispatchScene({ beat }: { beat: Beat }) {
     },
     [],
   );
-  usePile(swamped || built, canvasRef, rings);
+  useRoom(swamped || built, canvasRef, rings);
   return (
     <>
       <motion.canvas
         ref={canvasRef}
         className="pointer-events-none absolute"
-        style={{ left: AREA.left, top: AREA.top, width: AREA.width, height: AREA.height + 4 }}
+        style={{ left: AREA.left, top: AREA.top, width: AREA.width, height: AREA.height }}
         initial={false}
         animate={{ opacity: swamped ? 1 : built ? 0.08 : 0 }}
         transition={{ duration: built ? 1.2 : 0.4 }}

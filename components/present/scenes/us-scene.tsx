@@ -1,6 +1,6 @@
 "use client";
 
-import { Drop, Fire, Hurricane, Person, type Icon } from "@phosphor-icons/react";
+import { Drop, Fire, Hurricane, Person, Snowflake, ThermometerHot, Tornado, type Icon } from "@phosphor-icons/react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import { motion } from "motion/react";
 import { feature, mesh } from "topojson-client";
@@ -10,7 +10,7 @@ import { cameraMove, sceneMove } from "../motion";
 import type { Beat } from "../script";
 import { Percent } from "../percent";
 import { Show } from "../show";
-import { DISASTERS, type DisasterKind, type LabelSide } from "./disasters";
+import { DISASTERS, MARK, placeLabels, type DisasterKind, type LabelPlace, type LabelSide } from "./disasters";
 
 // us-atlas ships the states already projected to Albers USA in a 975 by 610 box; points go through
 // the same projection so they land on the same ground.
@@ -27,34 +27,49 @@ const MAP_TOP = 120;
 // The map opens zoomed in on Altadena, where the last slide left off, and pulls back to the country.
 const START_ZOOM = 9;
 
-const ICONS: Record<DisasterKind, Icon> = { fire: Fire, hurricane: Hurricane, flood: Drop };
+const ICONS: Record<DisasterKind, Icon> = { fire: Fire, hurricane: Hurricane, flood: Drop, tornado: Tornado, freeze: Snowflake, heat: ThermometerHot };
 
-const placed = DISASTERS.map((disaster) => {
+const projected = DISASTERS.map((disaster) => {
   const [x, y] = albers([disaster.lng, disaster.lat]) ?? [0, 0];
-  return { ...disaster, x: MAP_LEFT + x * SCALE, y: MAP_TOP + y * SCALE };
+  return { ...disaster, x: MAP_LEFT + x * SCALE, y: MAP_TOP + y * SCALE, text: `${disaster.name} ${disaster.year}` };
 });
+const places = placeLabels(projected);
+const placed = projected.map((disaster, i) => ({ ...disaster, ...places[i] }));
 const altadena = placed[0];
 
-const MARK_RADIUS = 30;
-const LAYOUT: Record<LabelSide, string> = { right: "items-center", left: "flex-row-reverse items-center", below: "flex-col items-start" };
+// Each mark's center sits on its place; the label hangs off the side placeLabels chose.
+const LAYOUT: Record<LabelSide, string> = {
+  right: "items-center",
+  left: "flex-row-reverse items-center",
+  above: "-translate-x-1/2 flex-col-reverse items-center",
+  below: "-translate-x-1/2 flex-col items-center",
+};
 
-function anchor({ x, y, label }: { x: number; y: number; label: LabelSide }) {
-  if (label === "left") return { right: 1920 - x - MARK_RADIUS, top: y - MARK_RADIUS };
-  return { left: x - MARK_RADIUS, top: y - MARK_RADIUS };
+function anchor({ x, y, side }: { x: number; y: number; side: LabelSide }) {
+  const half = MARK / 2;
+  if (side === "left") return { right: 1920 - x - half, top: y - half };
+  if (side === "right") return { left: x - half, top: y - half };
+  if (side === "above") return { left: x, bottom: 1080 - y - half };
+  return { left: x, top: y - half };
 }
+
+// A label slid up or down beside its mark, when the centred spot was taken.
+const shiftOf = ({ shift }: LabelPlace) => (shift ? `translateY(${shift}px)` : undefined);
 
 function DisasterMark({ disaster, shown, delay, first }: { disaster: (typeof placed)[number]; shown: boolean; delay: number; first: boolean }) {
   const Glyph = ICONS[disaster.kind];
   return (
-    <Show when={shown} delay={delay} rise={10} className={`absolute flex gap-4 ${LAYOUT[disaster.label]}`} style={anchor(disaster)}>
-      <span
-        className={`flex size-[60px] shrink-0 items-center justify-center rounded-full bg-signal text-on-night ${first ? "shadow-[0_0_0_6px_var(--night),0_0_48px_14px_oklch(0.585_0.215_27/0.55)]" : "shadow-[0_0_0_4px_var(--night)]"}`}
-      >
-        <Glyph size={32} weight="fill" aria-hidden />
-      </span>
-      <span className="whitespace-nowrap rounded-xl bg-night/80 px-3 py-1">
-        <span className="type-deck-label block">{disaster.name}</span>
-        <span className="type-deck-note block text-on-night-muted tabular-nums">{disaster.year}</span>
+    <Show when={shown} delay={delay} rise={10} className="absolute" style={anchor(disaster)}>
+      <span className={`flex gap-2 ${LAYOUT[disaster.side]}`}>
+        <span
+          className={`flex shrink-0 items-center justify-center rounded-full bg-signal text-on-night ${first ? "shadow-[0_0_0_5px_var(--night),0_0_40px_12px_oklch(0.585_0.215_27/0.55)]" : "shadow-[0_0_0_3px_var(--night)]"}`}
+          style={{ width: MARK, height: MARK }}
+        >
+          <Glyph size={20} weight="fill" aria-hidden />
+        </span>
+        <span className="type-deck-note whitespace-nowrap rounded-lg bg-night/80 px-2.5" style={{ transform: shiftOf(disaster) }}>
+          {disaster.name} <span className="tabular-nums text-on-night-muted">{disaster.year}</span>
+        </span>
       </span>
     </Show>
   );
@@ -92,7 +107,7 @@ function EightyPercent({ shown }: { shown: boolean }) {
           80
           <Percent />
         </p>
-        <p className="type-deck-lede mt-10">of people with disabilities can’t evacuate right away without difficulty</p>
+        <p className="type-deck-lede mt-10">of people with disabilities can’t evacuate without difficulty</p>
       </Show>
       <div className="absolute grid grid-cols-5 gap-x-6 gap-y-10" style={{ left: 940, top: 270 }} aria-hidden>
         {Array.from({ length: PEOPLE }, (_, i) => (
@@ -120,7 +135,7 @@ export function UsScene({ beat }: { beat: Beat }) {
     <>
       <UsMap beat={beat} />
       {placed.map((disaster, i) => (
-        <DisasterMark key={disaster.name} disaster={disaster} shown={marking} first={i === 0} delay={i === 0 ? 0.6 : 1.4 + i * 0.16} />
+        <DisasterMark key={disaster.name} disaster={disaster} shown={marking} first={i === 0} delay={i === 0 ? 0.6 : 1.2 + i * 0.07} />
       ))}
       <EightyPercent shown={beat === "eighty"} />
     </>

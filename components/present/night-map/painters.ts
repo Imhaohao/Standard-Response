@@ -37,11 +37,55 @@ function pathLength(screen: ScreenPoint[]) {
   return length;
 }
 
-// A line along `points`, drawn on from its start over `progress` (0 to 1).
-export function strokeRoute(ctx: Ctx, project: Project, points: Point[], style: { color: string; width: number; progress: number; glow?: number }) {
+// The first `upTo` pixels of a path, ending partway along a segment.
+function partialPath(screen: ScreenPoint[], upTo: number) {
+  const shown = [screen[0]];
+  let travelled = 0;
+  for (let i = 1; i < screen.length; i++) {
+    const [a, b] = [screen[i - 1], screen[i]];
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (travelled + length >= upTo) {
+      const t = length === 0 ? 0 : (upTo - travelled) / length;
+      shown.push({ ...b, x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      return shown;
+    }
+    travelled += length;
+    shown.push(b);
+  }
+  return shown;
+}
+
+const ARROW_SPACING = 90;
+
+// Small chevrons along a route, every ARROW_SPACING pixels, pointing the way it is driven.
+function paintChevrons(ctx: Ctx, screen: ScreenPoint[], size: number) {
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  let untilNext = ARROW_SPACING / 2;
+  for (let i = 1; i < screen.length; i++) {
+    const [a, b] = [screen[i - 1], screen[i]];
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length === 0) continue;
+    const [ux, uy] = [(b.x - a.x) / length, (b.y - a.y) / length];
+    for (let along = untilNext; along <= length; along += ARROW_SPACING) {
+      const [x, y] = [a.x + ux * along, a.y + uy * along];
+      ctx.moveTo(x - ux * size - uy * size * 0.8, y - uy * size + ux * size * 0.8);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x - ux * size + uy * size * 0.8, y - uy * size - ux * size * 0.8);
+    }
+    untilNext = untilNext > length ? untilNext - length : ARROW_SPACING - ((length - untilNext) % ARROW_SPACING);
+  }
+  ctx.stroke();
+}
+
+export type RouteStyle = { color: string; width: number; progress: number; glow?: number; dashed?: boolean; arrows?: boolean };
+
+// A line along `points`, drawn on from its start over `progress` (0 to 1). Dashed lines are the
+// emergency services' runs; arrows show which way a run is driven.
+export function strokeRoute(ctx: Ctx, project: Project, points: Point[], style: RouteStyle) {
   if (points.length < 2 || style.progress <= 0) return;
   const screen = points.map(project);
-  const length = pathLength(screen);
+  const shown = style.progress >= 1 ? screen : partialPath(screen, pathLength(screen) * easeOut(style.progress));
   ctx.save();
   ctx.strokeStyle = style.color;
   ctx.lineWidth = style.width;
@@ -49,9 +93,10 @@ export function strokeRoute(ctx: Ctx, project: Project, points: Point[], style: 
   ctx.lineCap = "round";
   ctx.shadowColor = style.color;
   ctx.shadowBlur = style.glow ?? 0;
-  ctx.setLineDash([length * easeOut(style.progress), length]);
-  tracePath(ctx, screen);
+  ctx.setLineDash(style.dashed ? [style.width * 2.4, style.width * 2] : []);
+  tracePath(ctx, shown);
   ctx.stroke();
+  if (style.arrows) paintChevrons(ctx, shown, style.width * 1.6 + 3);
   ctx.restore();
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { Point } from "@/lib/ink-map/data";
 import type { InkMapRenderer } from "@/lib/ink-map/renderer";
 import { STAGE, stageCanvasRatio } from "../stage";
+import { readPalette } from "./painters";
 
 // How long the wave takes to cross town, and how long each home's ring lasts.
 const WAVE_MS = 2600;
@@ -25,50 +26,121 @@ function placeHomes(renderer: InkMapRenderer, homes: Point[]): Placed[] {
   return placed;
 }
 
-function drawHome(ctx: CanvasRenderingContext2D, home: Placed, elapsed: number) {
-  const t = elapsed - home.at;
-  if (t < 0) {
-    ctx.fillStyle = "oklch(0.72 0.01 70 / 0.35)";
-    ctx.fillRect(home.x - 1.5, home.y - 1.5, 3, 3);
-    return;
-  }
-  ctx.fillStyle = "oklch(0.95 0.006 85 / 0.7)";
-  ctx.fillRect(home.x - 1.5, home.y - 1.5, 3, 3);
-  if (t > RING_MS) return;
-  const k = t / RING_MS;
-  ctx.strokeStyle = `oklch(0.95 0.006 85 / ${0.7 * (1 - k)})`;
+const DOT = 3;
+// Rings are drawn in this many alpha steps, one path each, instead of one stroke per home.
+const RING_STEPS = 10;
+
+type Colors = { waiting: string; called: string };
+
+function readColors(): Colors {
+  const palette = readPalette();
+  return { waiting: palette.muted, called: palette.ink };
+}
+
+// Every home starts as a faint dot, drawn once.
+function drawWaiting(ctx: CanvasRenderingContext2D, placed: Placed[], colors: Colors) {
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = colors.waiting;
   ctx.beginPath();
-  ctx.arc(home.x, home.y, 3 + k * 14, 0, Math.PI * 2);
-  ctx.stroke();
+  for (const home of placed) ctx.rect(home.x - DOT / 2, home.y - DOT / 2, DOT, DOT);
+  ctx.fill();
+}
+
+// Homes whose call has just gone out turn bright. Only the new ones are drawn each frame.
+function drawCalled(ctx: CanvasRenderingContext2D, placed: Placed[], from: number, to: number, colors: Colors) {
+  if (from >= to) return;
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle = colors.called;
+  ctx.beginPath();
+  for (let i = from; i < to; i++) {
+    const home = placed[i];
+    ctx.clearRect(home.x - DOT / 2, home.y - DOT / 2, DOT, DOT);
+    ctx.rect(home.x - DOT / 2, home.y - DOT / 2, DOT, DOT);
+  }
+  ctx.fill();
+}
+
+// The rings still spreading, grouped by how far along they are so each group is one stroke.
+function drawRings(ctx: CanvasRenderingContext2D, placed: Placed[], from: number, to: number, elapsed: number, colors: Colors) {
+  ctx.clearRect(0, 0, STAGE.width, STAGE.height);
+  ctx.strokeStyle = colors.called;
+  ctx.lineWidth = 1.2;
+  for (let step = 0; step < RING_STEPS; step++) {
+    const k = (step + 0.5) / RING_STEPS;
+    const radius = 3 + k * 14;
+    ctx.beginPath();
+    for (let i = from; i < to; i++) {
+      const home = placed[i];
+      if (Math.min(Math.floor(((elapsed - home.at) / RING_MS) * RING_STEPS), RING_STEPS - 1) !== step) continue;
+      ctx.moveTo(home.x + radius, home.y);
+      ctx.arc(home.x, home.y, radius, 0, Math.PI * 2);
+    }
+    ctx.globalAlpha = 0.7 * (1 - k);
+    ctx.stroke();
+  }
+}
+
+function prepare(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const ratio = stageCanvasRatio();
+  canvas.width = STAGE.width * ratio;
+  canvas.height = STAGE.height * ratio;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  return ctx;
+}
+
+// Runs the wave once: dots light up as their call goes out, rings spread and fade, and the loop
+// stops once the last ring is gone. Homes are sorted by start time, so each frame touches only
+// the homes whose ring is still spreading.
+function runWave(dots: CanvasRenderingContext2D, rings: CanvasRenderingContext2D, placed: Placed[]) {
+  const colors = readColors();
+  drawWaiting(dots, placed, colors);
+  const began = performance.now();
+  let [fading, called, frame] = [0, 0, 0];
+  const tick = (now: number) => {
+    const elapsed = now - began;
+    const nextCalled = firstAfter(placed, elapsed, called);
+    drawCalled(dots, placed, called, nextCalled, colors);
+    called = nextCalled;
+    fading = firstAfter(placed, elapsed - RING_MS, fading);
+    drawRings(rings, placed, fading, called, elapsed, colors);
+    if (fading < placed.length) frame = requestAnimationFrame(tick);
+  };
+  frame = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(frame);
+}
+
+// The first home, from `start` on, whose call goes out after `time`.
+function firstAfter(placed: Placed[], time: number, start: number) {
+  let i = start;
+  while (i < placed.length && placed[i].at <= time) i++;
+  return i;
 }
 
 // Every home in town gets its call at once: a light on each roof and a ring going out from it.
 export function CallWave({ renderer, homes, running }: { renderer: InkMapRenderer | null; homes: Point[]; running: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dotsRef = useRef<HTMLCanvasElement>(null);
+  const ringsRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || !renderer || !running) return;
-    const ratio = stageCanvasRatio();
-    canvas.width = STAGE.width * ratio;
-    canvas.height = STAGE.height * ratio;
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.lineWidth = 1.2;
-    const placed = placeHomes(renderer, homes);
-    const began = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      ctx.clearRect(0, 0, STAGE.width, STAGE.height);
-      for (const home of placed) drawHome(ctx, home, now - began);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
+    const [dotsCanvas, ringsCanvas] = [dotsRef.current, ringsRef.current];
+    if (!dotsCanvas || !ringsCanvas || !renderer || !running) return;
+    const [dots, rings] = [prepare(dotsCanvas), prepare(ringsCanvas)];
+    if (!dots || !rings) return;
+    const placed = placeHomes(renderer, homes).sort((a, b) => a.at - b.at);
+    const stop = runWave(dots, rings, placed);
     return () => {
-      cancelAnimationFrame(frame);
-      ctx.clearRect(0, 0, STAGE.width, STAGE.height);
+      stop();
+      dots.clearRect(0, 0, STAGE.width, STAGE.height);
+      rings.clearRect(0, 0, STAGE.width, STAGE.height);
     };
   }, [renderer, homes, running]);
 
-  return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 size-full" aria-hidden />;
+  return (
+    <>
+      <canvas ref={dotsRef} className="pointer-events-none absolute inset-0 size-full" aria-hidden />
+      <canvas ref={ringsRef} className="pointer-events-none absolute inset-0 size-full" aria-hidden />
+    </>
+  );
 }

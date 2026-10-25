@@ -99,7 +99,7 @@ export function StoryScene({ beat }: { beat: Beat }) {
       </Show>
       <Show when={beat === "anthony"} delay={0.3} className="absolute" style={{ left: 128, bottom: 120, width: 820 }}>
         <p className="type-deck-title">Anthony Mitchell</p>
-        <p className="type-deck-lede mt-4 text-on-night-muted">68, west Altadena</p>
+        <p className="type-deck-lede mt-4 text-on-night-muted">68 years old</p>
       </Show>
       <Show when={beat === "night"} delay={0.6} className="absolute" style={{ left: 128, bottom: 120 }}>
         <p className="type-deck-title">Eaton Fire</p>

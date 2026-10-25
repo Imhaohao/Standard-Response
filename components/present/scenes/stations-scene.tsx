@@ -25,10 +25,8 @@ export function StationsScene({ beat }: { beat: Beat }) {
         ))}
       </div>
       <Show when={shown} delay={0.6} className="absolute" style={{ left: 128, top: 760, width: 1580 }}>
-        <blockquote className="type-deck-quote">
-          “It would be really helpful if we could get the information about what’s going on at an individual residence ahead of time.”
-        </blockquote>
-        <p className="type-deck-lede mt-6 text-on-night-muted">Jesus, firefighter at Palo Alto Fire Station 6</p>
+        <blockquote className="type-deck-quote">“What would really be helpful would be pre-gathered information about what’s going on at an individual residence.”</blockquote>
+        <p className="type-deck-lede mt-6 text-on-night-muted">Firefighter, Palo Alto Fire Station 1</p>
       </Show>
     </>
   );

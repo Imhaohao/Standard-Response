@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import type { InkMapData, Point } from "@/lib/ink-map/data";
+import { arrivalMinutesAt, type FireField } from "@/lib/ink-map/fire-field";
 import type { InkMapRenderer } from "@/lib/ink-map/renderer";
 import { runRoute } from "@/lib/ink-map/road-route";
 import type { Beat } from "../script";
@@ -22,8 +23,10 @@ import {
   type Palette,
   type Project,
 } from "./painters";
-import type { RescuePlan } from "./rescue-plan";
+import type { RescuePlan, Rescuer } from "./rescue-plan";
+import { SHOTS } from "./shots";
 import type { Town } from "./town";
+import type { StoryMap } from "./use-story-map";
 
 // How fast the crowd night runs against the wall clock, and how much of each frame it may take.
 const CROWD_SPEED = 30;
@@ -41,27 +44,49 @@ type Scene = { town: Town; plan: RescuePlan; crowd: DeckCrowd; close: CloseRoute
 const progressOf = (elapsed: number, delay = 0) => Math.min(Math.max((elapsed - delay) / ROUTE_DRAW_MS, 0), 1);
 
 // Rescue crews for the close come in from depots spaced around the zone's edge, so the routes to
-// every needing home join into one network from the edges inward.
+// every needing home join into one network from the edges inward. The close shows the fire at
+// SHOTS.everyone's share of its run, so the crews drive only streets it hasn't reached by then and
+// go only to homes it hasn't reached.
 const DEPOTS = 7;
 
 function nearestStart(starts: Point[], [x, y]: Point) {
   return starts.reduce((best, start) => (Math.hypot(start[0] - x, start[1] - y) < Math.hypot(best[0] - x, best[1] - y) ? start : best));
 }
 
-function depotsOn(zone: Point[]) {
-  return Array.from({ length: DEPOTS }, (_, i) => zone[Math.floor((i / DEPOTS) * zone.length)]);
+function depotsOn(zone: Point[], clear: (point: Point) => boolean) {
+  const open = zone.filter(clear);
+  const ring = open.length >= DEPOTS ? open : zone;
+  return Array.from({ length: DEPOTS }, (_, i) => ring[Math.floor((i / DEPOTS) * ring.length)]);
 }
 
-export function useCloseRoutes(data: InkMapData | null, town: Town | null, houseCenter: Point | null) {
+// Drive-graph blocks the fire has reached by `minutes`, judged at the middle of each block.
+function burnedBlocks(data: InkMapData, fire: FireField, minutes: number) {
+  const burned = new Set<string>();
+  for (const edge of data.graph.edges) {
+    const middle = edge.shape[Math.floor(edge.shape.length / 2)];
+    const arrives = middle ? arrivalMinutesAt(fire, middle) : null;
+    if (arrives !== null && arrives <= minutes) burned.add(edge.key);
+  }
+  return burned;
+}
+
+export function useCloseRoutes(story: StoryMap, town: Town | null) {
   return useMemo<CloseRoutes | null>(() => {
-    if (!data || !town || !houseCenter) return null;
-    const depots = depotsOn(town.zone);
-    const route = (to: Point) => runRoute(data, nearestStart(depots, to), [to], new Set()) ?? [];
-    const needing = town.homes.filter((home) => home.census === "need");
+    if (!town) return null;
+    const { data, fire, house } = story;
+    const minutes = SHOTS.everyone.fire * house.arrives;
+    const clear = (point: Point) => (arrivalMinutesAt(fire, point) ?? Infinity) > minutes;
+    const burned = burnedBlocks(data, fire, minutes);
+    const depots = depotsOn(town.zone, clear);
+    const route = (to: Point) => runRoute(data, nearestStart(depots, to), [to], burned);
+    const needing = town.homes.filter((home) => home.census === "need" && clear(home.at));
     const step = Math.max(1, Math.floor(needing.length / EVERYONE_ROUTES));
-    const everyone = needing.filter((_, i) => i % step === 0).map((home) => route(home.at));
-    return { house: route(houseCenter), everyone };
-  }, [data, town, houseCenter]);
+    const everyone = needing
+      .filter((_, i) => i % step === 0)
+      .map((home) => route(home.at))
+      .filter((run): run is Point[] => run !== null && run.length > 1);
+    return { house: route(house.center) ?? [], everyone };
+  }, [story, town]);
 }
 
 function paintTown(paint: Paint, layers: Layers, scene: Scene) {
@@ -76,25 +101,51 @@ function paintTown(paint: Paint, layers: Layers, scene: Scene) {
   if (layers.homes === "dim") paintCensus(ctx, project, town.homes, { elapsed: Infinity, alpha: 0.3, palette });
 }
 
+// Neighbors drive solid amber lines, the colour of "can help" on the census. Emergency services
+// drive dashed light lines. Every run carries arrows the way it is driven.
+function fleetStyle(kind: Rescuer["kind"], palette: Palette) {
+  return kind === "engine" ? { color: palette.ink, dashed: true } : { color: palette.ride, dashed: false };
+}
+
+function paintCandidates(paint: Paint, plan: RescuePlan) {
+  const { ctx, project, elapsed, palette } = paint;
+  const tried = plan.tried[Math.floor(elapsed / FLICKER_MS) % plan.tried.length];
+  ctx.globalAlpha = 0.75;
+  for (const [v, route] of tried.entries()) {
+    strokeRoute(ctx, project, route, { ...fleetStyle(plan.rescuers[v].kind, palette), width: 2, progress: 1, arrows: true });
+  }
+  ctx.globalAlpha = 1;
+}
+
+function paintRoutes(paint: Paint, plan: RescuePlan, faint: boolean) {
+  const { ctx, project, elapsed, palette } = paint;
+  ctx.globalAlpha = faint ? 0.25 : 1;
+  for (const [v, route] of plan.routes.entries()) {
+    const style = fleetStyle(plan.rescuers[v].kind, palette);
+    strokeRoute(ctx, project, route, { ...style, width: faint ? 2 : 3.5, progress: faint ? 1 : progressOf(elapsed, v * 120), glow: faint ? 0 : 8, arrows: !faint });
+  }
+  ctx.globalAlpha = 1;
+}
+
 function paintPlan(paint: Paint, layers: Layers, scene: Scene) {
   const { ctx, project, elapsed, palette } = paint;
   const { plan } = scene;
   if (layers.requests) paintRequests(ctx, project, plan.stops, { elapsed, color: palette.signal, night: palette.night });
-  if (layers.candidates) {
-    const tried = plan.tried[Math.floor(elapsed / FLICKER_MS) % plan.tried.length];
-    for (const route of tried) strokeRoute(ctx, project, route, { color: palette.ink, width: 1.8, progress: 1 });
-  }
-  if (layers.routes !== "off") {
-    const faint = layers.routes === "faint";
-    for (const [v, route] of plan.routes.entries()) {
-      const color = plan.rescuers[v].kind === "engine" ? palette.ink : palette.ride;
-      ctx.globalAlpha = faint ? 0.25 : 1;
-      strokeRoute(ctx, project, route, { color, width: faint ? 2 : 3.5, progress: faint ? 1 : progressOf(elapsed, v * 120), glow: faint ? 0 : 8 });
-    }
-    ctx.globalAlpha = 1;
-  }
+  if (layers.candidates) paintCandidates(paint, plan);
+  if (layers.routes !== "off") paintRoutes(paint, plan, layers.routes === "faint");
   if (layers.rescuers) for (const rescuer of plan.rescuers) paintRescuer(ctx, project(rescuer.start), rescuer.kind, palette);
   if (layers.routes === "draw" || layers.candidates) paintMarker(ctx, project(plan.safe), { color: palette.leaving, night: palette.night, radius: 13, rings: false, elapsed });
+}
+
+// The close's crews are emergency services, drawn the way the rescue map draws them.
+function paintClose(paint: Paint, layers: Layers, close: CloseRoutes) {
+  const { ctx, project, elapsed, palette } = paint;
+  const crew = fleetStyle("engine", palette);
+  if (layers.rescue === "house") strokeRoute(ctx, project, close.house, { ...crew, width: 5, progress: progressOf(elapsed, 1400), glow: 14, arrows: true });
+  if (layers.rescue !== "everyone") return;
+  for (const [i, route] of close.everyone.entries()) {
+    strokeRoute(ctx, project, route, { ...crew, width: 2.5, progress: progressOf(elapsed, 600 + (i % 20) * 90), glow: 6, arrows: true });
+  }
 }
 
 function paintPeople(paint: Paint, layers: Layers, scene: Scene) {
@@ -105,19 +156,56 @@ function paintPeople(paint: Paint, layers: Layers, scene: Scene) {
   if (layers.roseland !== "off") {
     paintMarker(ctx, project(town.roseland.at), { color: palette.signal, night: palette.night, radius: 14, rings: true, elapsed });
   }
-  if (layers.rescue === "house") strokeRoute(ctx, project, close.house, { color: palette.ride, width: 6, progress: progressOf(elapsed, 1400), glow: 16 });
-  if (layers.rescue === "everyone") {
-    for (const [i, route] of close.everyone.entries()) strokeRoute(ctx, project, route, { color: palette.ride, width: 3, progress: progressOf(elapsed, 600 + (i % 20) * 90), glow: 8 });
-  }
+  if (layers.rescue !== "off") paintClose(paint, layers, close);
 }
 
 type OverlayProps = { renderer: InkMapRenderer | null; beat: Beat; scene: Scene | null };
+type BeatStart = { beat: Beat; at: number };
+
+// Paints every frame for the time-based layers, and again inside each camera move, so a glide never
+// shows this frame's map under last frame's dots. A frame the camera already painted isn't painted twice.
+function runOverlay(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, renderer: InkMapRenderer, scene: Scene, started: { current: BeatStart }) {
+  const ratio = stageCanvasRatio();
+  canvas.width = STAGE.width * ratio;
+  canvas.height = STAGE.height * ratio;
+  const palette = readPalette();
+  const project: Project = (point) => renderer.project(point);
+  let paintedAt = -Infinity;
+  const paintAll = (now: number) => {
+    const { beat, at } = started.current;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, STAGE.width, STAGE.height);
+    const paint = { ctx, project, elapsed: now - at, palette };
+    const layers = layersFor(beat);
+    paintTown(paint, layers, scene);
+    paintPlan(paint, layers, scene);
+    paintPeople(paint, layers, scene);
+    paintedAt = performance.now();
+  };
+  let frame = 0;
+  let last = performance.now();
+  const tick = (now: number) => {
+    if (CROWD_RUNS.includes(started.current.beat)) {
+      scene.crowd.run(((now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
+      renderer.setFireMinutes(scene.crowd.sim.minutes);
+    }
+    last = now;
+    if (paintedAt < now) paintAll(now);
+    frame = requestAnimationFrame(tick);
+  };
+  frame = requestAnimationFrame(tick);
+  const stopFollowing = renderer.onViewChange(() => paintAll(performance.now()));
+  return () => {
+    cancelAnimationFrame(frame);
+    stopFollowing();
+  };
+}
 
 // Everything the deck draws on the night map from 3.1 on, re-projected every frame so it stays
 // pinned to the ground while the camera moves.
 export function MapOverlay({ renderer, beat, scene }: OverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const beatStarted = useRef({ beat, at: 0 });
+  const beatStarted = useRef<BeatStart>({ beat, at: 0 });
 
   useEffect(() => {
     beatStarted.current = { beat, at: performance.now() };
@@ -134,31 +222,7 @@ export function MapOverlay({ renderer, beat, scene }: OverlayProps) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
-    const ratio = stageCanvasRatio();
-    canvas.width = STAGE.width * ratio;
-    canvas.height = STAGE.height * ratio;
-    const palette = readPalette();
-    const project: Project = (point) => renderer.project(point);
-    let frame = 0;
-    let last = performance.now();
-    const tick = (now: number) => {
-      const { beat: current, at } = beatStarted.current;
-      if (CROWD_RUNS.includes(current)) {
-        scene.crowd.run(((now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
-        renderer.setFireMinutes(scene.crowd.sim.minutes);
-      }
-      last = now;
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.clearRect(0, 0, STAGE.width, STAGE.height);
-      const paint = { ctx, project, elapsed: now - at, palette };
-      const layers = layersFor(current);
-      paintTown(paint, layers, scene);
-      paintPlan(paint, layers, scene);
-      paintPeople(paint, layers, scene);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return runOverlay(canvas, ctx, renderer, scene, beatStarted);
   }, [renderer, scene, drawing]);
 
   return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 size-full" aria-hidden />;

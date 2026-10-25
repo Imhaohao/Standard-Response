@@ -1,21 +1,47 @@
 "use client";
 
 import { motion } from "motion/react";
-import type { ScreenPoint } from "@/lib/ink-map/renderer";
+import { useEffect, useRef } from "react";
+import type { Point } from "@/lib/ink-map/data";
+import type { InkMapRenderer } from "@/lib/ink-map/renderer";
 import { quickFade } from "../motion";
 import type { HouseState } from "./shots";
 
 const DOT = 26;
 
+// Pins the mark to its home from inside the renderer's view change, so it moves in the same frame
+// the map is drawn. A React state update would land a frame later and slide across the map in a glide.
+function usePinned(renderer: InkMapRenderer | null, center: Point) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [x, y] = center;
+  useEffect(() => {
+    const node = ref.current;
+    if (!renderer || !node) return;
+    const place = () => {
+      const at = renderer.project([x, y]);
+      node.style.transform = `translate3d(${at.x}px, ${at.y}px, 0)`;
+      node.style.visibility = at.visible ? "" : "hidden";
+    };
+    place();
+    const stop = renderer.onViewChange(place);
+    return () => {
+      stop();
+    };
+  }, [renderer, x, y]);
+  return ref;
+}
+
 // The deck's recurring mark: one home on the night map. Red while someone inside needs help,
 // ringing while they call, and hollow once nobody is left to answer.
-export function HouseMark({ at, state }: { at: ScreenPoint | null; state: HouseState }) {
-  if (!at) return null;
+export function HouseMark({ renderer, center, state }: { renderer: InkMapRenderer | null; center: Point; state: HouseState }) {
+  const ref = usePinned(renderer, center);
+  if (!renderer) return null;
   const lit = state === "lit" || state === "calling";
   return (
     <motion.div
-      className="pointer-events-none absolute"
-      style={{ left: at.x, top: at.y, width: 0, height: 0 }}
+      ref={ref}
+      className="pointer-events-none absolute top-0 left-0"
+      style={{ width: 0, height: 0 }}
       initial={false}
       animate={{ opacity: state === "hidden" ? 0 : 1 }}
       transition={quickFade}

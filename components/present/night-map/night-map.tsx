@@ -1,11 +1,11 @@
 "use client";
 
 import { animate, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { InkMapCanvas, InkMapHandle } from "@/components/ink-map/ink-map-canvas";
 import { TOWN_FRAME } from "@/components/map/projection";
 import type { InkMapView } from "@/lib/ink-map/camera";
-import type { BuildingState, InkMapRenderer, ScreenPoint } from "@/lib/ink-map/renderer";
+import type { BuildingState, InkMapRenderer } from "@/lib/ink-map/renderer";
 import { CAMERA_GLIDE_SECONDS, cameraMove } from "../motion";
 import type { Beat } from "../script";
 import { CallWave } from "./call-wave";
@@ -122,43 +122,21 @@ function useFireMinutes(renderer: InkMapRenderer | null, minutes: number) {
   }, [renderer, minutes]);
 }
 
-const samePlace = (a: ScreenPoint | null, b: ScreenPoint) => a !== null && a.visible === b.visible && Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
-
-// Where the story house sits on the stage, re-read every time the camera moves and handed straight
-// to the deck, so a camera glide costs one render per frame.
-function useHouseOnStage(renderer: InkMapRenderer | null, story: StoryMap, setHouseAt: Dispatch<SetStateAction<ScreenPoint | null>>) {
-  useEffect(() => {
-    if (!renderer) return;
-    const read = () => {
-      const next = renderer.project(story.house.center);
-      setHouseAt((at) => (samePlace(at, next) ? at : next));
-    };
-    read();
-    const stop = renderer.onViewChange(read);
-    return () => {
-      stop();
-    };
-  }, [renderer, story.house.center, setHouseAt]);
-}
-
 type NightMapProps = { beat: Beat; story: StoryMap; town: Town | null };
 
 export function NightMap({ beat, story, town }: NightMapProps) {
   const shot = SHOTS[beat];
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
-  // Kept here, not in the deck: it changes every frame of a camera glide, and only the map reads it.
-  const [houseAt, setHouseAt] = useState<ScreenPoint | null>(null);
   const view = useMemo<InkMapView>(() => ({ kind: "overview", fit: TOWN_FRAME }), []);
   const renderer = useNightRenderer(handle, story);
   const plan = useRescuePlan(story.data, town);
   const crowd = useDeckCrowd(story.data, story.scenario, town);
-  const close = useCloseRoutes(story.data, town, story.house.center);
+  const close = useCloseRoutes(story, town);
   const scene = useMemo(() => (town && plan && crowd && close ? { town, plan, crowd, close, houseCenter: story.house.center } : null), [town, plan, crowd, close, story.house.center]);
   useRunWhileShown(renderer, shot.shown);
   useHouseRoof(renderer, story, shot.house);
   useCamera(renderer, focusPoint(story, town, shot.focus, plan?.safe ?? null), shot);
   useFireMinutes(renderer, shot.fire * story.house.arrives);
-  useHouseOnStage(renderer, story, setHouseAt);
   const fading = beat === "gone";
 
   return (
@@ -166,7 +144,7 @@ export function NightMap({ beat, story, town }: NightMapProps) {
       <InkMapCanvas data={story.data} view={view} onReady={setHandle} />
       <CallWave renderer={renderer} homes={story.homes} running={shot.wave} />
       <MapOverlay renderer={renderer} beat={beat} scene={scene} />
-      <HouseMark at={renderer ? houseAt : null} state={shot.house} />
+      <HouseMark renderer={renderer} center={story.house.center} state={shot.house} />
       <motion.div
         className="absolute inset-0 bg-night"
         initial={false}

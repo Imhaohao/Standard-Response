@@ -84,6 +84,15 @@ export function CloseScene({ beat }: { beat: Beat }) {
         <blockquote className="type-deck-title">“They’re on their way.”</blockquote>
         <p className="type-deck-lede mt-8 text-on-night-muted">911 dispatcher to Anthony Mitchell</p>
       </Show>
+      <Show when={beat === "reached"} delay={0.8} className="absolute rounded-3xl bg-night/85 p-8" style={{ left: 96, bottom: 96, width: 860 }}>
+        <p className="type-deck-title">Every home gets a call</p>
+        <p className="type-deck-lede mt-6 text-on-night-muted">
+          The dashed line is a rescue crew driving in from the edge of the zone, on streets the fire hasn’t reached.
+        </p>
+      </Show>
+      <Show when={beat === "everyone"} delay={0.2} className="absolute" style={{ left: 128, top: 110, width: 1500 }}>
+        <p className="type-deck-title">For all of the Anthonys, Justins and Roselands</p>
+      </Show>
       <Portraits shown={beat === "everyone"} />
       <ClosingWordmark beat={beat} />
     </>
