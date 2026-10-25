@@ -94,3 +94,7 @@ The night now runs on a shared clock that the rescue map can pause or play at 1Ã
 
 - `issueWarning` now seeds the simulated fleet only when the town holds simulated households. A night of real households alone (the Wen demo) gets no vans, so a real person can't be "picked up" by a simulated driver.
 - The first neighbor circle is 900 m (it was 800 m). It still widens to 1.6 km and then 2.4 km after 3 quiet minutes.
+
+## 2026-10-24 17:30
+
+The simulation loop in `convex/sim.ts` is now a heartbeat plus a work step. Until now the tick scheduled the next tick at the end of its own work, so a single tick that threw ended the night silently. That happened to me once on a private backend right after switching playback to 10x: re-plans stuck at 5 for six minutes. Now `sim.tick` only checks that the loop is current and not paused, applies the 45-minute stop, and schedules `sim.step` plus the next `sim.tick`. `sim.step` does what the tick used to do. Tested by making 30% of steps throw on a private backend: 25 failures, and the night kept re-planning and taking requests. Nothing else changed, and `control.ts` still schedules `sim.tick` as before.

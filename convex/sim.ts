@@ -197,26 +197,45 @@ async function stopLoop(ctx: MutationCtx, control: Doc<"control">, now: number) 
   return null;
 }
 
+// The heartbeat only checks that the night is still running and schedules the work. A step that
+// throws is lost on its own and the next heartbeat still comes, so one bad step can't end the night.
 export const tick = internalMutation({
   args: { generation: v.number() },
   returns: v.null(),
   handler: async (ctx, { generation }) => {
-    const control = await ctx.db.query("control").first();
-    if (!control || control.tickGeneration !== generation || !control.warningIssuedAt) return null;
+    const control = await runningControl(ctx, generation);
+    if (!control) return null;
     const real = Date.now();
-    const speed = control.clock?.speed ?? 1;
-    if (speed === 0) return null;
-    const now = simTime(control.clock, real);
-    const ran = control.clock ? runningMs(control.clock, real) : real - control.warningIssuedAt;
-    if (ran > MAX_RUN_MS) return await stopLoop(ctx, control, now);
-    await runStandIns(ctx, control, now, speed);
-    const stepMs = TICK_MS * speed;
-    if (control.simulateDispatch) await standInDispatch(ctx, control, now, stepMs);
-    else await ctx.scheduler.runAfter(0, internal.fleet.tick, { tickMs: stepMs });
+    const ran = control.clock ? runningMs(control.clock, real) : real - (control.warningIssuedAt ?? real);
+    if (ran > MAX_RUN_MS) return await stopLoop(ctx, control, simTime(control.clock, real));
+    await ctx.scheduler.runAfter(0, internal.sim.step, { generation });
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation });
     return null;
   },
 });
+
+export const step = internalMutation({
+  args: { generation: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { generation }) => {
+    const control = await runningControl(ctx, generation);
+    if (!control) return null;
+    const speed = control.clock?.speed ?? 1;
+    const now = simTime(control.clock, Date.now());
+    await runStandIns(ctx, control, now, speed);
+    const stepMs = TICK_MS * speed;
+    if (control.simulateDispatch) await standInDispatch(ctx, control, now, stepMs);
+    else await ctx.scheduler.runAfter(0, internal.fleet.tick, { tickMs: stepMs });
+    return null;
+  },
+});
+
+// The control row while this loop is the current one, the warning is out and the clock isn't paused.
+async function runningControl(ctx: MutationCtx, generation: number) {
+  const control = await ctx.db.query("control").first();
+  if (!control || control.tickGeneration !== generation || !control.warningIssuedAt) return null;
+  return (control.clock?.speed ?? 1) === 0 ? null : control;
+}
 
 // `speed` is how many seconds of the night pass in this tick's second. Work that happens at a rate
 // per tick is scaled by it, up to a cap that keeps one tick's writes small at any speed.
