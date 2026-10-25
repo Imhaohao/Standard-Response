@@ -84,7 +84,7 @@ export function DoorFairnessDisclosure({ fairness }: { fairness: DoorFairness | 
   const results = fairness.results[scenario];
   const ourShare = results.score?.needyInTime.mean;
   return (
-    <Disclosure icon={DoorOpen} title="Door checks" fact={ourShare === undefined ? "–" : `${Math.round(ourShare)}% of needy homes checked in time`}>
+    <Disclosure icon={DoorOpen} title="Door checks" fact={ourShare === undefined ? "–" : `${Math.round(ourShare)}% of needy homes in the fire's path checked in time`}>
       <Tag>Simulated; a policy test, not a forecast</Tag>
       <ScenarioPicker scenarios={scenarios} current={scenario} onPick={setPicked} />
       <ul>

@@ -3,7 +3,8 @@
 Calls reach most homes; the ones that don't answer go on the door-check list over the first half hour.
 Six teams drive the real road graph and knock (KNOCK_MINUTES per home). A free team picks its next home
 by the policy. We measure, per policy and stress scenario, how long homes wait to be checked (worst case,
-not only the average) and how many homes that truly need help are checked before their hazard deadline.
+not only the average) and how many homes that truly need help, and that the fire reaches, are checked before
+their hazard deadline.
 
 Ground truth comes from the synthetic population; estimates see only what a real agency would: the
 census base rate, answered neighbors and neighbor nominations (which may be wrong).
@@ -47,12 +48,13 @@ class World:
     entry: np.ndarray  # minute the home joins the door-check list
     isolated: np.ndarray  # no answered neighbor within 500 m
     slow_area: np.ndarray
+    reached: np.ndarray  # the scenario's fire reaches the home (past its last front, the deadline is extrapolated)
 
 
 @dataclass
 class Result:
     wait: np.ndarray  # minutes from joining the list to being checked
-    checked_in_time: float  # share of truly needy homes checked before their deadline
+    checked_in_time: float  # share of truly needy homes the fire reaches that are checked before their deadline
     extra: dict = field(default_factory=dict)
 
 
@@ -113,7 +115,8 @@ def build_world(rng: random.Random, population: list[dict], scenario: Scenario_,
     deadline = np.array([hazard.arrival_minutes(h["lat"], h["lng"]) - door.DEADLINE_MARGIN_MINUTES for h in listed])
     entry = np.array([rng.uniform(*LIST_OPENS_MINUTES) for _ in listed])
     slow = np.array([h["lat"] >= slow_lat for h in listed])
-    return World(xy, np.array(nodes), np.array(offsets), truth, p, deadline, entry, isolated, slow)
+    reached = np.array([hazard.reaches(h["lat"], h["lng"]) for h in listed])
+    return World(xy, np.array(nodes), np.array(offsets), truth, p, deadline, entry, isolated, slow, reached)
 
 
 def _nominations(rng: random.Random, truth: np.ndarray, wrong_share: float) -> np.ndarray:
@@ -151,7 +154,7 @@ def simulate(world: World, policy: str, travel: TravelMatrix, teams: list[tuple[
         team_free[t_index] = checked_at[choice]
         remaining[choice] = False
     wait = checked_at - world.entry
-    needy = world.truth > 0
+    needy = (world.truth > 0) & world.reached  # a home the fire never reaches can't be checked late
     in_time = float((checked_at[needy] <= world.deadline[needy]).mean()) if needy.any() else 1.0
     return Result(wait, in_time)
 

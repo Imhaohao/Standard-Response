@@ -3,6 +3,7 @@ import math
 from shapely.geometry import Point
 
 from rollcall_d import door, need
+from rollcall_d.geo import to_latlng
 from rollcall_d.hazard import Front, Scenario
 
 
@@ -68,3 +69,9 @@ def test_aging_lets_any_home_reach_the_top():
 
 def test_unreachable_home_stays_on_the_list():
     assert door.need_urgency_term(0.5, 60, math.inf) > 0
+
+
+def test_reaches_only_inside_the_last_front_though_arrival_never_marks_safe():
+    scenario = ring_scenario()
+    assert scenario.reaches(*to_latlng(400, 0))
+    assert not scenario.reaches(*to_latlng(5000, 0))

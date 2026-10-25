@@ -182,17 +182,29 @@ def _throw_ember(search: Search, index: int, now: float) -> None:
         heapq.heappush(search.heap, (start, landing))
 
 
-def simulate_urban(grid: Grid, ground: Ground, origin: tuple[float, float], ignition_minute: float, until: float, seed: int,
-                   mean_heading: float = MEAN_HEADING_DEGREES, mean_kmh: float = MEAN_WIND_KMH) -> tuple[np.ndarray, WindWalk]:
-    """Arrival minutes at every cell (inf where it never burns by `until`), and the wind that drove it."""
+def simulate_urban(grid: Grid, ground: Ground, origin: tuple[float, float] | None, ignition_minute: float, until: float, seed: int,
+                   mean_heading: float = MEAN_HEADING_DEGREES, mean_kmh: float = MEAN_WIND_KMH,
+                   burning: np.ndarray | None = None) -> tuple[np.ndarray, WindWalk]:
+    """Arrival minutes at every cell (inf where it never burns by `until`), and the wind that drove it.
+    The fire starts at `origin` at `ignition_minute`, or, given `burning` (a (ny, nx) mask of cells already
+    burned at that minute), spreads on from that area's edge."""
     walk = wind_walk(seed, ignition_minute, until, mean_heading, mean_kmh)
     fuel = ground.fuel.ravel()
     slowness = np.where(fuel > 0, 1.0 / np.maximum(fuel, 1e-6), np.inf)
     search = Search(grid, slowness.tolist(), [math.inf] * fuel.size, random.Random(seed + 1), walk, ground.ember_source.ravel().tolist(), fuel.tolist())
-    row, col = grid.index(*to_xy(*origin))
-    start = row * grid.nx + col
-    search.arrival[start] = ignition_minute
-    search.heap.append((ignition_minute, start))
+    if burning is None:
+        if origin is None:
+            raise ValueError("simulate_urban needs an origin or a burning area")
+        row, col = grid.index(*to_xy(*origin))
+        starts = [row * grid.nx + col]
+    else:
+        for index in np.flatnonzero(burning.ravel()):
+            search.arrival[index] = ignition_minute  # burned already: never re-lit, and its interior throws no embers
+        starts = np.flatnonzero(burning_edge(burning).ravel()).tolist()
+    for start in starts:
+        search.arrival[start] = ignition_minute
+        search.heap.append((ignition_minute, start))
+    heapq.heapify(search.heap)
     neighbours = _neighbours()
     done = bytearray(fuel.size)
     while search.heap:
@@ -205,3 +217,13 @@ def simulate_urban(grid: Grid, ground: Ground, origin: tuple[float, float], igni
     arrival = np.array(search.arrival).reshape(grid.ny, grid.nx)
     arrival[arrival > until] = np.inf
     return arrival, walk
+
+
+def burning_edge(burning: np.ndarray) -> np.ndarray:
+    """Burned cells with an unburned neighbour (4-connected, inside the grid): where a burned area spreads from."""
+    edge = np.zeros_like(burning, dtype=bool)
+    edge[1:, :] |= burning[1:, :] & ~burning[:-1, :]
+    edge[:-1, :] |= burning[:-1, :] & ~burning[1:, :]
+    edge[:, 1:] |= burning[:, 1:] & ~burning[:, :-1]
+    edge[:, :-1] |= burning[:, :-1] & ~burning[:, 1:]
+    return edge

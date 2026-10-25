@@ -96,14 +96,15 @@ def urban_scenario_members(count: int, seed: int) -> list[Member]:
     return members
 
 
-def run_urban_members(grid: Grid, ground: Ground, origin: tuple[float, float], ignition_minute: float, until: float,
-                      members: list[Member]) -> np.ndarray:
+def run_urban_members(grid: Grid, ground: Ground, origin: tuple[float, float] | None, ignition_minute: float, until: float,
+                      members: list[Member], burning: np.ndarray | None = None) -> np.ndarray:
     """As run_members, over real ground (urban_spread): each member's wind walks around its own heading and speed,
-    so the forecast bands respect the same washes, roads and open ground as the scenario fire."""
+    so the forecast bands respect the same washes, roads and open ground as the scenario fire. Given `burning`,
+    every member spreads on from that burned area instead of igniting at `origin`."""
     runs = []
     for member in members:
         arrival, _ = urban_spread.simulate_urban(grid, ground, origin, ignition_minute, until, member.seed,
-                                                 mean_heading=member.heading_degrees, mean_kmh=member.speed_kmh)
+                                                 mean_heading=member.heading_degrees, mean_kmh=member.speed_kmh, burning=burning)
         runs.append(np.minimum(np.nan_to_num(arrival, nan=NEVER, posinf=NEVER), NEVER).astype(np.float32))
     return np.stack(runs)
 

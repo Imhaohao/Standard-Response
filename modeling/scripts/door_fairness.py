@@ -66,7 +66,7 @@ def headlines(results: dict) -> list[str]:
     for name, cells in results.items():
         ours, nearest, rand, no_aging = (cells[p] for p in ("score", "nearest", "random", "score_no_aging"))
         lines.append(
-            f"{name}: our order checks {ours['needyInTime']['mean']:.0f}% of truly needy homes before their deadline "
+            f"{name}: our order checks {ours['needyInTime']['mean']:.0f}% of truly needy homes the fire reaches before their deadline "
             f"(nearest-first {nearest['needyInTime']['mean']:.0f}%, random {rand['needyInTime']['mean']:.0f}%); "
             f"worst wait {ours['worstWait']['mean']:.0f} min (nearest-first {nearest['worstWait']['mean']:.0f}, random {rand['worstWait']['mean']:.0f}, "
             f"ours without aging {no_aging['worstWait']['mean']:.0f})."
@@ -106,11 +106,12 @@ def main() -> None:
     out = {
         "label": "Door-team simulation on the real west Altadena road graph with synthetic households. Simulated; a policy test, not a forecast.",
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "hazard": hazard.metadata.get("name") or hazard.metadata.get("label"),
         "setup": {"teams": len(DEFAULT_TEAMS), "homesOnList": SCENARIOS[0].homes, "knockMinutes": 4, "seeds": args.seeds,
                   "listOpens": "homes join over minutes 15-45 as the reach ladder runs out",
                   "alpha": "set once, as in the live runner: 30 minutes on the list equals the 90th-percentile need-and-urgency term at the start"},
         "metrics": {"worstWait": "longest any home waited, minutes", "p95Wait": "95th percentile wait", "meanWait": "average wait",
-                    "needyInTime": "% of homes that truly need help checked before their hazard deadline",
+                    "needyInTime": "% of homes that truly need help and that the fire reaches, checked before their hazard deadline",
                     "isolatedWorst": "longest wait among homes with no answered neighbor within 500 m",
                     "slowAreaWorst": "longest wait in the north fifth (answers at half the rate in that scenario)"},
         "ranges": "mean, and 5th to 95th percentile across seeds",

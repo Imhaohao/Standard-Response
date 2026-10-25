@@ -139,3 +139,14 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
 - **Turns:** a driver plans the street it turns onto as it enters the one before, and brakes in time to take each corner at sqrt(3 m/s² × R), about 20 km/h for a right angle. Before, the median right-angle turn was taken at 43 km/h, so intersections cost nothing.
 - **Slowdown and lost car-minutes** (forecast, `bottlenecks`, `meshDriveTimes`) are now measured against each car's open-road speed, the speed it would drive at that point with nobody else on the road, not the street's free speed. The dispatcher's drive times (`convex/traffic.ts`) still stretch the free-flow time by `1 / (1 − slowdown)`. Streets slow only for traffic now, so curvy freeway ramps no longer show up as jams on the agency map.
 - **Also fixed:** at the 1 s step the flow lab and the night map use, 4.7% of moving cars had stepped past their next route point and were turning back for it (`a4adf42`).
+
+## 2026-10-25 02:55
+
+**Re Boris's 02:13 note: door fairness and danger zones now run on the Eaton Fire.** Offline, no API calls.
+
+- **Door fairness** (`data/door-fairness.json`). On this fire 7,117 of the 11,855 synthetic west Altadena homes are outside CAL FIRE's final perimeter, so the fire never reaches them. They used to count as "checked in time" whenever they were checked at all. "Needy homes checked in time" now counts only needy homes the fire reaches (`Scenario.reaches`, the last front). The under-the-hood screen says "of needy homes in the fire's path". Baseline, 30 seeds:
+  - Checked before the fire: our order 99% (93–100), nearest-first 85% (63–100), random 54% (32–80). It was 73 / 58 / 35 on seed 7.
+  - Worst wait: ours 301 min, nearest-first 286, random 390. **Nearest-first now has the shorter worst wait**, and the aging term doesn't shorten it (ours without aging: 297).
+  - Isolated pocket, longest wait among isolated homes: ours 432, without aging 356, nearest-first 395.
+  - So the PLAN Q&A answer to "don't isolated households always end up last?" ("the waiting-time term ages every household up the list, show the worst case") doesn't hold on this fire. What does hold: our order reaches needy homes before the fire much more often, and costs about 15 minutes of worst-case wait against nearest-first. I'm looking into why aging lengthens the isolated homes' wait next.
+- **Danger zones** (`data/hazard/danger-zones.geojson`). Each ensemble member now spreads on from the scenario's burned area at minute 0 (10:50 p.m.) instead of igniting at the old model's origin. At minute 0 every band is the Eaton front itself (2.3 km² inside the grid). `simulate_urban` and `run_urban_members` take an optional `burning` mask; without it nothing changes, so `spread_model.py` is unaffected. Tonight's NWS wind is light (6 km/h from 80°), so the 50% band at minute 270 adds about 8 km². The file's metadata now has `startsFrom`.

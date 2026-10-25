@@ -84,6 +84,11 @@ class Scenario:
     def arrival_minutes(self, lat: float, lng: float) -> float:
         return self.arrival_minutes_xy(*to_xy(lat, lng))
 
+    def reaches(self, lat: float, lng: float) -> bool:
+        """Whether the scenario's last front covers a point. Past it, arrival_minutes extrapolates a deadline
+        so nobody is marked safe, but the scenario itself never burns there."""
+        return self.fronts[-1].shape.covers(Point(*to_xy(lat, lng)))
+
     def buffered(self, meters: float) -> "Scenario":
         """The same scenario with every front grown by a safety margin."""
         return Scenario([Front(f.minutes, f.shape.buffer(meters)) for f in self.fronts], self.metadata)

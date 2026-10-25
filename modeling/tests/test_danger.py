@@ -64,3 +64,29 @@ def test_a_members_wind_walks_around_its_own_mean():
     assert abs(np.mean(walk.speeds) - 20.0) < 6
     default = urban_spread.wind_walk(3, 0.0, 600.0)
     assert abs(np.mean([math.degrees(h) for h in default.headings]) - urban_spread.MEAN_HEADING_DEGREES) < 20
+
+
+def test_a_fire_started_from_a_burned_area_spreads_from_its_edge_and_never_relights_it():
+    from rollcall_d import urban_spread
+    from rollcall_d.fire_ground import Ground
+    from rollcall_d.spread import Grid
+
+    grid = Grid((0.0, 0.0, 400.0, 400.0), 10.0)
+    shape = (grid.ny, grid.nx)
+    ground = Ground(np.ones(shape), np.zeros(shape, dtype=bool), np.zeros(shape, dtype=bool))
+    burning = np.zeros(shape, dtype=bool)
+    burning[:, 30:] = True  # the east quarter has burned by minute 0
+    arrival, _ = urban_spread.simulate_urban(grid, ground, None, 0.0, 120.0, seed=1, mean_heading=270.0, mean_kmh=30.0,
+                                             burning=burning)
+    assert (arrival[burning] == 0.0).all()
+    assert (arrival[:, :30] > 0).all()
+    assert (np.diff(arrival[20, :30][::-1]) > 0).all()  # arrives later the farther west of the edge
+
+
+def test_the_burning_edge_is_burned_cells_beside_unburned_ones():
+    from rollcall_d.urban_spread import burning_edge
+
+    burning = np.zeros((5, 5), dtype=bool)
+    burning[1:4, 1:4] = True
+    edge = burning_edge(burning)
+    assert edge.sum() == 8 and not edge[2, 2]

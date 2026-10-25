@@ -17,12 +17,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
+import shapely
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d.area import EAST, NORTH, SOUTH, WEST  # noqa: E402
 from rollcall_d.ensemble import burn_quantiles, draw_members, run_urban_members, urban_scenario_members  # noqa: E402
 from rollcall_d.fire_ground import load_ground  # noqa: E402
 from rollcall_d.geo import metric_to_geojson, to_xy  # noqa: E402
+from rollcall_d.hazard import Scenario  # noqa: E402
 from rollcall_d.paths import HAZARD  # noqa: E402
 from rollcall_d.spread import Grid, front_polygon  # noqa: E402
 from rollcall_d.weather import fetch_wind  # noqa: E402
@@ -31,11 +33,11 @@ PROBABILITIES = [0.1, 0.5, 0.9]
 LAST_MINUTE = 270
 FRAME_STEP = 10
 WINDOW_HOURS = 5
-# The scenario's grid, origin and ignition (scripts/spread_model.py), so the forecast runs over the same ground.
-VIRTUAL_ORIGIN = (34.2085, -118.1205)
-IGNITION_MINUTE = -18.0
+# The forecast starts from the scenario's fire as it stands at the warning (minute 0), on the scenario's 10 m
+# grid, so the bands grow from where this fire is rather than from a modelled ignition point.
+START_MINUTE = 0.0
 MARGIN_METERS = 600.0
-UPWIND_MARGIN_METERS = 1500.0
+UPWIND_MARGIN_METERS = 1500.0  # east and north of the study area, where a Santa Ana fire comes from
 CELL_METERS = 10.0
 LABEL = "Forecast from live wind, not a prediction of this fire"
 
@@ -43,10 +45,17 @@ LABEL = "Forecast from live wind, not a prediction of this fire"
 def study_grid() -> Grid:
     west, south = to_xy(SOUTH, WEST)
     east, north = to_xy(NORTH, EAST)
-    ox, oy = to_xy(*VIRTUAL_ORIGIN)
-    bounds = (min(west, ox) - MARGIN_METERS, min(south, oy) - MARGIN_METERS,
-              max(east, ox) + UPWIND_MARGIN_METERS, max(north, oy) + UPWIND_MARGIN_METERS)
+    bounds = (west - MARGIN_METERS, south - MARGIN_METERS, east + UPWIND_MARGIN_METERS, north + UPWIND_MARGIN_METERS)
     return Grid(bounds, CELL_METERS)
+
+
+def burning_at_start(grid: Grid, scenario: Scenario) -> tuple[np.ndarray, float]:
+    """Cells the scenario has burned by START_MINUTE (its latest front at or before it), and that front's minute."""
+    fronts = [f for f in scenario.fronts if f.minutes <= START_MINUTE]
+    if not fronts:
+        raise ValueError(f"The scenario has no front at or before minute {START_MINUTE:g} to start the forecast from")
+    front = fronts[-1]
+    return shapely.contains_xy(front.shape, grid.X, grid.Y), front.minutes
 
 
 def choose_members(wind: str, count: int, seed: int):
@@ -87,8 +96,10 @@ def build(members_count: int, wind: str, seed: int, out: Path) -> None:
     started = time.monotonic()
     grid = study_grid()
     ground = load_ground(grid, seed)
+    scenario = Scenario.load()
+    burning, start_minute = burning_at_start(grid, scenario)
     members, wind_summary = choose_members(wind, members_count, seed)
-    arrivals = run_urban_members(grid, ground, VIRTUAL_ORIGIN, IGNITION_MINUTE, LAST_MINUTE + FRAME_STEP, members)
+    arrivals = run_urban_members(grid, ground, None, start_minute, LAST_MINUTE + FRAME_STEP, members, burning=burning)
     quantiles = burn_quantiles(arrivals, PROBABILITIES)
     rates = [m.head_rate for m in members]
     collection = {
@@ -104,7 +115,9 @@ def build(members_count: int, wind: str, seed: int, out: Path) -> None:
             "cellMeters": CELL_METERS,
             "headRateMetersPerMinute": {"p10": round(float(np.percentile(rates, 10)), 1), "p50": round(float(np.median(rates)), 1), "p90": round(float(np.percentile(rates, 90)), 1)},
             "wind": wind_summary,
-            "assumptions": "Each member is the scenario's spread model (rollcall_d/urban_spread.py over rollcall_d/fire_ground.py: washes never burn, roads and open space slow it, embers cross) with its wind walking around that member's heading and speed. Members scatter around the forecast wind with 20 degrees of direction error and 25% speed error.",
+            "startsFrom": {"scenario": scenario.metadata.get("name"), "minutesAfterWarning": start_minute,
+                           "minuteZero": scenario.metadata.get("minuteZero")},
+            "assumptions": "Each member is the scenario's spread model (rollcall_d/urban_spread.py over rollcall_d/fire_ground.py: washes never burn, roads and open space slow it, embers cross) with its wind walking around that member's heading and speed, spreading on from the scenario's burned area at the warning. Members scatter around the forecast wind with 20 degrees of direction error and 25% speed error.",
         },
         "features": zone_features(grid, quantiles),
     }
