@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
-import { useSimNow } from "@/lib/use-sim-now";
+import { simTime } from "@/lib/sim-clock";
 import { createProjection } from "./data";
 import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts } from "./fire-field";
 
@@ -47,9 +47,23 @@ export const SIM_MINUTES_PER_SECOND = 1 / 60;
 
 export type FireClock = { minutes: number; last: number };
 
+// Tenths of a minute: fine enough that the front moves smoothly at any playback speed, coarse
+// enough that the screen re-renders only when the fire actually moves, and never while paused.
+const MINUTE_STEP = 0.1;
+const CLOCK_TICK_MS = 250;
+
 export function useFireClock(hazard: Hazard | null, issuedAt: number | undefined): FireClock {
-  const now = useSimNow(250);
+  const clock = useQuery(api.control.get)?.clock;
   const last = hazard?.field.fronts[hazard.field.fronts.length - 1]?.minutes ?? 0;
-  const elapsed = issuedAt === undefined || now === 0 ? 0 : ((now - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
-  return { minutes: Math.min(Math.max(0, elapsed), last), last };
+  const [minutes, setMinutes] = useState(0);
+  useEffect(() => {
+    const read = () => {
+      const elapsed = issuedAt === undefined ? 0 : ((simTime(clock, Date.now()) - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
+      setMinutes(Math.round(Math.min(Math.max(0, elapsed), last) / MINUTE_STEP) * MINUTE_STEP);
+    };
+    read();
+    const id = setInterval(read, CLOCK_TICK_MS);
+    return () => clearInterval(id);
+  }, [clock, issuedAt, last]);
+  return { minutes, last };
 }

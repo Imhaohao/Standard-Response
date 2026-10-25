@@ -203,23 +203,40 @@ float frontGlow(vec2 mapXY, float minutes) {
 }
 `;
 
+// Quarter resolution, every animated frame. Red is how hard the fire glows here, green how freshly
+// it burned. The composite and the fire pass both read it.
 export const FIRE_MASK_FRAGMENT = `
 precision highp float;
 precision highp sampler2D;
 in vec2 vUv;
 out vec4 color;
 ${FIRE_COMMON}
+uniform float uViewMpp;
+
+// How much of a ring around this burned point the fire hasn't reached: 0 deep inside the burn,
+// rising to 1 on its edge. The flanks and the back of a fire have an edge too, and they smoulder
+// there long after the head has moved on.
+float edgeOfBurn(vec2 mapXY, float reach) {
+  float open = 0.0;
+  for (int i = 0; i < 8; i++) {
+    float angle = float(i) * 0.7854;
+    open += step(uFireNow, arrivalMinutes(mapXY + vec2(cos(angle), sin(angle)) * reach));
+  }
+  return min(1.0, open / 3.0);
+}
+
 void main() {
   float depth = texture(tDepth, vUv).r;
   if (depth >= 1.0) { color = vec4(0.0); return; }
   vec3 w = worldPosition(vUv, depth);
   vec2 mapXY = vec2(w.x, -w.z);
   float minutes = arrivalMinutes(mapXY);
-  float glow = frontGlow(mapXY, minutes);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
-  float embers = burned * step(0.985, hash12(floor(mapXY / 6.0) + floor(uTime * 2.0))) * 0.8;
+  float edge = burned * edgeOfBurn(mapXY, max(18.0, uViewMpp * 10.0));
+  float smoulder = edge * (0.6 + 0.3 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.7, -uTime * 0.4)));
+  float glow = max(frontGlow(mapXY, minutes), smoulder);
   float fresh = burned * (1.0 - smoothstep(0.0, 70.0, uFireNow - minutes));
-  color = vec4(glow + embers, fresh + glow * 0.5, 0.0, 1.0);
+  color = vec4(glow, fresh + glow * 0.5, 0.0, 1.0);
 }
 `;
 
@@ -251,7 +268,6 @@ ${FIRE_COMMON}
 uniform sampler2D tShade;
 uniform sampler2D tNormal;
 uniform sampler2D tId;
-uniform sampler2D tBloom;
 uniform sampler2D tBuildingState;
 uniform vec2 uResolution;
 uniform float uPixelRatio;
@@ -268,6 +284,10 @@ uniform vec3 uCamUp;
 uniform float uViewMpp;
 uniform float uPatternScale;
 uniform float uPatternBlend;
+uniform sampler2D tForecast;
+uniform vec4 uForecastRegion;
+uniform float uForecastOn;
+uniform float uForecastAhead;
 
 // Tone is printed on the town, not on the glass: every dot, hatch and speck is laid out in the
 // camera's own right and up directions but measured in metres, so it slides with the streets when
@@ -471,67 +491,30 @@ vec4 buildingState(float id) {
   return texelFetch(tBuildingState, texel, 0);
 }
 
-// Flame tongues standing up off the burning front, in screen space so they always rise up the page.
-// The quarter-resolution glow mask says where the front is; noise columns give each tongue a height.
-// Glow of the crisp front at another screen point, for rooting flames on the real fire line.
-float frontAt(vec2 uv) {
-  float depth = texture(tDepth, uv).r;
-  if (depth >= 1.0) return 0.0;
-  vec3 w = worldPosition(uv, depth);
-  vec2 mapXY = vec2(w.x, -w.z);
-  return frontGlow(mapXY, arrivalMinutes(mapXY));
-}
-
-float flameTongues(vec2 uv) {
-  if (uFireOn < 0.5 || texture(tBloom, uv).r < 0.02) return 0.0;
-  float tall = 64.0 * uPixelRatio / uResolution.y;
-  float across = uv.x * uResolution.x / (8.0 * uPixelRatio);
-  float column = floor(across);
-  float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
-  float flame = 0.0;
-  for (int i = 1; i <= 10; i++) {
-    float t = float(i) / 10.0;
-    float base = frontAt(uv - vec2(0.0, t * tall));
-    if (base < 0.25) continue;
-    float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
-    float height = clamp(base, 0.0, 1.0) * (0.12 + 1.6 * flicker);
-    float rise = t / max(height, 1e-3);
-    flame = max(flame, step(rise, 1.0) * step(rise, profile) * (1.0 - rise));
-  }
-  return flame;
-}
-
-vec3 flameColor(float f) {
-  vec3 hot = vec3(1.0, 0.9, 0.62);
-  return f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
-}
-
-// Smoke is drawn over the map as ink puffs (components/map/smoke-layer.tsx), not here.
-vec3 overlayFire(vec3 color, vec2 uv) {
-  float flame = flameTongues(uv);
-  color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
-  return color;
-}
-
-vec3 heatShimmer(vec2 uv) {
-  float depth = texture(tDepth, uv).r;
-  if (depth >= 1.0 || uFireOn < 0.5) return vec3(uv, depth);
-  vec3 w = worldPosition(uv, depth);
-  float minutes = arrivalMinutes(vec2(w.x, -w.z));
-  float near = 1.0 - smoothstep(0.0, 16.0, abs(minutes - uFireNow - 3.0));
-  if (near <= 0.0) return vec3(uv, depth);
-  vec2 wobble = vec2(valueNoise(uv * 90.0 + vec2(0.0, uTime * 2.2)), valueNoise(uv * 90.0 + vec2(5.2, uTime * 2.6))) - 0.5;
-  vec2 shifted = uv + wobble * near * 2.6 * uPixelRatio / uResolution;
-  return vec3(shifted, texture(tDepth, shifted).r);
+// The forecast bands, on ground the fire hasn't reached yet: each band is where the fire is that
+// likely to be within the hour. The three fills stack, and each band has its own edge line.
+vec3 forecast(vec3 color, vec2 mapXY, float minutes, float lines) {
+  vec2 uv = (mapXY - uForecastRegion.xy) / (uForecastRegion.zw - uForecastRegion.xy);
+  vec3 arrival = texture(tForecast, clamp(uv, 0.0, 1.0)).rgb;
+  vec3 width = max(fwidth(arrival), vec3(1e-3));
+  float ahead = uFireNow + uForecastAhead;
+  vec2 onMap = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+  float shown = uForecastOn * uFireOn * step(uFireNow, minutes) * onMap.x * onMap.y;
+  vec3 inside = step(arrival, vec3(ahead));
+  vec3 edge = 1.0 - smoothstep(0.0, 1.4, abs(arrival - ahead) / width);
+  color = mix(color, uRed, dot(inside, vec3(0.1, 0.12, 0.16)) * shown);
+  float line = max(max(edge.r * 0.5, edge.g * 0.65), edge.b * 0.85);
+  return mix(color, uRed, line * shown * (1.0 - lines * 0.5));
 }
 
 void main() {
-  vec3 shimmer = heatShimmer(vUv);
-  vec2 uv = shimmer.xy;
-  float depth = shimmer.z;
-  float grain = (hash12(gl_FragCoord.xy) - 0.5) * 0.035;
-  vec3 paper = uPaper + grain;
+  vec2 uv = vUv;
+  float depth = texture(tDepth, uv).r;
   placePattern(worldPosition(uv, depth));
+  // Paper grain is printed on the town like the tone, so it slides with the streets instead of
+  // crawling over them while the map pans.
+  float grain = (hash12(floor(gPattern / uPixelRatio)) - 0.5) * 0.035;
+  vec3 paper = uPaper + grain;
   // Level of detail follows the zoom, never each pixel's own distance. Read per pixel, the far half
   // of a tilted view crosses into town-scale drawing before the near half does, and the seam between
   // them sweeps across the map like a shadow every time the zoom changes.
@@ -539,18 +522,18 @@ void main() {
   float detail = detailAmount(metersPerPixel);
 
   if (depth >= 1.0) {
-    fragColor = vec4(overlayFire(paper, vUv), 1.0);
+    fragColor = vec4(paper, 0.0);
     return;
   }
 
   vec4 g = texture(tShade, uv);
   if (uDebug > 0.5) {
-    if (uDebug < 1.5) fragColor = vec4(vec3(g.r), 1.0);
-    else if (uDebug < 2.5) fragColor = vec4(texture(tNormal, uv).xyz, 1.0);
-    else if (uDebug < 3.5) fragColor = vec4(vec3(g.g * 255.0 / 20.0), 1.0);
-    else if (uDebug < 4.5) fragColor = vec4(vec3(surfaceInk(floor(g.g * 255.0 + 0.5), g.r, g.b * 2.0 - 1.0, worldPosition(uv, depth), metersPerPixel, detail)), 1.0);
-    else if (uDebug < 5.5) fragColor = vec4(vec3(inkLines(uv, decodeId(uv), linearDepth(uv), texture(tNormal, uv).xyz * 2.0 - 1.0, metersPerPixel)), 1.0);
-    else fragColor = vec4(vec3(buildingState(decodeId(uv)).r), 1.0);
+    if (uDebug < 1.5) fragColor = vec4(vec3(g.r), 0.0);
+    else if (uDebug < 2.5) fragColor = vec4(texture(tNormal, uv).xyz, 0.0);
+    else if (uDebug < 3.5) fragColor = vec4(vec3(g.g * 255.0 / 20.0), 0.0);
+    else if (uDebug < 4.5) fragColor = vec4(vec3(surfaceInk(floor(g.g * 255.0 + 0.5), g.r, g.b * 2.0 - 1.0, worldPosition(uv, depth), metersPerPixel, detail)), 0.0);
+    else if (uDebug < 5.5) fragColor = vec4(vec3(inkLines(uv, decodeId(uv), linearDepth(uv), texture(tNormal, uv).xyz * 2.0 - 1.0, metersPerPixel)), 0.0);
+    else fragColor = vec4(vec3(buildingState(decodeId(uv)).r), 0.0);
     return;
   }
   float shade = g.r;
@@ -576,14 +559,17 @@ void main() {
     color = mix(color, uInk, wash * (1.0 - lines * 0.5));
   }
   if (left > 0.0) color = mix(color, paper, (surface == S_ROOF ? 0.75 : 0.4) * (1.0 - lines));
+  // Alpha marks a pulsing roof and how strongly it is washed red; the fire pass breathes it.
+  float pulsing = 0.0;
   if (state.r > 0.0) {
     float wash = surface == S_ROOF ? 0.8 : 0.45;
-    float pulse = state.g > 0.5 ? 0.75 + 0.25 * uPulse : 1.0;
-    color = mix(color, mix(paper, uRed, 0.92), wash * state.r * pulse * (1.0 - lines));
+    color = mix(color, mix(paper, uRed, 0.92), wash * state.r * (1.0 - lines));
     color = mix(color, uRed, lines * state.r);
+    pulsing = step(0.5, state.g) * wash * state.r * (1.0 - lines);
   }
 
   float minutes = arrivalMinutes(mapXY);
+  color = forecast(color, mapXY, minutes, lines);
   float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn;
   if (burned > 0.0) {
     // Minutes since the fire passed. A crosshatch marks the whole scar as charred, but at full
@@ -593,13 +579,13 @@ void main() {
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
     float crosshatch = max(hatch(0.16, 8.0 * uPixelRatio, -0.75), hatch(0.16, 8.0 * uPixelRatio, 0.8208));
     float scorch = crosshatch * burned * (0.3 + 0.7 * fresh);
-    float ember = smoothstep(0.55, 1.0, fbm(mapXY * 0.03 + uTime * 0.08)) * burned * fresh;
-    color = mix(color, color * vec3(0.84, 0.81, 0.78), burned * (0.25 + 0.4 * fresh));
-    color = mix(color, uInk, scorch * (0.22 + 0.2 * fresh) * (1.0 - lines));
+    // Ash: the ground goes a warm charcoal, darkest just behind the front, and greys out as it cools.
+    vec3 char = mix(vec3(0.78, 0.74, 0.71), vec3(0.5, 0.42, 0.38), fresh);
+    color = mix(color, color * char, burned * (0.55 + 0.35 * fresh));
+    color = mix(color, uInk, scorch * (0.26 + 0.24 * fresh) * (1.0 - lines));
     // Homes the fire has passed are burned out: their roofs go to charcoal, the one mark that
     // still reads at town scale once the scar has gone quiet.
-    if (surface == S_ROOF) color = mix(color, uInk * 1.35, burned * 0.6);
-    color = mix(color, uRed, ember * 0.35 * (0.6 + 0.4 * sin(uTime * 2.0 + mapXY.x)));
+    if (surface == S_ROOF) color = mix(color, uInk * 1.25, burned * 0.7);
   }
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole
   // town in red and drown out the roofs that mean somebody is waiting.
@@ -610,10 +596,133 @@ void main() {
   float dash = mix(step(0.45, fract(dot(gPattern, vec2(0.7071)) / dashPeriod)), step(0.45, fract(dot(gPattern * 0.5, vec2(0.7071)) / dashPeriod)), uPatternBlend);
   color = mix(color, uRed, iso * dash * future * 0.55);
 
-  float glow = frontGlow(mapXY, minutes);
-  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.6);
-  float bloom = texture(tBloom, vUv).r;
-  color += uEmber * min(bloom, 1.0) * 0.45 + vec3(1.0, 0.85, 0.6) * smoothstep(0.75, 1.15, glow) * 0.3;
-  fragColor = vec4(overlayFire(color, vUv), 1.0);
+  fragColor = vec4(color, pulsing);
+}
+`;
+
+// Every animated frame, full resolution: the cached map from the composite pass, with the glow,
+// embers, heat haze and flames laid over it. Away from the fire it is one texture read.
+export const FIRE_FRAGMENT = `
+precision highp float;
+precision highp sampler2D;
+in vec2 vUv;
+out vec4 fragColor;
+${FIRE_COMMON}
+uniform sampler2D tBase;
+uniform sampler2D tFrontMask;
+uniform sampler2D tBloom;
+uniform vec2 uResolution;
+uniform float uPixelRatio;
+uniform vec3 uPaper;
+uniform vec3 uRed;
+uniform vec3 uEmber;
+uniform float uPulse;
+uniform vec3 uCamRight;
+uniform float uPatternScale;
+
+// Glow of the crisp front at another screen point, for rooting flames on the real fire line.
+float frontAt(vec2 uv) {
+  return texture(tFrontMask, uv).r;
+}
+
+// Flame tongues standing up off every burning edge, in screen space so they always rise up the page.
+// The quarter-resolution glow mask says where the edge is; noise columns give each tongue a height.
+// Each tongue stands in a column fixed to the ground, measured along the camera's right in the same
+// power-of-two metre grid the tone uses, so panning carries the flames with the town.
+float groundAcross(vec2 uv) {
+  float depth = texture(tDepth, uv).r;
+  if (depth >= 1.0) return uv.x * uResolution.x;
+  return dot(worldPosition(uv, depth), uCamRight) * uPatternScale;
+}
+
+float flameTongues(vec2 uv) {
+  if (uFireOn < 0.5 || texture(tBloom, uv).r < 0.02) return 0.0;
+  float tall = 64.0 * uPixelRatio / uResolution.y;
+  float across = groundAcross(uv) / (8.0 * uPixelRatio);
+  float column = floor(across);
+  float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
+  float flame = 0.0;
+  for (int i = 1; i <= 10; i++) {
+    float t = float(i) / 10.0;
+    float base = frontAt(uv - vec2(0.0, t * tall));
+    if (base < 0.25) continue;
+    float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
+    float height = clamp(base, 0.0, 1.0) * (0.12 + 1.6 * flicker);
+    float rise = t / max(height, 1e-3);
+    flame = max(flame, step(rise, 1.0) * step(rise, profile) * (1.0 - rise));
+  }
+  return flame;
+}
+
+vec3 flameColor(float f) {
+  vec3 hot = vec3(1.0, 0.9, 0.62);
+  return f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
+}
+
+// A roof waiting on a ride breathes: the base drew it at full red, and this eases it toward paper.
+vec3 breathe(vec4 base) {
+  return mix(base.rgb, uPaper, base.a * 0.3 * (1.0 - uPulse));
+}
+
+// The map behind the burning edge wobbles in the heat. The wobble's noise is fixed to the ground,
+// so panning carries the shimmer along with the fire.
+vec2 heatShimmer(vec2 uv, float heat) {
+  float depth = texture(tDepth, uv).r;
+  if (heat <= 0.0 || depth >= 1.0) return uv;
+  vec3 w = worldPosition(uv, depth);
+  vec2 p = vec2(w.x, -w.z) * 0.12;
+  vec2 wobble = vec2(valueNoise(p + vec2(0.0, uTime * 2.2)), valueNoise(p + vec2(5.2, uTime * 2.6))) - 0.5;
+  return uv + wobble * heat * 2.6 * uPixelRatio / uResolution;
+}
+
+// Embers in the freshly burned ground: slow patches of glow under the ash, and sparks in a grid
+// fixed to the town that wink in and out. The spark grid follows the tone's metre grid so a spark
+// stays a few pixels across at any zoom.
+vec3 embers(vec3 color, vec2 mapXY, float fresh) {
+  float heat = clamp(fresh, 0.0, 1.0);
+  float smoulder = smoothstep(0.55, 0.95, fbm(mapXY * 0.03 + vec2(uTime * 0.05, -uTime * 0.03))) * heat;
+  color = mix(color, mix(uRed, uEmber, 0.35), smoulder * 0.5 * (0.7 + 0.3 * sin(uTime * 1.7 + mapXY.x * 0.05)));
+  vec2 cell = mapXY * uPatternScale / (5.0 * uPixelRatio);
+  vec2 id = floor(cell);
+  float lit = step(0.93, hash12(id)) * heat;
+  float twinkle = smoothstep(0.35, 1.0, sin(uTime * (1.5 + 3.0 * hash12(id + 7.0)) + hash12(id + 3.0) * 6.28));
+  float spark = lit * twinkle * (1.0 - smoothstep(0.12, 0.38, length(fract(cell) - 0.5)));
+  return mix(color, vec3(1.0, 0.78, 0.4), spark);
+}
+
+// The edge of the burn reads like burning paper: a ragged rim, hottest at its outer lip, with
+// scorched brown just inside. The blurred glow says roughly where the edge is and noise fixed to
+// the ground tears it, so the rim wanders and never draws a clean line.
+vec3 burntPaperEdge(vec3 color, vec2 mapXY, float bloom, float glow) {
+  float torn = (fbm(mapXY * 0.045 + vec2(uTime * 0.03, 0.0)) - 0.5) * 0.45;
+  float level = bloom + torn;
+  float rim = smoothstep(0.22, 0.34, level) * (1.0 - smoothstep(0.42, 0.6, level));
+  float scorch = smoothstep(0.5, 0.75, level) * smoothstep(0.3, 0.7, glow);
+  color = mix(color, color * vec3(0.55, 0.4, 0.32), scorch * 0.45);
+  vec3 hot = mix(uEmber, vec3(1.0, 0.86, 0.55), smoothstep(0.26, 0.3, level) * (1.0 - smoothstep(0.3, 0.36, level)));
+  return mix(color, hot, rim * 0.85);
+}
+
+void main() {
+  vec4 bloom = texture(tBloom, vUv);
+  if (uFireOn < 0.5 || bloom.r + bloom.g < 0.003) {
+    fragColor = vec4(breathe(texture(tBase, vUv)), 1.0);
+    return;
+  }
+  vec2 uv = heatShimmer(vUv, smoothstep(0.02, 0.4, bloom.r));
+  vec3 color = breathe(texture(tBase, uv));
+  float glow = texture(tFrontMask, uv).r;
+  float depth = texture(tDepth, uv).r;
+  if (depth < 1.0) {
+    vec3 w = worldPosition(uv, depth);
+    vec2 mapXY = vec2(w.x, -w.z);
+    color = embers(color, mapXY, bloom.g);
+    color = burntPaperEdge(color, mapXY, bloom.r, glow);
+  }
+  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.45);
+  color += uEmber * min(bloom.r, 1.2) * 0.55 + vec3(1.0, 0.85, 0.6) * smoothstep(0.7, 1.1, glow) * 0.3;
+  float flame = flameTongues(vUv);
+  color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
+  fragColor = vec4(color, 1.0);
 }
 `;

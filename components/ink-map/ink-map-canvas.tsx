@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { InkMapData, loadInkMapData } from "@/lib/ink-map/data";
 import type { InkMapView } from "@/lib/ink-map/camera";
 import { InkMapRenderer } from "@/lib/ink-map/renderer";
@@ -78,7 +79,9 @@ export function InkMapCanvas({
       announce();
     });
     observer.observe(canvas);
-    const stopListening = renderer.onViewChange(announce);
+    // Markers are SVG drawn from the camera React last saw. Committing them in the same task as the
+    // WebGL frame keeps them on their streets while the map moves, instead of a frame behind.
+    const stopListening = renderer.onViewChange(() => flushSync(announce));
     return () => {
       stopListening();
       observer.disconnect();

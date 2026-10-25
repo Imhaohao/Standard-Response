@@ -83,3 +83,18 @@ export function buildFireField(fronts: ScenarioFront[], width = 320): FireField 
   }
   return { fronts, minutes, width, height, region };
 }
+
+// Where a point stands against the fire right now: inside the burning edge, behind it in the burned
+// ground, or not reached. Read from the precomputed field, so markers can ask every frame.
+export type FireState = "burning" | "burned" | null;
+const BURNING_MINUTES = 12;
+
+export function fireStateAt(field: FireField, [x, y]: Point, minutes: number): FireState {
+  const { region, width, height } = field;
+  const col = Math.floor(((x - region.x0) / (region.x1 - region.x0)) * width);
+  const row = Math.floor(((y - region.y0) / (region.y1 - region.y0)) * height);
+  if (col < 0 || row < 0 || col >= width || row >= height) return null;
+  const arrival = field.minutes[row * width + col];
+  if (arrival > minutes) return null;
+  return minutes - arrival <= BURNING_MINUTES ? "burning" : "burned";
+}

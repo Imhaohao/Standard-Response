@@ -5,6 +5,7 @@ import { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { Anchor, GeoLine, MapLine } from "@/components/map/layers";
 import { Point } from "@/lib/ink-map/data";
+import { FireState } from "@/lib/ink-map/fire-field";
 import { ArrowsClockwise, Pause, Users, Van as VanIcon, Wheelchair } from "@phosphor-icons/react";
 import { headCount } from "./request-badge";
 import { StreetPick, ZoneDraft } from "./use-drawing-tools";
@@ -13,12 +14,30 @@ import { Person, Van, VanState } from "./use-rescue-board";
 const PAPER = "var(--map-paper)";
 const INK = "var(--map-ink)";
 const HAZARD = "var(--signal)";
+const EMBER = "var(--ember)";
+
+type FireAt = (point: Point) => FireState;
+
+// A marker inside the fire carries it: a glow while the ground under it is burning, a smudge of
+// char once the fire has passed, so a glance says whether a home or a van is inside the edge.
+function FireHalo({ state, r }: { state: FireState; r: number }) {
+  if (state === "burning") {
+    return (
+      <>
+        <circle r={r + 12} fill={EMBER} opacity={0.3} />
+        <circle r={r + 6} fill={EMBER} opacity={0.65} />
+      </>
+    );
+  }
+  if (state === "burned") return <circle r={r + 6} fill={INK} opacity={0.45} />;
+  return null;
+}
 
 const WAITING: Person["status"][] = ["received", "approved", "reassigning"];
 
 // One badge per person, readable without reading: red means still waiting for a driver, ink means
 // a driver said yes. The glyph says what they need: a wheelchair, or how many people.
-function RequestPin({ person, focused }: { person: Person; focused: boolean }) {
+function RequestPin({ person, focused, fire }: { person: Person; focused: boolean; fire: FireState }) {
   const waiting = WAITING.includes(person.status) && person.assignment?.status !== "accepted";
   const escalated = Boolean(person.escalation);
   // Someone a driver already has is settled: drawn small, so the red pins carry the map.
@@ -27,6 +46,7 @@ function RequestPin({ person, focused }: { person: Person; focused: boolean }) {
   const reassigning = person.status === "reassigning";
   return (
     <Anchor point={person.at}>
+      <FireHalo state={fire} r={r} />
       {focused && <circle r={r + 9} fill="none" stroke={INK} strokeWidth={2.5} />}
       {escalated && <circle r={r} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
       <circle r={r + 2.5} fill={PAPER} />
@@ -44,10 +64,11 @@ function RequestPin({ person, focused }: { person: Person; focused: boolean }) {
 
 // A household nobody has confirmed is out: a small ink square, the same mark as the dark roof in the
 // homes legend, so a door that still needs a knock shows at town scale too.
-function StillHomeMark({ at }: { at: Point }) {
+function StillHomeMark({ at, fire }: { at: Point; fire: FireState }) {
   return (
     <Anchor point={at}>
-      <rect x={-4.5} y={-4.5} width={9} height={9} fill={INK} stroke={PAPER} strokeWidth={2} />
+      <FireHalo state={fire} r={5} />
+      <rect x={-4.5} y={-4.5} width={9} height={9} fill={INK} stroke={fire === "burning" ? EMBER : PAPER} strokeWidth={2} />
     </Anchor>
   );
 }
@@ -60,7 +81,7 @@ const STATE_BADGE: Partial<Record<VanState, { icon: ReactNode; spin?: boolean; l
   boarding: { icon: <Users weight="fill" size={10} color="white" x={-5} y={-5} />, label: "Picking up" },
 };
 
-function VanMark({ van, onHover }: { van: Van; onHover: (id: string | null) => void }) {
+function VanMark({ van, fire, onHover }: { van: Van; fire: FireState; onHover: (id: string | null) => void }) {
   const busy = van.stops.length > 0;
   const label = van.vehicle.label;
   const width = label.length * 6.6 + 26;
@@ -73,6 +94,7 @@ function VanMark({ van, onHover }: { van: Van; onHover: (id: string | null) => v
         onPointerEnter={() => onHover(van.vehicle._id)}
         onPointerLeave={() => onHover(null)}
       >
+        {fire && <rect x={-6} y={-6} width={width + 12} height={32} rx={11} fill={fire === "burning" ? EMBER : INK} opacity={fire === "burning" ? 0.6 : 0.4} />}
         <rect width={width} height={20} rx={5} fill={busy ? INK : PAPER} stroke={busy ? PAPER : INK} strokeWidth={busy ? 2 : 1.5} />
         <VanIcon x={5} y={3} size={14} weight="fill" color={busy ? "white" : INK} />
         <text x={22} y={14} fontSize={11} fontWeight={700} fill={busy ? "white" : INK}>
@@ -204,6 +226,7 @@ type OverlayProps = {
   stillHome: Point[];
   vanFocusId: string | null;
   onVanHover: (id: string | null) => void;
+  fireAt: FireAt;
 };
 
 // The van whose run is being looked at: one hovered directly, or the van serving the person hovered.
@@ -211,7 +234,7 @@ function lookedAtVan(people: Person[], focusId: string | null, vanFocusId: strin
   return vanFocusId ?? people.find((person) => person._id === focusId)?.assignment?.vehicleId ?? null;
 }
 
-export function MapOverlays({ zone, street, people, vans, focusId, stillHome, vanFocusId, onVanHover }: OverlayProps) {
+export function MapOverlays({ zone, street, people, vans, focusId, stillHome, vanFocusId, onVanHover, fireAt }: OverlayProps) {
   const focusedVan = lookedAtVan(people, focusId, vanFocusId);
   // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
   const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
@@ -225,13 +248,13 @@ export function MapOverlays({ zone, street, people, vans, focusId, stillHome, va
         <VanRoute key={van.vehicle._id} van={van} focused={van.vehicle._id === focusedVan} faded={focusedVan !== null && van.vehicle._id !== focusedVan} />
       ))}
       {stillHome.map((at, index) => (
-        <StillHomeMark key={index} at={at} />
+        <StillHomeMark key={index} at={at} fire={fireAt(at)} />
       ))}
       {vans.map((van) => (
-        <VanMark key={van.vehicle._id} van={van} onHover={onVanHover} />
+        <VanMark key={van.vehicle._id} van={van} fire={fireAt(van.at)} onHover={onVanHover} />
       ))}
       {ordered.map((person) => (
-        <RequestPin key={person._id} person={person} focused={person._id === focusId || (vanFocusId !== null && person.assignment?.vehicleId === vanFocusId)} />
+        <RequestPin key={person._id} person={person} fire={fireAt(person.at)} focused={person._id === focusId || (vanFocusId !== null && person.assignment?.vehicleId === vanFocusId)} />
       ))}
       {zone && <ZoneInProgress draft={zone} />}
       {street && <StreetUnderPointer street={street} />}

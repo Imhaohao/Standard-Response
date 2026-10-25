@@ -5,6 +5,7 @@ import { InkMapHandle } from "@/components/ink-map/ink-map-canvas";
 import { LatLng } from "@/lib/geo";
 import { InkMapView } from "@/lib/ink-map/camera";
 import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
+import { ForecastField } from "@/lib/ink-map/danger";
 import { Hazard } from "@/lib/ink-map/hazard";
 import { BuildingState, InkMapRenderer } from "@/lib/ink-map/renderer";
 import { InkSurface } from "./ink-surface";
@@ -57,6 +58,7 @@ export function MapStage({
   hazard,
   minutes,
   fronts,
+  forecast,
   highlights,
   onPick,
   onHover,
@@ -74,6 +76,8 @@ export function MapStage({
   hazard?: Hazard | null;
   minutes?: number;
   fronts?: { minutes: number; ring: Point[] }[];
+  // Forecast bands the 3D map draws on the ground. The flat map has no shader, so it draws none.
+  forecast?: StageForecast | null;
   highlights?: Map<number, BuildingState>;
   onPick?: (point: Point) => void;
   onHover?: (point: Point | null) => void;
@@ -152,18 +156,26 @@ export function MapStage({
       onContextMenu={onContextPick ? contextMenu : undefined}
       className={`relative isolate size-full touch-none overflow-hidden bg-canvas ${cursorFor(interactive, mode)} ${className}`}
     >
-      <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} fronts={fronts} highlights={highlights} onHandle={setHandle} onFail={fail} />
+      <StageSurface mode={mode} data={data} view={view} frame={frame} size={size} hazard={hazard} minutes={minutes} fronts={fronts} forecast={forecast} highlights={highlights} onHandle={setHandle} onFail={fail} />
       {value && (
         <StageContext.Provider value={value}>
-          <svg width={value.size.width} height={value.size.height} className="pointer-events-none absolute inset-0" aria-hidden>
-            {underlay}
-            {mode === "ink" && hazard && <SmokeLayer fronts={hazard.field.fronts} minutes={minutes ?? 0} />}
-            {children}
-          </svg>
+          {underlay && <OverlayLayer size={value.size}>{underlay}</OverlayLayer>}
+          <OverlayLayer size={value.size}>{children}</OverlayLayer>
+          {mode === "ink" && hazard && <SmokeLayer fronts={hazard.field.fronts} minutes={minutes ?? 0} />}
           {controls}
         </StageContext.Provider>
       )}
     </div>
+  );
+}
+
+// Each overlay is its own compositor layer, so a marker that changes repaints only the markers and
+// never the large fire and forecast shapes underneath, which change once a minute at most.
+function OverlayLayer({ size, children }: { size: { width: number; height: number }; children: ReactNode }) {
+  return (
+    <svg width={size.width} height={size.height} className="pointer-events-none absolute inset-0 will-change-transform" aria-hidden>
+      {children}
+    </svg>
   );
 }
 
@@ -196,6 +208,8 @@ function useHoverPick(groundAt: (event: ClientPoint) => { ground: Point } | null
 
 const EMPTY: Map<number, BuildingState> = new Map();
 
+export type StageForecast = { field: ForecastField; aheadMinutes: number };
+
 type SurfaceProps = {
   mode: SurfaceMode;
   data: InkMapData;
@@ -205,14 +219,15 @@ type SurfaceProps = {
   hazard?: Hazard | null;
   minutes?: number;
   fronts?: { minutes: number; ring: Point[] }[];
+  forecast?: StageForecast | null;
   highlights?: Map<number, BuildingState>;
   onHandle: (handle: InkMapHandle | null) => void;
   onFail: () => void;
 };
 
-function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fronts = [], highlights = EMPTY, onHandle, onFail }: SurfaceProps) {
+function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fronts = [], forecast, highlights = EMPTY, onHandle, onFail }: SurfaceProps) {
   if (mode === "ink") {
-    return <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes} highlights={highlights} onHandle={onHandle} onFail={onFail} />;
+    return <InkSurface data={data} view={view} hazard={hazard ?? null} minutes={minutes} forecast={forecast} highlights={highlights} onHandle={onHandle} onFail={onFail} />;
   }
   if (!size || !frame) return null;
   return (

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LatLng } from "@/lib/geo";
 import { createProjection, Point } from "./data";
-import { contains } from "./fire-field";
+import { arrivalAt, contains, NEVER_BURNS, ScenarioFront } from "./fire-field";
 
 type Ring = number[][];
 type ZoneGeometry = { type: "Polygon"; coordinates: Ring[] } | { type: "MultiPolygon"; coordinates: Ring[][] };
@@ -85,4 +85,65 @@ export function zonesAt(danger: DangerZones, minutes: number): DangerZone[] {
 export function chanceAt(danger: DangerZones, minutes: number, [x, y]: Point): number | null {
   const holding = zonesAt(danger, minutes).filter((zone) => zone.rings.filter((ring) => contains(ring, x, y)).length % 2 === 1);
   return holding.length ? Math.max(...holding.map((zone) => zone.probability)) : null;
+}
+
+// The forecast as three arrival maps, one per band: the minute each spot is that likely to have
+// burned, interpolated between the ten-minute frames so the bands slide rather than jump. The map
+// draws it on the ground, under the markers, minus whatever the scenario fire has already burned.
+export type ForecastField = { minutes: Float32Array; width: number; height: number; region: { x0: number; y0: number; x1: number; y1: number } };
+
+const FORECAST_CELLS_ACROSS = 192;
+const FORECAST_PAD_METERS = 200;
+const BANDS = 3;
+
+const largestRing = (rings: Point[][]) => rings.reduce((best, ring) => (ring.length > best.length ? ring : best), rings[0]);
+
+// The zones of each band nest as time goes on, so the first zone holding a point is found by halving.
+function firstHolding(fronts: ScenarioFront[], x: number, y: number) {
+  let low = 0;
+  let high = fronts.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (contains(fronts[middle].ring, x, y)) high = middle;
+    else low = middle + 1;
+  }
+  return low;
+}
+
+function bandArrival(fronts: ScenarioFront[], x: number, y: number) {
+  const index = firstHolding(fronts, x, y);
+  if (index === fronts.length) return NEVER_BURNS;
+  return index === 0 ? fronts[0].minutes : arrivalAt(fronts.slice(index - 1, index + 1), x, y);
+}
+
+export function forecastField(danger: DangerZones): ForecastField {
+  const bands = [...danger.probabilities]
+    .sort((a, b) => a - b)
+    .slice(0, BANDS)
+    .map((probability) =>
+      danger.zones
+        .filter((zone) => zone.probability === probability)
+        .sort((a, b) => a.minutes - b.minutes)
+        .map((zone) => ({ minutes: zone.minutes, ring: largestRing(zone.rings) })),
+    );
+  const widest = bands[0][bands[0].length - 1].ring;
+  const region = {
+    x0: Math.min(...widest.map((p) => p[0])) - FORECAST_PAD_METERS,
+    y0: Math.min(...widest.map((p) => p[1])) - FORECAST_PAD_METERS,
+    x1: Math.max(...widest.map((p) => p[0])) + FORECAST_PAD_METERS,
+    y1: Math.max(...widest.map((p) => p[1])) + FORECAST_PAD_METERS,
+  };
+  const width = FORECAST_CELLS_ACROSS;
+  const height = Math.round((width * (region.y1 - region.y0)) / (region.x1 - region.x0));
+  const minutes = new Float32Array(width * height * BANDS).fill(NEVER_BURNS);
+  for (let row = 0; row < height; row++) {
+    const y = region.y0 + ((row + 0.5) / height) * (region.y1 - region.y0);
+    for (let col = 0; col < width; col++) {
+      const x = region.x0 + ((col + 0.5) / width) * (region.x1 - region.x0);
+      bands.forEach((fronts, band) => {
+        minutes[(row * width + col) * BANDS + band] = bandArrival(fronts, x, y);
+      });
+    }
+  }
+  return { minutes, width, height, region };
 }

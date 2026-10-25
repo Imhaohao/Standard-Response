@@ -11,7 +11,8 @@ import { TOWN_FRAME } from "@/components/map/projection";
 import { useBuildingHighlights } from "@/components/map/use-highlights";
 import { LatLng } from "@/lib/geo";
 import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
-import { FORECAST_AHEAD_MINUTES, useDangerZones } from "@/lib/ink-map/danger";
+import { fireStateAt } from "@/lib/ink-map/fire-field";
+import { FORECAST_AHEAD_MINUTES, forecastField, useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
 import { DangerLayer, ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
@@ -49,6 +50,8 @@ export function RescueMap() {
   const board = useRescueBoard(data, toLocal);
   const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data, board.people, toLocal);
   const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
+  const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, clock.minutes) : null), [hazard, clock.minutes]);
+  const forecast = useMemo(() => (danger ? { field: forecastField(danger), aheadMinutes: FORECAST_AHEAD_MINUTES } : null), [danger]);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(data, toLocal, board.closed);
   const [vanFocusId, setVanFocusId] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export function RescueMap() {
         hazard={hazard}
         minutes={clock.minutes}
         fronts={hazard?.field.fronts}
+        forecast={forecastShown ? forecast : null}
         highlights={highlights}
         onPick={onPick}
         onHover={drawing.hover}
@@ -93,13 +97,23 @@ export function RescueMap() {
         }
         underlay={
           <>
-            {danger && forecastShown && <DangerLayer danger={danger} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
+            {danger && forecastShown && mode === "paper" && <DangerLayer danger={danger} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
             <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
           </>
         }
       >
         <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
-        <MapOverlays zone={drawing.zone} street={drawing.street} people={board.people} vans={board.vans} focusId={mapFocus.pinFocus} stillHome={stillHome} vanFocusId={vanFocusId} onVanHover={setVanFocusId} />
+        <MapOverlays
+          zone={drawing.zone}
+          street={drawing.street}
+          people={board.people}
+          vans={board.vans}
+          focusId={mapFocus.pinFocus}
+          stillHome={stillHome}
+          vanFocusId={vanFocusId}
+          onVanHover={setVanFocusId}
+          fireAt={fireAt}
+        />
       </MapStage>
 
       <PanelDesk storageKey="rescue-map-panels">

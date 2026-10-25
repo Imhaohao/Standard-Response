@@ -6,6 +6,7 @@ import { InkMapView } from "@/lib/ink-map/camera";
 import { InkMapData } from "@/lib/ink-map/data";
 import { Hazard } from "@/lib/ink-map/hazard";
 import { BuildingState } from "@/lib/ink-map/renderer";
+import type { StageForecast } from "./map-stage";
 
 // The WebGL half of the map. Everything it needs arrives as props; the parent keeps the handle
 // so it can project markers into the same frame.
@@ -14,6 +15,7 @@ export function InkSurface({
   view,
   hazard,
   minutes,
+  forecast,
   highlights,
   onHandle,
   onFail,
@@ -22,6 +24,7 @@ export function InkSurface({
   view: InkMapView;
   hazard: Hazard | null;
   minutes: number;
+  forecast?: StageForecast | null;
   highlights: Map<number, BuildingState>;
   onHandle: (handle: InkMapHandle | null) => void;
   onFail: () => void;
@@ -50,6 +53,10 @@ export function InkSurface({
   useEffect(() => {
     handle?.renderer.setFireMinutes(minutes);
   }, [handle, minutes]);
+
+  useEffect(() => {
+    handle?.renderer.setForecast(forecast?.field ?? null, forecast?.aheadMinutes ?? 0);
+  }, [handle, forecast]);
 
   return <InkMapCanvas data={data} view={view} onReady={accept} onFail={onFail} />;
 }

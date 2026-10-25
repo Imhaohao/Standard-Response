@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import { InkMapData, Point, terrainHeight } from "./data";
 import { configureCamera, InkMapView, viewRegion } from "./camera";
-import type { FireField } from "./fire-field";
+import type { ForecastField } from "./danger";
+import { NEVER_BURNS, type FireField } from "./fire-field";
 import { buildingGeometry, landuseTexture, LanduseTexture, roadGeometry, terrainGeometry, treeMesh } from "./geometry";
 import {
   BLUR_FRAGMENT,
   COMPOSITE_FRAGMENT,
   DEPTH_FRAGMENT,
   DEPTH_VERTEX,
+  FIRE_FRAGMENT,
   FIRE_MASK_FRAGMENT,
   FULLSCREEN_VERTEX,
   GBUFFER_FRAGMENT,
@@ -63,16 +65,22 @@ export class InkMapRenderer {
   private gbuffer: THREE.WebGLRenderTarget;
   private shadow: THREE.WebGLRenderTarget;
   private shadowCamera = new THREE.OrthographicCamera();
+  // The map without anything that moves, redrawn only when the view, the fire's minute or a home changes.
+  private base: THREE.WebGLRenderTarget;
+  private baseDirty = true;
   private fireMask: THREE.WebGLRenderTarget;
   private blurA: THREE.WebGLRenderTarget;
+  private bloom: THREE.WebGLRenderTarget;
   private quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private gbufferUniforms: Record<string, THREE.IUniform>;
   private composite: ReturnType<typeof fullscreenPass>;
+  private fire: ReturnType<typeof fullscreenPass>;
   private mask: ReturnType<typeof fullscreenPass>;
   private blur: ReturnType<typeof fullscreenPass>;
   private landuse: LanduseTexture;
   private buildingStates: THREE.DataTexture;
   private fireTexture: THREE.DataTexture | null = null;
+  private forecastTexture: THREE.DataTexture | null = null;
   private cssSize = { width: 1, height: 1 };
   private frame = 0;
   private running = false;
@@ -98,8 +106,10 @@ export class InkMapRenderer {
     }
     const shadowSize = Math.min(this.renderer.capabilities.maxTextureSize, fine ? 4096 : 8192);
     this.shadow = new THREE.WebGLRenderTarget(shadowSize, shadowSize, { depthTexture: new THREE.DepthTexture(shadowSize, shadowSize, THREE.FloatType) });
-    this.fireMask = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
-    this.blurA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+    this.base = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+    this.fireMask = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+    this.blurA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+    this.bloom = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
     this.buildingStates = new THREE.DataTexture(new Uint8Array(256 * Math.ceil(data.buildings.length / 256) * 4), 256, Math.ceil(data.buildings.length / 256), THREE.RGBAFormat);
     this.buildingStates.needsUpdate = true;
 
@@ -115,8 +125,9 @@ export class InkMapRenderer {
     this.buildScene(region, fine);
     this.composite = fullscreenPass(COMPOSITE_FRAGMENT, this.compositeUniforms());
     this.mask = fullscreenPass(FIRE_MASK_FRAGMENT, this.composite.material.uniforms);
+    this.fire = fullscreenPass(FIRE_FRAGMENT, this.composite.material.uniforms);
     this.blur = fullscreenPass(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
-    this.disposables.push(this.gbuffer, this.shadow, this.fireMask, this.blurA, this.landuse.texture, this.buildingStates, this.renderer);
+    this.disposables.push(this.gbuffer, this.shadow, this.base, this.fireMask, this.blurA, this.bloom, this.landuse.texture, this.buildingStates, this.renderer);
   }
 
   private buildScene(region: ReturnType<typeof viewRegion>, fine: boolean) {
@@ -151,7 +162,9 @@ export class InkMapRenderer {
       tNormal: { value: this.gbuffer.textures[1] },
       tId: { value: this.gbuffer.textures[2] },
       tDepth: { value: this.gbuffer.depthTexture },
-      tBloom: { value: this.fireMask.texture },
+      tBase: { value: this.base.texture },
+      tFrontMask: { value: this.fireMask.texture },
+      tBloom: { value: this.bloom.texture },
       tFire: { value: emptyTexture() },
       tBuildingState: { value: this.buildingStates },
       uInvProjection: { value: new THREE.Matrix4() },
@@ -176,6 +189,10 @@ export class InkMapRenderer {
       uViewMpp: { value: 1 },
       uPatternScale: { value: 1 },
       uPatternBlend: { value: 0 },
+      tForecast: { value: emptyTexture() },
+      uForecastRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
+      uForecastOn: { value: 0 },
+      uForecastAhead: { value: 60 },
     };
   }
 
@@ -213,8 +230,9 @@ export class InkMapRenderer {
     const w = Math.round(this.cssSize.width * pr);
     const h = Math.round(this.cssSize.height * pr);
     this.gbuffer.setSize(w, h);
-    this.fireMask.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
-    this.blurA.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
+    this.base.setSize(w, h);
+    for (const target of [this.fireMask, this.blurA, this.bloom]) target.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
+    this.baseDirty = true;
     configureCamera(this.camera, this.data, this.view, this.cssSize.width / this.cssSize.height);
     this.home = { position: this.camera.position.clone(), target: this.lookTarget() };
     this.composite.material.uniforms.uResolution.value.set(w, h);
@@ -278,6 +296,7 @@ export class InkMapRenderer {
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
     this.renderer.setRenderTarget(null);
+    this.baseDirty = true;
     this.renderFrame();
     for (const listener of this.viewListeners) listener();
   }
@@ -365,6 +384,7 @@ export class InkMapRenderer {
     this.renderer.setRenderTarget(null);
   }
 
+  // The crisp glow mask stays in fireMask for the flames; two blur rounds spread it into bloom.
   private renderBloom() {
     const u = this.composite.material.uniforms;
     if (u.uFireOn.value < 0.5) return;
@@ -373,15 +393,21 @@ export class InkMapRenderer {
     const texel = new THREE.Vector2(1 / this.fireMask.width, 1 / this.fireMask.height);
     const b = this.blur.material.uniforms;
     for (let pass = 0; pass < 2; pass++) {
-      b.tInput.value = this.fireMask.texture;
+      b.tInput.value = pass === 0 ? this.fireMask.texture : this.bloom.texture;
       b.uDirection.value.set(texel.x * (1 + pass), 0);
       this.renderer.setRenderTarget(this.blurA);
       this.renderer.render(this.blur.scene, this.quadCamera);
       b.tInput.value = this.blurA.texture;
       b.uDirection.value.set(0, texel.y * (1 + pass));
-      this.renderer.setRenderTarget(this.fireMask);
+      this.renderer.setRenderTarget(this.bloom);
       this.renderer.render(this.blur.scene, this.quadCamera);
     }
+  }
+
+  private renderBase() {
+    this.baseDirty = false;
+    this.renderer.setRenderTarget(this.base);
+    this.renderer.render(this.composite.scene, this.quadCamera);
   }
 
   renderFrame() {
@@ -389,9 +415,10 @@ export class InkMapRenderer {
     const seconds = (performance.now() - this.startedAt) / 1000;
     u.uTime.value = seconds;
     u.uPulse.value = 0.5 + 0.5 * Math.sin(seconds * 3.2);
+    if (this.baseDirty) this.renderBase();
     this.renderBloom();
     this.renderer.setRenderTarget(null);
-    this.renderer.render(this.composite.scene, this.quadCamera);
+    this.renderer.render(this.fire.scene, this.quadCamera);
   }
 
   // Animation runs only while something on the map moves: fire, or a pulsing home.
@@ -420,6 +447,7 @@ export class InkMapRenderer {
     const u = this.composite.material.uniforms;
     this.fireTexture?.dispose();
     this.fireTexture = null;
+    this.baseDirty = true;
     if (!field) {
       u.uFireOn.value = 0;
       return;
@@ -435,15 +463,43 @@ export class InkMapRenderer {
     u.uFireRegion.value.set(field.region.x0, field.region.y0, field.region.x1, field.region.y1);
     u.uFireLast.value = field.fronts[field.fronts.length - 1].minutes;
     u.uFireOn.value = 1;
+    this.baseDirty = true;
+  }
+
+  // The forecast bands on the ground (see forecastField in danger.ts), or none.
+  setForecast(field: ForecastField | null, aheadMinutes: number) {
+    const u = this.composite.material.uniforms;
+    this.forecastTexture?.dispose();
+    this.forecastTexture = null;
+    this.baseDirty = true;
+    u.uForecastOn.value = field ? 1 : 0;
+    u.uForecastAhead.value = aheadMinutes;
+    if (!field) return;
+    const cells = field.width * field.height;
+    const half = new Uint16Array(cells * 4).fill(THREE.DataUtils.toHalfFloat(NEVER_BURNS));
+    for (let cell = 0; cell < cells; cell++) {
+      for (let band = 0; band < 3; band++) half[cell * 4 + band] = THREE.DataUtils.toHalfFloat(field.minutes[cell * 3 + band]);
+    }
+    const texture = new THREE.DataTexture(half, field.width, field.height, THREE.RGBAFormat, THREE.HalfFloatType);
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    this.forecastTexture = texture;
+    u.tForecast.value = texture;
+    u.uForecastRegion.value.set(field.region.x0, field.region.y0, field.region.x1, field.region.y1);
   }
 
   setDebug(mode: number) {
     this.composite.material.uniforms.uDebug.value = mode;
+    this.baseDirty = true;
     this.renderFrame();
   }
 
   setFireMinutes(minutes: number) {
-    this.composite.material.uniforms.uFireNow.value = minutes;
+    const now = this.composite.material.uniforms.uFireNow;
+    if (now.value === minutes) return;
+    now.value = minutes;
+    this.baseDirty = true;
   }
 
   setBuildingStates(states: Map<number, BuildingState>) {
@@ -455,6 +511,7 @@ export class InkMapRenderer {
       pixels[id * 4 + 2] = state.occupancy ? OCCUPANCY_BYTE[state.occupancy] : 0;
     }
     this.buildingStates.needsUpdate = true;
+    this.baseDirty = true;
   }
 
   // Map meters (and height above ground) to CSS pixels inside the canvas.
@@ -503,6 +560,7 @@ export class InkMapRenderer {
     this.stop();
     cancelAnimationFrame(this.flight);
     this.fireTexture?.dispose();
+    this.forecastTexture?.dispose();
     for (const item of this.disposables) item.dispose();
   }
 }
