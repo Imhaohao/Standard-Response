@@ -41,6 +41,7 @@ export const VI: Lines = {
     neighbor: "Quý vị có biết ai gần đó có thể cần giúp để ra ngoài không ạ? Nếu có, chỉ cần cho tôi tên đường và số nhà.",
   },
   stillThere: ["Quý vị còn nghe máy không ạ?", "Alô? Tôi vẫn đang ở trên máy.", "Quý vị có nghe rõ tôi không ạ?"],
+  notKnownYet: "Tôi chưa biết điều đó.",
   takeYourTime: "Dạ được, quý vị cứ từ từ. Tôi sẽ chờ.",
   lostYou: "Tôi không nghe được quý vị, nên tôi sẽ gọi lại ngay sau đây. Nếu quý vị có thể rời đi an toàn, xin hãy rời đi ngay bây giờ.",
   passedOn: (place) => `Cảm ơn, tôi đã chuyển ${place} cho nhân viên điều phối.`,
@@ -88,12 +89,13 @@ export const VI: Lines = {
   },
   oxygen: "đang thở oxy",
   atAddress: (address) => `tại ${address}`,
+  fromAddress: (address) => `từ ${address}`,
   listSeparator: ", ",
   textPrompt:
     "911, sơ tán ở Altadena: phố của quý vị đang có cảnh báo sơ tán. Trả lời 1 nếu quý vị có thể tự rời đi, 2 nếu cần xe đưa đi, 3 nếu cần xe có chỗ cho xe lăn. Quý vị cũng có thể ghi rõ những ai đang ở cùng quý vị.",
   textThanks: "Cảm ơn quý vị. Chúng tôi đã nhận được câu trả lời.",
   backchannels: ["Vâng.", "Dạ.", "Để tôi xem."],
-  waitingForRequest: "Tôi đang gửi yêu cầu xe đón cho quý vị. Chưa có tài xế nào nhận. Ngay khi có tài xế nhận, tôi sẽ gọi lại cho quý vị.",
+  waitingForRequest: "Tôi đang gửi yêu cầu xe đón cho quý vị. Chưa có tài xế nào nhận. Ngay khi có tài xế nhận, tôi sẽ gọi lại cho quý vị. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   waiting:
     "Tôi đã gửi yêu cầu đón quý vị, và nhân viên điều phối đang xử lý ngay bây giờ. Khi có tài xế nhận chuyến, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   reassigning:

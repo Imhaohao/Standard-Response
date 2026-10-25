@@ -57,6 +57,8 @@ export type Lines = {
   // Check-ins when the line goes quiet after a question, used in turn before the question again.
   // The second ("Hello? I'm still on the line.") also answers a caller checking the line on hold.
   stillThere: string[];
+  // Asked about the fire or the way out when the 911 screen has nothing to say: the honest answer.
+  notKnownYet: string;
   // The resident asked for a moment ("hold on, let me ask my wife"): the agent waits.
   takeYourTime: string;
   // Said after several quiet check-ins in a row. The call ends and the reach ladder calls back.
@@ -111,6 +113,8 @@ export type Lines = {
   assistance: Record<Assistance, string>;
   oxygen: string;
   atAddress: (address: string) => string;
+  // Someone leaving on their own may already be on the road, so the read-back says where they leave from.
+  fromAddress: (address: string) => string;
   // Joins read-back parts; the result is capitalized and wrapped by readbackIntro and readbackQuestion.
   listSeparator: string;
   // Ends the read-back summary. Defaults to ".".

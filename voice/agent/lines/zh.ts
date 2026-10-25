@@ -41,6 +41,7 @@ export const ZH: Lines = {
     neighbor: "附近有没有您认识的人可能需要帮助才能离开？如果有，告诉我街道和门牌号就可以。",
   },
   stillThere: ["您还在吗？", "喂？我还在线上。", "您能听清我说话吗？"],
+  notKnownYet: "这个我现在还不知道。",
   takeYourTime: "好的，不着急，我等您。",
   lostYou: "我听不到您的声音，稍后会再给您打过来。如果您能安全离开，请现在就离开。",
   passedOn: (place) => `谢谢，我已把${place}转告调度员。`,
@@ -88,6 +89,7 @@ export const ZH: Lines = {
   },
   oxygen: "在吸氧",
   atAddress: (address) => `在${address}`,
+  fromAddress: (address) => `从${address}`,
   sentenceGap: "",
   listSeparator: "，",
   sentenceEnd: "。",
@@ -95,7 +97,7 @@ export const ZH: Lines = {
     "911，阿尔塔迪纳撤离：您所在的街道已发布撤离警告。如果您能自己离开，请回复1；如果需要车辆接送，请回复2；如果需要能上轮椅的车辆，请回复3。您也可以写下和您在一起的人。",
   textThanks: "谢谢。我们已收到您的回复。",
   backchannels: ["嗯。", "嗯嗯。", "我看一下。"],
-  waitingForRequest: "我现在正在为您提交用车请求。目前还没有司机接单。一有司机接单，我会马上给您回电话。",
+  waitingForRequest: "我现在正在为您提交用车请求。目前还没有司机接单。一有司机接单，我会马上给您回电话。如果您能安全离开，请现在就离开。",
   waiting:
     "我已经为您提交了接送请求，调度员正在处理。一有司机接受，我马上给您回电话。如果您能安全离开，请现在就离开。",
   reassigning:

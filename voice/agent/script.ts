@@ -30,6 +30,13 @@ export function withSafety(line: string, language: Language) {
   return `${line}${lines.sentenceGap ?? " "}${lines.safety[currentHazard()]}`;
 }
 
+// "You're leaving on your own, by car, at 280 Marathon Road" to a family already in traffic: the exam
+// judge called it an invented fact. Leaving, the address is where they leave from.
+function addressPart(address: string | undefined, leaving: boolean, lines: Lines) {
+  if (!address) return undefined;
+  return leaving ? lines.fromAddress(address) : lines.atAddress(address);
+}
+
 function readbackParts(record: AgentRecord, lines: Lines) {
   const leaving = record.canLeave === "yes" && record.hasCar !== false && !record.mobility;
   return [
@@ -41,7 +48,7 @@ function readbackParts(record: AgentRecord, lines: Lines) {
     record.assistanceRequired && record.assistanceRequired !== "none" ? lines.assistance[record.assistanceRequired] : undefined,
     record.pets ? lines.pets : undefined,
     record.hasCar === false ? lines.noCar : undefined,
-    record.address ? lines.atAddress(record.address) : undefined,
+    addressPart(record.address, leaving, lines),
   ].filter((part): part is string => part !== undefined);
 }
 

@@ -42,6 +42,7 @@ export const FR: Lines = {
     neighbor: "Connaissez-vous quelqu'un près de chez vous qui aurait besoin d'aide pour partir ? Si oui, la rue et le numéro suffisent.",
   },
   stillThere: ["Êtes-vous toujours là ?", "Allô ? Je suis toujours en ligne.", "M'entendez-vous bien ?"],
+  notKnownYet: "Je ne le sais pas encore.",
   takeYourTime: "Bien sûr, prenez votre temps. J'attends.",
   lostYou: "Je ne vous entends pas, alors je vous rappelle dans un instant. Si vous pouvez partir en sécurité, partez maintenant.",
   passedOn: (place) => `Merci, j'ai transmis ${place}.`,
@@ -93,12 +94,13 @@ export const FR: Lines = {
   },
   oxygen: "sous oxygène",
   atAddress: (address) => `au ${address}`,
+  fromAddress: (address) => `depuis le ${address}`,
   listSeparator: ", ",
   textPrompt:
     "911, évacuation d'Altadena : un avertissement d'évacuation concerne votre rue. Répondez 1 si vous pouvez partir par vos propres moyens, 2 si vous avez besoin d'un transport, 3 si vous avez besoin d'un véhicule adapté aux fauteuils roulants. Vous pouvez aussi écrire qui est avec vous.",
   textThanks: "Merci. Nous avons bien reçu votre réponse.",
   backchannels: ["Mm-hm.", "Mm.", "D'accord.", "Voyons."],
-  waitingForRequest: "Je fais votre demande de transport maintenant. Aucun chauffeur n'a encore accepté. Je vous rappelle dès qu'un chauffeur accepte.",
+  waitingForRequest: "Je fais votre demande de transport maintenant. Aucun chauffeur n'a encore accepté. Je vous rappelle dès qu'un chauffeur accepte. Si vous pouvez partir en sécurité, partez maintenant.",
   waiting:
     "J'ai enregistré votre demande de transport, et les régulateurs s'en occupent en ce moment. Je vous rappelle dès qu'un conducteur accepte. Si vous pouvez partir en sécurité, partez maintenant.",
   reassigning:

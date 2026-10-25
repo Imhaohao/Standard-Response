@@ -463,9 +463,11 @@ export class Conversation {
   // same answer again, so replies are compared by their opening words, not only exactly.
   // A question is owed an answer, so "I don't know that." to a second question is said again; only
   // a reply the caller heard on the agent's last turn is dropped, unless they asked the same again.
+  // "I don't know that." answers a question: to "I don't know! We're in the car!" it answered nothing.
   private isFreshReply(text: string) {
     const normalized = normalizeAck(text);
     if (normalized === "") return false;
+    if (DONT_KNOW.test(text.trim()) && !isQuestion(this.lastResidentLine())) return false;
     const asked = normalizeAck(this.lastResidentLine());
     const answeredThisBefore = [...this.repliesSaid].some(([said, answered]) => answered === asked && sameGist(said, normalized));
     if (isQuestion(this.lastResidentLine())) return answeredThisBefore || !normalizeAck(this.lastAgentLine()).includes(normalized);
@@ -563,10 +565,16 @@ export class Conversation {
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
   // leaving on their own is told to go now.
   // "Where's the fire?" and "Which way do I go?" get the 911 screen's lines, never Claude's numbers.
+  // With nothing on the screen ("Any suggestions which direction I should go?" with no route found,
+  // or no fire model for this hazard), and no words of Claude's, the honest answer is said: the
+  // caller's question had gone unanswered. Only to a question: "There's houses on fire!" also reads
+  // as asking about the fire.
   private screenLines(heard: Interpretation) {
+    if (!heard.asksFire && !heard.asksRoute) return [];
     const screen = this.effects.screen?.(this.language);
-    if (!screen) return [];
-    return [heard.asksFire ? screen.fire : null, heard.asksRoute ? screen.route : null].filter((line): line is string => line !== null);
+    const known = [heard.asksFire ? screen?.fire : null, heard.asksRoute ? screen?.route : null].filter((line): line is string => typeof line === "string");
+    const unanswered = known.length === 0 && !this.replyWillPlay(heard) && isQuestion(this.lastResidentLine());
+    return unanswered ? [LINES[this.language].notKnownYet] : known;
   }
 
   private whatToDoLines(heard: Interpretation) {
@@ -744,7 +752,9 @@ export class Conversation {
     this.unknownLanguageTurns = spoken === "other" ? this.unknownLanguageTurns + 1 : 0;
     // On hold, "okay" or "mm-hm" is a fine thing to say and never a reason to hand off.
     // Neither is "say that again?", which shows they're following along in a language we speak.
-    const missed = spoken === "other" || (heardNothing(heard) && !this.holding && !heard.wantsRepeat);
+    // "I'm not sure" and "I don't know the address" were understood; three of them handed a family
+    // in traffic to a person as a language barrier.
+    const missed = spoken === "other" || (heardNothing(heard) && !this.holding && !heard.wantsRepeat && !heard.unsure);
     this.missedTurns = missed ? this.missedTurns + 1 : 0;
     if (!missed) this.languageGuessed = false;
     // "What? I can't hear you." over and over: each one shows they're trying, but the line isn't
@@ -1181,6 +1191,7 @@ export const RIDE_ANSWER_SENTENCES = 2;
 const ASKS_WHETHER_TO_WAIT = /\b(wait|stay)\b|\besper(o|ar|amos|ase|en)\b|\bqued(o|arme|arnos|amos)\b/i;
 // Speech-to-text punctuates a question, in every language the line speaks.
 const isQuestion = (text: string) => /[?？¿]/.test(text);
+const DONT_KNOW = /^(i don'?t know( that)?( yet)?|(todav[ií]a )?no (lo )?s[eé]( eso)?( todav[ií]a| a[uú]n)?)[.!]?$/i;
 const STILL_ON_THE_LINE = 1;
 // "Hello?", "Hello? Hello?", "Are you there?", "¿Bueno?", "喂？", "もしもし" and the like, alone.
 const LINE_CHECK =

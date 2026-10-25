@@ -41,6 +41,7 @@ export const TL: Lines = {
     neighbor: "May kilala po ba kayong malapit na baka kailangan ng tulong para makaalis? Kung mayroon, sapat na po ang kalye at house number.",
   },
   stillThere: ["Nandiyan pa po ba kayo?", "Hello po? Nandito pa rin po ako.", "Naririnig po ba ninyo ako nang maayos?"],
+  notKnownYet: "Hindi ko pa po alam iyan.",
   takeYourTime: "Sige po, dahan-dahan lang po. Hihintayin ko po kayo.",
   lostYou: "Hindi ko po kayo marinig, kaya tatawag po ulit ako maya-maya. Kung kaya po ninyong umalis nang ligtas, umalis na po kayo ngayon.",
   passedOn: (place) => `Salamat po, naipasa ko na po ang ${place}.`,
@@ -88,12 +89,13 @@ export const TL: Lines = {
   },
   oxygen: "gumagamit ng oxygen",
   atAddress: (address) => `sa ${address}`,
+  fromAddress: (address) => `mula sa ${address}`,
   listSeparator: ", ",
   textPrompt:
     "911, evacuation sa Altadena: may evacuation warning sa kalye ninyo. Sumagot ng 1 kung makakaalis kayo nang kusa, 2 kung kailangan ninyo ng sasakyan, 3 kung kailangan ninyo ng sasakyang accessible sa wheelchair. Maaari rin ninyong isulat kung sino ang kasama ninyo.",
   textThanks: "Salamat po. Natanggap na namin ang sagot ninyo.",
   backchannels: ["Opo.", "Mm-hm, opo.", "Sandali lang po."],
-  waitingForRequest: "Ipinapasok ko na po ang hiling ninyong masasakyan. Wala pa pong drayber na tumanggap. Tatawagan ko po kayo agad kapag may tumanggap na.",
+  waitingForRequest: "Ipinapasok ko na po ang hiling ninyong masasakyan. Wala pa pong drayber na tumanggap. Tatawagan ko po kayo agad kapag may tumanggap na. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   waiting:
     "Naipasa ko na po ang inyong request para sa sasakyan, at inaasikaso na po ito ng mga dispatcher ngayon. Tatawagan ko po kayo agad kapag may driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   reassigning:

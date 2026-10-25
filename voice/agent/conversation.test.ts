@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Conversation, Escalation } from "./conversation";
 import type { Interpretation } from "./interpreter";
-import { Language, LINES } from "./script";
+import { Language, LINES, readback } from "./script";
 
 // The state machine on its own: each turn hands respond() what Claude would have read, so these
 // run offline. Lines are compared against the English templates.
@@ -473,6 +473,13 @@ describe("nobody can understand each other", () => {
   });
 });
 
+describe("the read-back's address", () => {
+  it("says where someone leaving on their own leaves from, and where someone waiting is", () => {
+    assert.match(readback({ canLeave: "yes", hasCar: true, peopleCount: 2, address: ADDRESS }, "en"), /by car, 2 people, from 100 Terrace St/);
+    assert.match(readback({ canLeave: "no", peopleCount: 1, mobility: "walker", address: ADDRESS }, "en"), /at 100 Terrace St/);
+  });
+});
+
 describe("asked to stay on the line", () => {
   const STAY = "Yes, I'm staying on the line with you.";
 
@@ -554,6 +561,12 @@ describe("speech the agent can't read", () => {
     const third = conversation.respond("Ching jow run bang wall.", heard({ mistranscribed: true, spokenLanguage: "zh" }));
     assert.ok(third.done);
     assert.ok(escalations.includes("language_barrier"));
+  });
+
+  it("never hands off a caller who keeps saying they don't know", () => {
+    const { conversation, escalations } = call(null);
+    for (const said of ["I'm not sure.", "I don't know the address.", "I don't know! We're in the car!"]) conversation.respond(said, heard({ unsure: true }));
+    assert.ok(!escalations.includes("language_barrier"));
   });
 
   it("counts repeat requests and turns that said nothing together", () => {
@@ -1025,6 +1038,34 @@ describe("the 911 screen on a call", () => {
     const turn = conversation.respond("Where's the fire? Which way do I go?", heard({ asksFire: true, asksRoute: true }));
     assert.ok(turn.sentences.includes(SCREEN.fire));
     assert.ok(turn.sentences.includes(SCREEN.route));
+  });
+
+  it("never says 'I don't know that.' when nothing was asked", () => {
+    const { conversation } = call(null);
+    const turn = conversation.respond("I don't know! We're in the car!", heard({ unsure: true, reply: "I don't know that." }));
+    assert.ok(!turn.sentences.includes("I don't know that."));
+  });
+
+  it("says it doesn't know yet when the screen has no line for what they asked", () => {
+    const conversation = new Conversation({
+      language: "en",
+      onFile: {},
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null, screen: () => ({ ...SCREEN, route: null }) },
+    });
+    conversation.start();
+    const turn = conversation.respond("Any suggestions which direction I should go?", heard({ asksRoute: true }));
+    assert.ok(turn.sentences.includes(EN.notKnownYet));
+  });
+
+  it("leaves it to Claude's own answer when there is one, and says nothing extra when the screen knows", () => {
+    const { conversation } = call();
+    const claude = conversation.respond("Where's the fire?", heard({ asksFire: true, reply: "I don't know where the fire is." }));
+    assert.ok(!claude.sentences.includes(EN.notKnownYet));
+    const known = screened().respond("Where's the fire?", heard({ asksFire: true }));
+    assert.ok(!known.sentences.includes(EN.notKnownYet));
+    const report = call().conversation.respond("There's houses on fire!", heard({ asksFire: true }));
+    assert.ok(!report.sentences.includes(EN.notKnownYet));
   });
 
   it("tells someone leaving on their own the fastest way out", () => {

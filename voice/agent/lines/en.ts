@@ -40,6 +40,7 @@ export const EN: Lines = {
     neighbor: "Do you know anyone nearby who might need help getting out? If so, their street and house number are enough.",
   },
   stillThere: ["Are you still there?", "Hello? I'm still on the line.", "Can you hear me okay?"],
+  notKnownYet: "I don't know that yet.",
   takeYourTime: "Of course, take your time. I'll wait.",
   lostYou: "I can't hear you, so I'll call you back shortly. If you can leave safely, leave now.",
   passedOn: (place) => `Thanks, I've passed on ${place}.`,
@@ -87,12 +88,13 @@ export const EN: Lines = {
   },
   oxygen: "on oxygen",
   atAddress: (address) => `at ${address}`,
+  fromAddress: (address) => `from ${address}`,
   listSeparator: ", ",
   textPrompt:
     "911, Altadena evacuation: an evacuation warning covers your street. Reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle. You can also write who is with you.",
   textThanks: "Thank you. We have your answer.",
   backchannels: ["Mm-hm.", "Mm.", "Alright.", "Let me see."],
-  waitingForRequest: "I'm putting in your ride request now. No driver has accepted yet. I'll call you back the moment one does.",
+  waitingForRequest: "I'm putting in your ride request now. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now.",
   waiting:
     "I've placed your ride request, and the dispatchers are working on it now. I'll call you back the moment a driver accepts. If you can leave safely, leave now.",
   reassigning:
