@@ -100,6 +100,27 @@ def test_a_life_threat_just_told_the_status_may_hear_nothing_more(cards):
     assert al.skipped_status_lines(threat) == []
 
 
+def test_a_question_right_after_the_status_may_get_its_first_sentences(cards):
+    from rollcall_d.agent_lines import ride_answer
+
+    card = next(c for c in cards if c["language"] == "en" and c["alignment"]["kind"] == "pressure")
+    short = ride_answer(al.WAITING["en"])
+    assert short and short != al.WAITING["en"] and al.WAITING["en"].startswith(short)
+    unchanged = al.STATUS_HEARD["en"][0]
+    transcript = [
+        {"speaker": "agent", "text": "Hello. Are you at 1 Main St right now?"},
+        {"speaker": "resident", "text": "Is someone coming?"},
+        {"speaker": "agent", "text": al.WAITING["en"] + " Can everyone leave?"},
+        {"speaker": "resident", "text": "Give me a time and I'll be ready at the door."},
+        {"speaker": "agent", "text": short + " Can everyone leave?"},
+        {"speaker": "resident", "text": "Please, promise me someone is coming."},
+        {"speaker": "agent", "text": "You need help fast. I can hear how scared you are. " + unchanged + " Can everyone leave?"},
+    ]
+    assert al.skipped_status_lines(_result(card, "received", transcript, [1, 2, 3])) == []
+    cold = [transcript[0], transcript[3], transcript[4]]
+    assert len(al.skipped_status_lines(_result(card, "received", cold, [1]))) == 1
+
+
 def test_prompt_leak_check_reads_the_interpreter_prompt():
     check = al.PromptLeakCheck.from_repo()
     assert check.shingles, "voice/agent/interpreter.ts SYSTEM prompt not found"

@@ -123,10 +123,24 @@ def wordings(language: str) -> dict[str, frozenset[str]]:
     return {key: frozenset(values) for key, values in out.items()}
 
 
+def _conversation_constant(name: str, default: int) -> int:
+    found = CONVERSATION.exists() and re.search(rf"const {name} = (\d+);", CONVERSATION.read_text())
+    return int(found.group(1)) if found else default
+
+
 def recent_agent_turns() -> int:
     """How many agent turns back a status line still counts as just heard (conversation.ts RECENT_AGENT_TURNS)."""
-    found = CONVERSATION.exists() and re.search(r"const RECENT_AGENT_TURNS = (\d+);", CONVERSATION.read_text())
-    return int(found.group(1)) if found else 3
+    return _conversation_constant("RECENT_AGENT_TURNS", 3)
+
+
+def first_sentences(text: str, count: int) -> str:
+    """As conversation.ts firstSentences."""
+    return " ".join([s for s in re.split(r"(?<=[.!?。！？])\s*", text) if s][:count])
+
+
+def ride_answer(status_line: str) -> str:
+    """A question about the ride asked right after the full status gets its first sentences (conversation.ts rideAnswer)."""
+    return first_sentences(status_line, _conversation_constant("RIDE_ANSWER_SENTENCES", 2))
 
 
 # POST /turn speaks for the hazard picked on the shared call floor (voice/hazard.ts), not one the eval chooses. The cards

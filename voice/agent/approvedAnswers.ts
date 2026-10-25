@@ -49,8 +49,8 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   },
   oxygen: {
     answer: {
-      en: "Your oxygen can come with you. Bring any spare tanks, and the charger if it's a concentrator.",
-      es: "Su oxígeno puede ir con usted. Traiga los tanques de repuesto, y el cargador si es un concentrador.",
+      en: "If you leave, take your oxygen with you. Bring any spare tanks, and the charger if it's a concentrator.",
+      es: "Cuando salga, lleve su oxígeno con usted. Traiga los tanques de repuesto, y el cargador si es un concentrador.",
     },
     questions: ["Can I bring my oxygen tank?", "Can he bring his oxygen?", "Can I take my oxygen concentrator?", "What do I do about my oxygen?", "Can the oxygen come with us?", "Can my oxygen come?"],
   },
