@@ -24,6 +24,7 @@ import type * as dispatchProblem from "../dispatchProblem.js";
 import type * as dispatchSnapshot from "../dispatchSnapshot.js";
 import type * as dispatchStandIn from "../dispatchStandIn.js";
 import type * as dispatchWorld from "../dispatchWorld.js";
+import type * as doorCheckPayload from "../doorCheckPayload.js";
 import type * as doorChecks from "../doorChecks.js";
 import type * as elastic from "../elastic.js";
 import type * as elasticCore from "../elasticCore.js";
@@ -100,6 +101,7 @@ declare const fullApi: ApiFromModules<{
   dispatchSnapshot: typeof dispatchSnapshot;
   dispatchStandIn: typeof dispatchStandIn;
   dispatchWorld: typeof dispatchWorld;
+  doorCheckPayload: typeof doorCheckPayload;
   doorChecks: typeof doorChecks;
   elastic: typeof elastic;
   elasticCore: typeof elasticCore;
