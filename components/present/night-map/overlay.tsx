@@ -5,9 +5,9 @@ import type { InkMapData, Point } from "@/lib/ink-map/data";
 import type { InkMapRenderer } from "@/lib/ink-map/renderer";
 import { runRoute } from "@/lib/ink-map/road-route";
 import type { Beat } from "../script";
-import { STAGE } from "../stage";
+import { STAGE, stageCanvasRatio } from "../stage";
 import type { DeckCrowd } from "./crowd";
-import { CROWD_RUNS, layersFor, type Layers } from "./layers";
+import { CROWD_RUNS, drawsOverlay, layersFor, type Layers } from "./layers";
 import {
   paintCensus,
   paintCrowd,
@@ -123,11 +123,18 @@ export function MapOverlay({ renderer, beat, scene }: OverlayProps) {
     beatStarted.current = { beat, at: performance.now() };
   }, [beat]);
 
+  const drawing = drawsOverlay(beat);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !renderer || !scene) return;
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    // An idle canvas still costs a full upload to the GPU every time it's cleared, so it stops instead.
+    if (!drawing) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    const ratio = stageCanvasRatio();
     canvas.width = STAGE.width * ratio;
     canvas.height = STAGE.height * ratio;
     const palette = readPalette();
@@ -152,7 +159,7 @@ export function MapOverlay({ renderer, beat, scene }: OverlayProps) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [renderer, scene]);
+  }, [renderer, scene, drawing]);
 
   return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 size-full" aria-hidden />;
 }

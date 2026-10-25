@@ -40,10 +40,24 @@ function useNightRenderer(handle: InkMapHandle | null, story: StoryMap) {
     renderer.setPalette(NIGHT_PAPER, NIGHT_INK, NIGHT_CHARCOAL);
     renderer.setFire(story.fire);
     renderer.setNextFront(false);
-    renderer.start();
     return () => renderer.stop();
   }, [renderer, story.fire]);
   return renderer;
+}
+
+// The fire animates only while the map is on screen, and stops once the map has faded out.
+const MAP_FADE_MS = 2200;
+
+function useRunWhileShown(renderer: InkMapRenderer | null, shown: boolean) {
+  useEffect(() => {
+    if (!renderer) return;
+    if (shown) {
+      renderer.start();
+      return;
+    }
+    const timer = window.setTimeout(() => renderer.stop(), MAP_FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [renderer, shown]);
 }
 
 function useHouseRoof(renderer: InkMapRenderer | null, story: StoryMap, state: HouseState) {
@@ -127,17 +141,20 @@ function useHouseOnStage(renderer: InkMapRenderer | null, story: StoryMap, setHo
   }, [renderer, story.house.center, setHouseAt]);
 }
 
-type NightMapProps = { beat: Beat; story: StoryMap; town: Town | null; houseAt: ScreenPoint | null; setHouseAt: Dispatch<SetStateAction<ScreenPoint | null>> };
+type NightMapProps = { beat: Beat; story: StoryMap; town: Town | null };
 
-export function NightMap({ beat, story, town, houseAt, setHouseAt }: NightMapProps) {
+export function NightMap({ beat, story, town }: NightMapProps) {
   const shot = SHOTS[beat];
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
+  // Kept here, not in the deck: it changes every frame of a camera glide, and only the map reads it.
+  const [houseAt, setHouseAt] = useState<ScreenPoint | null>(null);
   const view = useMemo<InkMapView>(() => ({ kind: "overview", fit: TOWN_FRAME }), []);
   const renderer = useNightRenderer(handle, story);
   const plan = useRescuePlan(story.data, town);
   const crowd = useDeckCrowd(story.data, story.scenario, town);
   const close = useCloseRoutes(story.data, town, story.house.center);
   const scene = useMemo(() => (town && plan && crowd && close ? { town, plan, crowd, close, houseCenter: story.house.center } : null), [town, plan, crowd, close, story.house.center]);
+  useRunWhileShown(renderer, shot.shown);
   useHouseRoof(renderer, story, shot.house);
   useCamera(renderer, focusPoint(story, town, shot.focus, plan?.safe ?? null), shot);
   useFireMinutes(renderer, shot.fire * story.house.arrives);

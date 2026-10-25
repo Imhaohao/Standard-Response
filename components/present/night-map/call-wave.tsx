@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Point } from "@/lib/ink-map/data";
 import type { InkMapRenderer } from "@/lib/ink-map/renderer";
-import { STAGE } from "../stage";
+import { STAGE, stageCanvasRatio } from "../stage";
 
 // How long the wave takes to cross town, and how long each home's ring lasts.
 const WAVE_MS = 2600;
@@ -50,7 +50,7 @@ export function CallWave({ renderer, homes, running }: { renderer: InkMapRendere
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !renderer || !running) return;
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const ratio = stageCanvasRatio();
     canvas.width = STAGE.width * ratio;
     canvas.height = STAGE.height * ratio;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);

@@ -49,5 +49,8 @@ export const LAYERS: Partial<Record<Beat, Layers>> = {
 
 export const layersFor = (beat: Beat) => LAYERS[beat] ?? NONE;
 
+// The overlay repaints every frame only on beats that draw something.
+export const drawsOverlay = (beat: Beat) => beat in LAYERS;
+
 // The crowd night runs on from its warm-up only while the traffic is on screen.
 export const CROWD_RUNS: readonly Beat[] = ["crowd", "jams"];
