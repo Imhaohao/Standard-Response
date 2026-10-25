@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { HOUSEHOLD_BATCH } from "../../convex/nightRuns";
 import schema from "../../convex/schema";
+import { switchOn } from "./callList";
 import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/nightRuns.test.ts --environment edge-runtime
@@ -14,14 +15,15 @@ import { registerHouseholdCounts } from "./householdCounts";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules);
   registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
+  await switchOn(t);
   return t;
 }
 
-type T = ReturnType<typeof setup>;
+type T = Awaited<ReturnType<typeof setup>>;
 
 const RESIDENT = { phone: "+14252468208", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
 const NEIGHBOR = { phone: "+16502234376", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
@@ -67,7 +69,7 @@ afterEach(() => {
 
 describe("night runs", () => {
   test("a rewind keeps the night and puts every home and arranged pickup back as the run started", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident, neighbor } = await signUp(t);
     const before = await home(t, resident);
     await runTheNight(t, resident);
@@ -100,7 +102,7 @@ describe("night runs", () => {
   });
 
   test("the night can be run again after a rewind, and each night is kept on its own", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await runTheNight(t, resident);
     await rewind(t);
@@ -113,7 +115,7 @@ describe("night runs", () => {
   });
 
   test("a night that began before runs were kept clears what calls learned from the homes they reached", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await t.mutation(api.riders.importCsv, { csv: "rider_id,name,address,lat,lng,phone,language,mobility,assistance\nR-1,Quiet,3 Quiet Ln,34.191,-118.151,+16507099911,en,walker,none" });
     const quiet = (await t.run(async (ctx) => ctx.db.query("households").withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", "+16507099911")).first()))!._id;
@@ -137,7 +139,7 @@ describe("night runs", () => {
   });
 
   test("a reset keeps the night, homes included, and then clears them", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await runTheNight(t, resident);
     await t.mutation(api.control.reset, {});
@@ -149,7 +151,7 @@ describe("night runs", () => {
   });
 
   test("a rewind to the warning keeps the Ready check's results and pairing, and can still go back to before the Ready check", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident, neighbor } = await signUp(t);
     const beforeReadyCheck = await home(t, resident);
     await t.mutation(api.ready.start, {});
@@ -180,7 +182,7 @@ describe("night runs", () => {
   });
 
   test("a rewind to the warning on a night with no warning checkpoint keeps each home's Ready check profile", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await t.mutation(api.ready.saveFromCall, { householdId: resident, exitPlan: "needs_ride", care: [], peopleCount: 3 });
     // As if the warning went out before warning checkpoints were saved.
@@ -200,7 +202,7 @@ describe("night runs", () => {
   });
 
   test("a profile fixed after a rewind to the warning is what the next rewind to the warning restores", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await t.mutation(api.ready.start, {});
     await t.mutation(api.control.issueWarning, {});
@@ -215,7 +217,7 @@ describe("night runs", () => {
   });
 
   test("a home that called in before the warning still gets the warning call", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     const callId = await t.mutation(api.calls.start, { householdId: resident, direction: "inbound" });
     await t.mutation(api.calls.end, { callId, answered: true });
@@ -226,7 +228,7 @@ describe("night runs", () => {
   });
 
   test("a town that takes two save steps still finishes the rewind", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await t.run(async (ctx) => {
       for (let i = 0; i < HOUSEHOLD_BATCH; i += 1) {
@@ -261,7 +263,7 @@ describe("night runs", () => {
   });
 
   test("a save that died is started again when the Ready check is asked to run", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     const before = await home(t, resident);
     await runTheNight(t, resident);
@@ -299,7 +301,7 @@ describe("night runs", () => {
   });
 
   test("a rewind waits for a real call to finish", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUp(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.calls.start, { householdId: resident, direction: "outbound" });

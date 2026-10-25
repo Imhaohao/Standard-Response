@@ -4,7 +4,7 @@ import type { Doc, Id } from "../convex/_generated/dataModel";
 import type { PlanPurpose } from "./agent/planCheck";
 import type { PlanRole } from "./agent/planInterpreter";
 import { convex, logSubscriptionError } from "./convex";
-import { mayDialOnWarning } from "./env";
+import { mayDialOnWarning } from "./callList";
 import { CallEnded, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 import { simTime } from "../lib/sim-clock";

@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { switchOn } from "./callList";
 import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/readyPairing.test.ts --environment edge-runtime
@@ -13,14 +14,15 @@ import { registerHouseholdCounts } from "./householdCounts";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules);
   registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
+  await switchOn(t);
   return t;
 }
 
-type T = ReturnType<typeof setup>;
+type T = Awaited<ReturnType<typeof setup>>;
 
 // The stand-in fire comes from the northeast, so a neighbor east of the resident is reached first and
 // driving over is driving away from it; one to the west would be driving toward it.
@@ -42,7 +44,7 @@ const plansFor = (t: T, householdId: Id<"households">) =>
 
 describe("pairing at the Ready check", () => {
   test("pairs a home that needs a ride with the nearest neighbor who has a car, and asks them once the resident can't get out", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
     const neighbor = await t.mutation(api.ready.submit, drives(EAST));
@@ -81,7 +83,7 @@ describe("pairing at the Ready check", () => {
   });
 
   test("the resident confirms on their own call if they're still on it, and on a call of its own if not", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
     await t.mutation(api.ready.submit, drives(EAST));
@@ -109,7 +111,7 @@ describe("pairing at the Ready check", () => {
   });
 
   test("someone not at home is safe: their pickup is called off, and an away neighbor is let go", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
     const neighbor = await t.mutation(api.ready.submit, drives(EAST));
@@ -118,7 +120,7 @@ describe("pairing at the Ready check", () => {
     expect((await t.run(async (ctx) => ctx.db.get("households", resident)))?.outcome).toBe("leaving");
     expect((await plansFor(t, resident))[0]).toMatchObject({ status: "fell_through", reason: "not_needed" });
 
-    const t2 = setup();
+    const t2 = await setup();
     await fresh(t2);
     const home = await t2.mutation(api.ready.submit, needsRide(RESIDENT));
     const away = await t2.mutation(api.ready.submit, drives(EAST));
@@ -129,7 +131,7 @@ describe("pairing at the Ready check", () => {
   });
 
   test("pairs whichever side signs up first", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const neighbor = await t.mutation(api.ready.submit, drives(EAST));
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
@@ -137,13 +139,13 @@ describe("pairing at the Ready check", () => {
   });
 
   test("doesn't pair a home a car can't carry, or a neighbor too far away", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const chair = await t.mutation(api.ready.submit, needsRide(RESIDENT, { mobility: "power_wheelchair" }));
     await t.mutation(api.ready.submit, drives(EAST));
     expect(await plansFor(t, chair)).toHaveLength(0);
 
-    const t2 = setup();
+    const t2 = await setup();
     await fresh(t2);
     const resident = await t2.mutation(api.ready.submit, needsRide(RESIDENT));
     await t2.mutation(api.ready.submit, drives(FAR));
@@ -151,7 +153,7 @@ describe("pairing at the Ready check", () => {
   });
 
   test("a neighbor who no longer drives is let go, and the next one is paired", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
     const east = await t.mutation(api.ready.submit, drives(EAST));
@@ -164,7 +166,7 @@ describe("pairing at the Ready check", () => {
   });
 
   test("on the night, a paired neighbor who would drive toward the fire is let go and another is asked", async () => {
-    const t = setup();
+    const t = await setup();
     await fresh(t);
     const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
     const west = await t.mutation(api.ready.submit, drives(WEST));

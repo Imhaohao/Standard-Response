@@ -1,7 +1,8 @@
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
-import { env, mayDialOnWarning } from "./env";
+import { mayDialOnWarning } from "./callList";
+import { env } from "./env";
 import { isDraining, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 

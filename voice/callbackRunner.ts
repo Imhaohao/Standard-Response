@@ -2,7 +2,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
-import { mayDialOnWarning } from "./env";
+import { mayDialOnWarning } from "./callList";
 import { callbackScripts, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 

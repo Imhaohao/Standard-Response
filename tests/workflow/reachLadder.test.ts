@@ -7,6 +7,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
 import { realWaitMs, workflow } from "../../convex/reachLadder";
+import { switchOn } from "./callList";
 import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/reachLadder.test.ts --environment edge-runtime
@@ -17,14 +18,15 @@ const MINUTE = 60_000;
 const TO_RETRY_2 = 2 * MINUTE + 10_000;
 const TO_RETRY_3 = 3 * MINUTE;
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules);
   registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
+  await switchOn(t);
   return t;
 }
 
-type T = ReturnType<typeof setup>;
+type T = Awaited<ReturnType<typeof setup>>;
 
 // Moves the fake clock forward in small ticks, running whatever comes due on each one, so every
 // sleep and step runs at its own moment (vi.runAllTimers would jump to the workpool's far-off timers).
@@ -101,7 +103,7 @@ afterEach(() => {
 
 describe("reach ladder workflow", () => {
   test("a rider who never answers walks every step on schedule", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t);
     expect(await dialQueueIds(t)).toEqual([id]);
 
@@ -142,7 +144,7 @@ describe("reach ladder workflow", () => {
   });
 
   test("a rider nothing reaches ends on the door-check list", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t);
     await missEveryCall(t, id);
     await settle(t);
@@ -158,7 +160,7 @@ describe("reach ladder workflow", () => {
   });
 
   test("answering a retry cancels the rest of the ladder", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t);
     await placeCall(t, id, false);
     await settle(t);
@@ -180,7 +182,7 @@ describe("reach ladder workflow", () => {
   });
 
   test("an inbound call while waiting to retry cancels the ladder", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t);
     await placeCall(t, id, false);
     const callId = await t.mutation(api.calls.start, { householdId: id, direction: "inbound" });
@@ -193,7 +195,7 @@ describe("reach ladder workflow", () => {
   });
 
   test("a text reply stops the ladder before the door check", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t);
     await missEveryCall(t, id);
     expect((await household(t, id))!.callStatus).toBe("texted");
@@ -219,7 +221,7 @@ describe("reach ladder workflow", () => {
   });
 
   test("simulated households keep the stand-in ladder", async () => {
-    const t = setup();
+    const t = await setup();
     const id = await insertHousehold(t, true);
     await placeCall(t, id, false);
     expect((await household(t, id))!).toMatchObject({ callStatus: "no_answer" });

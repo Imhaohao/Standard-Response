@@ -7,7 +7,7 @@ import type { PlanRole } from "../agent/planInterpreter";
 import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
 import { convex, fireAndForget } from "../convex";
-import { mayDialOnWarning } from "../env";
+import { mayDialOnWarning } from "../callList";
 import type { CallMode, StreamParameters } from "./callParameters";
 import { simTime } from "../../lib/sim-clock";
 

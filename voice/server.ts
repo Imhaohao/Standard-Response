@@ -2,6 +2,7 @@ import http from "node:http";
 import { WebSocketServer } from "ws";
 import { loadApprovedAnswers } from "./agent/answerLookup";
 import { startCallbackRunner } from "./callbackRunner";
+import { watchCallList } from "./callList";
 import { startCallPlanRunner } from "./callPlanRunner";
 import { startDialer } from "./dialer";
 import { startPickupRunner } from "./pickupRunner";
@@ -132,6 +133,7 @@ server.listen(env.port, () => {
   void warmEveryInterpreter();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   fireAndForget("calls.endDropped", endDroppedCalls(bootedAt));
+  watchCallList();
   startDialer();
   startCallPlanRunner();
   startCallbackRunner();

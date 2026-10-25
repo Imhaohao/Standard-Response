@@ -3,6 +3,7 @@ import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { isFictionalNumber } from "../lib/phone-number";
+import { callListKey } from "../lib/warning-call-list";
 import { dialableNumber, putRealNumber, takeRealNumberOff } from "./riders";
 
 // The team's real phones for the demo. A number goes on a house through riders.ts, the one path for
@@ -36,6 +37,19 @@ async function unlistedRealNumbers(ctx: QueryCtx, homes: Doc<"households">[], ro
   const managed = new Set([...rows.map((row) => row.phone), ...claims.map((claim) => claim.phone)]);
   return homes.filter((home) => !isFictionalNumber(home.callbackNumber) && !managed.has(home.callbackNumber));
 }
+
+// The phones switched on in the list: the only ones the warning, its pickup checks and its callbacks
+// ring. A number added here can be called without a code change.
+export async function callListOf(ctx: QueryCtx) {
+  const rows = await ctx.db.query("demoNumbers").take(MAX_NUMBERS);
+  return new Set(rows.filter((row) => row.paused !== true).map((row) => callListKey(row.phone)));
+}
+
+export const callList = query({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => [...(await callListOf(ctx))],
+});
 
 export const list = query({
   args: {},

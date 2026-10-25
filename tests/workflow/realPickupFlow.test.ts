@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
+import { switchOn } from "./callList";
 import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/realPickupFlow.test.ts --environment edge-runtime
@@ -13,14 +14,15 @@ import { registerHouseholdCounts } from "./householdCounts";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 
-function setup() {
+async function setup() {
   const t = convexTest(schema, modules);
   registerHouseholdCounts(t);
   workflowTest.register(t, "workflow");
+  await switchOn(t);
   return t;
 }
 
-type T = ReturnType<typeof setup>;
+type T = Awaited<ReturnType<typeof setup>>;
 
 // About 50 m apart on one street. The neighbor is on the side the stand-in fire reaches first, so
 // driving over to the resident is driving away from it.
@@ -41,7 +43,7 @@ const plansFor = (t: T, householdId: Id<"households">) =>
 
 describe("real households on the night", () => {
   test("a warning with no zone drawn calls every home that signed up", async () => {
-    const t = setup();
+    const t = await setup();
     await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     const queued = await t.query(api.voice.dialQueue, { limit: 10 });
@@ -49,7 +51,7 @@ describe("real households on the night", () => {
   });
 
   test("a pickup call shows on the call floor, and ending it leaves the home's own call alone", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -70,7 +72,7 @@ describe("real households on the night", () => {
   });
 
   test("the Ready call is given the helper on file until the night's check starts", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     const helper = { name: NEIGHBOR.residentName, phone: NEIGHBOR.phone, relation: "neighbor" };
     await t.mutation(api.ready.submit, { ...RESIDENT, language: "en", care: [], exitPlan: "helper", helper });
@@ -81,7 +83,7 @@ describe("real households on the night", () => {
   });
 
   test("a home that signs up inside a zone already drawn is called, and one outside it isn't", async () => {
-    const t = setup();
+    const t = await setup();
     await t.mutation(api.control.reset, {});
     const around = (lat: number, lng: number, d = 0.0002) => [
       { lat: lat - d, lng: lng - d },
@@ -99,7 +101,7 @@ describe("real households on the night", () => {
   });
 
   test("a resident who can't leave gets the neighbor with a car asked, whoever signed up first", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident, neighbor } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -111,7 +113,7 @@ describe("real households on the night", () => {
   });
 
   test("both sides confirm, then the helper hears the resident is ready", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -141,7 +143,7 @@ describe("real households on the night", () => {
   });
 
   test("a resident who says no to the ride ends it, the helper is told, and no other neighbor is asked", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -156,7 +158,7 @@ describe("real households on the night", () => {
   });
 
   test("a resident whose later call says they can drive out calls the neighbor off", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -168,7 +170,7 @@ describe("real households on the night", () => {
   });
 
   test("a resident who now needs a power wheelchair is taken off the neighbor's car", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -181,7 +183,7 @@ describe("real households on the night", () => {
   });
 
   test("a helper whose own call says they can't drive after all is dropped, and the resident is told", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident, neighbor } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
@@ -194,7 +196,7 @@ describe("real households on the night", () => {
   });
 
   test("a missed confirmation is retried once, then the pickup goes on without it", async () => {
-    const t = setup();
+    const t = await setup();
     const { resident } = await signUpBoth(t);
     await t.mutation(api.control.issueWarning, {});
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });

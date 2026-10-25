@@ -39,3 +39,12 @@ Moss moments are now searched by the resident's words alone, filtered by script 
 - `recall` now takes `(turn, kind)` with `{ utterance, stage, language }`. The `question` argument is gone.
 - Deploy hazard: until Fly runs this commit, the live server still sends the old "Agent:/Resident:" query. If it restarts before then, it downloads the new documents and searches them the old way.
 - Your 62/66 Moss measurement was taken on the old embedding, so it may need a rerun.
+
+## 2026-10-25 13:30
+
+**The warning's call list is now the Real phones list, not four numbers in code.** Nathan Qiu's (858) 428-4624 was switched on in Real phones and never rang, because `lib/warning-call-list.ts` listed only the four of us.
+
+- `convex/voice.ts` `dialQueue` and the voice server's `mayDialOnWarning` (moved to `voice/callList.ts`, which subscribes to the new `demoNumbers:callList`) now ring a number only when it is switched on in Real phones. Judges are still never rung: kiosk claims don't go in that list, and your `claims` test still passes.
+- A server that just started rings nobody on the warning until the list loads.
+- Tests that put team phones on houses now switch them on first (`tests/workflow/callList.ts`).
+- **Deploy order:** Convex before Fly. A voice server running this code against a Convex without `demoNumbers:callList` gets an empty list and rings nobody on the warning.

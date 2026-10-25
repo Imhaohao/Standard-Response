@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
 import schema from "../../convex/schema";
+import { switchOn } from "./callList";
 import { registerHouseholdCounts } from "./householdCounts";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
@@ -150,8 +151,25 @@ describe("demo numbers", () => {
     }
     const real = await seededHome(t, "12 Oak St", "+16506567040", false);
     await t.run(async (ctx) => ctx.db.patch("households", real, { callStatus: "not_called", callPriority: 0 }));
+    await switchOn(t, ["+16506567040"]);
 
     expect((await t.query(api.voice.dialQueue, { limit: 1 })).map((h) => h._id)).toEqual([real]);
+  });
+
+  // Nathan's (858) number was switched on in Real phones but never rung: the warning only rang four
+  // phones written into the code.
+  test("the warning rings any number switched on in Real phones, and none that isn't", async () => {
+    const t = setup();
+    const home = await seededHome(t, "1120 Lincoln Ave", "+18584284624", false);
+    await t.run(async (ctx) => ctx.db.patch("households", home, { callStatus: "not_called" }));
+    expect(await t.query(api.voice.dialQueue, { limit: 5 })).toEqual([]);
+
+    const nathan = await t.mutation(api.demoNumbers.add, { name: "Nathan", phone: "(858) 428-4624" });
+    expect((await t.query(api.voice.dialQueue, { limit: 5 })).map((h) => h._id)).toEqual([home]);
+    expect(await t.query(api.demoNumbers.callList, {})).toEqual(["18584284624"]);
+
+    await t.mutation(api.demoNumbers.setOn, { numberId: nathan, on: false });
+    expect(await t.query(api.demoNumbers.callList, {})).toEqual([]);
   });
 
   test("after a reset, put back finds each number's house by address", async () => {
