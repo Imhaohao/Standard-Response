@@ -13,6 +13,7 @@ dependencies = [
   "rapidfuzz>=3.6",
   "anthropic>=0.40",
   "scikit-fmm>=2024.5",
+  "google-genai>=2.33.0",
 ]
 
 [tool.uv]
