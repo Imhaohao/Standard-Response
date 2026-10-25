@@ -238,7 +238,10 @@ void main() {
   vec2 mapXY = vec2(w.x, -w.z);
   float minutes = arrivalMinutes(mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
-  float edge = burned * edgeOfBurn(mapXY, max(8.0, uViewMpp * 5.0));
+  // A flank or an unburned island smoulders for a while after the fire passes, then cools like the
+  // rest of the burn, so an island the fire went round reads as unburned ground, not as a hot spot.
+  float cooling = 1.0 - smoothstep(20.0, 90.0, uFireNow - minutes);
+  float edge = burned * edgeOfBurn(mapXY, max(8.0, uViewMpp * 5.0)) * cooling;
   float flicker = 0.75 + 0.25 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.9, -uTime * 0.5));
   float glow = max(frontGlow(mapXY, minutes) * 0.7, edge) * flicker * uBurning;
   color = vec4(glow, burned + glow * 0.5, 0.0, 1.0);
@@ -552,30 +555,32 @@ float burningShare(float minutes) {
   return step(0.0, since) * (1.0 - smoothstep(12.0, 18.0, since)) * uFireOn * uBurning;
 }
 
-// Everything the fire has reached is still the fire, so the whole burned area is one dark orange
-// zone rather than rings of grey that each need a legend. This is only its floor, which never moves:
-// darker scorched patches with torn edges, more of them deep inside, over ground that is a little
-// brighter where the fire passed recently. Noise roughens how long ago that was, so the brighter
-// ground breaks into tongues and islands instead of a ring. The glowing embers that move over it are
-// drawn every frame by the fire pass.
+// Burned ground is char, the way NASA's and InciWeb's fire maps show it: one grey-black tone from just
+// behind the front inward, so the burn reads as burned and the heat stays on the front line. Only a
+// short band of live coals trails the front, torn by noise into tongues so it never reads as a ring.
+// The char varies by place, never by age: darker scorched patches and pale flecks of ash, so the
+// middle never splits into rings that each need a legend. The embers that wink over it are drawn every
+// frame by the fire pass.
 vec3 fireGround(vec2 mapXY, float since) {
-  float age = since + (fbm(mapXY * 0.02) - 0.5) * 45.0;
-  float fresh = 1.0 - smoothstep(0.0, 70.0, age);
+  float age = since + (fbm(mapXY * 0.02) - 0.5) * 16.0;
+  float coals = 1.0 - smoothstep(2.0, 14.0, age);
   // Warped by a finer noise, so the patches' edges tear into jags and slivers instead of rounding off.
   vec2 tear = vec2(valueNoise(mapXY * 0.16), valueNoise(mapXY * 0.16 + 9.7)) - 0.5;
   float patches = fbm(mapXY * 0.05 + 31.0 + tear * 1.1);
   float edge = fwidth(patches) + 0.015;
-  float scorched = 1.0 - smoothstep(0.42 - edge, 0.42 + edge, patches + fresh * 0.1);
-  vec3 deep = mix(uEmber, uRed, 0.25) * 0.72;
-  vec3 recent = mix(uEmber, uRed, 0.1) * 0.88;
-  vec3 scorch = mix(uRed, uInk, 0.55);
-  return mix(mix(deep, recent, fresh * 0.6), scorch, scorched * 0.7);
+  float scorched = 1.0 - smoothstep(0.42 - edge, 0.42 + edge, patches);
+  float ash = smoothstep(0.64 - edge, 0.64 + edge, patches);
+  vec3 char = mix(uInk, uPaper, 0.4);
+  char = mix(char, mix(uInk, uPaper, 0.22), scorched * 0.8);
+  char = mix(char, mix(uInk, uPaper, 0.66), ash * 0.7);
+  return mix(char, mix(uEmber, uRed, 0.35) * 0.9, coals);
 }
 
 // Homes in the zone: a burning one is the brightest thing on the map for its quarter hour, and a
-// burned-out one is dark maroon, so either reads as a house against the ground around it.
+// burned-out one is a pale grey shell. It stays lighter than the charcoal of a home with people still
+// in it and the red of one that needs a ride, so those two still stand out over the burn.
 vec3 fireBuilding(float surface, float burning) {
-  vec3 burnedOut = mix(uRed, uInk, surface == S_ROOF ? 0.45 : 0.6);
+  vec3 burnedOut = mix(uInk, uPaper, surface == S_ROOF ? 0.5 : 0.38);
   vec3 alight = surface == S_ROOF ? mix(uEmber, vec3(1.0, 0.7, 0.3), 0.3) : uRed;
   return mix(burnedOut, alight, burning);
 }
@@ -752,7 +757,8 @@ vec3 sparks(vec3 color, vec2 mapXY, float fresh) {
 // a patch of glow crawls, splits and merges instead of sliding across the map, and each patch
 // breathes on its own beat. A fine grain flickers inside it, like coals catching and dimming. It
 // glows red at the rim and orange at the core, never yellow: burned ground glows like coals, not
-// flame. Only the ground smoulders; the houses and trees keep their own colours.
+// flame. The glow dies down over the hour after the front passes, smoothly so it draws no ring, and
+// leaves a faint scatter in the char. Only the ground smoulders; the houses and trees keep their own colours.
 vec3 smoulder(vec3 color, vec2 mapXY, float since, float surface) {
   if (since < 0.0 || (surface != S_TERRAIN && surface != S_ROAD && surface < S_LANDUSE)) return color;
   vec2 p = mapXY * 0.03;
@@ -761,7 +767,7 @@ vec3 smoulder(vec3 color, vec2 mapXY, float since, float surface) {
   float fine = valueNoise(mapXY * 0.12 + warp * 3.0 + vec2(uTime * 0.2, -uTime * 0.15));
   float grain = valueNoise(mapXY * 0.35 + vec2(uTime * 0.9, -uTime * 1.3));
   float glow = smoothstep(0.48, 0.78, broad * 0.65 + fine * 0.35) * (0.6 + 0.4 * sin(uTime * 1.7 + broad * 12.0));
-  float heat = glow * (0.55 + 0.45 * grain) * mix(0.6, 1.0, 1.0 - smoothstep(10.0, 60.0, since));
+  float heat = glow * (0.55 + 0.45 * grain) * mix(0.12, 1.0, 1.0 - smoothstep(8.0, 60.0, since));
   return color + mix(uRed, uEmber, heat) * heat * 0.5;
 }
 

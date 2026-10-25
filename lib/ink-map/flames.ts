@@ -20,8 +20,8 @@ const BEHIND_TRIES = 18;
 const BEHIND_DENSITY = 0.8;
 // Deep inside, an hour and a half of burned ground keeps pockets still alight: a share of cells
 // holds a small clump of low flames.
-const POCKET_MINUTES = 90;
-const POCKET_SHARE = 0.16;
+const POCKET_MINUTES = 40;
+const POCKET_SHARE = 0.08;
 const POCKET_DENSITY = 0.35;
 
 export const FLAME_VERTEX = `
@@ -230,11 +230,16 @@ function flamesOnEdge(grid: Grid, col: number, row: number): Flame[] {
   const index = row * field.width + col;
   // Written as "not at or before" so a cell with no arrival time (NaN) counts as never reached.
   if (!(field.minutes[index] <= minutes)) return [];
+  // Ground the scenario never burns (an island the fire went round, or past its last front) is no
+  // front: flames there would ring every island all night.
+  const last = field.fronts[field.fronts.length - 1].minutes;
   const flames: Flame[] = [];
   NEIGHBOURS.forEach(([dc, dr], side) => {
     const c = col + dc;
     const r = row + dr;
-    if (c < 0 || r < 0 || c >= field.width || r >= field.height || field.minutes[r * field.width + c] <= minutes) return;
+    if (c < 0 || r < 0 || c >= field.width || r >= field.height) return;
+    const next = field.minutes[r * field.width + c];
+    if (next <= minutes || !(next <= last)) return;
     flames.push(...flamesOnCrossing(grid, [col, row], [c, r], index * 5.3 + side));
   });
   return flames;
