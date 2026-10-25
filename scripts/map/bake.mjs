@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { PNG } from "pngjs";
 import { CACHE, CITY, DETAIL, EXTENT, MAP_FILE, ORIGIN, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_FILE, TERRAIN_ZOOM, tileCoords, toLatLng, toLocal } from "./frame.mjs";
 import { loadDep } from "./dep.mjs";
+import { dinsBuildingElements } from "./dins.mjs";
 import { waterRings } from "./water.mjs";
 import {
   SpatialGrid,
@@ -356,7 +357,9 @@ async function main() {
   const standing = await readJson("buildings");
   const known = new Set(standing.map((e) => e.id));
   const destroyed = (await readJson("destroyed")).filter((e) => !known.has(e.id));
-  const buildings = [...standing, ...destroyed].map((e) => bakeBuilding(e, random)).filter(Boolean);
+  // A town OSM hadn't traced before it burned takes stand-in footprints at CAL FIRE's structure points.
+  const stand = CITY?.structures ? await dinsBuildingElements(CACHE, { roads: await readJson("roads"), traced: [...standing, ...destroyed] }, toLocal, toLatLng) : [];
+  const buildings = [...standing, ...destroyed, ...stand].map((e) => bakeBuilding(e, random)).filter(Boolean);
   const { roads, names } = bakeRoads(await readJson("roads"));
   const water = await bakeWater();
   const areaElements = await readJson("areas");

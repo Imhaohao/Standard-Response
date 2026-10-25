@@ -35,6 +35,9 @@ export type City = {
   // The Overpass `date:` the buildings are baked from: just before the event, so the town stands as it was.
   // Null bakes today's map, and the scenario's `basis` says so.
   osmSnapshot: string | null;
+  // Stand-in footprints at CAL FIRE's damage-inspection points for a town OSM hadn't traced before
+  // the fire (scripts/map/dins.mjs); the scenario's basis says so.
+  structures?: { source: "calfire-dins"; incident: string };
   frames: CityFrame[];
   // Where the loader fetches the bake from.
   files: { map: string; terrain: string };
@@ -113,6 +116,8 @@ const DRAFTS: Draft[] = [
     terrainZoom: 14,
     terrainCellMeters: 20,
     osmSnapshot: "2018-11-07T00:00:00Z",
+    // That snapshot holds 122 buildings over the baked extent, where CAL FIRE inspected 21,349 structures.
+    structures: { source: "calfire-dins", incident: "Camp" },
     closeups: [],
     sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/paradise/sources.md" }],
   },

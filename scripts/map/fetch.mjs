@@ -3,6 +3,7 @@
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { fetchDep } from "./dep.mjs";
+import { fetchDins } from "./dins.mjs";
 import { CACHE, CITY, EXTENT, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
@@ -91,3 +92,4 @@ await mkdir(CACHE, { recursive: true });
 for (const [name, query] of Object.entries(QUERIES)) await overpass(name, query);
 await terrainTiles();
 if (CITY) await fetchDep(CACHE, TERRAIN, TERRAIN_CELL_METERS, USER_AGENT);
+if (CITY?.structures) await fetchDins(CACHE, EXTENT, CITY.structures.incident, USER_AGENT);
