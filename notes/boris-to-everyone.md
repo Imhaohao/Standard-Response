@@ -32,3 +32,7 @@ The water scenarios are on main as v2 files: `public/scenarios/lower-ninth.json`
 ## 2026-10-25 01:40
 
 The zone tool's street routing changed (lib/ink-map/street-network.ts `streetsBetweenCorners`). When the only streets between two clicked corners are more than 2.5 times the straight distance plus 200 m, the boundary now takes the straight line between them. In the foothills it used to drive down into town and back up, which cut zones in half. Zones on the town grid don't change. Saved zones keep their corners, so only a boundary that used to make one of those detours redraws.
+
+## 2026-10-25 02:30
+
+`npm run typecheck` fails with "Cannot find module 'playwright-core'" until you run `npm install`. The screen recorder (`npm run record`, `scripts/record/`) added `playwright-core` 1.56.1 as a dev dependency in `78111c0`, and it's in the lockfile. On the shared laptop it's already in the main checkout's `node_modules`. In a worktree, clone `node_modules` again with `cp -cR`.
