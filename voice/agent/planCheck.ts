@@ -56,6 +56,9 @@ type PlanCheckLines = {
   helperOnTheWay: (helperName: string, minutes: number | undefined, helperPhone: string | undefined) => string;
   askReady: (helperName: string) => string;
   residentReady: string;
+  // After the resident confirms: Twilio can put them straight through to their helper.
+  offerConnect: (helperName: string) => string;
+  connecting: (helperName: string) => string;
   residentNotReady: (helperName: string) => string;
   readyUnclear: (helperName: string) => string;
   notices: Record<PlanNotice, (helperName: string, residentName: string | undefined, address: string) => string>;
@@ -105,6 +108,8 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `${capitalized(helperName)} says they can pick you up${minutes ? ` in about ${minutes === 1 ? "1 minute" : `${minutes} minutes`}` : " soon"}.${helperPhone ? ` Their number is ${spokenDigits(helperPhone)}.` : ""} Please get ready by the door with your medications and phone. Your ride request stays open in case they can't make it, and we'll call to check that they reached you.`,
     askReady: (helperName) => `Will you go with ${helperName} when they get there?`,
     residentReady: "Good. I'll let them know you'll be ready.",
+    offerConnect: (helperName) => `Would you like me to connect you to ${helperName} on the phone now?`,
+    connecting: (helperName) => `Connecting you to ${helperName} now. Please stay on the line.`,
     residentNotReady: (helperName) => `Okay. I'll tell ${helperName} they don't need to come.`,
     readyUnclear: (helperName) => `${capitalized(helperName)} is still on the way. Please be ready by the door.`,
     notices: {
@@ -161,6 +166,8 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `${capitalized(helperName)} dice que puede pasar por usted${minutes ? (minutes === 1 ? " en 1 minuto" : ` en unos ${minutes} minutos`) : " pronto"}.${helperPhone ? ` Su número es ${spokenDigits(helperPhone)}.` : ""} Por favor, prepárese junto a la puerta con sus medicinas y su teléfono. Su solicitud de transporte sigue abierta por si no puede llegar, y le llamaremos para confirmar que llegó.`,
     askReady: (helperName) => `¿Se irá con ${helperName} cuando llegue?`,
     residentReady: "Muy bien. Le aviso que usted le estará esperando.",
+    offerConnect: (helperName) => `¿Quiere que le comunique con ${helperName} por teléfono ahora?`,
+    connecting: (helperName) => `Le comunico con ${helperName} ahora. Por favor no cuelgue.`,
     residentNotReady: (helperName) => `Está bien. Le diré a ${helperName} que no hace falta que venga.`,
     readyUnclear: (helperName) => `${capitalized(helperName)} sigue en camino. Por favor, espere junto a la puerta.`,
     notices: {
@@ -228,11 +235,13 @@ export type PlanCheckOptions = {
   notice?: PlanNotice;
   // Asked on the person's own warning call, which is already under way: no greeting.
   continued?: boolean;
+  // The call can put the resident through to the helper (voice/phone/callSession.ts connects it).
+  canConnect?: boolean;
   effects: PlanCheckEffects;
   interpret?: PlanInterpret;
 };
 
-type Step = "ask_coming" | "ask_minutes" | "ask_picked_up" | "ask_ready" | "done";
+type Step = "ask_coming" | "ask_minutes" | "ask_picked_up" | "ask_ready" | "offer_connect" | "done";
 type Transition = { step: Step; lines: string[] };
 
 const MAX_UNCLEAR = 2;
@@ -249,6 +258,8 @@ export class PlanCheck implements CallFlow {
   private reported = false;
   private escalated = false;
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
+  // The number to put the resident through to, once they've said yes to being connected.
+  connectTo: string | null = null;
 
   constructor(options: PlanCheckOptions) {
     this.options = options;
@@ -379,7 +390,19 @@ export class PlanCheck implements CallFlow {
     if (this.step === "ask_minutes") return this.askMinutes(heard);
     if (this.step === "ask_picked_up") return this.askPickedUp(heard);
     if (this.step === "ask_ready") return this.askReady(heard);
+    if (this.step === "offer_connect") return this.offerConnect(heard);
     return { step: "done", lines: [] };
+  }
+
+  // A yes puts them through to the helper; anything else ends the call as before.
+  private offerConnect(heard: PlanHeard): Transition {
+    const { helperName, helperPhone } = this.options;
+    if (heard.answer === "yes" && helperPhone) {
+      this.connectTo = helperPhone;
+      return { step: "done", lines: [this.lines.connecting(helperName)] };
+    }
+    if (heard.answer === "unclear" && !this.secondUnclear()) return { step: this.step, lines: [this.lines.sorry] };
+    return { step: "done", lines: [LINES[this.language].goodbye] };
   }
 
   // A no lets the helper turn back; an answer we can't read leaves them coming, since they already are.
@@ -387,6 +410,7 @@ export class PlanCheck implements CallFlow {
     const { helperName } = this.options;
     if (heard.answer === "yes") {
       this.report(() => this.options.effects.residentConfirmed(true));
+      if (this.options.canConnect && this.options.helperPhone) return { step: "offer_connect", lines: [this.lines.residentReady] };
       return { step: "done", lines: [this.lines.residentReady, LINES[this.language].goodbye] };
     }
     if (heard.answer === "no") {
@@ -488,5 +512,6 @@ const QUESTIONS: Record<Step, (lines: PlanCheckLines, options: PlanCheckOptions)
   ask_minutes: (lines) => lines.askMinutes,
   ask_picked_up: (lines, { helperName }) => lines.askPickedUp(helperName),
   ask_ready: (lines, { helperName }) => lines.askReady(helperName),
+  offer_connect: (lines, { helperName }) => lines.offerConnect(helperName),
   done: () => "",
 };

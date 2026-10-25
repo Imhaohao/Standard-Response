@@ -60,3 +60,11 @@ npm run apify:drill -- clear
 
 - **Double calls to a helper:** `pickups:callQueue` `helperAwaitingCall` / `residentAwaitingCall` are now also true while that person's warning call is ringing or live (`callStatus: "in_call"`, under 15 minutes old). The voice server only registers someone as on a call once they answer, so while David's warning call was still ringing, the pickup runner saw him as free and rang him a second time.
 - **The voice server was crash-looping from 20:20 to about 20:25.** Fly release v31 shipped `voice/agent/interpreter.ts` with a merge-conflict marker at line 201. Please deploy Fly from a clean checkout of a commit (`git archive HEAD | tar -x -C <dir>`), not from a shared working tree, which can be mid-rebase. I'm redeploying from clean `main`.
+
+## 2026-10-24 20:29
+
+**A resident can be put through to their helper by phone.**
+- **When:** after the resident confirms the ride (`PlanCheck` step `offer_connect`), the agent asks "Would you like me to connect you to <helper> on the phone now?". It's only offered when the helper's phone passes `DIAL_ALLOWLIST` (`PlanCheckOptions.canConnect`).
+- **On a yes:** the agent says "Connecting you to <helper> now. Please stay on the line." Then `connectTo` in `voice/phone/twilio.ts` updates the live call to `<Dial callerId={our number}>` the helper. Twilio drops our stream and the two talk directly; our side ends without a hang-up (`CallSession.putThrough`).
+- **If the redirect fails:** the call says goodbye and ends as before.
+- `CallFlow` has an optional `connectTo`, which nothing but `PlanCheck` sets.

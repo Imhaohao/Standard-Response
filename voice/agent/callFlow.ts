@@ -25,6 +25,8 @@ export interface CallFlow {
   voicemail?(): string[];
   // The resident was on the line and the call ended, finished or not: flush what the call learned.
   lineClosed?(): void;
+  // Once the flow is done: put the caller through to this number instead of hanging up.
+  readonly connectTo?: string | null;
 }
 
 export const silentTurn = (flow: { done: boolean }, stage: AgentTurn["stage"]): AgentTurn => ({

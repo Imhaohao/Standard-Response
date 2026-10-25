@@ -74,6 +74,38 @@ describe("pickup check, continued on the person's own warning call", () => {
   });
 });
 
+describe("pickup check, putting the resident through to the helper", () => {
+  const confirm = (answers: Partial<PlanHeard>[], canConnect = true) =>
+    planCall("resident", answers, "en", true, undefined, { purpose: "confirm", minutes: 10, helperPhone: "+14252468208", canConnect });
+
+  it("offers to connect them once they confirm, and puts them through on a yes", async () => {
+    const { call, recorded } = confirm([{ answer: "yes" }, { answer: "yes" }]);
+    call.start();
+    assert.match(spoken(await call.hear("yes")), /I'll let them know you'll be ready\. Would you like me to connect you to Ana on the phone now\?/);
+    assert.deepEqual(recorded.confirmed, [true]);
+    const last = await call.hear("yes please");
+    assert.match(spoken(last), /Connecting you to Ana now\. Please stay on the line\./);
+    assert.equal(last.done, true);
+    assert.equal(call.connectTo, "+14252468208");
+  });
+
+  it("says goodbye on a no, and connects no one", async () => {
+    const { call } = confirm([{ answer: "yes" }, { answer: "no" }]);
+    call.start();
+    await call.hear("yes");
+    assert.match(spoken(await call.hear("no thanks")), /Goodbye\./);
+    assert.equal(call.connectTo, null);
+  });
+
+  it("doesn't offer when the helper's phone can't be dialed", async () => {
+    const { call } = confirm([{ answer: "yes" }], false);
+    call.start();
+    const turn = await call.hear("yes");
+    assert.doesNotMatch(spoken(turn), /connect you/);
+    assert.equal(turn.done, true);
+  });
+});
+
 describe("pickup check, helper call", () => {
   it("introduces itself as 911 and never tells the helper to call 911", async () => {
     const { call } = planCall("helper", [{ answer: "no", emergency: "flames" }]);

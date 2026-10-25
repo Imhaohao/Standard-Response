@@ -62,6 +62,14 @@ export async function placeCall(to: string, parameters: StreamParameters) {
   return call.sid;
 }
 
+// Puts the person on this call through to another phone: Twilio drops our audio stream and dials
+// them, showing our number, and the two talk directly. Our side of the call ends there.
+export async function connectTo(callSid: string, phone: string) {
+  const response = new twilio.twiml.VoiceResponse();
+  response.dial({ callerId: env.twilio.fromNumber(), timeout: 30 }, phone);
+  await rest().calls(callSid).update({ twiml: response.toString() });
+}
+
 export async function hangUp(callSid: string) {
   try {
     await rest().calls(callSid).update({ status: "completed" });

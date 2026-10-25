@@ -16,7 +16,7 @@ import { isOutboundFlowMode, outboundFlowFor, PickupQuestion, pickupFlowFor } fr
 import { dueOnThisLine } from "../pickupRunner";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
-import { CallMode, hangUp, StreamParameters } from "./twilio";
+import { CallMode, connectTo, hangUp, StreamParameters } from "./twilio";
 import { env } from "../env";
 import { SimClock, simTime } from "../../lib/sim-clock";
 
@@ -119,6 +119,8 @@ class CallSession implements LiveCall {
   private pickups: FunctionReturnType<typeof api.pickups.callQueue> = [];
   private unsubscribePickups: (() => void) | null = null;
   private onPickupQuestion = false;
+  // Twilio is putting this caller through to their helper: our side ends without a hang-up.
+  private connecting = false;
   private heardSoFar = "";
   private lastSpeechAt = 0;
   private turnTimer: NodeJS.Timeout | null = null;
@@ -354,7 +356,28 @@ class CallSession implements LiveCall {
       this.logLine("agent", text, latencyMs);
     }, delivery);
     if (this.callId) fireAndForget("setStage", convex().mutation(api.calls.setStage, { callId: this.callId, stage: turn.stage }));
+    const connectNumber = turn.done ? this.conversation?.connectTo : null;
+    if (connectNumber) return void this.putThrough(connectNumber);
     void this.waitAfter(turn);
+  }
+
+  // The resident said yes to talking to their helper: once the agent has finished speaking, Twilio
+  // dials the helper on this call. The stream closing then ends our side, with no hang-up.
+  private async putThrough(phone: string) {
+    this.connecting = true;
+    this.waiting = null;
+    this.restartQuietTimer();
+    await this.speech.whenSilent();
+    try {
+      await connectTo(this.callSid, phone);
+      console.log(`[call ${this.callSid}] put through to the helper`);
+    } catch (error) {
+      console.error(`[call ${this.callSid}] could not put the call through`, error);
+      this.connecting = false;
+      this.speech.say([LINES[this.language].goodbye], this.language);
+      await this.speech.whenSilent();
+      void this.finish(true);
+    }
   }
 
   // The quiet clock starts once the agent stops talking. Even after the goodbye the call only hangs
@@ -425,7 +448,7 @@ class CallSession implements LiveCall {
     this.quietTimer = null;
     const conversation = this.conversation;
     // Mid-turn: the reply that follows starts the clock again.
-    if (this.ended || !conversation || this.thinking || this.speech.speaking || this.heardSoFar.trim() !== "") return;
+    if (this.ended || this.connecting || !conversation || this.thinking || this.speech.speaking || this.heardSoFar.trim() !== "") return;
     if (waiting === "goodbye") void this.finish(!conversation.lostContact);
     else if (waiting === "hold") this.speakTurn(conversation.checkIn?.() ?? conversation.endHold(), null);
     else if (conversation.checkIn) this.speakTurn(conversation.checkIn(), null);
