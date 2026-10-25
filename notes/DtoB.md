@@ -123,3 +123,13 @@ Pickup calls now go: ask the helper, have the resident confirm, then a status up
 - New `pickups:noticeGiven { planId, role }` once a side has heard its update.
 - `callQueue` rows add `residentConfirmedAt`, `confirmAttempts`, `helperNotice`, `helperNoticeAttempts`, `residentNotice`, `residentNoticeAttempts` and `reason`, and also include `fell_through` plans that still owe a notice.
 - `residentTold` still works for a voice server that hasn't been redeployed. I'm updating `voice/pickupRunner.ts` and `voice/agent/planCheck.ts` to use the new calls in my next commit.
+
+## 2026-10-24 19:10
+
+The voice server now places the confirmation and update calls (needs a Fly redeploy to take effect):
+
+- `voice/pickupRunner.ts`: `dueCall(plan, now, onAnotherCall)` replaces `dueRole` and `notifyDue`, and returns `{ role, purpose }`. The order is: an update owed to either side, then the helper's ask while `checking`, then the resident's confirmation once `coming`, then the "picked you up?" check after the ETA. Nobody is rung while they're on another call with us, and that now includes the resident: the old "announce on the live call" path is gone, so the confirmation call comes once their warning call ends.
+- `StreamParameters.notify` is replaced by `purpose` (`ask` | `confirm` | `notice`). It also rides on the status-callback query, so a missed confirmation or update is reported with its purpose.
+- `voice/agent/planCheck.ts`: new `ask_ready` step ("Will you go with Ana when they get there?"), and notice calls for `resident_ready`, `called_off` and `helper_cancelled`, in English and Spanish. `helper_cancelled` carries the safety line. Two unclear answers to the confirmation leave the helper coming and count as unreached. New effects: `residentConfirmed` and `noticeHeard`.
+- `planInterpreter.ts`: the system prompt covers the confirmation question.
+- `npm run test:voice` now also runs `voice/*.test.ts` (the new `pickupRunner.test.ts`).

@@ -1,4 +1,5 @@
 import twilio from "twilio";
+import type { PlanPurpose } from "../agent/planCheck";
 import { env } from "../env";
 
 // Outbound calls connect straight to our media stream. Answering-machine detection runs
@@ -14,8 +15,8 @@ export type StreamParameters = {
   from?: string;
   planId?: string;
   role?: "helper" | "resident";
-  // A pickup-check call to the resident that only tells them their helper is on the way.
-  notify?: boolean;
+  // What a pickup call is for: its question, the resident's confirmation, or a status update.
+  purpose?: PlanPurpose;
 };
 
 let client: ReturnType<typeof twilio> | null = null;
@@ -44,6 +45,7 @@ export async function placeCall(to: string, parameters: StreamParameters) {
     householdId: parameters.householdId ?? "",
     planId: parameters.planId ?? "",
     role: parameters.role ?? "",
+    purpose: parameters.purpose ?? "",
   };
   const machineDetection = env.twilioTrial
     ? {}

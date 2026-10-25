@@ -428,8 +428,8 @@ class CallSession implements LiveCall {
     const wasAnswered = answered ?? this.residentSpoke;
     if (wasAnswered) this.conversation?.lineClosed?.();
     if (this.callId) fireAndForget("calls.end", convex().mutation(api.calls.end, { callId: this.callId, answered: wasAnswered }));
-    const { mode, callbackId, householdId, planId, role } = this.params;
-    callEnded({ mode, callId: this.callId ?? undefined, callbackId, householdId, planId, role, answered: wasAnswered });
+    const { mode, callbackId, householdId, planId, role, purpose } = this.params;
+    callEnded({ mode, callId: this.callId ?? undefined, callbackId, householdId, planId, role, purpose, answered: wasAnswered });
   }
 }
 

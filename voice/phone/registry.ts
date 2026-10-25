@@ -1,3 +1,4 @@
+import type { PlanPurpose } from "../agent/planCheck";
 import type { Language } from "../agent/script";
 import type { CallMode } from "./twilio";
 
@@ -19,6 +20,7 @@ export type CallEnded = {
   householdId?: string;
   planId?: string;
   role?: "helper" | "resident";
+  purpose?: PlanPurpose;
   answered: boolean;
 };
 

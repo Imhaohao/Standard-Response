@@ -1,7 +1,7 @@
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
-import { minutesUntil, PlanCheck, PlanCheckEffects } from "../agent/planCheck";
+import { minutesUntil, PlanCheck, PlanCheckEffects, PlanPurpose } from "../agent/planCheck";
 import type { PlanRole } from "../agent/planInterpreter";
 import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
@@ -22,22 +22,30 @@ async function planRow(planId: string) {
   return plan;
 }
 
-function planEffects(planId: Id<"pickupPlans">, role: PlanRole, householdId: Id<"households">): PlanCheckEffects {
+const PURPOSES = new Set<string>(["ask", "confirm", "notice"]);
+// Stream parameters arrive as strings. A call placed before purposes existed was a question.
+const purposeOf = (raw: unknown): PlanPurpose => (PURPOSES.has(String(raw)) ? (String(raw) as PlanPurpose) : "ask");
+
+function planEffects(planId: Id<"pickupPlans">, role: PlanRole, purpose: PlanPurpose, householdId: Id<"households">): PlanCheckEffects {
   return {
     helperAnswered: (coming, etaMinutes) =>
       fireAndForget("pickups.helperAnswered", convex().mutation(api.pickups.helperAnswered, { planId, coming, etaMinutes })),
     residentAnswered: (pickedUp) =>
       fireAndForget("pickups.residentAnswered", convex().mutation(api.pickups.residentAnswered, { planId, pickedUp })),
+    residentConfirmed: (confirmed) =>
+      fireAndForget("pickups.residentConfirmation", convex().mutation(api.pickups.residentConfirmation, { planId, confirmed })),
+    noticeHeard: () => fireAndForget("pickups.noticeGiven", convex().mutation(api.pickups.noticeGiven, { planId, role })),
     escalate: (kind) => fireAndForget("requests.escalate", convex().mutation(api.requests.escalate, { householdId, kind })),
-    unreached: () => fireAndForget("pickups.unanswered", convex().mutation(api.pickups.unanswered, { planId, role })),
+    unreached: () => fireAndForget("pickups.unanswered", convex().mutation(api.pickups.unanswered, { planId, role, purpose })),
   };
 }
 
 async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
   const role = params.role ?? "helper";
   const plan = await planRow(params.planId ?? "");
-  // Stream parameters arrive as strings.
-  const notify = String(params.notify) === "true" ? { minutes: minutesUntil(plan.helperEtaAt) } : undefined;
+  const purpose = purposeOf(params.purpose);
+  const notice = role === "helper" ? plan.helperNotice : plan.residentNotice;
+  if (purpose === "notice" && !notice) throw new Error(`Pickup plan ${plan._id} owes the ${role} no update now`);
   return new PlanCheck({
     role,
     language: languageOf(plan.language),
@@ -48,8 +56,10 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     helperPhone: plan.helperPhone || undefined,
     recruited: plan.recruited,
     needs: { mobility: plan.mobility, assistance: plan.assistanceRequired, oxygen: plan.oxygen },
-    notify,
-    effects: planEffects(plan._id, role, plan.householdId),
+    purpose,
+    minutes: minutesUntil(plan.helperEtaAt),
+    notice,
+    effects: planEffects(plan._id, role, purpose, plan.householdId),
   });
 }
 

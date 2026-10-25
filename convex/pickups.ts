@@ -190,6 +190,9 @@ export async function noticeHeard(ctx: MutationCtx, plan: Plan, who: Role) {
 // A missed confirmation or status update ends nothing: the helper is already on the way, and the
 // resident is still asked "has your helper picked you up?" once the ETA passes.
 async function missedExtra(ctx: MutationCtx, plan: Plan, who: Role, why: "confirm" | "notice") {
+  // A notice left on voicemail, or a confirmation already given, is not a miss.
+  const settled = why === "confirm" ? plan.residentConfirmedAt !== undefined : (who === "helper" ? plan.helperNotice : plan.residentNotice) === undefined;
+  if (settled) return await ctx.db.patch("pickupPlans", plan._id, { ringing: undefined, updatedAt: await simNow(ctx) });
   const exhausted = attemptsOf(plan, who, why) >= (why === "confirm" ? MAX_CONFIRM_ATTEMPTS : MAX_NOTICE_ATTEMPTS);
   const dropNotice = why === "notice" && exhausted ? (who === "helper" ? { helperNotice: undefined } : { residentNotice: undefined }) : {};
   await ctx.db.patch("pickupPlans", plan._id, { ...dropNotice, ringing: undefined, updatedAt: await simNow(ctx) });

@@ -7,12 +7,21 @@ import { interpretPlanAnswer, PlanHeard, PlanInterpret, PlanRole } from "./planI
 import { spokenDigits } from "./readyCall";
 import { Language, LINES, withSafety } from "./script";
 
-// The pickup check, one short call. The helper hears "can you get to them now?" and, on a yes,
-// "about how many minutes?"; the resident later hears "has your helper picked you up?". A neighbor
-// who never agreed to anything is asked "could you pick them up and drive them out?" instead. Claude
-// only reads the answer. Two unclear answers count as no, because a van is the safer default.
+// The pickup check, a few short calls. Both sides confirm before anyone is told it's settled:
+//   ask      the helper hears "can you get to them now?" and, on a yes, "about how many minutes?";
+//            later the resident hears "has your helper picked you up?"
+//   confirm  once the helper says yes, the resident hears the offer and "will you go with them?"
+//   notice   a status update with nothing to answer: the helper hears the resident is ready, or that
+//            the pickup is off; the resident hears their helper can't come
+// A neighbor who never agreed to anything is asked "could you pick them up and drive them out?"
+// instead. Claude only reads the answer. Two unclear answers to the helper count as no, because a
+// van is the safer default; two unclear answers to "will you go with them?" leave the helper coming.
 
 type Household = Doc<"households">;
+// What a pickup call is for. The same values as `Purpose` in convex/pickups.ts.
+export type PlanPurpose = "ask" | "confirm" | "notice";
+// The status updates a side can be owed, as `helperNotice` and `residentNotice` in convex/schema.ts.
+export type PlanNotice = "resident_ready" | "called_off" | "helper_cancelled";
 // What the helper needs to know before they set out. Firefighters told us a neighbor who said yes
 // to "a wheelchair" can arrive to find a 400-pound power chair or someone it takes two to lift.
 export type PickupNeeds = {
@@ -37,9 +46,15 @@ type PlanCheckLines = {
   helperComing: (residentName: string | undefined, residentPhone: string | undefined) => string;
   helperNotComing: string;
   residentIntro: (residentName: string | undefined) => string;
+  helperUpdateIntro: (helperName: string) => string;
   askPickedUp: (helperName: string) => string;
   // Told as soon as the helper says yes. Their word, never our promise, and the ride request stays open.
   helperOnTheWay: (helperName: string, minutes: number | undefined, helperPhone: string | undefined) => string;
+  askReady: (helperName: string) => string;
+  residentReady: string;
+  residentNotReady: (helperName: string) => string;
+  readyUnclear: (helperName: string) => string;
+  notices: Record<PlanNotice, (helperName: string, residentName: string | undefined, address: string) => string>;
   pickedUp: string;
   findingVehicle: string;
   sorry: string;
@@ -74,9 +89,22 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Thank you.${residentPhone ? ` ${possessive(residentName ?? "Their")} number is ${spokenDigits(residentPhone)}, if you need to reach them.` : ""} We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
     helperNotComing: "Thanks for telling us. We'll find them another way.",
     residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's 911 calling about your pickup.`,
+    helperUpdateIntro: (helperName) => `Hi ${helperName}, it's 911 with an update on the pickup.`,
     askPickedUp: (helperName) => `Has ${helperName} picked you up?`,
     helperOnTheWay: (helperName, minutes, helperPhone) =>
       `${capitalized(helperName)} says they can pick you up${minutes ? ` in about ${minutes === 1 ? "1 minute" : `${minutes} minutes`}` : " soon"}.${helperPhone ? ` Their number is ${spokenDigits(helperPhone)}.` : ""} Please get ready by the door with your medications and phone. Your ride request stays open in case they can't make it, and we'll call to check that they reached you.`,
+    askReady: (helperName) => `Will you go with ${helperName} when they get there?`,
+    residentReady: "Good. I'll let them know you'll be ready.",
+    residentNotReady: (helperName) => `Okay. I'll tell ${helperName} they don't need to come.`,
+    readyUnclear: (helperName) => `${capitalized(helperName)} is still on the way. Please be ready by the door.`,
+    notices: {
+      resident_ready: (_helperName, residentName, address) =>
+        `${residentName ?? "They"} said yes, and will be ready for you at ${address}. If anything changes, call this number.`,
+      called_off: (_helperName, residentName, address) =>
+        `The pickup for ${residentName ?? "your neighbor"} at ${address} is off, so you don't need to go. Please get yourself out safely now.`,
+      helper_cancelled: (helperName) =>
+        `${capitalized(helperName)} can no longer pick you up. Your ride request is still open, and you're at the top of the list. I'll call you back the moment a driver accepts.`,
+    },
     pickedUp: "Good, I'm glad you're on your way. Goodbye.",
     findingVehicle: "We're finding you a vehicle now. I'll call you back as soon as a driver has said yes.",
     sorry: "Sorry, I didn't catch that.",
@@ -111,9 +139,22 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Gracias.${residentPhone ? ` El número de ${residentName ?? "esa persona"} es ${spokenDigits(residentPhone)}, por si necesita comunicarse.` : ""} Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
     helperNotComing: "Gracias por avisarnos. Buscaremos otra manera.",
     residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos del 911 por su transporte.`,
+    helperUpdateIntro: (helperName) => `Hola ${helperName}, le llamamos del 911 con novedades sobre la recogida.`,
     askPickedUp: (helperName) => `¿Ya le recogió ${helperName}?`,
     helperOnTheWay: (helperName, minutes, helperPhone) =>
       `${capitalized(helperName)} dice que puede pasar por usted${minutes ? (minutes === 1 ? " en 1 minuto" : ` en unos ${minutes} minutos`) : " pronto"}.${helperPhone ? ` Su número es ${spokenDigits(helperPhone)}.` : ""} Por favor, prepárese junto a la puerta con sus medicinas y su teléfono. Su solicitud de transporte sigue abierta por si no puede llegar, y le llamaremos para confirmar que llegó.`,
+    askReady: (helperName) => `¿Se irá con ${helperName} cuando llegue?`,
+    residentReady: "Muy bien. Le aviso que usted le estará esperando.",
+    residentNotReady: (helperName) => `Está bien. Le diré a ${helperName} que no hace falta que venga.`,
+    readyUnclear: (helperName) => `${capitalized(helperName)} sigue en camino. Por favor, espere junto a la puerta.`,
+    notices: {
+      resident_ready: (_helperName, residentName, address) =>
+        `${residentName ?? "Esa persona"} dijo que sí, y le estará esperando en ${address}. Si algo cambia, llame a este número.`,
+      called_off: (_helperName, residentName, address) =>
+        `Ya no hace falta recoger a ${residentName ?? "su vecino"} en ${address}, así que no tiene que ir. Por favor, salga usted a salvo ahora.`,
+      helper_cancelled: (helperName) =>
+        `${capitalized(helperName)} ya no puede pasar por usted. Su solicitud de transporte sigue abierta, y usted está entre las primeras de la lista. Le llamo en cuanto un conductor acepte.`,
+    },
     pickedUp: "Qué bien, me alegra que ya haya salido. Adiós.",
     findingVehicle: "Estamos buscándole un vehículo ahora. Le llamo en cuanto un conductor diga que sí.",
     sorry: "Perdón, no le entendí.",
@@ -141,6 +182,10 @@ export function helperOnTheWayLine(language: Language, helperName: string, minut
 export interface PlanCheckEffects {
   helperAnswered(coming: boolean, etaMinutes?: number): void;
   residentAnswered(pickedUp: boolean): void;
+  // The resident said whether they'll go with the helper.
+  residentConfirmed(confirmed: boolean): void;
+  // A status update was spoken, to the person or their voicemail.
+  noticeHeard(): void;
   escalate(kind: "medical" | HazardEscalation): void;
   // The person hung up before giving an answer.
   unreached(): void;
@@ -159,13 +204,16 @@ export type PlanCheckOptions = {
   recruited?: boolean;
   // Told to the helper before they're asked, so they know what they're agreeing to.
   needs?: PickupNeeds;
-  // A call to the resident only to say their helper is on the way, with the minutes the helper gave.
-  notify?: { minutes?: number };
+  purpose?: PlanPurpose;
+  // Minutes until the helper's ETA, said in the resident's confirmation call.
+  minutes?: number;
+  // The update a notice call gives.
+  notice?: PlanNotice;
   effects: PlanCheckEffects;
   interpret?: PlanInterpret;
 };
 
-type Step = "ask_coming" | "ask_minutes" | "ask_picked_up" | "done";
+type Step = "ask_coming" | "ask_minutes" | "ask_picked_up" | "ask_ready" | "done";
 type Transition = { step: Step; lines: string[] };
 
 const MAX_UNCLEAR = 2;
@@ -188,9 +236,13 @@ export class PlanCheck implements CallFlow {
     this.language = planCheckLanguage(options.language);
     this.lines = PLAN_CHECK_LINES[this.language] ?? PLAN_CHECK_LINES.en;
     this.interpret = options.interpret ?? interpretPlanAnswer;
-    this.step = options.role === "helper" ? "ask_coming" : "ask_picked_up";
+    this.step = firstStep(options);
     // Nothing to answer on a notice, so hanging up after it is not a missed call.
-    if (options.notify) this.reported = true;
+    if (this.purpose === "notice") this.reported = true;
+  }
+
+  private get purpose(): PlanPurpose {
+    return this.options.purpose ?? "ask";
   }
 
   get done() {
@@ -199,10 +251,12 @@ export class PlanCheck implements CallFlow {
 
   start(): AgentTurn {
     const intro = this.intro();
-    if (this.options.notify) {
+    if (this.purpose === "notice") {
       this.step = "done";
+      this.options.effects.noticeHeard();
       return this.say("", [intro, this.notice(), LINES[this.language].goodbye]);
     }
+    if (this.purpose === "confirm") return this.say("", [intro, this.offer(), this.question()]);
     return this.say("", [intro, ...this.needLines(), this.question()]);
   }
 
@@ -218,13 +272,22 @@ export class PlanCheck implements CallFlow {
     return QUESTIONS[this.step](this.lines, this.options);
   }
 
+  // What the helper offered, said before the resident is asked to confirm.
+  private offer() {
+    return this.lines.helperOnTheWay(this.options.helperName, this.options.minutes, this.options.helperPhone);
+  }
+
   private notice() {
-    return this.lines.helperOnTheWay(this.options.helperName, this.options.notify?.minutes, this.options.helperPhone);
+    const { notice, helperName, residentName, address } = this.options;
+    if (!notice) throw new Error("A notice call needs the update to give");
+    const line = this.lines.notices[notice](helperName, residentName, address);
+    return notice === "helper_cancelled" ? withSafety(line, this.language) : line;
   }
 
   private intro() {
     const { role, recruited, helperName, residentName, address } = this.options;
     if (role === "resident") return this.lines.residentIntro(residentName);
+    if (this.purpose === "notice") return this.lines.helperUpdateIntro(helperName);
     return recruited ? this.lines.recruitIntro(residentName, address) : this.lines.helperIntro(helperName, residentName, address);
   }
 
@@ -238,7 +301,8 @@ export class PlanCheck implements CallFlow {
 
   voicemail(): string[] {
     const { role, helperName, residentName, address } = this.options;
-    if (this.options.notify) return [this.lines.residentIntro(residentName), this.notice()];
+    if (this.purpose === "notice") return [this.intro(), this.notice()];
+    if (this.purpose === "confirm") return [this.lines.residentIntro(residentName), this.offer()];
     return [role === "helper" ? this.lines.helperVoicemail(residentName, address) : this.lines.residentVoicemail(helperName)];
   }
 
@@ -287,7 +351,24 @@ export class PlanCheck implements CallFlow {
     if (this.step === "ask_coming") return this.askComing(heard);
     if (this.step === "ask_minutes") return this.askMinutes(heard);
     if (this.step === "ask_picked_up") return this.askPickedUp(heard);
+    if (this.step === "ask_ready") return this.askReady(heard);
     return { step: "done", lines: [] };
+  }
+
+  // A no lets the helper turn back; an answer we can't read leaves them coming, since they already are.
+  private askReady(heard: PlanHeard): Transition {
+    const { helperName } = this.options;
+    if (heard.answer === "yes") {
+      this.report(() => this.options.effects.residentConfirmed(true));
+      return { step: "done", lines: [this.lines.residentReady, LINES[this.language].goodbye] };
+    }
+    if (heard.answer === "no") {
+      this.report(() => this.options.effects.residentConfirmed(false));
+      return { step: "done", lines: [this.lines.residentNotReady(helperName), withSafety(this.lines.findingVehicle, this.language), LINES[this.language].goodbye] };
+    }
+    if (!this.secondUnclear()) return { step: this.step, lines: [this.lines.sorry] };
+    this.report(() => this.options.effects.unreached());
+    return { step: "done", lines: [this.lines.readyUnclear(helperName), LINES[this.language].goodbye] };
   }
 
   private askComing(heard: PlanHeard): Transition {
@@ -369,9 +450,16 @@ export class PlanCheck implements CallFlow {
   }
 }
 
+function firstStep({ role, purpose }: PlanCheckOptions): Step {
+  if (purpose === "notice") return "done";
+  if (purpose === "confirm") return "ask_ready";
+  return role === "helper" ? "ask_coming" : "ask_picked_up";
+}
+
 const QUESTIONS: Record<Step, (lines: PlanCheckLines, options: PlanCheckOptions) => string> = {
   ask_coming: (lines, { recruited }) => (recruited ? lines.askCanPickUp : lines.askComing),
   ask_minutes: (lines) => lines.askMinutes,
   ask_picked_up: (lines, { helperName }) => lines.askPickedUp(helperName),
+  ask_ready: (lines, { helperName }) => lines.askReady(helperName),
   done: () => "",
 };

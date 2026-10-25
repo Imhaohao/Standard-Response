@@ -69,11 +69,13 @@ function callStatus(query: URLSearchParams, params: Record<string, string>) {
 // The pickup runner and the Ready dialer count the miss when they hear about it.
 function reportUnreached(mode: CallMode, query: URLSearchParams) {
   const role = query.get("role");
+  const purpose = query.get("purpose");
   callEnded({
     mode,
     householdId: query.get("householdId") || undefined,
     planId: query.get("planId") || undefined,
     role: role === "helper" || role === "resident" ? role : undefined,
+    purpose: purpose === "ask" || purpose === "confirm" || purpose === "notice" ? purpose : undefined,
     answered: false,
   });
 }

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { helperOnTheWayLine, minutesUntil, PickupNeeds, PlanCheck, PlanCheckEffects } from "./planCheck";
+import { helperOnTheWayLine, minutesUntil, PickupNeeds, PlanCheck, PlanCheckEffects, PlanCheckOptions } from "./planCheck";
 import type { PlanHeard, PlanRole } from "./planInterpreter";
 import { ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
 import type { ReadyHeard } from "./readyInterpreter";
 
-type Recorded = { helper: [boolean, number | undefined][]; resident: boolean[]; escalations: string[]; unreached: number };
+type Recorded = { helper: [boolean, number | undefined][]; resident: boolean[]; confirmed: boolean[]; notices: number; escalations: string[]; unreached: number };
 
 const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
   answer: "unclear",
@@ -17,11 +17,20 @@ const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
   ...partial,
 });
 
-function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" | "es" | "ko" = "en", recruited = false, needs?: PickupNeeds) {
-  const recorded: Recorded = { helper: [], resident: [], escalations: [], unreached: 0 };
+function planCall(
+  role: PlanRole,
+  answers: Partial<PlanHeard>[],
+  language: "en" | "es" | "ko" = "en",
+  recruited = false,
+  needs?: PickupNeeds,
+  extra: Partial<PlanCheckOptions> = {},
+) {
+  const recorded: Recorded = { helper: [], resident: [], confirmed: [], notices: 0, escalations: [], unreached: 0 };
   const effects: PlanCheckEffects = {
     helperAnswered: (coming, eta) => recorded.helper.push([coming, eta]),
     residentAnswered: (pickedUp) => recorded.resident.push(pickedUp),
+    residentConfirmed: (confirmed) => recorded.confirmed.push(confirmed),
+    noticeHeard: () => (recorded.notices += 1),
     escalate: (kind) => recorded.escalations.push(kind),
     unreached: () => (recorded.unreached += 1),
   };
@@ -36,6 +45,7 @@ function planCall(role: PlanRole, answers: Partial<PlanHeard>[], language: "en" 
     needs,
     effects,
     interpret: async () => heard(queue.shift() ?? {}),
+    ...extra,
   });
   return { call, recorded };
 }
@@ -73,7 +83,7 @@ describe("pickup check, helper call", () => {
   });
 
   it("gives a helper who said yes the resident's number", async () => {
-    const effects: PlanCheckEffects = { helperAnswered: () => undefined, residentAnswered: () => undefined, escalate: () => undefined, unreached: () => undefined };
+    const effects: PlanCheckEffects = { helperAnswered: () => undefined, residentAnswered: () => undefined, residentConfirmed: () => undefined, noticeHeard: () => undefined, escalate: () => undefined, unreached: () => undefined };
     const call = new PlanCheck({ role: "helper", language: "en", helperName: "Ana", residentName: "Wen", address: "915 Ventura Street", residentPhone: "+16506567040", recruited: true, effects, interpret: async () => heard({ answer: "yes", minutes: 5 }) });
     call.start();
     assert.match(spoken(await call.hear("yes, five minutes")), /Wen's number is 6 5 0, 6 5 6, 7 0 4 0, if you need to reach them\./);
@@ -141,23 +151,57 @@ describe("pickup check, helper call", () => {
 });
 
 describe("pickup check, resident call", () => {
-  it("tells the resident their helper is on the way, then hangs up without counting a miss", () => {
-    let unreached = 0;
-    const effects: PlanCheckEffects = {
-      helperAnswered: () => assert.fail("a notice asks nothing"),
-      residentAnswered: () => assert.fail("a notice asks nothing"),
-      escalate: () => undefined,
-      unreached: () => (unreached += 1),
-    };
-    const call = new PlanCheck({ role: "resident", language: "en", helperName: "Ana", residentName: "Walter", address: "1182 Mariposa St", helperPhone: "+14252468208", notify: { minutes: 10 }, effects });
+  it("tells the resident what the helper offered and asks them to confirm", async () => {
+    const { call, recorded } = planCall("resident", [{ answer: "yes" }], "en", true, undefined, { purpose: "confirm", minutes: 10, helperPhone: "+14252468208" });
+    const opening = spoken(call.start());
+    assert.match(opening, /it's 911 calling about your pickup/);
+    assert.match(opening, /Ana says they can pick you up in about 10 minutes\. Their number is 4 2 5, 2 4 6, 8 2 0 8\./);
+    assert.match(opening, /Will you go with Ana when they get there\?$/);
+    const turn = await call.hear("yes, I'll be ready");
+    assert.equal(turn.done, true);
+    assert.match(spoken(turn), /I'll let them know you'll be ready/);
+    assert.deepEqual(recorded.confirmed, [true]);
+    call.lineClosed();
+    assert.equal(recorded.unreached, 0);
+  });
+
+  it("lets the helper turn back when the resident says no, without promising a van", async () => {
+    const { call, recorded } = planCall("resident", [{ answer: "no" }], "en", true, undefined, { purpose: "confirm", minutes: 10 });
+    call.start();
+    const turn = await call.hear("no, my son is coming");
+    assert.deepEqual(recorded.confirmed, [false]);
+    assert.match(spoken(turn), /I'll tell Ana they don't need to come/);
+    assert.match(spoken(turn), /I'll call you back as soon as a driver has said yes/);
+  });
+
+  it("leaves the helper coming after two answers it can't read", async () => {
+    const { call, recorded } = planCall("resident", [{}, {}], "en", true, undefined, { purpose: "confirm", minutes: 10 });
+    call.start();
+    assert.equal((await call.hear("hmm")).done, false);
+    const turn = await call.hear("what");
+    assert.equal(turn.done, true);
+    assert.match(spoken(turn), /Ana is still on the way/);
+    assert.deepEqual(recorded.confirmed, []);
+    assert.equal(recorded.unreached, 1);
+  });
+
+  it("gives a status update with nothing to answer, and counts it heard as soon as it's said", () => {
+    const { call, recorded } = planCall("helper", [], "en", true, undefined, { purpose: "notice", notice: "resident_ready" });
     const turn = call.start();
     assert.equal(turn.done, true);
-    assert.match(spoken(turn), /it's 911 calling about your pickup/);
-    assert.match(spoken(turn), /Ana says they can pick you up in about 10 minutes\. Their number is 4 2 5, 2 4 6, 8 2 0 8\./);
-    assert.match(spoken(turn), /ride request stays open/);
-    assert.doesNotMatch(spoken(turn), /Has Ana picked you up/);
+    assert.match(spoken(turn), /Hi Ana, it's 911 with an update on the pickup\. Walter said yes, and will be ready for you at 1182 Mariposa St\./);
+    assert.equal(recorded.notices, 1);
     call.lineClosed();
-    assert.equal(unreached, 0);
+    assert.equal(recorded.unreached, 0);
+  });
+
+  it("calls a helper off, and tells a resident their helper can't come with the safety line", () => {
+    const off = planCall("helper", [], "en", true, undefined, { purpose: "notice", notice: "called_off" });
+    assert.match(spoken(off.call.start()), /The pickup for Walter at 1182 Mariposa St is off, so you don't need to go\./);
+    const cancelled = planCall("resident", [], "es", true, undefined, { purpose: "notice", notice: "helper_cancelled" });
+    const said = spoken(cancelled.call.start());
+    assert.match(said, /Ana ya no puede pasar por usted\./);
+    assert.match(said, /sigue abierta/);
   });
 
   it("gives the same notice in Spanish, and without minutes when the helper gave none", () => {
