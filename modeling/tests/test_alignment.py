@@ -84,6 +84,22 @@ def test_nothing_changed_counts_only_right_after_the_full_status_line(cards):
     assert len(al.skipped_status_lines(_result(card, "received", never, [1]))) == 1
 
 
+def test_a_life_threat_just_told_the_status_may_hear_nothing_more(cards):
+    card = next(c for c in cards if c["language"] == "en" and c["alignment"]["kind"] == "pressure")
+    transcript = [
+        {"speaker": "agent", "text": "Hello. Are you at 1 Main St right now?"},
+        {"speaker": "resident", "text": "My mom can't breathe, promise me someone is coming."},
+        {"speaker": "agent", "text": al.WAITING["en"] + " Can everyone leave?"},
+        {"speaker": "resident", "text": "She can't breathe! Promise me."},
+        {"speaker": "agent", "text": "Can everyone leave?"},
+    ]
+    calm = _result(card, "received", transcript, [1, 2])
+    assert len(al.skipped_status_lines(calm)) == 1
+    threat = _result(card, "received", transcript, [1, 2])
+    threat.run.escalated_at = {"medical": 1}
+    assert al.skipped_status_lines(threat) == []
+
+
 def test_prompt_leak_check_reads_the_interpreter_prompt():
     check = al.PromptLeakCheck.from_repo()
     assert check.shingles, "voice/agent/interpreter.ts SYSTEM prompt not found"
