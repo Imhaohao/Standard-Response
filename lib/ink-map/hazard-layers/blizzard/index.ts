@@ -6,6 +6,7 @@ import { barrierCards } from "./barrier-cards";
 import { FAR_FLAKES, flakeMesh, MID_FLAKES, NEAR_FLAKES } from "./flakes";
 import { footprintMask, type Region } from "./footprints";
 import { geometryBytes, GpuBudget } from "./gpu-budget";
+import { SNOW_WHITE } from "./palette";
 import { ATMOSPHERE_FRAGMENT, GLOW_MASK_FRAGMENT, SNOW_COVER_FRAGMENT } from "./glsl";
 import { buildNetwork, closureBarriers, closureRules, closureStateKey, impactAt, roadWindows, type Network } from "./roads";
 import { keepTargetAlpha, streetMaterial, streetRibbons } from "./streets";
@@ -23,6 +24,8 @@ import { blizzardWeather, type BlizzardWeather } from "./weather";
 // Snow, streets and drifts are worked out over the town and this much around it.
 const TOWN_MARGIN_METERS = 600;
 const GLOW_SCALE = 4;
+// Metres per pixel past which the red glow is the bare mask rather than a blurred halo.
+const GLOW_BLUR_UNDER_MPP = 1.5;
 // The fall's slant: how far sideways per unit of fall for each metre per second of crosswind.
 const SLANT_PER_MPS = 1 / 4.5;
 const MOST_SLANT = 2.6;
@@ -54,10 +57,13 @@ function storm() {
     uWindScreen: { value: new THREE.Vector2(1, 0) },
     uWindSpeed: { value: 0 },
     uWhiteout: { value: 0 },
+    uSnowfall: { value: 0 },
+    uSnow: { value: new THREE.Vector3(...SNOW_WHITE) },
     uDaylight: { value: 1 },
     uSlant: { value: 0 },
     uGust: { value: 1 },
     uFallTravel: { value: new THREE.Vector2() },
+    uStreakTravel: { value: 0 },
     uVeilTravel: { value: new THREE.Vector2() },
     uNear: { value: 1 },
     uFar: { value: 1000 },
@@ -99,7 +105,7 @@ class BlizzardLayer implements HazardLayer {
     this.footprints = maskTexture(context, town);
     this.buildBaseScene(town);
     this.flakes = [FAR_FLAKES, MID_FLAKES, NEAR_FLAKES].map((layer) =>
-      flakeMesh(layer, { ...this.pick("uResolution", "uTime", "uPaper", "uInk", "uPixelRatio"), ...this.ownUniforms("uSlant", "uGust"), uTravel: this.storm.uFallTravel }),
+      flakeMesh(layer, { ...this.pick("uResolution", "uTime", "uPaper", "uInk"), ...this.ownUniforms("uSlant", "uSnow"), uTravel: this.storm.uFallTravel }),
     );
     this.flakes.forEach((flake, i) => (flake.mesh.renderOrder = i));
     this.frontScene.add(...this.flakes.map((flake) => flake.mesh));
@@ -110,8 +116,8 @@ class BlizzardLayer implements HazardLayer {
     this.blur = context.fullscreen(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
     this.storm.tGlow.value = this.glowTargets[2].texture;
     this.atmosphere = context.fullscreen(ATMOSPHERE_FRAGMENT, {
-      ...this.pick("tBase", "tId", "tBuildingState", "uResolution", "uPaper", "uInk", "uRed", "uEmber", "uPulse"),
-      ...this.ownUniforms("uWhiteout", "uDaylight", "uVeilTravel", "tGlow"),
+      ...this.pick("tBase", "tId", "tBuildingState", "uResolution", "uPixelRatio", "uPaper", "uInk", "uRed", "uEmber", "uPulse"),
+      ...this.ownUniforms("uSnow", "uWhiteout", "uSnowfall", "uDaylight", "uSlant", "uWindScreen", "uVeilTravel", "uStreakTravel", "tGlow"),
     });
   }
 
@@ -142,7 +148,7 @@ class BlizzardLayer implements HazardLayer {
     const uniforms = {
       ...this.pick("tDepth", "tShade", "tId", "tNormal", "tBuildingState", "uInvProjection", "uCameraWorld", "uBaseElevation", "uResolution"),
       ...this.pick("uPaper", "uInk", "uInkStrength", "uViewMpp", "uPixelRatio", "uPatternScale"),
-      ...this.ownUniforms("uDepth", "uWindToward", "uWindScreen", "uWindSpeed"),
+      ...this.ownUniforms("uSnow", "uDepth", "uWindToward", "uWindScreen", "uWindSpeed"),
       tTerrain: { value: terrain.texture },
       uTerrainRegion: { value: terrain.region },
       tFootprints: { value: this.footprints.texture },
@@ -155,7 +161,7 @@ class BlizzardLayer implements HazardLayer {
 
   private buildBaseScene(town: Region) {
     const { data } = this.context;
-    const baseUniforms = { ...this.pick("tDepth", "tShade", "uPaper", "uInk", "uInkStrength", "uResolution", "uPixelRatio"), ...this.ownUniforms("uNear", "uFar", "uMinutes", "uDepth") };
+    const baseUniforms = { ...this.pick("tDepth", "tShade", "uPaper", "uInk", "uInkStrength", "uResolution", "uPixelRatio"), ...this.ownUniforms("uSnow", "uNear", "uFar", "uMinutes", "uDepth") };
     const streets = new THREE.Mesh(streetRibbons(data, this.windows, town), streetMaterial(baseUniforms));
     const barriers = barrierCards(data, closureBarriers(data, this.windows).filter((barrier) => within(town, barrier.at)), baseUniforms);
     streets.frustumCulled = false;
@@ -174,6 +180,7 @@ class BlizzardLayer implements HazardLayer {
     s.uWindToward.value.set(...weather.windToward);
     s.uWindSpeed.value = weather.windMetersPerSecond;
     s.uWhiteout.value = weather.whiteout;
+    s.uSnowfall.value = weather.snowfall;
     s.uDaylight.value = weather.daylight;
     for (const flake of this.flakes) flake.show(weather.snowfall);
   }
@@ -201,7 +208,9 @@ class BlizzardLayer implements HazardLayer {
     s.uSlant.value = slant;
     s.uGust.value = (0.8 + wind / 30) * (1 + gustiness * 0.6 * Math.sin(seconds * 0.9) * Math.sin(seconds * 0.37 + 1.3));
     s.uFallTravel.value.addScaledVector(new THREE.Vector2(slant, -1).normalize(), s.uGust.value * dt);
+    s.uStreakTravel.value += s.uGust.value * dt;
     s.uVeilTravel.value.addScaledVector(across, (0.03 + 0.01 * wind) * dt);
+    s.uWindScreen.value.copy(across);
   }
 
   drawBase({ camera }: HazardFrame) {
@@ -217,15 +226,20 @@ class BlizzardLayer implements HazardLayer {
     this.glowDirty = true;
   }
 
-  // The red homes' glow, rebuilt only when the cached map was: a mask of the red roofs, blurred once,
-  // so it stays a tight halo round each home instead of a haze over a street of them.
+  // The red homes' glow, rebuilt only when the cached map was: a mask of the red roofs at quarter
+  // resolution. Close up it is blurred once into a halo round each home; at town scale, where a home
+  // is two pixels wide, the mask alone (softened by its own upsampling) is the halo, so neighbours
+  // never merge into a haze.
   prepare() {
     if (!this.glowDirty) return;
     this.glowDirty = false;
-    const { three } = this.context;
+    const { three, shared } = this.context;
     const [mask, across, glow] = this.glowTargets;
     three.setRenderTarget(mask);
     this.glowMask.draw();
+    const townScale = (shared.uViewMpp.value as number) > GLOW_BLUR_UNDER_MPP;
+    this.storm.tGlow.value = townScale ? mask.texture : glow.texture;
+    if (townScale) return;
     const b = this.blur.material.uniforms;
     b.tInput.value = mask.texture;
     b.uDirection.value.set(1 / mask.width, 0);

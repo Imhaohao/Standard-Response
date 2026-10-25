@@ -145,7 +145,7 @@ ${NOISE_GLSL}
 ${SCENE_DEPTH_GLSL}
 uniform float uMinutes;
 uniform float uDepth;
-uniform vec3 uPaper;
+uniform vec3 uSnow;
 uniform vec3 uInk;
 uniform float uInkStrength;
 
@@ -186,7 +186,7 @@ void main() {
   float open = mix(0.6 * line, 0.9 * ruts(a * vHalf, vStreet.y, metersPerPixel), fine);
   float buried = mix(0.1 * line, buriedRoad(a, vStreet.y, w, metersPerPixel), fine);
   float ink = mix(open, buried, erased);
-  fragColor = vec4(mix(uPaper, uInk, ink * uInkStrength), snowy);
+  fragColor = vec4(mix(uSnow, uInk, ink * uInkStrength), snowy);
 }
 `;
 

@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { ROAD_WIDTH, type InkMapData, type Point } from "../../data";
 import type { Scenario } from "../../scenario";
 import type { PaperHazardProps } from "../types";
+import { SNOW_WHITE_CSS } from "./palette";
 import { closureRules, isClosed, MOST_STREET_CLASS, roadWindows, type ClosureWindow } from "./roads";
 import { blizzardWeather } from "./weather";
 
-// The blizzard on the flat map, drawn the way the 3D map draws it: by taking ink away. As the snow
-// deepens the area tints and minor paths fade into the paper; every street is overdrawn, open ones as
+// The blizzard on the flat map, drawn the way the 3D map draws it: as the snow deepens the cream paper
+// turns snow white and the area tints and minor paths fade into it; every street is overdrawn, open ones as
 // a dark double line of ruts, closed ones fading over the hour and a half after they shut to a faint
 // ghost. The flat map has no buildings, so that ghost of the street grid is what keeps it a town. A
 // light veil comes and goes with visibility.
@@ -83,9 +84,9 @@ function Street({ street, minutes }: { street: StreetGroup; minutes: number }) {
   const width = erased < 1 ? rutWidth : 1;
   return (
     <g>
-      <path d={street.d} fill="none" stroke="var(--map-paper)" strokeWidth={street.width + 2} strokeLinecap="round" />
+      <path d={street.d} fill="none" stroke={SNOW_WHITE_CSS} strokeWidth={street.width + 2} strokeLinecap="round" />
       <path d={street.d} fill="none" stroke="var(--map-ink)" strokeOpacity={OPEN_OPACITY - (OPEN_OPACITY - GHOST_OPACITY) * erased} strokeWidth={width} strokeLinecap="round" />
-      {width > 3.5 && <path d={street.d} fill="none" stroke="var(--map-paper)" strokeWidth={width - 1.6} strokeLinecap="round" />}
+      {width > 3.5 && <path d={street.d} fill="none" stroke={SNOW_WHITE_CSS} strokeWidth={width - 1.6} strokeLinecap="round" />}
     </g>
   );
 }
@@ -96,10 +97,11 @@ export function BlizzardPaper({ data, scenario, minutes, project }: PaperHazardP
   const buried = Math.min(1, Math.max(0, (weather.depthMeters - 0.02) / 0.28));
   return (
     <g>
-      <path d={paths.areas} fill="var(--map-paper)" fillOpacity={0.9 * buried} />
-      <path d={paths.minor} fill="none" stroke="var(--map-paper)" strokeOpacity={buried} strokeWidth={Math.max(2, 4 * paths.scale)} />
+      <rect x={-10000} y={-10000} width={30000} height={30000} fill={SNOW_WHITE_CSS} opacity={0.85 * buried} />
+      <path d={paths.areas} fill={SNOW_WHITE_CSS} fillOpacity={0.9 * buried} />
+      <path d={paths.minor} fill="none" stroke={SNOW_WHITE_CSS} strokeOpacity={buried} strokeWidth={Math.max(2, 4 * paths.scale)} />
       {weather.depthMeters > 0.01 && paths.streets.map((street) => <Street key={street.key} street={street} minutes={minutes} />)}
-      <rect x={-10000} y={-10000} width={30000} height={30000} fill="var(--map-paper)" opacity={MOST_VEIL * weather.whiteout} />
+      <rect x={-10000} y={-10000} width={30000} height={30000} fill={SNOW_WHITE_CSS} opacity={MOST_VEIL * weather.whiteout} />
     </g>
   );
 }

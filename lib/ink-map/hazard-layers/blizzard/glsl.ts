@@ -42,6 +42,7 @@ uniform sampler2D tFootprints;
 uniform vec4 uFootprintRegion;
 uniform vec2 uResolution;
 uniform vec3 uPaper;
+uniform vec3 uSnow;
 uniform vec3 uInk;
 uniform float uInkStrength;
 uniform float uViewMpp;
@@ -98,9 +99,10 @@ float leeShelter(vec2 p, float reach) {
   return lee;
 }
 
-// Fresh snow is whiter than the paper it lies on, so a cap shows even where a roof is two pixels wide.
+// Fresh snow is a cool white, brighter than the cream paper, so a snowfall changes the colour of the
+// whole map and a cap shows even where a roof is two pixels wide.
 vec3 snowWhite() {
-  return min(uPaper * 1.035, vec3(1.0));
+  return uSnow;
 }
 
 // A few soft hatch curves along a drift's slope, broken so they read as strokes, not contours.
@@ -153,7 +155,7 @@ vec4 wallSnow(vec2 uv, vec3 n, vec2 mapXY) {
   float rim = (1.0 - smoothstep(0.4, 1.4, abs(height - top) / aa)) * step(0.02, top) * detail;
   float snow = max(banked, rim);
   if (snow > 0.01) return vec4(mix(snowWhite(), uInk, rim * 0.75 * uInkStrength), snow);
-  return vec4(uInk, 0.1 * buried());
+  return vec4(uInk, 0.2 * buried());
 }
 
 // Open ground, streets, paths and area tints fade into the white. What gives the snow its mass is
@@ -165,9 +167,10 @@ vec4 groundSnow(vec2 mapXY, float surface) {
   float drift = windwardDrift(mapXY, 4.0 + uDepth * 16.0) * windy * smoothstep(0.08, 0.3, uDepth);
   float strokes = driftHatch(drift, mapXY) * smoothstep(0.3, 0.8, detailAt()) * 0.6;
   float lee = leeShelter(mapXY, 5.0 + uDepth * 24.0) * mix(0.5, 1.0, windy) * capped();
-  float shadow = groundHatch(mapXY, 4.5 * uPixelRatio, 0.7854, 0.3) * lee * 0.45;
+  // Close up the lee is hatched; at town scale, where a hatch can't resolve, it is a soft grey tone.
+  float shadow = mix(0.22, groundHatch(mapXY, 4.5 * uPixelRatio, 0.7854, 0.3) * 0.45, detailAt()) * lee;
   float ink = max(strokes, shadow);
-  return vec4(mix(uPaper, uInk, ink * uInkStrength), max(fade, ink));
+  return vec4(mix(snowWhite(), uInk, ink * uInkStrength), max(fade, ink));
 }
 
 void main() {
@@ -186,7 +189,7 @@ void main() {
   vec3 n = normalize(texture(tNormal, vUv).xyz * 2.0 - 1.0);
   if (surface == SURFACE_ROOF) fragColor = roofCap(vUv, idC, n.y);
   else if (surface == SURFACE_WALL) fragColor = wallSnow(vUv, n, mapXY);
-  else if (surface == SURFACE_TREE) fragColor = vec4(uPaper, buried() * 0.85);
+  else if (surface == SURFACE_TREE) fragColor = vec4(snowWhite(), buried() * 0.85);
   else fragColor = groundSnow(mapXY, surface);
 }
 `;
@@ -212,9 +215,11 @@ void main() {
 `;
 
 // Every frame, full resolution, in place of the canvas: the cached map, breathing as the fire pass
-// would; blown snow as an uneven veil toward paper that sweeps through in gusts and never takes more
-// than a quarter of the town; after dark only the far edge of the view darkening, like the night sky
-// over Hiroshige's snow; and the red homes glowing.
+// would; the storm you can feel in a still at its peak, as gust veils (broad soft white bands that
+// sweep across on the wind and let the contrast breathe) and driving snow (long, thin, slightly curved
+// white streaks with a faint grey underside, in three depths); after dark only the far edge of the
+// view darkening, like the night sky over Hiroshige's snow; and the red homes glowing. The weather
+// ramps up and down with the storm and never hides the town.
 export const ATMOSPHERE_FRAGMENT = `
 ${FULLSCREEN_HEADER}
 ${NOISE_GLSL}
@@ -223,29 +228,80 @@ uniform sampler2D tId;
 ${HOME_STATE_GLSL}
 uniform sampler2D tGlow;
 uniform vec2 uResolution;
+uniform float uPixelRatio;
 uniform vec3 uPaper;
+uniform vec3 uSnow;
 uniform vec3 uInk;
 uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uWhiteout;
+uniform float uSnowfall;
 uniform float uDaylight;
-// How far the gusts have travelled, summed frame by frame on the CPU, so a change in the wind turns
-// them instead of throwing them across the screen.
+uniform float uSlant;
+// Downwind on the screen, a unit vector with y up.
+uniform vec2 uWindScreen;
+// How far the gusts and the driving snow have travelled, summed frame by frame on the CPU, so a
+// change in the wind turns them instead of throwing them across the screen.
 uniform vec2 uVeilTravel;
+uniform float uStreakTravel;
 
-const float MOST_VEIL = 0.25;
 const float NIGHT_SKY = 0.18;
 
 vec3 breathe(vec4 base) {
   return mix(base.rgb, uPaper, base.a * 0.3 * (1.0 - uPulse));
 }
 
-float veil() {
-  vec2 screen = gl_FragCoord.xy / uResolution.y;
-  float gusts = fbm(screen * 1.6 - uVeilTravel);
-  float sheets = fbm(screen * 4.0 - uVeilTravel * 1.7 + 7.0);
-  return uWhiteout * MOST_VEIL * smoothstep(0.3, 0.75, gusts * 0.7 + sheets * 0.3);
+// Broad bands across the wind, moving along it: 15% of the way to white in a stiff wind, 30% in a
+// whiteout, with gaps between them where the town comes back.
+float gustVeil() {
+  vec2 screen = gl_FragCoord.xy / uResolution.y - uVeilTravel;
+  vec2 across = vec2(-uWindScreen.y, uWindScreen.x);
+  vec2 p = vec2(dot(screen, uWindScreen) * 2.2, dot(screen, across) * 0.6);
+  float bands = smoothstep(0.42, 0.78, fbm(p + vec2(0.0, 3.0)));
+  return bands * mix(0.15, 0.3, uWhiteout) * smoothstep(0.25, 0.75, max(uWhiteout, uSnowfall));
+}
+
+vec2 fallDirection() {
+  return normalize(vec2(uSlant, -1.0));
+}
+
+// One depth of driving snow: lanes along the fall, each holding now and then a long thin streak that
+// bends a little. shape is (lane spacing, streak length, width, speed) in pixels. Returns the
+// streak's white core and its grey underside.
+vec2 streakLayer(vec2 frag, vec4 shape, float density, float seed) {
+  float lane = shape.x * uPixelRatio;
+  float streakLength = shape.y * uPixelRatio;
+  float width = shape.z * uPixelRatio;
+  vec2 dir = fallDirection();
+  vec2 across = vec2(-dir.y, dir.x);
+  float a = dot(frag, across) / lane;
+  float laneId = floor(a);
+  float along = dot(frag, dir) - uStreakTravel * shape.w * uPixelRatio;
+  float bend = sin(along / (streakLength * 1.7) + hash12(vec2(laneId, seed)) * 6.28) * 0.18;
+  float offset = (fract(a) - 0.5 - bend) * lane;
+  float period = streakLength * (3.0 + 4.0 * hash12(vec2(laneId, seed + 1.0)));
+  float t = along / period + hash12(vec2(laneId, seed + 2.0)) * 17.0;
+  float on = step(hash12(vec2(laneId * 1.31, floor(t) + seed)), density);
+  float s = fract(t) * period;
+  float ends = smoothstep(0.0, streakLength * 0.35, s) * (1.0 - smoothstep(streakLength * 0.55, streakLength, s));
+  float soft = 0.8 * uPixelRatio + width * 0.3;
+  float core = 1.0 - smoothstep(width * 0.5, width * 0.5 + soft, abs(offset));
+  float below = across.y > 0.0 ? -1.0 : 1.0;
+  float under = 1.0 - smoothstep(width * 0.5, width * 0.5 + soft, abs(offset - below * (width + uPixelRatio)));
+  return vec2(core, under) * on * ends;
+}
+
+vec3 drivingSnow(vec3 color) {
+  float storm = smoothstep(0.35, 0.9, uSnowfall);
+  if (storm < 0.01) return color;
+  vec2 frag = gl_FragCoord.xy;
+  vec2 far = streakLayer(frag, vec4(9.0, 46.0, 0.8, 520.0), 0.22 * storm, 1.0);
+  vec2 middle = streakLayer(frag, vec4(23.0, 120.0, 1.4, 950.0), 0.26 * storm, 7.0);
+  vec2 near = streakLayer(frag, vec4(64.0, 280.0, 2.8, 1600.0), 0.3 * storm, 13.0);
+  vec2 streak = max(max(far * 0.7, middle * 0.85), near);
+  color = mix(color, mix(uSnow, uInk, 0.35), streak.y * 0.22);
+  return mix(color, uSnow, streak.x * 0.9);
 }
 
 float nightSky() {
@@ -257,13 +313,13 @@ void main() {
   vec4 home = homeState(objectId(vUv));
   float red = home.r;
   float charcoal = step(0.75, home.b) * (1.0 - step(0.001, red));
-  color = mix(color, uPaper, veil() * (1.0 - red) * (1.0 - 0.5 * charcoal));
+  color = mix(color, uSnow, gustVeil() * (1.0 - red) * (1.0 - 0.5 * charcoal));
   color = mix(color, uInk, nightSky() * (1.0 - red));
-  // The blur spreads one house's mask thin, so the glow answers exponentially: a single home still
-  // glows, and a street of them stays a row of homes rather than a red haze.
+  // The glow answers exponentially: a single home still glows, and a street of them stays a row of
+  // homes rather than a red haze.
   vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 12.0);
   float halo = glow.r * 0.24 * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
   color = mix(color, mix(uRed, uEmber, 0.22), halo * (1.0 - 0.6 * red));
-  fragColor = vec4(color, 1.0);
+  fragColor = vec4(drivingSnow(color), 1.0);
 }
 `;
