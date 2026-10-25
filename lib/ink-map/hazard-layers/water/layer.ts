@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { terrainHeight, type Point } from "../../data";
 import type { FireField } from "../../fire-field";
 import { sampleAt } from "../../scenario";
-import { arrivalTexture, impactAt, NO_IMPACT, type ArrivalIndex } from "../arrival";
+import { impactAt, NO_IMPACT, type ArrivalIndex } from "../arrival";
 import type { FullscreenPass, HazardFrame, HazardLayer, HazardLayerContext } from "../types";
 import { MAX_BREACHES, MAX_WAVES, waterFragment } from "./glsl";
 import { waterIndex } from "./impact";
@@ -20,6 +20,21 @@ function shoreTexture(grid: ShoreGrid) {
   texture.minFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   return texture;
+}
+
+type ArrivalTexture = { texture: THREE.DataTexture; region: THREE.Vector4; last: number; offset: number };
+
+// The arrival field as half floats, less an offset: at minute 1500 a half float steps a whole minute, and
+// every minute's front printed as its own ring. Less the scenario's start it keeps a fraction of a minute.
+function arrivalTextureFrom(field: FireField, offset: number): ArrivalTexture {
+  const half = new Uint16Array(field.minutes.length);
+  for (let i = 0; i < half.length; i++) half[i] = THREE.DataUtils.toHalfFloat(field.minutes[i] - offset);
+  const texture = new THREE.DataTexture(half, field.width, field.height, THREE.RedFormat, THREE.HalfFloatType);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  const { x0, y0, x1, y1 } = field.region;
+  return { texture, region: new THREE.Vector4(x0, y0, x1, y1), last: field.fronts[field.fronts.length - 1]?.minutes ?? 0, offset };
 }
 
 const RAIN_FALL_METERS_PER_SECOND = 9;
@@ -59,7 +74,7 @@ function swellToward(onshore: Point, wind: ReturnType<typeof windAt>): Point {
 export class WaterLayer implements HazardLayer {
   readonly animates = true;
   private pass: FullscreenPass | null = null;
-  private arrival: ReturnType<typeof arrivalTexture> | null = null;
+  private arrival: ArrivalTexture | null = null;
   private shore: THREE.DataTexture | null = null;
   private onshore: Point = [0, 1];
   private model: WaterModel;
@@ -77,11 +92,11 @@ export class WaterLayer implements HazardLayer {
     this.field = waterField(context.field, this.model, grid);
     this.onshore = grid.onshore;
     this.shore = shoreTexture(grid);
-    this.arrival = arrivalTexture(this.field);
+    this.arrival = arrivalTextureFrom(this.field, this.model.span.from - 30);
     this.pass = context.fullscreen(waterFragment(kind), this.uniforms(grid, this.arrival, this.shore), { blend: true });
   }
 
-  private uniforms(grid: ShoreGrid, arrival: ReturnType<typeof arrivalTexture>, shore: THREE.DataTexture): Record<string, THREE.IUniform> {
+  private uniforms(grid: ShoreGrid, arrival: ArrivalTexture, shore: THREE.DataTexture): Record<string, THREE.IUniform> {
     const { shared, terrain } = this.context;
     const { x0, y0, x1, y1 } = grid.region;
     return {
@@ -92,6 +107,7 @@ export class WaterLayer implements HazardLayer {
       tArrival: { value: arrival.texture },
       uArrivalRegion: { value: arrival.region },
       uArrivalLast: { value: arrival.last },
+      uArrivalOffset: { value: arrival.offset },
       tShore: { value: shore },
       uShoreRegion: { value: new THREE.Vector4(x0, y0, x1, y1) },
       uRegistration: { value: new THREE.Vector2() },
@@ -173,7 +189,7 @@ export class WaterLayer implements HazardLayer {
 }
 
 // The composite's uniforms the water reads, shared by reference so camera, palette and pattern scale stay in step.
-const SHARED_UNIFORMS = ["tDepth", "tShade", "tId", "tBuildingState", "uInvProjection", "uCameraWorld", "uBaseElevation", "uResolution", "uPixelRatio", "uTime", "uPaper", "uInk", "uIndigo", "uCamRight", "uCamUp", "uPatternScale", "uViewMpp", "uTerrainExtent"];
+const SHARED_UNIFORMS = ["tBase", "tDepth", "tShade", "tId", "tBuildingState", "uInvProjection", "uCameraWorld", "uBaseElevation", "uResolution", "uPixelRatio", "uTime", "uPaper", "uInk", "uIndigo", "uCamRight", "uCamUp", "uPatternScale", "uViewMpp", "uTerrainExtent"];
 
 function trainUniforms({ train }: WaterModel): Record<string, THREE.IUniform> {
   const waves = train?.waves.slice(0, MAX_WAVES) ?? [];
