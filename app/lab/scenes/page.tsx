@@ -22,6 +22,7 @@ function sceneParams(query: Query): SceneParams {
     speed: numberOr(one(query.speed), null),
     frame: one(query.frame) ?? null,
     chrome: one(query.chrome) !== "0",
+    replay: one(query.replay) === "1",
   };
 }
 
@@ -29,7 +30,7 @@ async function SceneFromQuery({ searchParams }: { searchParams: Promise<Query> }
   return <SceneLab params={sceneParams(await searchParams)} />;
 }
 
-// /lab/scenes?city=<id>&t=<minutes>&play=1&speed=<scenario minutes per second>&frame=<name>&chrome=0
+// /lab/scenes?city=<id>&t=<minutes>&play=1&speed=<scenario minutes per second>&frame=<name>&chrome=0&replay=1
 export default function Page({ searchParams }: { searchParams: Promise<Query> }) {
   return (
     <Suspense>

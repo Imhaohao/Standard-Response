@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { ChromeSurface } from "@/components/map/map-bar";
 import { MapStage } from "@/components/map/map-stage";
+import { ReplayOverlay, ReplayTally, replayLastMinute, useReplay, useReplayCount, useReplayHighlights } from "@/components/replay/replay-layer";
 import { ScenarioScrubber } from "@/components/map/scenario-scrubber";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { CITIES, City, cityById } from "@/lib/cities";
+import type { Hazard } from "@/lib/ink-map/hazard";
 import type { InkMapRenderer } from "@/lib/ink-map/renderer";
 import { cityView, frameByName } from "@/lib/ink-map/scene-frames";
 import { useScenario } from "@/lib/ink-map/use-scenario";
@@ -21,6 +23,7 @@ export type SceneParams = {
   speed: number | null;
   frame: string | null;
   chrome: boolean;
+  replay: boolean;
 };
 
 const DEFAULT_SPEED = 5;
@@ -46,6 +49,8 @@ function useSceneUrl(city: City, frame: string) {
   }, [city.id, frame]);
 }
 
+const scenarioLastMinute = (hazard: Hazard | null) => hazard?.scenario?.clock.minutesShown ?? hazard?.field.fronts.at(-1)?.minutes ?? 0;
+
 // One city's disaster, full bleed, on a fixed camera, with nothing that needs Convex: the bench the
 // hazard renderers are built on and the page the video recorder drives through window.__scene.
 export function SceneLab({ params }: { params: SceneParams }) {
@@ -56,7 +61,8 @@ export function SceneLab({ params }: { params: SceneParams }) {
   const frame = frameByName(city, frameName);
   const aspect = useWindowAspect();
   const view = useMemo(() => (aspect ? cityView(city, frame, aspect) : null), [city, frame, aspect]);
-  const last = hazard?.scenario?.clock.minutesShown ?? hazard?.field.fronts.at(-1)?.minutes ?? 0;
+  const replay = useReplay(params.replay ? city.id : null);
+  const last = Math.max(scenarioLastMinute(hazard), replayLastMinute(replay));
   const playback = usePlayback(last, { minutes: params.minutes ?? 0, play: params.play, speed: params.speed ?? DEFAULT_SPEED });
   const [renderer, setRenderer] = useState<InkMapRenderer | null>(null);
   useSceneUrl(city, frame.name);
@@ -70,6 +76,8 @@ export function SceneLab({ params }: { params: SceneParams }) {
     [setPlaying, setSpeed],
   );
   const pause = useCallback(() => setPlaying(false), [setPlaying]);
+  const highlights = useReplayHighlights(replay, data, playback.minutes);
+  const count = useReplayCount(replay, playback.minutes);
   useSceneDriver({
     renderer,
     hazardShown: hazard !== null,
@@ -92,7 +100,16 @@ export function SceneLab({ params }: { params: SceneParams }) {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      {data && view && <MapStage data={data} view={view} hazard={hazard} minutes={playback.minutes} onRenderer={setRenderer} />}
+      {data && view && (
+        <MapStage data={data} view={view} hazard={hazard} minutes={playback.minutes} highlights={replay ? highlights : undefined} onRenderer={setRenderer}>
+          {replay && <ReplayOverlay replay={replay} minute={playback.minutes} />}
+        </MapStage>
+      )}
+      {count && (
+        <div className="pointer-events-none absolute start-4 top-4">
+          <ReplayTally count={count} />
+        </div>
+      )}
       {params.chrome && (
         <SceneControls
           city={city}
