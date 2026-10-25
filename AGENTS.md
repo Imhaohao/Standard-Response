@@ -33,8 +33,6 @@
 - Never break a stand-in someone is building against. Turn it off with its switch on the call floor.
 - `npm run typecheck && npm run lint` must pass before every push. Cyclomatic complexity over 15 fails lint.
 
-<!-- BEGIN:nextjs-agent-rules -->
-
 ## Memory: the team shares one 16 GB laptop
 
 Several sessions run on the same machine, and on a Mac GPU memory comes out of the same RAM. When it runs out, the whole machine freezes: cursor, audio, Bluetooth.
@@ -46,6 +44,8 @@ Several sessions run on the same machine, and on a Mac GPU memory comes out of t
 - Map code: every GPU allocation is width × height × bytes. Keep screen targets under the renderer's pixel budget, and release WebGL contexts on dispose (`InkMapRenderer.dispose`).
 - No `flat` varyings in any shader. Chrome on a Mac emulates them through Metal by rewriting every draw's index buffer, and the map's GPU process went past 13 GB in two seconds.
 - To measure a browser's memory, read the process footprint (`top -stats pid,mem`), not RSS. RSS leaves out GPU memory, and a 14 GB GPU process showed 57 MB of RSS.
+
+<!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
 
