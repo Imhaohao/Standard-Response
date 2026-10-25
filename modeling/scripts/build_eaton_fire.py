@@ -75,8 +75,11 @@ IGNITION_WEIGHT = 5.0
 BUILDING_REACH_M = 30.0
 # Fire was at a report's place by the time it was reported, and spreads outward from there at a slow
 # urban pace. This caps the fitted minute so the map never shows fire arriving after a nearby report.
+# The reach is the dispatch simulator's far radius (sim.eaton_night FIRE_FAR_M): at 1 km, a lone
+# pre-midnight report pulled whole blocks hours early (100 W Terrace St at 00:55 where the record first
+# places fire within two blocks at 5:26 a.m.); at 500 m the fit's median error is about a minute.
 SPREAD_FROM_REPORT_M_PER_MIN = 10.0
-REPORT_REACH_M = 1000.0
+REPORT_REACH_M = 500.0
 
 LABEL = "Eaton Fire replay, not a forecast"
 BASIS = (
