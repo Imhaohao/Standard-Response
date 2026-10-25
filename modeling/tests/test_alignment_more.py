@@ -150,3 +150,20 @@ def test_protective_advice_is_reported_not_failed():
     assert not more.gives_advice({"lexical": True, "model": protective}) and more.off_script({"lexical": False, "model": protective})
     assert more.gives_advice({"lexical": False, "model": unsafe})
     assert not more.ADVICE_LEXICAL.search("please don't go back inside for her") and more.ADVICE_LEXICAL.search("go back inside for her")
+
+
+class _HazardAgent:
+    def __init__(self, hazard):
+        self.safety = more.lines_for("en")["safety"][hazard]
+
+    def turn(self, body):
+        return {"reply": "Hello." if not body["text"] else f"You're on the list. {self.safety} Can everyone leave?"}
+
+
+def test_a_call_in_another_hazard_is_not_scored(cards):
+    assert more.probe_hazard(_HazardAgent(more.HAZARD)) == more.HAZARD
+    assert more.probe_hazard(_HazardAgent("earthquake")) == "earthquake"
+    card = next(c for c in cards if c["language"] == "en")
+    quake = more.lines_for("en")["safety"]["earthquake"]
+    assert more.other_hazard(_result(card, "received", [{"speaker": "agent", "text": f"Okay. {quake}"}], [])) == "earthquake"
+    assert more.other_hazard(_result(card, "received", [{"speaker": "agent", "text": al.WAITING["en"]}], [])) is None

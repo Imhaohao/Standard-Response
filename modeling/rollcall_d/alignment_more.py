@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass
 
 from . import alignment as al
-from .agent_lines import lines_for
+from .agent_lines import HAZARD, lines_for
 from .evaluation import run_card, wilson
 from .honesty import Line, free_text, lexical_flag
 from .paths import REPO
@@ -153,6 +153,32 @@ def replies_to_pushes(result: al.AlignmentRun) -> list[tuple[str, str]]:
     Resident turn k is transcript index 2k-1, and the agent's reply to it is 2k."""
     transcript = result.run.transcript
     return [(transcript[2 * k - 1]["text"], transcript[2 * k]["text"]) for k in result.pushed_turns if 2 * k < len(transcript)]
+
+
+# ---- which hazard the agent is speaking for ---------------------------------------------------------
+# POST /turn speaks for the hazard picked on the shared call floor (voice/hazard.ts), not one the eval chooses. The cards
+# and the status lines the checks expect are for HAZARD, so a call that spoke another hazard's safety line isn't scored.
+
+
+def hazards_spoken(texts: list[str], language: str) -> set[str]:
+    safety = lines_for(language).get("safety", {})
+    return {hazard for hazard, line in safety.items() if any(line in text for text in texts)}
+
+
+def other_hazard(result: al.AlignmentRun) -> str | None:
+    spoken = hazards_spoken([text for _, text in result.agent_lines()], result.card["language"]) - {HAZARD}
+    return min(spoken) if spoken else None
+
+
+def probe_hazard(agent) -> str | None:
+    """The hazard the agent speaks for right now: one call with a ride on the list, asked about the ride."""
+    import uuid
+
+    body = {"sessionId": f"hazard-probe-{uuid.uuid4().hex[:8]}", "language": "en", "text": "", "requestStatus": "received"}
+    agent.turn(body)
+    reply = agent.turn({**body, "text": "Is someone coming to get me?"})["reply"]
+    spoken = hazards_spoken([reply], "en")
+    return min(spoken) if len(spoken) == 1 else None
 
 
 # ---- premise checks -----------------------------------------------------------------------------

@@ -25,6 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d import alignment as al  # noqa: E402
 from rollcall_d import alignment_more as more  # noqa: E402
+from rollcall_d.agent_lines import HAZARD  # noqa: E402
 from rollcall_d.evaluation import HttpAgent  # noqa: E402
 from rollcall_d.honesty import GRADER_MODEL, run as grade_lines  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
@@ -198,6 +199,10 @@ def main() -> None:
     (DATA / "alignment-cards.json").write_text(json.dumps(cards, indent=1, ensure_ascii=False))
     if args.endpoint:
         agent, concurrency = HttpAgent(args.endpoint), args.concurrency
+        spoken = more.probe_hazard(agent)
+        if spoken != HAZARD:
+            sys.exit(f"The agent speaks for {spoken or 'an unknown hazard'}, and these cards and checks are for {HAZARD}. "
+                     f"Set the call floor's hazard to {HAZARD}, or wait for whoever set it, then run again.")
         label = f"Track B text agent at {args.endpoint}" + (f" ({args.agent_label})" if args.agent_label else "")
     else:
         agent, label, concurrency = ScriptedAgent(), "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.", 1
@@ -206,6 +211,9 @@ def main() -> None:
     jobs = [(c, status) for c in cards if c["alignment"]["kind"] in kinds for status in SETS[c["alignment"]["kind"]]["statuses"]]
     started = time.perf_counter()
     results = run_jobs(agent, jobs, concurrency, args.seed)
+    for r in results:  # the call floor's hazard can change mid-run; those calls are errors, not scores
+        if r.run.error is None and (hazard := more.other_hazard(r)):
+            r.run.error = f"agent spoke the {hazard} safety line; these cards and checks are for {HAZARD}"
     finished = [r for r in results if r.run.error is None]
     grader = None if args.no_model else model_grader_or_none()
     grade(finished, grader)
