@@ -257,10 +257,16 @@ body {
   to { stroke-dashoffset: -24; }
 }
 
+@keyframes remote-pulse {
+  0% { transform: scale(0.4); opacity: 0.7; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .animate-wave { animation: wave var(--wave-duration, 900ms) var(--ease-standard) infinite; animation-delay: var(--wave-delay, 0ms); }
   .animate-ring-out { animation: ring-out 1.8s var(--ease-out-quint) infinite; transform-box: fill-box; transform-origin: center; }
   .animate-ringing { animation: ringing 1.2s ease-in-out infinite; }
   .animate-sweep { animation: sweep 1.6s var(--ease-standard) infinite; }
   .animate-dash-flow { animation: dash-flow 1.4s linear infinite; }
+  .animate-remote-pulse { animation: remote-pulse 450ms var(--ease-out-quint) forwards; }
 }

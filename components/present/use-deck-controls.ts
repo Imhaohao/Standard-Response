@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-export type DeckCommands = { next: () => void; previous: () => void; first: () => void; last: () => void; notes: () => void };
+export type DeckCommands = { next: () => void; previous: () => void; first: () => void; last: () => void; notes: () => void; pairing: () => void };
 
 const KEYS: Record<string, keyof DeckCommands | "fullscreen"> = {
   ArrowRight: "next",
@@ -17,6 +17,8 @@ const KEYS: Record<string, keyof DeckCommands | "fullscreen"> = {
   End: "last",
   n: "notes",
   N: "notes",
+  p: "pairing",
+  P: "pairing",
   f: "fullscreen",
   F: "fullscreen",
 };
