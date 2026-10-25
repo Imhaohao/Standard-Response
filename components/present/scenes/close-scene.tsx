@@ -14,8 +14,9 @@ const WORDMARK_LEADING = WORDMARK.split(" ").slice(0, -1).join(" ");
 
 // Each frame takes its photo's own shape, so nobody in it is cropped.
 const PORTRAITS: { photo: PhotoName; name: string; delay: number; width: number }[] = [
-  { photo: "mitchellsSmiling", name: "Anthony Mitchell", delay: 0.5, width: 484 },
-  { photo: "roseland", name: "Roseland", delay: 1.9, width: 320 },
+  { photo: "mitchellsSmiling", name: "Anthony", delay: 0.4, width: 484 },
+  { photo: "justin", name: "Justin", delay: 1.1, width: 330 },
+  { photo: "roseland", name: "Roseland", delay: 1.8, width: 320 },
 ];
 
 function Portraits({ shown }: { shown: boolean }) {

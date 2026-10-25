@@ -5,6 +5,7 @@ export const PHOTOS = {
   mitchellsSmiling: { src: "/present/anthony-smiling.jpg", alt: "Anthony Mitchell smiling with two young boys" },
   station1: { src: "/present/station-1.jpg", alt: "Our visit to Palo Alto Fire Station 1" },
   station6: { src: "/present/station-6.jpg", alt: "Our visit to Palo Alto Fire Station 6" },
+  justin: { src: "/present/justin.jpg", alt: "Justin Mitchell" },
   roseland: { src: "/present/roseland.jpg", alt: "Roseland" },
 } as const;
 
