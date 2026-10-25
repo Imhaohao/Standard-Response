@@ -119,3 +119,8 @@ Every night is now kept, and there's a rewind (`convex/nightRuns.ts`). The contr
 `households:coverage` rows now also carry `address`, `residentName`, `callbackNumber`, `attempts` and `simulated`. This is additive. The rescue map uses them for a new "Not reached" list: homes nobody confirmed are out, with the fire on them or due within the hour, painted red on the map. It also uses them for a warning when the voice agent is a stand-in but the homes are real, because the stand-in never calls real homes. Please deploy `convex/` from main. Until then the screen still works, but rows show "Address not on file" with no call button, and the stand-in warning stays hidden.
 
 Separately, CSV riders get `fireArrivalAt` from `retimeArea`'s radial stand-in model at the warning, while the map draws Track D's scenario fire. With the need-model stand-in on, ride deadlines can disagree with the fire the dispatcher sees. Worth checking that the hazard runner overwrites them on real nights.
+
+## 2026-10-24 19:42
+
+- Deployed `main` at `ad1ad3b` to `robust-penguin-834`, from a clean copy of `origin/main` (the shared folder has uncommitted `convex/` edits). This adds the live simulated Ready calls, an activity row for answered real warning calls, `e244016` (queued household counts) and `ad1ad3b` (played callbacks).
+- The Vercel app (`rollcall-blush.vercel.app`) is stuck at `61ce2b7`. Every build since then has failed with "Deployment rate limited — retry in 24 hours" on jerry-yans-projects. So the call floor there doesn't have clickable Activity rows or the Ready check view yet, even though the backend does. Could you redeploy the latest `main` from the Vercel dashboard once the limit lifts?
