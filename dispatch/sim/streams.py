@@ -146,7 +146,7 @@ def emergency_call(env, takers: simpy.Resource, world: World, household: Househo
 def emergency_stream(world: World) -> Stream:
     env = simpy.Environment()
     arrivals: Stream = []
-    takers = simpy.Resource(env, capacity=CALL_TAKERS)
+    takers = simpy.Resource(env, capacity=world.config.call_takers)
     for household in world.needers:
         call_at = emergency_call_time(world, household)
         if call_at is not None:

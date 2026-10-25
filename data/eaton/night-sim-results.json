@@ -1,0 +1,996 @@
+{
+  "label": "Simulation on the real night's fire record, not a prediction",
+  "generatedAt": "2026-10-25T02:57:06+00:00",
+  "seeds": 5,
+  "runtimeSeconds": 485,
+  "scenarios": {
+    "order325": {
+      "label": "Calls start at the real 3:25 a.m. order; AccessLA rolls at 4 a.m.",
+      "callsStart": "2025-01-08T03:25:00-08:00",
+      "vansFrom": "2025-01-08T04:00:00-08:00"
+    },
+    "firstFireWest": {
+      "label": "Calls and vans start at 10:50 p.m., the first fire reported west of Lake",
+      "callsStart": "2025-01-07T22:50:00-08:00",
+      "vansFrom": "2025-01-07T22:50:00-08:00"
+    }
+  },
+  "assumptions": [
+    {
+      "name": "Households",
+      "value": "all 11,855 in data/population.json, none sampled",
+      "why": "real ACS household records reweighted to west Altadena's block groups; not real people"
+    },
+    {
+      "name": "Fire reached a home",
+      "value": "its nearest inspected structure within 40 m was damaged, or a destroyed one stood within 100 m",
+      "why": "CAL FIRE DINS; homes it never reached still need a ride, by noon"
+    },
+    {
+      "name": "When fire reached it",
+      "value": "the first fire sighting in the FSRI timeline within 250 m, else within 500 m",
+      "why": "a first report comes after the fire arrives, so every deadline here is a little late, which flatters both processes"
+    },
+    {
+      "name": "Deadline",
+      "value": "fire nearby minus 10 min",
+      "why": "same margin as the live dispatcher"
+    },
+    {
+      "name": "Road closures",
+      "value": "a street closes for good when fire is reported within 150 m of its midpoint",
+      "why": "no public log of which streets closed when"
+    },
+    {
+      "name": "Driving",
+      "value": "free-flow OpenStreetMap times on open streets",
+      "why": "no traffic: the roads were jammed in places, so this flatters both processes"
+    },
+    {
+      "name": "Fleet",
+      "value": "the base mix of six lift vans, a 20-seat bus and an ambulance in every eight, staged at the Rose Bowl",
+      "why": "AccessLA alone had more than 1,800 vehicles countywide; how many could have come to Altadena is unknown, so it is swept"
+    },
+    {
+      "name": "Our calls",
+      "value": "1 call a second in priority order, retries at 2 and 5 min, a text, then 6 door teams",
+      "why": "same as the sampled simulator; priority uses the true fire time, as if the hazard forecast were right. Calling in need order alone moved one seed from 641 to 633 on time (10:50 p.m., 25 vans) and from 356 to 337 (3:25 a.m., 50 vans)"
+    },
+    {
+      "name": "Today's process",
+      "value": "55% of those who need a ride call 911 about 20 min before fire arrives; 2 call takers per 600 homes (40 here); nearest free unit, one rider per trip",
+      "why": "a model of today, not the record; on the real night AccessLA was never called"
+    },
+    {
+      "name": "Call accuracy",
+      "value": "a reached household reports its true need",
+      "why": "optimistic"
+    }
+  ],
+  "metricDefinitions": {
+    "atRisk": "Households that need a ride and that the fire reached, with a time on record",
+    "fireBeforeCallsStart": "At-risk households with fire already reported nearby when calling began",
+    "atRiskReachedDispatch": "At-risk households whose request reached a dispatcher before the fire did",
+    "atRiskOnTime": "At-risk households whose whole party boarded by the deadline (fire nearby minus 10 min)",
+    "atRiskBeforeFire": "At-risk households whose whole party boarded before fire was reported nearby",
+    "everyoneBoardedByNoon": "Households that need a ride, at risk or not, whose whole party boarded"
+  },
+  "results": {
+    "order325": {
+      "8": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 237.0,
+            "p5": 217.0,
+            "p95": 251.2,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 10.0,
+            "p5": 6.6,
+            "p95": 20.2,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 29.0,
+            "p5": 13.4,
+            "p95": 29.8,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 32.0,
+            "p5": 13.8,
+            "p95": 33.8,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.36,
+            "p5": 4.08,
+            "p95": 8.55,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 4.4,
+            "p5": 4.22,
+            "p95": 4.64,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 384.0,
+            "p5": 380.8,
+            "p95": 389.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 105.0,
+            "p5": 96.6,
+            "p95": 111.2,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 140.0,
+            "p5": 136.0,
+            "p95": 144.0,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 266.0,
+            "p5": 259.2,
+            "p95": 269.2,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.31,
+            "p5": 8.2,
+            "p95": 8.31,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 36.9,
+            "p5": 35.58,
+            "p95": 37.78,
+            "n": 5
+          }
+        }
+      },
+      "25": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 237.0,
+            "p5": 217.0,
+            "p95": 251.2,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 29.0,
+            "p5": 21.4,
+            "p95": 35.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 68.0,
+            "p5": 60.4,
+            "p95": 76.6,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 84.0,
+            "p5": 70.0,
+            "p95": 94.6,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.56,
+            "p5": 8.46,
+            "p95": 8.57,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 4.9,
+            "p5": 4.7,
+            "p95": 5.52,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 384.0,
+            "p5": 380.8,
+            "p95": 389.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 228.0,
+            "p5": 222.6,
+            "p95": 238.8,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 288.0,
+            "p5": 281.6,
+            "p95": 290.4,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 817.0,
+            "p5": 816.0,
+            "p95": 817.8,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.31,
+            "p5": 8.28,
+            "p95": 8.33,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 87.1,
+            "p5": 86.06,
+            "p95": 87.96,
+            "n": 5
+          }
+        }
+      },
+      "50": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 237.0,
+            "p5": 217.0,
+            "p95": 251.2,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 43.0,
+            "p5": 40.2,
+            "p95": 50.2,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 101.0,
+            "p5": 89.0,
+            "p95": 105.2,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 145.0,
+            "p5": 125.6,
+            "p95": 146.8,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.58,
+            "p5": 8.57,
+            "p95": 8.58,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 4.9,
+            "p5": 4.9,
+            "p95": 5.2,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 384.0,
+            "p5": 380.8,
+            "p95": 389.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 356.0,
+            "p5": 351.6,
+            "p95": 359.8,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 365.0,
+            "p5": 363.2,
+            "p95": 369.8,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 947.0,
+            "p5": 946.2,
+            "p95": 953.4,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 5.38,
+            "p5": 5.34,
+            "p95": 5.41,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 96.8,
+            "p5": 93.72,
+            "p95": 97.76,
+            "n": 5
+          }
+        }
+      },
+      "100": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 237.0,
+            "p5": 217.0,
+            "p95": 251.2,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 48.0,
+            "p5": 42.2,
+            "p95": 54.6,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 111.0,
+            "p5": 100.6,
+            "p95": 117.8,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 196.0,
+            "p5": 183.0,
+            "p95": 210.2,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.57,
+            "p5": 8.56,
+            "p95": 8.58,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 5.0,
+            "p5": 4.8,
+            "p95": 5.52,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 220.0,
+            "p5": 220.0,
+            "p95": 220.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 384.0,
+            "p5": 380.8,
+            "p95": 389.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 360.0,
+            "p5": 356.2,
+            "p95": 362.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 366.0,
+            "p5": 365.2,
+            "p95": 372.4,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 955.0,
+            "p5": 954.2,
+            "p95": 963.4,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 3.75,
+            "p5": 3.62,
+            "p95": 3.8,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 97.6,
+            "p5": 95.84,
+            "p95": 101.0,
+            "n": 5
+          }
+        }
+      }
+    },
+    "firstFireWest": {
+      "8": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 360.0,
+            "p5": 334.8,
+            "p95": 386.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 16.0,
+            "p5": 14.2,
+            "p95": 19.6,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 30.0,
+            "p5": 26.4,
+            "p95": 31.8,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 30.0,
+            "p5": 26.8,
+            "p95": 31.8,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 7.58,
+            "p5": 6.46,
+            "p95": 12.34,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 7.0,
+            "p5": 6.82,
+            "p95": 7.58,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 643.0,
+            "p5": 643.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 195.0,
+            "p5": 191.8,
+            "p95": 201.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 257.0,
+            "p5": 252.6,
+            "p95": 261.6,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 257.0,
+            "p5": 252.6,
+            "p95": 261.6,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.17,
+            "p5": 8.14,
+            "p95": 8.3,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 42.4,
+            "p5": 41.58,
+            "p95": 43.16,
+            "n": 5
+          }
+        }
+      },
+      "25": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 360.0,
+            "p5": 334.8,
+            "p95": 386.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 39.0,
+            "p5": 29.4,
+            "p95": 45.6,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 67.0,
+            "p5": 64.0,
+            "p95": 83.6,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 68.0,
+            "p5": 67.2,
+            "p95": 88.0,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 13.03,
+            "p5": 12.87,
+            "p95": 13.14,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 8.6,
+            "p5": 8.0,
+            "p95": 9.0,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 643.0,
+            "p5": 643.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 641.0,
+            "p5": 639.4,
+            "p95": 642.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 641.0,
+            "p5": 640.2,
+            "p95": 642.0,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 896.0,
+            "p5": 891.0,
+            "p95": 898.8,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 8.33,
+            "p5": 8.3,
+            "p95": 8.33,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 99.3,
+            "p5": 97.26,
+            "p95": 99.64,
+            "n": 5
+          }
+        }
+      },
+      "50": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 360.0,
+            "p5": 334.8,
+            "p95": 386.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 68.0,
+            "p5": 57.6,
+            "p95": 73.8,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 153.0,
+            "p5": 141.4,
+            "p95": 154.8,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 174.0,
+            "p5": 162.6,
+            "p95": 178.4,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 13.15,
+            "p5": 13.09,
+            "p95": 13.17,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 8.8,
+            "p5": 8.64,
+            "p95": 10.16,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 643.0,
+            "p5": 643.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 642.0,
+            "p5": 642.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 642.0,
+            "p5": 642.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 1239.0,
+            "p5": 1239.0,
+            "p95": 1240.0,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 6.0,
+            "p5": 5.97,
+            "p95": 6.06,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 129.4,
+            "p5": 125.98,
+            "p95": 130.46,
+            "n": 5
+          }
+        }
+      },
+      "100": {
+        "today": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 360.0,
+            "p5": 334.8,
+            "p95": 386.8,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 78.0,
+            "p5": 74.8,
+            "p95": 85.4,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 177.0,
+            "p5": 160.2,
+            "p95": 194.2,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 247.0,
+            "p5": 228.2,
+            "p95": 264.2,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 13.16,
+            "p5": 13.14,
+            "p95": 13.17,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 9.2,
+            "p5": 8.24,
+            "p95": 9.62,
+            "n": 5
+          }
+        },
+        "ours": {
+          "needers": {
+            "median": 1262.0,
+            "p5": 1262.0,
+            "p95": 1262.0,
+            "n": 5
+          },
+          "atRisk": {
+            "median": 662.0,
+            "p5": 662.0,
+            "p95": 662.0,
+            "n": 5
+          },
+          "fireBeforeCallsStart": {
+            "median": 19.0,
+            "p5": 19.0,
+            "p95": 19.0,
+            "n": 5
+          },
+          "atRiskReachedDispatch": {
+            "median": 643.0,
+            "p5": 643.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskOnTime": {
+            "median": 642.0,
+            "p5": 642.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "atRiskBeforeFire": {
+            "median": 642.0,
+            "p5": 642.0,
+            "p95": 643.0,
+            "n": 5
+          },
+          "everyoneBoardedByNoon": {
+            "median": 1239.0,
+            "p5": 1239.0,
+            "p95": 1240.0,
+            "n": 5
+          },
+          "lastBoardingHour": {
+            "median": 3.75,
+            "p5": 3.65,
+            "p95": 3.79,
+            "n": 5
+          },
+          "wallSeconds": {
+            "median": 120.4,
+            "p5": 116.42,
+            "p95": 121.36,
+            "n": 5
+          }
+        }
+      }
+    }
+  }
+}

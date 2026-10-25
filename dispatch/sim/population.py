@@ -50,6 +50,8 @@ class Household:
     fire_arrival_s: float
     need: RideNeed | None
     has_car: bool = True
+    # False for a home the fire never reached: it still needs a ride, but by the end of the night.
+    at_risk: bool = True
 
     @property
     def deadline_s(self) -> float:

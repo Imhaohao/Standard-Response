@@ -1,6 +1,6 @@
 {
   "label": "Replay of documented requests, not a prediction",
-  "generatedAt": "2026-10-24T17:20:09-07:00",
+  "generatedAt": "2026-10-24T19:50:03-07:00",
   "assumptions": [
     {
       "name": "Fire at the home",
@@ -85,9 +85,9 @@
     "lng": -118.13915
   },
   "fleetCheck": {
-    "households": "Track D synthetic population (data/population.json), west of Lake Avenue",
-    "needARide": 1601,
-    "withFireDocumentedNearby": 943,
+    "households": "Synthetic population (data/population.json), west of Lake Avenue",
+    "needARide": 1262,
+    "withFireDocumentedNearby": 739,
     "shelter": {
       "name": "Pasadena Convention Center",
       "lat": 34.1443,
@@ -100,28 +100,28 @@
       "byFleetSize": [
         {
           "vans": 10,
-          "pickedUpBeforeFireNearby": 200,
-          "share": 0.212
+          "pickedUpBeforeFireNearby": 198,
+          "share": 0.268
         },
         {
           "vans": 25,
-          "pickedUpBeforeFireNearby": 430,
-          "share": 0.456
+          "pickedUpBeforeFireNearby": 386,
+          "share": 0.522
         },
         {
           "vans": 50,
-          "pickedUpBeforeFireNearby": 599,
-          "share": 0.635
+          "pickedUpBeforeFireNearby": 514,
+          "share": 0.696
         },
         {
           "vans": 100,
-          "pickedUpBeforeFireNearby": 649,
-          "share": 0.688
+          "pickedUpBeforeFireNearby": 520,
+          "share": 0.704
         },
         {
           "vans": 200,
-          "pickedUpBeforeFireNearby": 649,
-          "share": 0.688
+          "pickedUpBeforeFireNearby": 520,
+          "share": 0.704
         }
       ]
     },
@@ -131,28 +131,28 @@
       "byFleetSize": [
         {
           "vans": 10,
-          "pickedUpBeforeFireNearby": 334,
-          "share": 0.354
+          "pickedUpBeforeFireNearby": 326,
+          "share": 0.441
         },
         {
           "vans": 25,
-          "pickedUpBeforeFireNearby": 750,
-          "share": 0.795
+          "pickedUpBeforeFireNearby": 701,
+          "share": 0.949
         },
         {
           "vans": 50,
-          "pickedUpBeforeFireNearby": 918,
-          "share": 0.973
+          "pickedUpBeforeFireNearby": 722,
+          "share": 0.977
         },
         {
           "vans": 100,
-          "pickedUpBeforeFireNearby": 918,
-          "share": 0.973
+          "pickedUpBeforeFireNearby": 722,
+          "share": 0.977
         },
         {
           "vans": 200,
-          "pickedUpBeforeFireNearby": 918,
-          "share": 0.973
+          "pickedUpBeforeFireNearby": 722,
+          "share": 0.977
         }
       ]
     }

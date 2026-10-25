@@ -56,14 +56,38 @@ Sixteen households west of Lake asked for help because someone there couldn't ge
 
 Two of the sixteen had no fire reported within two blocks, so the last column counts fourteen. The three still missed in the second row asked for help in the evening, at 8:28, 9:31 and 11:20 p.m. A van would have boarded each of them within 25 minutes of their call.
 
-Those sixteen are only the people whose calls got through, so we also ran the whole west side using our synthetic census population. About 1,600 households west of Lake would need a ride, and 943 of them had fire reported within two blocks. Starting at 10:50 p.m., 50 vans pick up 97% of those 943 households before fire is reported near them. Fifty vans is under 3% of AccessLA's fleet of more than 1,800, which LAist reported was ready by 4 a.m. and never called. Starting from the 3:25 a.m. order with vans at 4 a.m., the same 50 vans reach 64%. No fleet size gets past 69%, because fire was already reported near the rest before 4 a.m.
+That replay assumes a van drives at free-flow speed from the Rose Bowl command post. It takes 4 minutes to reach the household by phone and 3 more for a driver to accept, then the boarding times in `PLAN.md`.
 
-The replay is a test of timing, not a claim about who would have lived. It assumes free-flow driving from the Rose Bowl command post, 4 minutes to reach a household and 3 more for a driver to accept, and the boarding times in `PLAN.md`. It can't know whether someone would have answered, been ready at the door, or been reachable past a fallen tree. Every assumption and every source row is listed in `data/eaton/replay-results.json`.
+Those sixteen are only the people whose calls got through. To see the whole west side, we ran our dispatch simulator on the night itself. All 11,855 households in our synthetic census population are in it, with none sampled. Of the 1,262 that need a ride, the fire reached 662 that the record puts a time on. CAL FIRE's damage inspections say which homes the fire reached. The first fire sighting within 250 meters in the FSRI records says when. The simulator calls every home at one call a second, then retries, texts and sends door teams, while the dispatcher routes the vans from the Rose Bowl.
+
+| Calls start | Vans | Out on time with our system | Out on time with today's process |
+| --- | --- | --- | --- |
+| 10:50 p.m., first fire west of Lake | 8 | 195 of 662 | 16 of 662 |
+| 10:50 p.m. | 25 | 641 of 662 | 39 of 662 |
+| 10:50 p.m. | 50 | 642 of 662 | 68 of 662 |
+| 3:25 a.m., the real order (vans from 4 a.m.) | 25 | 228 of 662 | 29 of 662 |
+| 3:25 a.m. | 50 | 356 of 662 | 43 of 662 |
+| 3:25 a.m. | 100 | 360 of 662 | 48 of 662 |
+
+"On time" means everyone in the household was aboard at least 10 minutes before fire was reported near the home. Each figure is the median of five runs. When calls start at 3:25 a.m., fire had already been reported near 220 of the 662 homes, so no fleet could get more than 442 out. Fifty vans get 356 of those 442. Twenty-five vans is under 2% of AccessLA's fleet of more than 1,800, which LAist reported was ready by 4 a.m. and never called.
+
+The right-hand column is our model of today's process, not the record. In it, 55% of the people who need a ride call 911 about 20 minutes before the fire reaches them, and the nearest free unit takes one household per trip. On the real night AccessLA wasn't called at all.
+
+The simulation is a test of timing, not a claim about who would have lived. Several of its assumptions flatter both columns:
+- **Late deadlines.** A first sighting comes after the fire arrives, so every deadline is a little late.
+- **No traffic.** Driving is at free-flow speed on every street the fire hasn't reached.
+- **Perfect calls.** Everyone who answers reports their needs correctly.
+- **A known fire.** Our calls go out in the order the fire actually arrived. Calling by need alone lowered one run from 641 to 633, and another from 356 to 337.
+
+It can't know whether someone would have answered or been ready at the door. Every assumption is listed in `data/eaton/night-sim-results.json`, and the sixteen documented requests, with their source rows, are in `data/eaton/replay-results.json`.
 
 ```bash
 cd modeling
 uv run python scripts/fetch_eaton.py    # the FSRI timeline sheet
-uv run python scripts/eaton_replay.py   # writes data/eaton/replay-results.json
+uv run python scripts/fetch_dins.py     # CAL FIRE's damage inspections, data/eaton/dins-eaton.json
+uv run python scripts/eaton_replay.py   # the sixteen requests, data/eaton/replay-results.json
+cd ../dispatch
+uv run python -m sim.eaton_night --seeds 5   # the whole night, data/eaton/night-sim-results.json
 ```
 
 ## What firefighters changed

@@ -23,6 +23,7 @@ if str(MODELING_DIR) not in sys.path:
 from rollcall_d.hazard import Scenario  # noqa: E402
 
 LNG_SCALE = float(np.cos(np.radians(34.18)))
+KEPT_EPOCHS = 3
 
 
 class RoadNetwork:
@@ -93,11 +94,11 @@ def edge_closure_minutes() -> np.ndarray:
 class TravelTimes:
     """Shortest-path seconds from a fixed set of source nodes, under the closures at a given time."""
 
-    def __init__(self, sources: list[int], hazard_scale: float):
+    def __init__(self, sources: list[int], hazard_scale: float, closure_seconds: np.ndarray | None = None):
         self.net = network()
         self.sources = np.array(sorted(set(sources)), dtype=np.int64)
         self.row_of = {int(node): row for row, node in enumerate(self.sources)}
-        self.closure_seconds = edge_closure_minutes() * MINUTE * hazard_scale
+        self.closure_seconds = edge_closure_minutes() * MINUTE * hazard_scale if closure_seconds is None else closure_seconds
         self._by_epoch: dict[int, np.ndarray] = {}
         self._open_count_by_epoch: dict[int, int] = {}
 
@@ -110,8 +111,14 @@ class TravelTimes:
     def table(self, t: float) -> np.ndarray:
         epoch = self.epoch_of(t)
         if epoch not in self._by_epoch:
+            self._forget_old_epochs(epoch)
             self._by_epoch[epoch] = self._compute(epoch)
         return self._by_epoch[epoch]
+
+    def _forget_old_epochs(self, epoch: int):
+        """A whole night of tables would not fit in memory. Epoch 0 stays: it is the no-closure fallback."""
+        for old in [e for e in self._by_epoch if 0 < e < epoch - KEPT_EPOCHS]:
+            del self._by_epoch[old]
 
     def _compute(self, epoch: int) -> np.ndarray:
         keep = self.net.cheapest_parallel_edges(self.open_edges(epoch))

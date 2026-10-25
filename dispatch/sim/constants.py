@@ -67,6 +67,7 @@ class Config:
     households: int = 600
     plan_window: int = 40
     lead_911_scale: float = 1.0
+    call_takers: int = CALL_TAKERS
 
     def with_changes(self, **changes) -> "Config":
         return replace(self, **changes)
