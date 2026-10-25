@@ -24,3 +24,7 @@
 - **How it works:** Cartesia answers and dials the phone (+1 850 641 7117), hears the resident and speaks. Our server still decides every word: Cartesia calls `POST /chats`, then opens `WS /ws`, and sends text events; `CallSession` answers through `voice/phone/cartesiaLine.ts`. The state machine, honesty rules, Convex writes and runners are the same code on both carriers.
 - **The seam:** `CallSession` now talks to a `CallLine` (`voice/phone/line.ts`). `TwilioLine` wraps the old Twilio audio loop unchanged. `placeCall` and ringing hang-ups go through `voice/phone/carrier.ts`. `CallMode` and `StreamParameters` moved to `voice/phone/callParameters.ts`.
 - **What Cartesia mode doesn't do yet:** answering-machine detection, urgency in the voice (speed, emotion), our own barge-in and phantom-speech filters (Cartesia's replace them). A no-answer counts as a miss 45 s after dialing. Helper transfer sends Cartesia's `transfer`; the docs say it needs a Twilio or SIP number, so on the Cartesia number it may fail.
+
+## 2026-10-24 22:24
+
+**The Apify Actor is public in the Apify Store:** https://apify.com/sangria_marzipan/california-evacuation-status (Jerry's account). Publishing needed an output schema (`.actor/output_schema.json`, build 0.1.3), a public profile and the Store terms. The README's Apify row links it. Opt into both Apify prizes on Devpost: best use and best Actor.
