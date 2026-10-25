@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoLine } from "@/components/map/layers";
-import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
-import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { ChromeSurface } from "@/components/map/map-bar";
+import { MapStage } from "@/components/map/map-stage";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
@@ -204,7 +204,6 @@ export function AgencyView() {
   const roads = useRoads();
   const model = useQuery(api.mesh.model);
   const estimates = useEstimates(roads, model?.weights, control?.warningIssuedAt);
-  const [mode, setMode] = useState<SurfaceMode>("ink");
   const forecast = useTrafficForecast();
   const [forecastWindow, setForecastWindow] = useState(0);
 
@@ -212,7 +211,7 @@ export function AgencyView() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={clock.minutes} className="absolute inset-0">
+      <MapStage data={data} view={VIEW} hazard={hazard} minutes={clock.minutes} className="absolute inset-0">
         {forecast && <ForecastStreets forecast={forecast} windowIndex={forecastWindow} />}
         {model && model.version > 0 && <EstimatedStreets estimates={estimates} />}
         {roads && <ReportedStreets roads={roads} />}
@@ -238,7 +237,6 @@ export function AgencyView() {
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
             <AgencyMapKey />
-            <MapViewControl mode={mode} onMode={setMode} />
           </ChromeSurface>
         </div>
       </div>

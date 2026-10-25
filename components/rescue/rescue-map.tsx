@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
-import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { MapStage } from "@/components/map/map-stage";
 import { ZoomControls } from "@/components/map/zoom-controls";
 import { PanelDesk } from "@/components/ui/panel-desk";
 import { TOWN_FRAME } from "@/components/map/projection";
@@ -14,7 +14,7 @@ import { createProjection, InkMapData, Point } from "@/lib/ink-map/data";
 import { fireStateAt } from "@/lib/ink-map/fire-field";
 import { FORECAST_AHEAD_MINUTES, forecastField, useDangerZones } from "@/lib/ink-map/danger";
 import { useFireClock, useHazard } from "@/lib/ink-map/hazard";
-import { DangerLayer, ForecastControl } from "./danger-zones";
+import { ForecastControl } from "./danger-zones";
 import { DoorCheckPanel, NominationPanel } from "./field-panel";
 import { FireCrewEngines, FireCrewTrails } from "./fire-crew-layer";
 import { FireCrewPanel } from "./fire-crew-panel";
@@ -32,9 +32,6 @@ import { RiderUpload } from "./map-tools";
 import { useDrawingTools } from "./use-drawing-tools";
 import { HouseCard } from "./house-card";
 import { PickupLayer } from "./pickup-layer";
-import { TruckDrillLayer } from "./truck-drill-layer";
-import { TruckDrillPanel } from "./truck-drill-panel";
-import { useDrillOnMap } from "./use-truck-drill";
 import { useFireCrews } from "./use-fire-crews";
 import { ReadyPanel } from "./ready-panel";
 import { useMapClick, useMapFocus } from "./use-map-focus";
@@ -54,15 +51,13 @@ export function RescueMap() {
   const [forecastShown, setForecastShown] = useState(true);
   const control = useQuery(api.control.get);
 
-  const [mode, setMode] = useState<SurfaceMode>("ink");
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
   const board = useRescueBoard(data, toLocal);
   const { homes, withOpenRequest, highlights, stillHome: quietHomes } = useRoofs(data, board.people, toLocal);
-  const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
+  const { hazard, danger, clock, simulated } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
   const { unreached, skipped, stillHome } = useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire: { hazard, danger, minutes: clock.minutes }, toLocal });
-  const { drill, localDrill, fireMinutes } = useDrillOnMap(toLocal, clock.minutes);
-  const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, fireMinutes) : null), [hazard, fireMinutes]);
+  const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, clock.minutes) : null), [hazard, clock.minutes]);
   // One subscription to the list, so the crews and the Doors to knock panel read the same order.
   const doorQueue = useQuery(api.doorChecks.queue, { limit: DOOR_QUEUE_LIMIT });
   const crews = useFireCrews({ data, homes, queue: doorQueue, hazard, startedAt: clock.startedAt, minutes: clock.minutes, toLocal });
@@ -73,7 +68,7 @@ export function RescueMap() {
 
   const drawing = useDrawingTools(data, toLatLng);
   const { tool, setTool, startFrom } = drawing;
-  const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome, ignite);
+  const onPick = useMapClick(tool, drawing.pick, mapFocus.pickHome);
   const putOutFire = useZoneAroundFire(simulated, drawing);
   const [spot, setSpot] = useState<ContextSpot | null>(null);
   const closeMenu = useCallback(() => setSpot(null), []);
@@ -92,9 +87,8 @@ export function RescueMap() {
       <MapStage
         data={data}
         view={VIEW}
-        mode={mode}
         hazard={hazard}
-        minutes={fireMinutes}
+        minutes={clock.minutes}
         forecast={forecastShown ? forecast : null}
         highlights={highlights}
         onPick={onPick}
@@ -111,13 +105,11 @@ export function RescueMap() {
         }
         underlay={
           <>
-            {danger && forecast && forecastShown && mode === "paper" && <DangerLayer danger={danger} field={forecast.field} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
-            <FireSpreadLayer hazard={hazard} minutes={fireMinutes} />
+            <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
           </>
         }
       >
         <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
-        {drill && localDrill && <TruckDrillLayer drill={drill} local={localDrill} />}
         <FireCrewTrails crews={crews} minutes={clock.minutes} />
         <MapOverlays
           zone={drawing.zone}
@@ -149,7 +141,6 @@ export function RescueMap() {
             <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
               <FireCrewPanel crews={crews} minutes={clock.minutes} />
               <DoorCheckPanel queue={doorQueue} crews={crews} minutes={clock.minutes} unreached={unreached.length} />
-              <TruckDrillPanel drill={drill} />
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
               <RiderUpload />
@@ -157,7 +148,7 @@ export function RescueMap() {
           </div>
           {/* Reverse wrapping flips the cross axis: items-start sits every control on the bottom edge. */}
           <div className="flex flex-wrap-reverse items-start gap-3 p-3 pt-0">
-            <MapToolbar tool={tool} mode={mode} onTool={setTool} onMode={setMode}>
+            <MapToolbar tool={tool} onTool={setTool}>
               {simulated.summary && <SimulatedFireHint summary={simulated.summary} response={simulated.response} onResponse={simulated.setResponse} onClear={putOutFire} />}
               <DrawingHint tool={tool} status={drawing.status} zone={drawing.zone} onUndo={drawing.undoCorner} onSave={drawing.saveZone} />
             </MapToolbar>

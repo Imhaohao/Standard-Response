@@ -2,29 +2,85 @@
 
 import { useMutation } from "convex/react";
 import { FunctionReturnType } from "convex/server";
-import { Bed, Car, Check, Handshake, LinkBreak, PhoneCall, UsersThree, Van, Wheelchair, type Icon } from "@phosphor-icons/react";
+import { Bed, Car, Check, Handshake, LinkBreak, Phone, PhoneCall, PhoneSlash, UsersThree, Van, Wheelchair, type Icon } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { useSimNow } from "@/lib/use-sim-now";
 import { Button } from "../ui/button";
 import { Panel } from "../ui/panel";
 import { Home } from "./marks";
+import { streetOf } from "./need-panel";
 import { placeName, Pickup, PickupStatus } from "./use-pickups";
 
 type HomeFocus = { onFocus: (householdId: string) => void; onHover: (householdId: string | null) => void };
 
 const WHEELCHAIRS = new Set(["manual_wheelchair", "power_wheelchair"]);
 
-// One square per home, in a stable order, so the grid fills in as the agent works down the list.
-function Census({ homes }: { homes: Home[] }) {
-  const ordered = [...homes].sort((a, b) => a._id.localeCompare(b._id));
+// Where each home stands on the ready check, most urgent first. A home that needs a ride is a person in
+// need, so it alone is red.
+const STANDINGS = [
+  { key: "needs_ride", label: "Needs a ride", Icon: Van, tone: "bg-signal" },
+  { key: "helper", label: "Has a helper", Icon: Handshake, tone: "bg-on-panel" },
+  { key: "own_car", label: "Own car", Icon: Car, tone: "bg-on-panel-muted" },
+  { key: "no_answer", label: "No answer", Icon: PhoneSlash, tone: "hatch text-on-panel-muted" },
+  { key: "not_called", label: "Not called yet", Icon: Phone, tone: "bg-panel-raised" },
+] as const;
+
+type Standing = (typeof STANDINGS)[number]["key"];
+
+function standingOf(home: Home): Standing {
+  if (home.exitPlan) return home.exitPlan;
+  return home.readyMisses > 0 ? "no_answer" : "not_called";
+}
+
+const STANDING_RANK = Object.fromEntries(STANDINGS.map((standing, rank) => [standing.key, rank])) as Record<Standing, number>;
+
+function homeName(home: Home) {
+  const address = home.address as string | undefined;
+  return home.residentName ?? (address ? streetOf(address) : "Home");
+}
+
+// One square per home, grouped by where it stands, so the grid reads as the town's answer at a glance.
+// Each square names its home and finds it on the map.
+function Census({ homes, focus }: { homes: Home[]; focus: HomeFocus }) {
+  const ordered = [...homes].sort((a, b) => STANDING_RANK[standingOf(a)] - STANDING_RANK[standingOf(b)] || a._id.localeCompare(b._id));
   return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(0.5rem,1fr))] gap-0.5" aria-hidden>
+    <ul className="grid grid-cols-[repeat(auto-fill,minmax(0.5rem,1fr))] gap-0.5">
       {ordered.map((home) => {
-        const tone = home.exitPlan ? "bg-on-panel" : home.readyMisses >= 2 ? "hatch text-on-panel-muted" : "bg-panel-raised";
-        return <li key={home._id} className={`aspect-square rounded-[1px] transition-colors duration-500 ${tone}`} />;
+        const standing = STANDINGS[STANDING_RANK[standingOf(home)]];
+        return (
+          <li key={home._id} className="aspect-square">
+            <button
+              type="button"
+              title={`${homeName(home)}: ${standing.label.toLowerCase()}`}
+              aria-label={`${homeName(home)}, ${standing.label.toLowerCase()}`}
+              onClick={() => focus.onFocus(home._id)}
+              onPointerEnter={() => focus.onHover(home._id)}
+              onPointerLeave={() => focus.onHover(null)}
+              className={`block size-full rounded-[1px] transition-colors duration-500 hover:outline-2 hover:outline-on-panel focus-visible:outline-2 focus-visible:outline-on-panel ${standing.tone}`}
+            />
+          </li>
+        );
       })}
     </ul>
+  );
+}
+
+// The grid's key, with how many homes are in each group.
+function StandingKey({ homes }: { homes: Home[] }) {
+  return (
+    <dl className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-x-3 gap-y-1.5">
+      {STANDINGS.map(({ key, label, tone }) => {
+        const count = homes.filter((home) => standingOf(home) === key).length;
+        return (
+          <div key={key} className={`flex items-center gap-2 ${count === 0 ? "opacity-40" : ""}`}>
+            <span className={`size-3 shrink-0 rounded-[2px] ${tone}`} aria-hidden />
+            <dt className="type-small min-w-0 flex-1 truncate text-on-panel-muted">{label}</dt>
+            <dd className="type-small shrink-0 font-bold tabular-nums">{count}</dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }
 
@@ -52,40 +108,6 @@ function NeedFigures({ homes }: { homes: Home[] }) {
   );
 }
 
-const PLAN_SEGMENTS: { key: NonNullable<Home["exitPlan"]>; label: string; Icon: Icon; tone: string }[] = [
-  { key: "own_car", label: "Own car", Icon: Car, tone: "bg-line-strong" },
-  { key: "helper", label: "A helper", Icon: Handshake, tone: "bg-on-panel-muted" },
-  { key: "needs_ride", label: "Needs a ride", Icon: Van, tone: "bg-on-panel" },
-];
-
-function ExitPlans({ homes }: { homes: Home[] }) {
-  const counts = PLAN_SEGMENTS.map((segment) => ({ ...segment, count: homes.filter((home) => home.exitPlan === segment.key).length }));
-  if (counts.every((segment) => segment.count === 0)) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
-        {counts.map((segment) => (
-          <span key={segment.key} className={`${segment.tone} transition-[flex-grow] duration-500`} style={{ flexGrow: segment.count, flexBasis: 0 }} />
-        ))}
-      </div>
-      <dl className="grid grid-cols-3 gap-2">
-        {counts.map(({ key, label, Icon, count, tone }) => (
-          <div key={key} className="flex flex-col gap-0.5">
-            <dd className="type-figure flex items-center gap-1.5 text-xl tabular-nums">
-              <Icon weight="bold" className="size-4" />
-              {count}
-            </dd>
-            <dt className="type-small flex items-center gap-1.5 text-on-panel-muted">
-              <span className={`size-2 shrink-0 rounded-full ${tone}`} aria-hidden />
-              {label}
-            </dt>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
-
 function CampaignButton({ running, started }: { running: boolean; started: boolean }) {
   const start = useMutation(api.ready.start);
   const stop = useMutation(api.ready.stop);
@@ -106,7 +128,7 @@ function CampaignButton({ running, started }: { running: boolean; started: boole
 }
 
 // Before any warning: how much of the town we already know, and what it needs.
-function ReadyCheck({ homes, running }: { homes: Home[]; running: boolean }) {
+function ReadyCheck({ homes, running, focus }: { homes: Home[]; running: boolean; focus: HomeFocus }) {
   const onFile = homes.filter((home) => home.exitPlan).length;
   return (
     <Panel title="Ready check" aside={<span className="pr-1">{<CampaignButton running={running} started={onFile > 0} />}</span>}>
@@ -115,9 +137,9 @@ function ReadyCheck({ homes, running }: { homes: Home[]; running: boolean }) {
           <span className="type-figure text-3xl tabular-nums">{onFile}</span>
           <span className="type-small text-on-panel-muted">of {homes.length} homes on file</span>
         </p>
-        <Census homes={homes} />
+        <Census homes={homes} focus={focus} />
+        <StandingKey homes={homes} />
         {onFile > 0 && <NeedFigures homes={homes} />}
-        <ExitPlans homes={homes} />
       </div>
     </Panel>
   );
@@ -230,5 +252,5 @@ export function ReadyPanel({ homes, pickups, control, focus }: { homes: Home[]; 
       </Panel>
     );
   }
-  return <ReadyCheck homes={homes} running={running} />;
+  return <ReadyCheck homes={homes} running={running} focus={focus} />;
 }

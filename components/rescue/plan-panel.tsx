@@ -10,22 +10,28 @@ import { SegmentedControl } from "../ui/segmented-control";
 
 const SOLVER_LABELS = { stand_in: "Stand-in", heuristic: "Heuristic", ortools: "OR-Tools", alns: "ALNS" } as const;
 
-const CHANGE_KINDS = [
-  { kind: "offer", label: "offered" },
-  { kind: "replace", label: "replaced" },
-  { kind: "revoke", label: "revoked" },
+// What the planner did on its last change, in plain words: a ride offered to a driver, an offer moved
+// to another vehicle, or an offer called off (a road closed, or the rider no longer needs it).
+const CHANGE_PHRASES = [
+  { kind: "offer", one: "ride offered to a driver", many: "rides offered to drivers" },
+  { kind: "replace", one: "ride moved to another vehicle", many: "rides moved to other vehicles" },
+  { kind: "revoke", one: "offer called off", many: "offers called off" },
 ] as const;
 
-function ChangeCounts({ changes }: { changes: { kind: string }[] }) {
+function changeSentence(changes: { kind: string }[]) {
+  const parts = CHANGE_PHRASES.flatMap(({ kind, one, many }) => {
+    const count = changes.filter((change) => change.kind === kind).length;
+    return count === 0 ? [] : [`${count} ${count === 1 ? one : many}`];
+  });
+  return parts.length === 0 ? "No rides changed" : parts.join(", ");
+}
+
+function LastChange({ changes }: { changes: { kind: string }[] }) {
   return (
-    <dl className="flex items-baseline gap-5 px-4 pb-2">
-      {CHANGE_KINDS.map(({ kind, label }) => (
-        <div key={kind} className="flex items-baseline gap-1.5">
-          <dd className="type-figure text-2xl">{changes.filter((change) => change.kind === kind).length}</dd>
-          <dt className="type-small text-on-panel-muted">{label}</dt>
-        </div>
-      ))}
-    </dl>
+    <p className="type-small px-4 pb-2">
+      <span className="text-on-panel-muted">Last change: </span>
+      <span className="font-semibold">{changeSentence(changes)}</span>
+    </p>
   );
 }
 
@@ -69,7 +75,7 @@ function ModelState() {
   return (
     <>
       <div title={hint}>
-        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Guess need from neighbors' answers" />
+        <Switch checked={state?.smoothing ?? true} onChange={(enabled) => void setSmoothing({ enabled })} label="Estimate who needs a ride from neighbors' answers" />
       </div>
       {state?.stats && <ModelStats stats={state.stats} />}
     </>
@@ -77,8 +83,8 @@ function ModelState() {
 }
 
 const APPROVAL_OPTIONS = [
-  { value: "auto", label: "Auto" },
-  { value: "manual", label: "I approve" },
+  { value: "auto", label: "Right away" },
+  { value: "manual", label: "After I approve" },
 ] as const;
 
 function ApprovalMode() {
@@ -86,25 +92,23 @@ function ApprovalMode() {
   const setStandIns = useMutation(api.control.setStandIns);
   const auto = control?.autoApprove ?? true;
   return (
-    <div className="flex items-center justify-between gap-2 border-t border-panel-raised px-4 py-2">
-      <span className="type-small font-semibold">Ride offers</span>
+    <div className="flex flex-col gap-1.5 border-t border-panel-raised px-4 py-2">
+      <span className="type-small font-semibold">Send ride offers to drivers</span>
       <SegmentedControl
         options={APPROVAL_OPTIONS}
         value={auto ? "auto" : "manual"}
-        ariaLabel="Who approves offers"
+        ariaLabel="When ride offers go to drivers"
         onChange={(value) => void setStandIns({ autoApprove: value === "auto" })}
       />
     </div>
   );
 }
 
-function PlanVersion({ plan }: { plan: { version: number; solver: keyof typeof SOLVER_LABELS; solveMs: number } | null | undefined }) {
-  if (!plan) return <span className="type-small mr-3 text-on-panel-muted">None yet</span>;
-  return (
-    <span className="type-small mr-3 rounded-md bg-surface-sunk px-1.5 py-0.5 font-semibold tabular-nums" title={`${SOLVER_LABELS[plan.solver]} solver, ${plan.solveMs} ms`}>
-      v{plan.version}
-    </span>
-  );
+// The solver and its run time stay in the tooltip for whoever is debugging; the panel itself only
+// says whether there is a plan yet.
+function PlanStatus({ plan }: { plan: { version: number; solver: keyof typeof SOLVER_LABELS; solveMs: number } | null | undefined }) {
+  if (plan) return <span className="sr-only">{`Plan update ${plan.version}, ${SOLVER_LABELS[plan.solver]} solver, ${plan.solveMs} ms`}</span>;
+  return <span className="type-small mr-3 text-on-panel-muted">No plan yet</span>;
 }
 
 export function PlanPanel({ className = "" }: { className?: string }) {
@@ -112,10 +116,10 @@ export function PlanPanel({ className = "" }: { className?: string }) {
   return (
     <Panel
       title="Dispatch plan"
-      aside={<PlanVersion plan={plan} />}
+      aside={<PlanStatus plan={plan} />}
       className={className}
     >
-      {plan && <ChangeCounts changes={plan.changes} />}
+      {plan && <LastChange changes={plan.changes} />}
       <ModelState />
       <ApprovalMode />
     </Panel>

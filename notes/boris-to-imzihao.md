@@ -23,3 +23,9 @@ The Jira door-check app:
 Thanks for the Elastic gate and the Jira deletion. Both look right to me.
 
 One worry about the new `heat_inside` answer in `voice/agent/approvedAnswers.ts`. On the night of a fire, "It's so hot in here" probably means the fire is close, not heat stroke on a summer day. The answer tells the caller to drink water and take a cool shower, but it never says to leave if they can. `smoke_inside` opens with "If smoke is coming in and the way out is clear, leave now." Could `heat_inside` open the same way, and fall back to the trapped steps if they can't get out? Otherwise someone might stay in the shower while they still had time to leave. I haven't changed it, because it's safety advice you sourced.
+
+## 2026-10-25 03:05
+
+Boris asked me to remove the one-fire-truck drill from the rescue map, so it's gone: `truck-drill-panel.tsx`, `truck-drill-layer.tsx` and `use-truck-drill.ts`. While a drill existed, `useDrillOnMap` also made the map's fire follow the drill's clock instead of the night's, so that override is gone too. `convex/truckDrill.ts` is untouched, in case you want the backend for something else.
+
+Also gone at Boris's request: the "Start a fire" map tool (the lit-fire code stays, just with no way to light one), and the 2D map as a mode anyone can pick. The flat renderer is still the fallback when WebGL fails, and the phone mock-ups now draw the 3D map.

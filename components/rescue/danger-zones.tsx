@@ -1,50 +1,11 @@
 "use client";
 
 import { ArrowUp } from "@phosphor-icons/react";
-import { MapShape } from "@/components/map/layers";
-import { useMemo } from "react";
-import { DangerZones, ForecastField, forecastBandGrid } from "@/lib/ink-map/danger";
-import { isolines } from "@/lib/ink-map/isolines";
+import { DangerZones } from "@/lib/ink-map/danger";
 import { Switch } from "@/components/ui/switch";
-
-const HAZARD = "var(--signal)";
 
 // Bands nest (90% inside 50% inside 10%), so equal fills stack into a darker core.
 const BAND_FILL_OPACITY = 0.13;
-const BAND_EDGE: Record<number, { dash?: string; width: number; opacity: number }> = {
-  0.1: { dash: "5 4", width: 1.2, opacity: 0.7 },
-  0.5: { width: 1, opacity: 0.45 },
-  0.9: { width: 1.6, opacity: 0.85 },
-};
-const DEFAULT_EDGE = { width: 1, opacity: 0.5 };
-
-// The flat map's forecast, traced from the same smooth arrival field the 3D map shades, so the bands
-// slide with the clock instead of jumping every ten minutes.
-export function DangerLayer({ danger, field, minutes }: { danger: DangerZones; field: ForecastField; minutes: number }) {
-  const probabilities = useMemo(() => [...danger.probabilities].sort((a, b) => a - b).slice(0, 3), [danger]);
-  const grids = useMemo(() => probabilities.map((probability, band) => ({ probability, grid: forecastBandGrid(field, band) })), [probabilities, field]);
-  const bands = useMemo(() => grids.map(({ probability, grid }) => ({ probability, rings: isolines(grid, minutes) })), [grids, minutes]);
-  return (
-    <g>
-      {bands.map(({ probability, rings }) => {
-        const edge = BAND_EDGE[probability] ?? DEFAULT_EDGE;
-        return (
-          <MapShape
-            key={probability}
-            rings={rings}
-            fill={HAZARD}
-            fillOpacity={BAND_FILL_OPACITY}
-            stroke={HAZARD}
-            strokeOpacity={edge.opacity}
-            strokeWidth={edge.width}
-            strokeDasharray={edge.dash}
-            strokeLinejoin="round"
-          />
-        );
-      })}
-    </g>
-  );
-}
 
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 const compass = (degrees: number) => COMPASS[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];

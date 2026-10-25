@@ -4,8 +4,8 @@ import { Pause, Play } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
-import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
-import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { ChromeSurface } from "@/components/map/map-bar";
+import { MapStage } from "@/components/map/map-stage";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { TOWN_FRAME } from "@/components/map/projection";
 import { scenarioClock } from "@/components/rescue/map-chrome";
@@ -233,14 +233,12 @@ function Controls(props: {
   playing: boolean;
   speed: number;
   mesh: boolean;
-  mode: SurfaceMode;
   onPlaying: (playing: boolean) => void;
   onSpeed: (speed: number) => void;
   onMesh: (mesh: boolean) => void;
   onNewNight: () => void;
-  onMode: (mode: SurfaceMode) => void;
 }) {
-  const { world, playing, speed, mesh, mode } = props;
+  const { world, playing, speed, mesh } = props;
   return (
     <ChromeSurface className="flex flex-wrap items-center gap-2 p-1.5">
       <Button variant="onPanel" size="sm" square onClick={() => props.onPlaying(!playing)} aria-label={playing ? "Pause" : "Play"} title={playing ? "Pause" : "Play"}>
@@ -256,7 +254,6 @@ function Controls(props: {
       <Button variant="onPanelQuiet" size="sm" onClick={props.onNewNight}>
         Another night
       </Button>
-      <MapViewControl mode={mode} onMode={props.onMode} />
     </ChromeSurface>
   );
 }
@@ -270,7 +267,6 @@ export function FlowLab() {
   const [seed, setSeed] = useState(1);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<number>(180);
-  const [mode, setMode] = useState<SurfaceMode>("ink");
   const world = useMemo(() => (ground && inputs ? makeWorld(ground, inputs.households, mesh, seed) : null), [ground, inputs, mesh, seed]);
   const checkpoint = useRunner(world, playing, speed);
 
@@ -279,7 +275,7 @@ export function FlowLab() {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
       {/* The fire on the map moves a whole minute at a time, so the 3D surface redraws once per minute, not per frame. */}
-      <MapStage data={data} view={VIEW} mode={mode} hazard={hazard} minutes={Math.floor(world.minutes)} className="absolute inset-0">
+      <MapStage data={data} view={VIEW} hazard={hazard} minutes={Math.floor(world.minutes)} className="absolute inset-0">
         <BlockedStreetLayer truth={world.crowd.trulyBlocked()} known={world.agencyKnownBlocked()} />
         <MeetingLayer world={world} />
         <AgentLayer world={world} />
@@ -311,12 +307,10 @@ export function FlowLab() {
             playing={playing}
             speed={speed}
             mesh={mesh}
-            mode={mode}
             onPlaying={setPlaying}
             onSpeed={setSpeed}
             onMesh={setMesh}
             onNewNight={() => setSeed((s) => s + 1)}
-            onMode={setMode}
           />
         </div>
       </div>

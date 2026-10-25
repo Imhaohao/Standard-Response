@@ -6,8 +6,8 @@ import { useId, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
-import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
-import { MapStage, SurfaceMode } from "@/components/map/map-stage";
+import { ChromeSurface } from "@/components/map/map-bar";
+import { MapStage } from "@/components/map/map-stage";
 import { Frame, TOWN_FRAME } from "@/components/map/projection";
 import { AppBar } from "@/components/ui/app-bar";
 import { Panel, PanelEmpty } from "@/components/ui/panel";
@@ -268,7 +268,6 @@ export function CountyView() {
   const counts = useQuery(api.prepare.counts);
   const [item, setItem] = useState<TallyItemId>("cantAffordWeek");
   const [selected, setSelected] = useState<string | null>(null);
-  const [mode, setMode] = useState<SurfaceMode>("paper");
   const itemLabel = useMemo(() => TALLY_ITEMS.find((i) => i.id === item)?.label ?? "", [item]);
   const origin = data?.origin;
   const view = useMemo(() => (origin && shapes ? { kind: "overview" as const, fit: areasFrame(shapes, createProjection(origin).toLocal) } : null), [origin, shapes]);
@@ -278,7 +277,7 @@ export function CountyView() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <MapStage data={data} view={view} mode={mode} className="absolute inset-0">
+      <MapStage data={data} view={view} className="absolute inset-0">
         {shapes && <AreaShading shapes={shapes} counts={counts} item={item} selected={selected} />}
       </MapStage>
       <div className="pointer-events-none absolute inset-0 flex flex-col">
@@ -300,7 +299,6 @@ export function CountyView() {
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
             <CountyMapKey itemLabel={itemLabel} top={topShare(counts, item)} />
-            <MapViewControl mode={mode} onMode={setMode} />
           </ChromeSurface>
         </div>
       </div>

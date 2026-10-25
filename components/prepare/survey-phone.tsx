@@ -196,7 +196,7 @@ function SurveyMap({ survey }: { survey: SurveyPhoneState }) {
   const pick = useCallback((point: Point) => setHome(projection.toLatLng(point)), [projection, setHome]);
   if (!data) return <p className="type-small grid h-full place-items-center text-ink-muted">Loading the map…</p>;
   return (
-    <MapStage data={data} view={VIEW} mode="paper" onPick={pick} interactive className="absolute inset-0">
+    <MapStage data={data} view={VIEW} onPick={pick} interactive className="absolute inset-0">
       <AreaLayer survey={survey} />
     </MapStage>
   );

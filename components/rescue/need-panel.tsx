@@ -204,26 +204,44 @@ function deathEstimates(people: Person[], unplaced: OpenRequest[]) {
     withoutRides += deathsIfUnserved(person);
     if (needStage(person) !== "pickedUp") withPlan += expectedDeaths(person, boardingDone(person));
   }
-  return { withPlan, withoutRides };
+  return { withPlan, withoutRides, unreachable };
+}
+
+const callers = (count: number) => (count === 1 ? "the one caller hasn't" : `${count} callers haven't`);
+
+// Why the two numbers match, when they do, and what would change that.
+function estimateNote(people: Person[], unplaced: OpenRequest[], estimates: ReturnType<typeof deathEstimates>) {
+  if (people.length === 0) return `No vehicle can be sent: ${callers(unplaced.length)} given an address. Call them back for it.`;
+  const parts = [];
+  if (estimates.withoutRides - estimates.withPlan < 0.05) parts.push("No vehicle is on its way to anyone yet.");
+  if (unplaced.length > 0) parts.push(`${estimates.unreachable.toFixed(1)} of it is callers with no address, whom no vehicle can reach yet.`);
+  return parts.join(" ");
+}
+
+function EstimateFigure({ value, label, muted = false }: { value: number; label: string; muted?: boolean }) {
+  return (
+    <div className={`flex flex-col gap-1 ${muted ? "items-end" : ""}`}>
+      <dd className={`type-figure tabular-nums ${muted ? "text-2xl text-ink-muted" : "text-3xl text-signal"}`}>{value.toFixed(1)}</dd>
+      <dt className="type-small text-on-panel-muted">{label}</dt>
+    </div>
+  );
 }
 
 function DeathEstimate({ people, unplaced }: { people: Person[]; unplaced: OpenRequest[] }) {
-  const { withPlan, withoutRides } = deathEstimates(people, unplaced);
+  const estimates = deathEstimates(people, unplaced);
+  const note = estimateNote(people, unplaced, estimates);
   return (
-    <div className="mx-4 mb-1 flex items-end gap-6 rounded-xl bg-surface-sunk px-3 py-2.5">
-      <dl className="flex flex-1 items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <dd className="type-figure text-3xl tabular-nums text-signal">{withPlan.toFixed(1)}</dd>
-          <dt className="type-small text-on-panel-muted">Expected deaths, this plan</dt>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <dd className="type-figure text-2xl tabular-nums text-ink-muted">{withoutRides.toFixed(1)}</dd>
-          <dt className="type-small text-on-panel-muted">If no vehicle came</dt>
-        </div>
-      </dl>
-      <span className="mb-0.5 text-on-panel-muted" title={RISK_MODEL_NOTE} aria-label={RISK_MODEL_NOTE} role="img">
-        <Info className="size-4" />
-      </span>
+    <div className="mx-4 mb-1 flex flex-col gap-2 rounded-xl bg-surface-sunk px-3 py-2.5">
+      <div className="flex items-end gap-6">
+        <dl className="flex flex-1 items-end justify-between gap-4">
+          <EstimateFigure value={estimates.withPlan} label={people.length === 0 ? "Expected deaths" : "Expected deaths, this plan"} />
+          {people.length > 0 && <EstimateFigure value={estimates.withoutRides} label="If no vehicle came" muted />}
+        </dl>
+        <span className="mb-0.5 text-on-panel-muted" title={RISK_MODEL_NOTE} aria-label={RISK_MODEL_NOTE} role="img">
+          <Info className="size-4" />
+        </span>
+      </div>
+      {note && <p className="type-small text-on-panel">{note}</p>}
     </div>
   );
 }

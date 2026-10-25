@@ -239,7 +239,7 @@ export function PhoneMesh() {
       <Header phone={phone} />
       <div className="relative h-[38dvh] min-h-64 overflow-hidden">
         {data ? (
-          <MapStage data={data} view={VIEW} mode="paper" onPick={pick} interactive className="absolute inset-0">
+          <MapStage data={data} view={VIEW} onPick={pick} interactive className="absolute inset-0">
             <StreetLayer phone={phone} selected={selected} />
           </MapStage>
         ) : (

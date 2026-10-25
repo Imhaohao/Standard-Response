@@ -5,8 +5,7 @@ import { ArrowCounterClockwise, Check, Cursor, Fire, FireExtinguisher, Icon, Pat
 import { useMutation, useQuery } from "convex/react";
 import { ReactNode, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
-import type { SurfaceMode } from "@/components/map/map-stage";
+import { ChromeSurface } from "@/components/map/map-bar";
 import { FireClock } from "@/lib/ink-map/hazard";
 import { Crews, FireResponse } from "@/lib/ink-map/ignition";
 import { PLAYBACK_SPEEDS } from "@/lib/sim-clock";
@@ -19,26 +18,21 @@ export function MapTopBar({ issuedAt }: { issuedAt: number | undefined }) {
   return <AppBar>{issuedAt && <WarningClock issuedAt={issuedAt} />}</AppBar>;
 }
 
-export type MapTool = "look" | "zone" | "closure" | "ignite";
+export type MapTool = "look" | "zone" | "closure";
 
 const TOOLS = [
   { value: "look", label: "Look around", Icon: Cursor },
   { value: "zone", label: "Draw warning zone", Icon: Path },
   { value: "closure", label: "Close a road", Icon: RoadHorizon },
-  { value: "ignite", label: "Start a fire", Icon: Fire },
 ] as const;
 
 export function MapToolbar({
   tool,
-  mode,
   onTool,
-  onMode,
   children,
 }: {
   tool: MapTool;
-  mode: SurfaceMode;
   onTool: (tool: MapTool) => void;
-  onMode: (mode: SurfaceMode) => void;
   children?: ReactNode;
 }) {
   return (
@@ -46,7 +40,6 @@ export function MapToolbar({
       {children}
       <ChromeSurface className="flex items-center gap-2 p-1.5">
         <SegmentedControl options={TOOLS} value={tool} onChange={onTool} ariaLabel="Map tool" />
-        <MapViewControl mode={mode} onMode={onMode} />
       </ChromeSurface>
     </div>
   );
@@ -91,7 +84,6 @@ export function DrawingHint({
   onSave: () => void;
 }) {
   if (tool === "closure") return <HintSurface><span className="pr-2">{status || "Click a street to close it"}</span></HintSurface>;
-  if (tool === "ignite") return <HintSurface><span className="pr-2">Click a house to start a fire there</span></HintSurface>;
   if (tool === "look") return status ? <HintSurface><span className="pr-2">{status}</span></HintSurface> : null;
   return (
     <HintSurface>

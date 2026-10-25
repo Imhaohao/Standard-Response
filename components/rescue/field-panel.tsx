@@ -126,7 +126,7 @@ export function NominationPanel({ className = "" }: { className?: string }) {
   if (rows.length === 0) return null;
 
   return (
-    <Panel title="Neighbors named" aside={<span className="type-figure pr-4 text-xl">{rows.length}</span>} className={className}>
+    <Panel title="Neighbors to check on" aside={<span className="type-figure pr-4 text-xl">{rows.length}</span>} className={className}>
       <ul className="flex min-h-0 flex-col overflow-y-auto pb-2">
         {rows.map((nomination) => (
           <li key={nomination._id} className="flex items-center gap-2 px-4 py-1" title={nomination.note ?? undefined}>

@@ -66,7 +66,7 @@ function BeforeWarning() {
       className="pointer-events-auto flex max-w-xl flex-col gap-6 bg-panel/96 p-8 text-on-panel backdrop-blur-md"
     >
       <h1 className="type-display">
-        {ready.onFile > 0 ? `${ready.onFile} of ${ready.total} homes are on file. Nobody has been warned yet.` : `Nobody in ${AREA_NAME} has been called yet.`}
+        {ready.onFile > 0 ? `${ready.onFile} of ${ready.total} homes on file` : `No homes in ${AREA_NAME} on file yet`}
       </h1>
       {skipped > 0 && <StandInWarning count={skipped} />}
       <div className="flex flex-wrap gap-3">
