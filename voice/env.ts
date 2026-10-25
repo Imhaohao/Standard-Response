@@ -1,5 +1,7 @@
 // Every setting the voice server reads. Secrets come from the shared env file (.env.local), never git.
 
+import { isFictionalNumber } from "../lib/phone-number";
+
 function required(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set. Add it to .env.local (see "Voice server" in README.md)`);
@@ -108,8 +110,8 @@ export const env = {
     // "patient" waits longer before deciding the resident is done; "normal" and "eager" answer sooner.
     turnEagerness: optional("ELEVENLABS_TURN_EAGERNESS", "patient"),
   },
-  // Numbers the dialer may ring. "*" allows any. Everything else is skipped, so a fictional
-  // rider list can never ring a stranger.
+  // Numbers the dialer may ring. "*" allows any real number. Everything else is skipped, so a
+  // fictional rider list can never ring a stranger.
   dialAllowlist: listFrom("DIAL_ALLOWLIST"),
   callsPerSecond: numberFrom("DIAL_CALLS_PER_SECOND", 1),
   maxLiveCalls: numberFrom("DIAL_MAX_LIVE_CALLS", 6),
@@ -119,6 +121,9 @@ export const env = {
   twilioTrial: optional("TWILIO_TRIAL", "false") === "true",
 };
 
+// A 555 number is never dialed, even under "*": the sample riders and seeded homes use them, and a
+// call to one only rings out and marks the home unanswered.
 export function mayDial(phone: string) {
+  if (isFictionalNumber(phone)) return false;
   return env.dialAllowlist.includes("*") || env.dialAllowlist.includes(phone);
 }
