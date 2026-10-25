@@ -91,10 +91,10 @@ function seaCells(grid, coastlines) {
   return sea;
 }
 
-// The water cells as polygons in local metres, one per connected patch with its islands cut out.
+// The water cells as polygons in local metres: { ring, holes } per connected patch, the holes its islands.
 function polygons(grid, mask, box) {
   const toLocal = ([gx, gy]) => [Math.min(box.x1, box.x0 + gx * CELL_METERS), Math.min(box.y1, box.y0 + gy * CELL_METERS)];
-  return outlineCells(grid, mask).map((ring) => ring.map(toLocal));
+  return outlineCells(grid, mask).map(({ ring, holes }) => ({ ring: ring.map(toLocal), holes: holes.map((hole) => hole.map(toLocal)) }));
 }
 
 // Fills a multipolygon's cells, even-odd across every member line, so inner rings (islands) cut holes

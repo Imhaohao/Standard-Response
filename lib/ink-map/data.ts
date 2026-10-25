@@ -12,6 +12,8 @@ type RawMap = {
   roads: number[][];
   roadNames: string[];
   areas: number[][];
+  // [area index, ...ring]: islands cut out of an area. Only water areas from the city bakes have them.
+  areaHoles?: number[][];
   trees: number[];
   graph: { nodes: number[]; edges: number[][]; keys: string[] };
 };
@@ -26,7 +28,8 @@ export const MINOR_ROAD_CLASS = 5;
 
 export type Building = { id: number; kind: number; roof: number; walls: number; rise: number; ring: Point[]; center: Point };
 export type Road = { roadClass: number; name: string; tunnel: boolean; path: Point[] };
-export type Area = { kind: number; ring: Point[] };
+// `holes` are islands inside the ring that are not part of the area; fill rings and holes even-odd.
+export type Area = { kind: number; ring: Point[]; holes?: Point[][] };
 export type GraphEdge = { u: number; v: number; seconds: number; key: string; shape: Point[] };
 
 export type Terrain = {
@@ -103,6 +106,17 @@ function decodeTerrain(raw: RawMap["terrain"], buffer: ArrayBuffer): Terrain {
   return { ...raw, heights, base: min / 10 - (raw.offsetMeters ?? 0) };
 }
 
+function withHoles(areas: Area[], holes: number[][]) {
+  for (const hole of holes) {
+    const area = areas[hole[0]];
+    if (area) area.holes = [...(area.holes ?? []), points(hole, 1)];
+  }
+  return areas;
+}
+
+// An area's outline and its islands' outlines, as one list of rings.
+export const areaRings = (area: Area): Point[][] => [area.ring, ...(area.holes ?? [])];
+
 function decode(raw: RawMap, terrainBuffer: ArrayBuffer): InkMapData {
   const [x0, y0, x1, y1] = raw.detail;
   const [ex0, ey0, ex1, ey1] = raw.extent ?? raw.detail;
@@ -116,7 +130,7 @@ function decode(raw: RawMap, terrainBuffer: ArrayBuffer): InkMapData {
       return { id, kind: b[0], roof: b[1], walls: b[2] / 10, rise: b[3] / 10, ring, center: ringCenter(ring) };
     }),
     roads: raw.roads.map((r) => ({ roadClass: r[0], name: raw.roadNames[r[1]], tunnel: r[2] === 1, path: points(r, 3) })),
-    areas: raw.areas.map((a) => ({ kind: a[0], ring: points(a, 1) })),
+    areas: withHoles(raw.areas.map((a) => ({ kind: a[0], ring: points(a, 1) })), raw.areaHoles ?? []),
     trees: Float32Array.from(raw.trees, (v) => v / 10),
     graph: {
       nodes: points(raw.graph.nodes, 0),

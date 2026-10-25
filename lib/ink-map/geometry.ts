@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { AREA_KIND, Building, InkMapData, MINOR_ROAD_CLASS, Point, ROAD_WIDTH, ROOF, Road, terrainHeight } from "./data";
+import { AREA_KIND, areaRings, Building, InkMapData, MINOR_ROAD_CLASS, Point, ROAD_WIDTH, ROOF, Road, terrainHeight } from "./data";
 
 // Surface codes the composite shader styles. Keep in sync with SURFACE in shaders.ts.
 export const SURFACE = { terrain: 0, wall: 1, roof: 2, road: 3, tree: 4 } as const;
@@ -342,21 +342,27 @@ export function treeTiles(data: InkMapData, region: Region, material: THREE.Mate
 export type LanduseTexture = { texture: THREE.DataTexture; region: Region };
 
 // Scanline fill without antialiasing, so every texel holds exactly one land-use kind (0 = none).
-function fillRing(pixels: Uint8Array, width: number, height: number, ring: Point[], region: Region, value: number) {
+function ringCrossings(pts: number[][], y: number) {
+  const crossings: number[] = [];
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y) crossings.push(xi + ((y - yi) / (yj - yi)) * (xj - xi));
+  }
+  return crossings;
+}
+
+// Even-odd across every ring, so an area's islands stay unfilled.
+function fillRings(pixels: Uint8Array, width: number, height: number, rings: Point[][], region: Region, value: number) {
   const sx = width / (region.x1 - region.x0);
   const sy = height / (region.y1 - region.y0);
-  const pts = ring.map(([x, y]) => [(x - region.x0) * sx, (y - region.y0) * sy]);
-  const ys = pts.map((p) => p[1]);
+  const projected = rings.map((ring) => ring.map(([x, y]) => [(x - region.x0) * sx, (y - region.y0) * sy]));
+  const ys = projected[0].map((p) => p[1]);
   const yMin = Math.max(0, Math.floor(Math.min(...ys)));
   const yMax = Math.min(height - 1, Math.ceil(Math.max(...ys)));
   for (let py = yMin; py <= yMax; py++) {
     const y = py + 0.5;
-    const crossings: number[] = [];
-    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-      const [xi, yi] = pts[i];
-      const [xj, yj] = pts[j];
-      if (yi > y !== yj > y) crossings.push(xi + ((y - yi) / (yj - yi)) * (xj - xi));
-    }
+    const crossings = projected.flatMap((pts) => ringCrossings(pts, y));
     crossings.sort((a, b) => a - b);
     for (let k = 0; k + 1 < crossings.length; k += 2) {
       const from = Math.max(0, Math.ceil(crossings[k] - 0.5));
@@ -376,7 +382,7 @@ export function landuseTexture(data: InkMapData, region: Region, pixelsPerMeter:
   const width = Math.min(LANDUSE_MAX_SIZE, Math.ceil((region.x1 - region.x0) * pixelsPerMeter));
   const height = Math.min(LANDUSE_MAX_SIZE, Math.ceil((region.y1 - region.y0) * pixelsPerMeter));
   const pixels = new Uint8Array(width * height);
-  for (const area of data.areas) fillRing(pixels, width, height, area.ring, region, area.kind + 1);
+  for (const area of data.areas) fillRings(pixels, width, height, areaRings(area), region, area.kind + 1);
   const texture = new THREE.DataTexture(pixels, width, height, THREE.RedFormat, THREE.UnsignedByteType);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;

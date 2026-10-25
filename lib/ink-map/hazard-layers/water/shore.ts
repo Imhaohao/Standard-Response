@@ -1,4 +1,4 @@
-import { AREA_KIND, type InkMapData, type Point } from "../../data";
+import { AREA_KIND, areaRings, type InkMapData, type Point } from "../../data";
 import { distanceTo, frontMask, type Raster } from "../../front-raster";
 import { groundAt } from "./ground";
 import type { WaterKind } from "./model";
@@ -99,7 +99,7 @@ function onshoreDirection(raster: Raster, water: Uint8Array): Point {
 
 export function shoreGrid(data: InkMapData, { sea }: { sea: boolean }): ShoreGrid {
   const raster = terrainRaster(data);
-  const waterAreas = data.areas.filter((area) => area.kind === AREA_KIND.water && area.ring.length >= 3).map((area) => [area.ring]);
+  const waterAreas = data.areas.filter((area) => area.kind === AREA_KIND.water && area.ring.length >= 3).map(areaRings);
   const water = frontMask(waterAreas, raster);
   if (sea) {
     const ground = new Float32Array(raster.width * raster.height);

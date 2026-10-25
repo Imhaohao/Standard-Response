@@ -1,4 +1,4 @@
-import { AREA_KIND, Area, Point, Road } from "./data";
+import { AREA_KIND, Area, areaRings, Point, Road } from "./data";
 import { contains } from "./fire-field";
 
 // What lies between two buildings: the roads the gap crosses, whether it crosses a wash or open water,
@@ -57,7 +57,7 @@ const BARRIER_ROAD_CLASSES = 6;
 
 export function fireGround({ roads, areas }: FireGround) {
   const roadSegments = roads.filter((road) => road.roadClass < BARRIER_ROAD_CLASSES && !road.tunnel).flatMap((road) => edgesOf(road.path, road.roadClass, false));
-  const waterEdges = areas.filter((area) => area.kind === AREA_KIND.water).flatMap((area) => edgesOf(area.ring, AREA_KIND.water, true));
+  const waterEdges = areas.filter((area) => area.kind === AREA_KIND.water).flatMap((area) => areaRings(area).flatMap((ring) => edgesOf(ring, AREA_KIND.water, true)));
   const roadsNear = index(roadSegments.map((segment) => ({ item: segment, a: segment.a, b: segment.b })));
   const waterNear = index(waterEdges.map((segment) => ({ item: segment, a: segment.a, b: segment.b })));
   // Smallest first, so a school inside a park reads as the school.
@@ -69,10 +69,12 @@ export function fireGround({ roads, areas }: FireGround) {
     for (const segment of roadsNear(from, to)) if (crosses(from, to, segment) && (widestRoad === null || segment.tag < widestRoad)) widestRoad = segment.tag;
     const water = [...waterNear(from, to)].some((segment) => crosses(from, to, segment));
     const middle: Point = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
-    const ground = [...areasNear(middle, middle)].find((area) => contains(area.ring, middle[0], middle[1]))?.kind ?? null;
+    const ground = [...areasNear(middle, middle)].find((area) => insideArea(area, middle))?.kind ?? null;
     return { water, widestRoad, ground };
   };
 }
+
+const insideArea = (area: Area, [x, y]: Point) => contains(area.ring, x, y) && !(area.holes ?? []).some((hole) => contains(hole, x, y));
 
 function boxArea([low, high]: [Point, Point]) {
   return (high[0] - low[0]) * (high[1] - low[1]);

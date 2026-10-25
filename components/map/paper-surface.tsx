@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { terrainContours } from "@/lib/ink-map/contours";
-import { AREA_KIND, InkMapData, Point, ROAD_WIDTH } from "@/lib/ink-map/data";
+import { AREA_KIND, areaRings, InkMapData, Point, ROAD_WIDTH } from "@/lib/ink-map/data";
 import { fieldGrid } from "@/lib/ink-map/fire-field";
 import type { Hazard } from "@/lib/ink-map/hazard";
 import { HAZARD_LAYERS } from "@/lib/ink-map/hazard-layers/registry";
@@ -99,7 +99,7 @@ function groupRings(data: InkMapData, frame: Frame, project: LocalProjection) {
   const byKind = new Map<number, string[]>();
   for (const area of data.areas) {
     if (!area.ring.some((point) => nearFrame(frame, point, 200))) continue;
-    byKind.set(area.kind, [...(byKind.get(area.kind) ?? []), ringPath(project, area.ring)]);
+    byKind.set(area.kind, [...(byKind.get(area.kind) ?? []), ...areaRings(area).map((ring) => ringPath(project, ring))]);
   }
   return [...byKind.entries()].map(([kind, rings]) => ({ kind, d: rings.join("") }));
 }

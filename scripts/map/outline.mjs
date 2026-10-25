@@ -1,6 +1,6 @@
-// Turns a grid of filled cells into polygons: one ring per connected patch, its holes joined to it
-// by a zero-width cut so it stays a single ring. The cut's two edges lie on top of each other, so an
-// even-odd fill (the land-use raster) and a non-zero fill (the flat map's SVG) both leave it unfilled.
+// Turns a grid of filled cells into polygons: an outer ring per connected patch (counter-clockwise)
+// and the rings of the holes inside it (clockwise), kept apart so nothing that strokes an outline
+// draws a line that isn't a shore.
 
 // Each side of a cell: the neighbour across it, and the side's two corners in the order that keeps
 // the cell on the left.
@@ -97,25 +97,21 @@ function inside([x, y], ring) {
   return within;
 }
 
-const nearestVertex = (ring, [x, y]) =>
-  ring.reduce((best, [vx, vy], i) => (Math.hypot(vx - x, vy - y) < Math.hypot(ring[best][0] - x, ring[best][1] - y) ? i : best), 0);
-
-// Splices a hole into its outer ring through the outer ring's vertex nearest the hole's first vertex.
-function joinHole(outer, hole) {
-  const at = nearestVertex(outer, hole[0]);
-  return [...outer.slice(0, at + 1), ...hole, hole[0], ...outer.slice(at)];
-}
-
-// Patches of `mask` (1 = filled) on `grid`, as rings in grid units with their holes joined in.
+// Each hole goes to the smallest outer ring around it: an island's pond is its own patch, and its
+// island-in-the-pond must not be cut out of the sea around the island.
+// Patches of `mask` (1 = filled) on `grid`, as { ring, holes } in grid units.
 export function outlineCells(grid, mask, tolerance = 0.7) {
   const rings = loops(boundaryEdges(grid, mask), grid.cols)
     .map((ring) => simplifyRing(ring, tolerance))
     .filter((ring) => ring.length >= 3);
-  const outers = rings.filter((ring) => signedArea(ring) > 0).map((ring) => ({ ring, holes: [] }));
+  const outers = rings
+    .filter((ring) => signedArea(ring) > 0)
+    .map((ring) => ({ ring, holes: [], area: signedArea(ring) }))
+    .sort((a, b) => a.area - b.area);
   for (const hole of rings.filter((ring) => signedArea(ring) < 0)) {
     const probe = [hole[0][0] + 0.25, hole[0][1] + 0.25];
     const owner = outers.find(({ ring }) => inside(hole[0], ring) || inside(probe, ring));
     owner?.holes.push(hole);
   }
-  return outers.map(({ ring, holes }) => holes.reduce(joinHole, ring));
+  return outers.map(({ ring, holes }) => ({ ring, holes }));
 }

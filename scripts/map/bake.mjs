@@ -267,6 +267,9 @@ const onBuilding = (grid, x, y) => grid.near(x, y).some((b) => OFFSETS.some(([dx
 const onRoad = (grid, x, y) => grid.near(x, y).some((s) => distanceToSegment(x, y, s.ax, s.ay, s.bx, s.by) < s.pad);
 const nearHome = (grid, x, y) => grid.near(x, y).length > 0;
 
+// Inside an area's outline and outside its islands.
+const inArea = (x, y, area) => pointInRing(x, y, area.ring) && !(area.holes ?? []).some((hole) => pointInRing(x, y, hole));
+
 // Low-frequency value noise so trees clump into canopies and leave open yards.
 function clumpNoise(x, y) {
   const s = Math.sin(x * 0.021 + Math.sin(y * 0.013) * 2.1) + Math.sin(y * 0.019 + Math.sin(x * 0.017) * 1.7);
@@ -289,7 +292,7 @@ function plantTrees(buildings, roads, osmTrees, areas) {
       const density = inBox(DETAIL_BOX, [px, py]) ? 0.95 : 0.48;
       if (random() > clumpNoise(px, py) * density) continue;
       if (!nearHome(homes, px, py) || onBuilding(homes, px, py) || onRoad(streets, px, py)) continue;
-      if (water.some((a) => pointInRing(px, py, a.ring))) continue;
+      if (water.some((a) => inArea(px, py, a))) continue;
       trees.push([px, py]);
     }
   }
@@ -337,6 +340,11 @@ const flat = (points) => points.flatMap(([x, y]) => [dm(x), dm(y)]);
 
 const NO_GRAPH = { nodes: [], edges: [] };
 
+function holesOf(areas) {
+  const areaHoles = areas.flatMap((area, index) => (area.holes ?? []).map((hole) => [index, ...flat(hole)]));
+  return areaHoles.length ? { areaHoles } : {};
+}
+
 // Water for another city: lakes, rivers and bays as areas, and the sea closed from its coastline.
 async function bakeWater() {
   if (!CITY) return { elements: [], sea: [] };
@@ -365,7 +373,7 @@ async function main() {
   const areaElements = await readJson("areas");
   const seen = new Set(areaElements.map((e) => `${e.type}${e.id}`));
   const areas = bakeAreas([...areaElements, ...water.elements.filter((e) => !seen.has(`${e.type}${e.id}`))]);
-  areas.push(...water.sea.map((ring) => ({ kind: AREA_KIND.water, ring })));
+  areas.push(...water.sea.map(({ ring, holes }) => ({ kind: AREA_KIND.water, ring, holes })));
   const trees = plantTrees(buildings, roads, await readJson("trees"), areas);
   const graph = CITY ? NO_GRAPH : await bakeGraph();
 
@@ -378,6 +386,8 @@ async function main() {
     roads: roads.map((r) => [r.roadClass, r.name, r.tunnel ? 1 : 0, ...flat(r.path)]),
     roadNames: names,
     areas: areas.map((a) => [a.kind, ...flat(a.ring)]),
+    // [area index, ...hole ring] for every island cut out of an area; absent when there are none.
+    ...holesOf(areas),
     trees: flat(trees),
     graph: {
       nodes: flat(graph.nodes),

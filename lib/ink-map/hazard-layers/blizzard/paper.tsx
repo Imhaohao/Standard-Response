@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ROAD_WIDTH, type InkMapData, type Point } from "../../data";
+import { areaRings, ROAD_WIDTH, type InkMapData, type Point } from "../../data";
 import type { Scenario } from "../../scenario";
 import type { PaperHazardProps } from "../types";
 import { SNOW_WHITE_CSS } from "./palette";
@@ -61,7 +61,7 @@ function minorPaths(data: InkMapData, project: Project) {
 }
 
 function areaPaths(data: InkMapData, project: Project) {
-  return data.areas.map((area) => pathOf(project, area.ring, true)).join("");
+  return data.areas.flatMap((area) => areaRings(area).map((ring) => pathOf(project, ring, true))).join("");
 }
 
 function useSnowPaths(data: InkMapData, scenario: Scenario | null, project: Project) {
