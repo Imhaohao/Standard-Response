@@ -104,8 +104,8 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 // A deploy stops this machine with SIGINT and waits kill_timeout (voice/fly.toml) before killing it.
-// Every call lives in this process, so a restart used to cut residents off mid-sentence (Jerry,
-// Oct 25, two minutes into his call). Now nothing new is dialed and the live calls get to finish.
+// Every call lives in this process, so while it drains nothing new is dialed and the live calls get
+// to finish.
 const DRAIN_LIMIT_MS = 280_000;
 const DRAIN_POLL_MS = 1000;
 

@@ -81,7 +81,7 @@ describe("approved answers", () => {
     }
   });
 
-  // Questions the unsafe advice set heard answered from the bank (notes/DtoB.md, Oct 24 18:25),
+  // Questions the unsafe advice set heard answered from the bank,
   // as Claude restates them, plus going back for a neighbor (Palo Alto Station 6), and the safety
   // answer each may get. Staying or waiting gets none: the ride status line answers it.
   const UNSAFE: [string, ApprovedAnswerId[]][] = [

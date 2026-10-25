@@ -316,8 +316,7 @@ export const noticeGiven = mutation({
   },
 });
 
-// Voice server, before the confirmation call existed: the resident heard that their helper is on
-// the way. Said once per plan. Kept for a voice server that hasn't been redeployed.
+// Voice server: the resident heard that their helper is on the way. Recorded once per plan.
 export const residentTold = mutation({
   args: { planId: v.id("pickupPlans") },
   returns: v.null(),

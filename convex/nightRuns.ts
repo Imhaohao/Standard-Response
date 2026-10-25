@@ -285,7 +285,7 @@ function placeOf(run: Doc<"nightRuns">, readyCheckStartedAt: number | undefined)
   return { mode, to, stage: step, cursor: run.archiveCursor ?? null, savedRows: run.archiveSavedRows ?? 0 };
 }
 
-// A copy that stopped (the read limit used to kill the first step) is started again from the place it recorded.
+// A copy that stopped partway is started again from the place it recorded.
 export async function resumeArchiveIfStale(ctx: MutationCtx, control: Doc<"control">) {
   const runId = control.archivingRunId;
   if (!runId) return;

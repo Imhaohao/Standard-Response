@@ -1,5 +1,5 @@
 import type { Lines } from "./types";
-// Machine translation from en.ts. Not yet reviewed by a fluent speaker.
+// Machine translation from en.ts, unreviewed by a fluent speaker.
 
 export const VI: Lines = {
   greetOutbound: (address, name) =>

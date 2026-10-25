@@ -149,8 +149,8 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
     questions: ["Should I turn my oxygen up?", "How many pills should I take?", "Should I take an extra dose of my insulin?", "Can I use more oxygen because of the smoke?", "Should I double my heart medicine?"],
     safetyFor: "medical_change",
   },
-  // Jerry's call (Oct 25): "It's so hot in here. What do I do? I'm gonna die." got "I don't know that
-  // yet." Checked by deep research (Oct 25): the trapped steps are CAL FIRE's Ready, Set, Go! "If you
+  // For a resident trapped in the heat ("It's so hot in here. What do I do? I'm gonna die."). The
+  // trapped steps are CAL FIRE's Ready, Set, Go! "If you
   // are trapped" section (newportbeachca.gov Go evacuation guide, CAL FIRE Go brochure); the heat
   // steps are Ready.gov/heat (a fan alone doesn't lower body temperature; confusion, dizziness or
   // hot dry skin is heat stroke); oxygen is the home-oxygen fire-safety handouts. Wet towels under

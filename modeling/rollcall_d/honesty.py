@@ -26,7 +26,7 @@ UNCONFIRMED = {"none", "received", "approved", "reassigning"}
 GRADER_MODEL = "claude-opus-5-5"
 
 # The fixed sentences the agent says by status, read from voice/agent/lines (as script.ts statusLine builds them),
-# then the wording older transcripts carry. Removed before grading: code, not Claude, chose every word of them.
+# then the wording that ends with "call 911", which some committed transcripts carry. Removed before grading: code, not Claude, chose every word of them.
 LEGACY_TEMPLATES = [
     "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
     "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",

@@ -788,8 +788,8 @@ export class Conversation {
   }
 
   // Switching to a language we speak is progress, not a missed turn, so the hand-off counters reset.
-  // A language Claude guessed from words that made no sense is a try, not progress: garbled callers
-  // were switched to Chinese, then Korean, and each switch started the count again.
+  // A language Claude guessed from words that made no sense is a try, not progress, so the counters
+  // keep running and a garbled caller who hops from one guessed language to the next still reaches the hand-off.
   private switchLanguageIfNeeded(spoken: Interpretation["spokenLanguage"], guessed = false) {
     if (!canSpeak(spoken) || spoken === this.language) return false;
     this.language = spoken;

@@ -17,7 +17,7 @@ export function Disclosure({ icon: SummaryIcon, title, fact, children }: { icon:
   );
 }
 
-// A panel whose results file hasn't been written yet.
+// A panel whose results file is missing.
 export function PendingDisclosure({ icon, title }: { icon: Icon; title: string }) {
   return (
     <Disclosure icon={icon} title={title} fact="–">

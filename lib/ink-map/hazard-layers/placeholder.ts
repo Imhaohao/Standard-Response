@@ -4,9 +4,9 @@ import { arrivalIndex, arrivalTexture, ArrivalIndex, impactAt, NO_IMPACT } from 
 import { ARRIVAL_GLSL, FULLSCREEN_HEADER, GBUFFER_GLSL, GROUND_HATCH_GLSL } from "./glsl";
 import type { FullscreenPass, HazardLayer, HazardLayerContext } from "./types";
 
-// A stand-in until a hazard has its own renderer: hatching over the ground the hazard has reached,
-// drifting slowly so the every-frame path is exercised, with a firm line on its edge. Each stub picks
-// a colour (a palette uniform from context.shared) and a hatch angle.
+// The renderer for a hazard without one of its own: hatching over the ground the hazard has reached,
+// drifting slowly so the every-frame path is exercised, with a firm line on its edge. Each hazard that
+// uses it picks a colour (a palette uniform from context.shared) and a hatch angle.
 const PLACEHOLDER_FRAGMENT = `
 ${FULLSCREEN_HEADER}
 ${GBUFFER_GLSL}

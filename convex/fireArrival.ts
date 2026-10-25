@@ -24,7 +24,7 @@ const PAST_SCENARIO_MINUTES = 30;
 // Before a warning there is no clock to measure from; the warning replaces this for every home.
 export const PLACEHOLDER_ARRIVAL_MINUTES = 90;
 
-// A hazard with no scenario file keeps the old radial stand-in.
+// A hazard with no scenario file spreads radially from the fire's origin at a fixed speed.
 function radialMinutes(point: Point) {
   return FIRE_FIRST_ARRIVAL_MINUTES + metersBetween(point, FIRE_ORIGIN) / FIRE_SPREAD_METERS_PER_MINUTE;
 }

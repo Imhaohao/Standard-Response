@@ -1,5 +1,5 @@
 import type { Lines } from "./types";
-// Machine translation from en.ts. Not yet reviewed by a fluent speaker.
+// Machine translation from en.ts, unreviewed by a fluent speaker.
 
 const capitalized = (sentence: string) => `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}`;
 
