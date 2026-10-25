@@ -61,3 +61,13 @@ Blizzard redesign (`lib/ink-map/hazard-layers/blizzard/`): snow now reads by sub
 - **Don't overwrite it.** `spread_model.py` now writes `data/hazard/scenario-spread.geojson` by default; pass `--out data/hazard/scenario.geojson` only to put the model back on purpose. `build_hazard.py` (the old oval) is deleted.
 - **Deploy:** Convex needs `npx convex dev --once` from a clean main so `fireArrival.ts` deadlines use the new fronts.
 - **Restore seed 7** with `cd modeling && uv run python scripts/spread_model.py --seed 7 --out ../data/hazard/scenario.geojson && cd .. && npx tsx scripts/hazard/bake-scenarios.ts`.
+
+## 2026-10-25 02:15
+
+The flood, surge and tsunami have their own renderers now (`lib/ink-map/hazard-layers/water/`, shared by `flood/`, `surge/` and `tsunami/`), in place of the hatched placeholders.
+
+- **What `impact(minutes)` reports for water:** a building once water has stood half a metre over the ground at its centre, and a road or dispatcher edge once any stretch of it is under 30 cm. Reached stays reached, as with the fire, so a tsunami's roads stay closed after the water drains. Ground outside every front never counts, even late in the night.
+- **Depth is level minus ground.** The level is `series.water.level`, and near an open breach it slopes down from the canal's gauge to the basin over a few hundred metres. A tsunami's level comes from `waves` and `approachFromDegrees`. Each crest is timed at the bayfront in front of the flooded town, crosses the water at 10 m/s and runs inland at 4 m/s.
+- **New `event` frames** in `lib/cities.ts`, about 2 km across, for the Lower Ninth (the north breach and the ward), Fort Myers Beach (Estero Island's north end with Times Square and the pier) and Hilo (downtown and Waiākea). `/lab/scenes?city=<id>&frame=event`. A scenario that starts more than an hour after its warning opens half an hour before its first front.
+- **GPU cost:** one fullscreen pass and no render targets. It adds a shore texture (2 bytes a cell, at most 1024 across) and the arrival field as half floats.
+- **Tests:** `npx tsx --test lib/ink-map/hazard-layers/water/water.test.ts`. It isn't in `npm run test:map`, whose glob only covers `lib/ink-map/*.test.ts`. Widening it would also pick up the blizzard's tests, one of which was failing at 01:30.
