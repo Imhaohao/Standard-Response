@@ -91,19 +91,15 @@ function paintPlan(paint: Paint, layers: Layers, scene: Scene) {
     ctx.globalAlpha = 1;
   }
   if (layers.rescuers) for (const rescuer of plan.rescuers) paintRescuer(ctx, project(rescuer.start), rescuer.kind, palette);
+  if (layers.routes !== "off" || layers.candidates) paintMarker(ctx, project(plan.safe), { color: palette.leaving, night: palette.night, radius: 13, rings: false, elapsed });
 }
 
 function paintPeople(paint: Paint, layers: Layers, scene: Scene) {
   const { ctx, project, elapsed, palette } = paint;
-  const { town, plan, crowd, close } = scene;
+  const { town, crowd, close } = scene;
   if (layers.crowd !== "off") paintCrowd(ctx, project, crowd.movingDots(), { jams: layers.crowd === "jams", alpha: layers.crowd === "faint" ? 0.3 : 1, palette });
-  if (layers.maria) {
-    strokeRoute(ctx, project, plan.routes[0], { color: palette.ride, width: 6, progress: progressOf(elapsed, 600), glow: 16 });
-    paintRescuer(ctx, project(town.maria.at), "neighbour", palette);
-  }
   if (layers.roseland !== "off") {
-    const color = layers.roseland === "ride" && elapsed > 600 + ROUTE_DRAW_MS ? palette.ride : palette.signal;
-    paintMarker(ctx, project(town.roseland.at), { color, night: palette.night, radius: 14, rings: layers.roseland !== "ride", elapsed });
+    paintMarker(ctx, project(town.roseland.at), { color: palette.signal, night: palette.night, radius: 14, rings: true, elapsed });
   }
   if (layers.rescue === "house") strokeRoute(ctx, project, close.house, { color: palette.ride, width: 6, progress: progressOf(elapsed, 1400), glow: 16 });
   if (layers.rescue === "everyone") {

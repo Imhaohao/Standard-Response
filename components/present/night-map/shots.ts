@@ -1,6 +1,6 @@
 import type { Beat } from "../script";
 
-export type Focus = "town" | "house" | "roseland" | "zone";
+export type Focus = "town" | "house" | "roseland" | "zone" | "rescue";
 export type HouseState = "hidden" | "lit" | "calling" | "out";
 
 // What the night map shows on a beat. `zoom` is the camera's, centred on `focus`: the story house,
@@ -46,12 +46,11 @@ export const SHOTS: Record<Beat, Shot> = {
   sonic: OFF,
   claude: OFF,
   protocol: OFF,
-  request: { ...TOWN, zoom: 2.1, focus: "roseland", fire: 0.25, dark: 0.15 },
-  alns: { ...TOWN, zoom: 2.1, focus: "roseland", fire: 0.25, dark: 0.15 },
-  routes: { ...TOWN, zoom: 2.1, focus: "roseland", fire: 0.25, dark: 0.15 },
+  request: { ...TOWN, zoom: 1.75, focus: "rescue", fire: 0.25, dark: 0.15 },
+  alns: { ...TOWN, zoom: 1.75, focus: "rescue", fire: 0.25, dark: 0.15 },
+  routes: { ...TOWN, zoom: 1.75, focus: "rescue", fire: 0.25, dark: 0.15 },
   crowd: { ...TOWN, zoom: 1.3, focus: "zone", fire: CROWD_FIRE, dark: 0.2 },
   jams: { ...TOWN, zoom: 1.3, focus: "zone", fire: CROWD_FIRE, dark: 0.2 },
-  maria: { ...TOWN, zoom: 3, focus: "roseland", offsetX: 360, fire: CROWD_FIRE, dark: 0.15 },
   hub: OFF,
   stress: OFF,
   nights: OFF,

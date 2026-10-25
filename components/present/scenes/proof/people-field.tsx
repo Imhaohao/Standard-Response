@@ -5,9 +5,6 @@ import { sceneMove } from "../../motion";
 
 const FIELD = { columns: 38, stepX: 22, stepY: 25, width: 16, height: 22 } as const;
 
-// Multiplying by a number that shares no factor with the total visits every household once in a
-// scattered order, so the ones that got out are spread across the crowd rather than filling it row by row.
-const SCATTER = 389;
 const LIGHT_SECONDS = 1.6;
 const DIM = "oklch(0.72 0.01 70 / 0.2)";
 
@@ -21,7 +18,8 @@ function PersonShape() {
   );
 }
 
-// One figure per at-risk household. The ones that got out in time light up green, in a scattered order.
+// One figure per at-risk household. The ones that got out in time light up green in reading order, left to
+// right and top to bottom, so the ones left behind are the figures at the end.
 export function PeopleField({ shown, households, out }: { shown: boolean; households: number; out: number }) {
   const rows = Math.ceil(households / FIELD.columns);
   return (
@@ -37,8 +35,7 @@ export function PeopleField({ shown, households, out }: { shown: boolean; househ
         <PersonShape />
       </defs>
       {Array.from({ length: households }, (_, i) => {
-        const order = (i * SCATTER) % households;
-        const lit = shown && order < out;
+        const lit = shown && i < out;
         return (
           <use
             key={i}
@@ -50,7 +47,7 @@ export function PeopleField({ shown, households, out }: { shown: boolean; househ
             style={{
               fill: lit ? "var(--leaving)" : DIM,
               transition: "fill 0.5s",
-              transitionDelay: lit ? `${0.8 + (order / Math.max(out, 1)) * LIGHT_SECONDS}s` : "0s",
+              transitionDelay: lit ? `${0.8 + (i / Math.max(out, 1)) * LIGHT_SECONDS}s` : "0s",
             }}
           />
         );

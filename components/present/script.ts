@@ -5,7 +5,7 @@ export const slides = [
   { id: "scale", beats: ["everywhere", "eighty", "howSave", "stations", "dispatch", "built", "tenThousand"] },
   { id: "census", beats: ["zone", "census", "roseland", "testCall"] },
   { id: "voice", beats: ["ink", "sonic", "claude", "protocol"] },
-  { id: "rescue", beats: ["request", "alns", "routes", "crowd", "jams", "maria"] },
+  { id: "rescue", beats: ["request", "alns", "routes", "crowd", "jams"] },
   { id: "convex", beats: ["hub", "stress"] },
   { id: "proof", beats: ["nights", "today", "ours", "quote"] },
   { id: "close", beats: ["told", "reached", "everyone", "saveLives", "wordmark"] },

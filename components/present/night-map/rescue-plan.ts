@@ -6,7 +6,7 @@ import { streetDrive } from "@/lib/ink-map/road-route";
 import { searchPlans, type Plan, type Vehicle } from "./plan";
 import type { Home, Town } from "./town";
 
-// Who the rescue map plans for around Roseland: needing homes spread across her part of town, Maria
+// Who the rescue map plans for around Roseland: needing homes spread across her part of town, her neighbour
 // and other neighbours who offered a seat, and two engines coming in from the nearest edge of the zone.
 const REQUESTS = 14;
 const AREA_METERS = 1300;
@@ -21,7 +21,8 @@ const NO_CLOSURES = new Set<string>();
 
 export type Rescuer = { start: Point; kind: "neighbour" | "engine" };
 // `tried` holds each candidate plan the search considered, already drawn along the streets.
-export type RescuePlan = { stops: Point[]; rescuers: Rescuer[]; tried: Point[][][]; routes: Point[][] };
+// Every run ends at `safe`, just outside the zone edge the engines come in by, so every route leaves town.
+export type RescuePlan = { stops: Point[]; rescuers: Rescuer[]; safe: Point; tried: Point[][][]; routes: Point[][] };
 
 const distance = ([ax, ay]: Point, [bx, by]: Point) => Math.hypot(ax - bx, ay - by);
 
@@ -66,14 +67,17 @@ function buildPlan(data: InkMapData, town: Town): RescuePlan {
     firstStop: i === 0 ? 0 : undefined,
   }));
   const { tried, best } = searchPlans(vehicles, stops);
-  const along = streetLegs(data, rescuers.map((r) => r.start), stops);
+  const safe = midpoint(rescuers.filter((r) => r.kind === "engine").map((r) => r.start));
+  const along = streetLegs(data, rescuers.map((r) => r.start), stops, safe);
   const drawn = (plan: Plan) => plan.map((run, v) => along(v, run));
-  return { stops, rescuers, tried: tried.map(drawn), routes: drawn(best) };
+  return { stops, rescuers, safe, tried: tried.map(drawn), routes: drawn(best) };
 }
 
-// Every run is drawn along the streets, one leg per stop. A leg between the same two places is found
-// once and reused, since the candidate plans share most of their legs.
-function streetLegs(data: InkMapData, starts: Point[], stops: Point[]) {
+const midpoint = (points: Point[]): Point => [points.reduce((sum, [x]) => sum + x, 0) / points.length, points.reduce((sum, [, y]) => sum + y, 0) / points.length];
+
+// Every run is drawn along the streets, one leg per stop and a last leg out to safety. A leg between
+// the same two places is found once and reused, since the candidate plans share most of their legs.
+function streetLegs(data: InkMapData, starts: Point[], stops: Point[], safe: Point) {
   const legs = new Map<string, Point[]>();
   const leg = (from: Point, to: Point, key: string) => {
     let route = legs.get(key);
@@ -90,6 +94,7 @@ function streetLegs(data: InkMapData, starts: Point[], stops: Point[]) {
       route.push(...leg(from, stops[stop], `${fromKey}>${stop}`));
       [from, fromKey] = [stops[stop], `s${stop}`];
     }
+    if (run.length) route.push(...leg(from, safe, `${fromKey}>safe`));
     return route;
   };
 }

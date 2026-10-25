@@ -66,10 +66,11 @@ function shiftedFocus(renderer: InkMapRenderer, [x, y]: Point, zoom: number, off
   return [x + (shift * d) / det, y - (shift * c) / det];
 }
 
-function focusPoint(story: StoryMap, town: Town | null, focus: Focus): Point | null {
+function focusPoint(story: StoryMap, town: Town | null, focus: Focus, safe: Point | null): Point | null {
   if (focus === "house") return story.house.center;
   if (focus === "roseland") return town?.roseland.at ?? story.house.center;
   if (focus === "zone") return town ? centroid(town.zone) : story.house.center;
+  if (focus === "rescue") return town && safe ? centroid([town.roseland.at, safe]) : story.house.center;
   return null;
 }
 
@@ -138,7 +139,7 @@ export function NightMap({ beat, story, town, houseAt, setHouseAt }: NightMapPro
   const close = useCloseRoutes(story.data, town, story.house.center);
   const scene = useMemo(() => (town && plan && crowd && close ? { town, plan, crowd, close, houseCenter: story.house.center } : null), [town, plan, crowd, close, story.house.center]);
   useHouseRoof(renderer, story, shot.house);
-  useCamera(renderer, focusPoint(story, town, shot.focus), shot);
+  useCamera(renderer, focusPoint(story, town, shot.focus, plan?.safe ?? null), shot);
   useFireMinutes(renderer, shot.fire * story.house.arrives);
   useHouseOnStage(renderer, story, setHouseAt);
   const fading = beat === "gone";

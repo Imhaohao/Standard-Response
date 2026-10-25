@@ -4,13 +4,12 @@ import type { Beat } from "../script";
 export type Layers = {
   zone: "off" | "draw" | "shown" | "faint";
   homes: "off" | "ring" | "census" | "dim";
-  roseland: "off" | "lift" | "request" | "ride";
+  roseland: "off" | "lift" | "request";
   requests: boolean;
   rescuers: boolean;
   candidates: boolean;
   routes: "off" | "draw" | "faint";
   crowd: "off" | "flow" | "jams" | "faint";
-  maria: boolean;
   rescue: "off" | "house" | "everyone";
 };
 
@@ -23,7 +22,6 @@ const NONE: Layers = {
   candidates: false,
   routes: "off",
   crowd: "off",
-  maria: false,
   rescue: "off",
 };
 
@@ -43,7 +41,6 @@ export const LAYERS: Partial<Record<Beat, Layers>> = {
   routes: { ...PLANNING, routes: "draw" },
   crowd: { ...NONE, zone: "faint", routes: "faint", crowd: "flow" },
   jams: { ...NONE, zone: "faint", crowd: "jams" },
-  maria: { ...NONE, zone: "faint", homes: "dim", crowd: "faint", roseland: "ride", maria: true },
   reached: { ...NONE, rescue: "house" },
   everyone: { ...NONE, rescue: "everyone" },
   saveLives: { ...NONE, rescue: "everyone" },
@@ -53,4 +50,4 @@ export const LAYERS: Partial<Record<Beat, Layers>> = {
 export const layersFor = (beat: Beat) => LAYERS[beat] ?? NONE;
 
 // The crowd night runs on from its warm-up only while the traffic is on screen.
-export const CROWD_RUNS: readonly Beat[] = ["crowd", "jams", "maria"];
+export const CROWD_RUNS: readonly Beat[] = ["crowd", "jams"];

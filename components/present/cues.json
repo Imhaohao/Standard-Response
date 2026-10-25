@@ -25,7 +25,6 @@
   "routes": { "doc": "6.2", "line": "which optimally routes neighbors and first responders towards people who most urgently need help, saving time and lives." },
   "crowd": { "doc": "5.3", "line": "We simulate everyone leaving the area as particles under Langevin dynamics, modelling congestion" },
   "jams": { "doc": "5.4", "line": "so first responders can make decisions off of real ETAs rather than Google Maps estimates that haven’t caught up." },
-  "maria": { "doc": "6.5", "line": "Maria answers the phone and says she can help." },
   "hub": { "doc": "7.1", "line": "Everything on our system shares one Convex database," },
   "stress": { "doc": "7.2", "line": "whose reliability we stress-tested in handling mission critical concurrent reads and writes." },
   "nights": { "doc": "8.1", "line": "We put the whole system through 100 simulated fire nights with households modeled on real data and 911 calls." },
