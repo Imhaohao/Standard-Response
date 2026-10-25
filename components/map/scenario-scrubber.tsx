@@ -17,14 +17,29 @@ const SCRUBBER = [
   "focus-visible:[&::-moz-range-thumb]:shadow-[0_0_0_2px_var(--color-panel),0_0_0_4px_var(--color-on-panel)]",
 ].join(" ");
 
-export function ScenarioScrubber({ minutes, last, onMinutes, label = "Hazard scenario", step = 1 }: { minutes: number; last: number; onMinutes: (minutes: number) => void; label?: string; step?: number }) {
-  const max = last || 1;
-  const filled = `${Math.min(100, (minutes / max) * 100)}%`;
+// `first` starts the track later than the warning, for a hazard that arrives hours after it.
+export function ScenarioScrubber({
+  minutes,
+  last,
+  onMinutes,
+  label = "Hazard scenario",
+  step = 1,
+  first = 0,
+}: {
+  minutes: number;
+  last: number;
+  onMinutes: (minutes: number) => void;
+  label?: string;
+  step?: number;
+  first?: number;
+}) {
+  const max = Math.max(last, first + 1);
+  const filled = `${Math.min(100, Math.max(0, ((minutes - first) / (max - first)) * 100))}%`;
   return (
     <>
       <input
         type="range"
-        min={0}
+        min={first}
         max={max}
         step={step}
         value={minutes}
