@@ -118,8 +118,11 @@ function Board({ vehicleId, vehicle, hold }: { vehicleId: Id<"vehicles">; vehicl
   const stops = useQuery(api.offers.forVehicle, { vehicleId }) ?? [];
   const board = useDriverBoard(stops, hold);
   const [chosen, setChosen] = useState<string | null>(null);
-  const everything: Stop[] = [...board.offers, ...board.run];
-  const focus = everything.find((stop) => stop._id === chosen) ?? board.offers[0] ?? board.run[0] ?? null;
+  // What the driver can act on leads; offers the dispatcher hasn't approved yet wait below the run.
+  const actionable = board.offers.filter((stop) => stop.status !== "proposed");
+  const reviewing = board.offers.filter((stop) => stop.status === "proposed");
+  const everything: Stop[] = [...actionable, ...board.run, ...reviewing];
+  const focus = everything.find((stop) => stop._id === chosen) ?? everything[0] ?? null;
   const quiet = everything.length === 0 && board.changed.length === 0;
 
   return (
@@ -133,12 +136,17 @@ function Board({ vehicleId, vehicle, hold }: { vehicleId: Id<"vehicles">; vehicl
             {board.changed.map((stop) => (
               <ChangedCard key={`changed-${stop._id}`} stop={stop} onDismiss={() => board.dismiss(stop._id)} />
             ))}
-            {board.offers.map((stop) => (
+            {actionable.map((stop) => (
               <OfferCard key={stop._id} stop={stop} onChanged={() => board.markChanged(stop._id)} onDeclined={() => board.dismiss(stop._id)} />
             ))}
           </AnimatePresence>
         </ul>
         <RunList stops={board.run} focusId={focus?._id} onFocus={(stop) => setChosen(stop._id)} />
+        <ul className="flex flex-col gap-px">
+          {reviewing.map((stop) => (
+            <OfferCard key={stop._id} stop={stop} onChanged={() => board.markChanged(stop._id)} onDeclined={() => board.dismiss(stop._id)} />
+          ))}
+        </ul>
         {quiet && <EmptyBoard />}
       </div>
     </>
