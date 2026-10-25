@@ -8,7 +8,7 @@ import { Aspect, FrameRecorder, openPage, Take, webglReady } from "./capture";
 import { watchdog } from "./watchdog";
 import { MAX_WAIT_MS, sleep, Speed, World } from "./world";
 
-export type SceneContext = { world: World; browser: Browser; root: string; outDir: string; appUrl: string; homes: number };
+export type SceneContext = { world: World; browser: Browser; root: string; outDir: string; appUrl: string; homes: number; filmed: Take[] };
 export type Scene = { name: string; about: string; run: (context: SceneContext) => Promise<Take[]> };
 
 // On top of the eight-vehicle demo fleet. 14 vehicles for about a hundred riders in a thousand homes
@@ -60,6 +60,7 @@ async function filmPage(context: SceneContext, page: Page, shot: Shot, action: (
   // A failed step still keeps what was filmed up to it, and the screencast never outlives the shot.
   await action(page).catch((error) => console.warn(`  (${shot.name}: ${error instanceof Error ? error.message.split("\n")[0] : error})`));
   const take = await recorder.stop(path.join(context.outDir, `${shot.name}-${shot.aspect}.mp4`), shot.speedUp ?? 1);
+  context.filmed.push(take);
   // If the watchdog killed Chrome, the whole run stops here rather than going on to the next shot.
   watchdog.assertHealthy();
   return take;

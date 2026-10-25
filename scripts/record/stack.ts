@@ -178,6 +178,14 @@ export async function startStack(root: string, options: { fresh: boolean }): Pro
   return { convexUrl: `http://127.0.0.1:${PORTS.convex}`, adminKey: state.adminKey, appUrl: `http://127.0.0.1:${PORTS.app}` };
 }
 
+// Only the production server, for pages that need no backend (the /lab/scenes city scenes).
+export async function startApp(root: string) {
+  const dir = stackDir(root);
+  const state = readState(dir) ?? { instanceSecret: randomBytes(32).toString("hex"), adminKey: "", pids: {} };
+  await ensureApp(root, dir, state);
+  return `http://127.0.0.1:${PORTS.app}`;
+}
+
 function stopPid(pid: number | undefined) {
   if (!alive(pid)) return;
   try {

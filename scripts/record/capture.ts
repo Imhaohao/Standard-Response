@@ -26,7 +26,7 @@ export type Clip = { file: string; sheet: string; seconds: number; frames: numbe
 // faster than real time it should play.
 export type Take = { frames: Frame[]; endAt: number; file: string; aspect: Aspect; speedUp: number };
 
-type Frame = { file: string; at: number };
+export type Frame = { file: string; at: number };
 
 // Chrome stops painting a window macOS thinks is hidden; these keep it painting while it records.
 const CHROME_ARGS = [
@@ -44,14 +44,14 @@ const CHROME_ARGS = [
 ];
 
 // Before anything starts: enough free memory, waiting up to a minute for it and no longer.
-export async function requireFreeMemory() {
+export async function requireFreeMemory(minimum = MIN_FREE_PERCENT) {
   const until = Date.now() + 60_000;
   let free = await freeMemoryPercent();
-  while (free < MIN_FREE_PERCENT && Date.now() < until) {
+  while (free < minimum && Date.now() < until) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
     free = await freeMemoryPercent();
   }
-  if (free < MIN_FREE_PERCENT) throw new Error(`Only ${free}% of memory is free (need ${MIN_FREE_PERCENT}%). Close something and run again.`);
+  if (free < minimum) throw new Error(`Only ${free}% of memory is free (need ${minimum}%). Close something and run again.`);
   return free;
 }
 
