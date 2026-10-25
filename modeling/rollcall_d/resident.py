@@ -12,19 +12,22 @@ import re
 
 from .spoken_numbers import say_en, say_es, strip_accents
 
-# Each question type, with phrases from the agent's lines that identify it. The last one in the reply wins.
+# Each question type, with phrases from the agent's lines (voice/agent/lines, both the question and its askAgain
+# rewording) that identify it. The last one in the reply wins.
 QUESTION_PATTERNS = {
-    "neighbor": [r"anyone else on your street", r"alguien mas en su calle"],
-    "fix": [r"what should i change", r"que debo corregir"],
-    "readback": [r"let me read that back", r"le confirmo lo que tengo"],
+    "neighbor": [r"anyone else on your street", r"alguien mas en su calle", r"anyone nearby who might need help", r"alguien cerca que tal vez"],
+    "fix": [r"what should i change", r"que debo corregir", r"the part that's wrong", r"que parte esta mal"],
+    "readback": [r"let me read that back", r"le confirmo lo que tengo", r"did i get all of that right", r"anote todo bien"],
     "confirm_address": [r"\bi have .{3,80}is that right", r"are you at .{3,80}right now", r"tengo .{3,80}es correcto", r"esta usted en .{3,80}ahora"],
     "ask_address": [r"what address", r"street address", r"en que direccion", r"la direccion donde",
-                    r"what's the house number", r"cual es el numero de la casa"],
-    "has_car": [r"car or someone", r"tiene carro"],
-    "can_leave": [r"leave on their own", r"salir por su cuenta"],
+                    r"what's the house number", r"cual es el numero de la casa", r"house number is often", r"numero de la casa suele"],
+    "has_car": [r"car or someone", r"tiene carro", r"car you can use", r"carro que pueda usar"],
+    "can_leave": [r"leave on their own", r"salir por su cuenta", r"get out and away", r"salir y alejarse"],
     "household": [r"how many people", r"cuantas personas"],
-    "needs": [r"walker or a wheelchair", r"our records say", r"andadera o silla", r"nuestros registros"],
-    "assistance": [r"how much help", r"cuanta ayuda"],
+    "needs": [r"walker or a wheelchair", r"our records say", r"andadera o silla", r"nuestros registros", r"trouble walking", r"dificultad para caminar"],
+    "oxygen": [r"anyone there need oxygen", r"alguien ahi necesita oxigeno"],
+    "chair_kind": [r"kind with a motor", r"run on a battery", r"de las que tienen motor", r"funciona con bateria"],
+    "assistance": [r"how much help", r"cuanta ayuda", r"one person helping, or would it take", r"harian falta dos personas"],
     "repeat": [r"say that again", r"didn't catch", r"me lo puede repetir", r"no le entendi"],
     "goodbye": [r"\bgoodbye\b", r"\badios\b"],
 }
@@ -60,6 +63,8 @@ EN = {
         "power_wheelchair": "I use a power wheelchair.", "bedbound": "I can't get out of bed.",
     },
     "oxygen": {True: " And I'm on oxygen.", False: " No oxygen."},
+    "oxygen_only": {True: "Yes, I'm on oxygen.", False: "No, no oxygen."},
+    "chair_kind": {True: "Yes, it has a motor.", False: "No, it's a manual one. We push it."},
     "assistance": {"none": "No help needed, we can manage.", "one_person_assist": "One person to help.", "two_person_lift": "It takes two people to lift."},
     "yes": "Yes, that's right.",
     "no_neighbor": "No, I don't think so.",
@@ -91,6 +96,8 @@ ES = {
         "power_wheelchair": "Uso silla de ruedas eléctrica.", "bedbound": "No me puedo levantar de la cama.",
     },
     "oxygen": {True: " Y uso oxígeno.", False: " No uso oxígeno."},
+    "oxygen_only": {True: "Sí, uso oxígeno.", False: "No, no uso oxígeno."},
+    "chair_kind": {True: "Sí, tiene motor.", False: "No, es manual. La empujamos."},
     "assistance": {"none": "No necesitamos ayuda.", "one_person_assist": "Una persona que ayude.", "two_person_lift": "Se necesitan dos personas para levantarlo."},
     "yes": "Sí, es correcto.",
     "no_neighbor": "No, creo que no.",
@@ -109,7 +116,8 @@ ES = {
     "medical": " Mi esposo no puede respirar bien.",
 }
 
-QUESTION_FIELD = {"household": "peopleCount", "needs": "mobility", "assistance": "assistanceRequired", "can_leave": "canLeave"}
+QUESTION_FIELD = {"household": "peopleCount", "needs": "mobility", "chair_kind": "mobility", "oxygen": "medical",
+                  "assistance": "assistanceRequired", "can_leave": "canLeave"}
 FIELD_QUESTION = {"peopleCount": "household", "mobility": "needs", "medical": "needs", "assistanceRequired": "assistance", "canLeave": "can_leave"}
 
 
@@ -237,6 +245,11 @@ class Resident:
             return self._field_sentence("peopleCount", self._value("peopleCount"))
         if kind == "needs":
             return self._needs_answer(reply)
+        if kind == "oxygen":
+            return s["oxygen_only"][bool(self._value("medical"))]
+        if kind == "chair_kind":
+            # "uses a wheelchair" didn't say which kind; the answer is the chair the resident has described so far
+            return s["chair_kind"][self._value("mobility") == "power_wheelchair"]
         if kind == "assistance":
             return self._field_sentence("assistanceRequired", self._value("assistanceRequired"))
         if kind in ("readback", "fix"):

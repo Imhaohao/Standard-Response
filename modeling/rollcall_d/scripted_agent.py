@@ -9,65 +9,46 @@ import re
 from dataclasses import dataclass, field
 
 from .addresses import AddressBook, match
+from .agent_lines import lines_for, with_safety
 from .spoken_numbers import digits_in, strip_accents
 
-LINES = {
+# Lines whose value is a function in voice/agent/lines/<language>.ts, as format strings.
+FORMATTED = {
     "en": {
-        "greet_out": "Hello{name}, this is the Altadena paratransit evacuation line. An evacuation warning covers your street. Are you at {address} right now?",
-        "greet_in": "This is the Altadena evacuation line. I can help get you a ride out.",
-        "ask_address": "What address are you at right now?",
+        "greet_out": "Hello{name}, this is 911 calling about the evacuation in Altadena. An evacuation warning covers your street. Are you at {address} right now?",
         "confirm_address": "I have {address}. Is that right?",
-        "address_escalated": "I've flagged your address for a dispatcher to confirm. If you can, also call 911.",
-        "can_leave": "Can everyone in your home leave on their own right now?",
-        "has_car": "Do you have a car or someone who can drive you out?",
-        "household": "How many people are with you right now, and are there any pets?",
-        "needs": "Does anyone there use a walker or a wheelchair, need oxygen, or stay in bed?",
-        "needs_on_file": "Our records say {on_file}. Is that still right, and does anyone need oxygen?",
-        "assistance": "How much help do they need getting out: none, one person helping, or two people to lift?",
-        "readback_intro": "Let me read that back.", "readback_q": "Is that right?", "fixed": "Thanks, I've fixed that.",
-        "fix": "What should I change?",
-        "neighbor": "Is there anyone else on your street who might not be able to leave? If so, what's their address?",
-        "leave_now": "Please leave now, and take your medications and phone charger.",
-        "goodbye": "Thank you. Stay by the phone. Goodbye.", "repeat": "Sorry, could you say that again?",
-        "emergency": "If you can, call 911 right now. I've marked you urgent for the dispatcher.",
-        "waiting": "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
-        "people": lambda n: "one person" if n == 1 else f"{n} people", "pets": "with pets", "no_car": "no car",
-        "leaving": "you're leaving on your own", "by_car": "by car",
-        "mobility": {"walks": "everyone can walk", "walker": "someone uses a walker", "manual_wheelchair": "someone uses a wheelchair",
-                     "power_wheelchair": "someone uses a power wheelchair", "bedbound": "someone is bedbound"},
-        "assist": {"one_person_assist": "needs one person to help", "two_person_lift": "needs two people to lift"},
-        "oxygen": "on oxygen", "at": "at {address}",
+        "needs_on_file": "Our records say {on_file}. Is that still right? Does anyone need oxygen?",
+        "people": lambda n: "one person" if n == 1 else f"{n} people", "at": "at {address}",
     },
     "es": {
-        "greet_out": "Hola{name}, le llamamos de la línea de evacuación de paratránsito de Altadena. Hay una advertencia de evacuación en su calle. ¿Está usted en {address} ahora mismo?",
-        "greet_in": "Esta es la línea de evacuación de Altadena. Puedo ayudarle a conseguir transporte para salir.",
-        "ask_address": "¿En qué dirección está usted ahora mismo?",
+        "greet_out": "Hola{name}, le llama el 911 por la evacuación en Altadena. Hay una advertencia de evacuación en su calle. ¿Está usted en {address} ahora mismo?",
         "confirm_address": "Tengo {address}. ¿Es correcto?",
-        "address_escalated": "Marqué su dirección para que un despachador la confirme. Si puede, llame también al 911.",
-        "can_leave": "¿Pueden todos en su casa salir por su cuenta ahora mismo?",
-        "has_car": "¿Tiene carro o alguien que le pueda llevar?",
-        "household": "¿Cuántas personas están con usted ahora, y tienen mascotas?",
-        "needs": "¿Alguien usa andadera o silla de ruedas, necesita oxígeno o está en cama?",
-        "needs_on_file": "Nuestros registros dicen que {on_file}. ¿Sigue siendo así, y alguien necesita oxígeno?",
-        "assistance": "¿Cuánta ayuda necesita para salir: ninguna, una persona que le ayude, o dos personas para levantarle?",
-        "readback_intro": "Le confirmo lo que tengo.", "readback_q": "¿Es correcto?", "fixed": "Gracias, ya lo corregí.",
-        "fix": "¿Qué debo corregir?",
-        "neighbor": "¿Hay alguien más en su calle que tal vez no pueda salir? Si es así, ¿cuál es su dirección?",
-        "leave_now": "Por favor salga ahora, y lleve sus medicinas y el cargador del teléfono.",
-        "goodbye": "Gracias. Quédese cerca del teléfono. Adiós.", "repeat": "Perdón, ¿me lo puede repetir?",
-        "emergency": "Si puede, llame al 911 ahora mismo. Le marqué como urgente para el despachador.",
-        "waiting": "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
-        "people": lambda n: "una persona" if n == 1 else f"{n} personas", "pets": "con mascotas", "no_car": "sin carro",
-        "leaving": "usted sale por su cuenta", "by_car": "en carro",
-        "mobility": {"walks": "todos pueden caminar", "walker": "alguien usa andadera", "manual_wheelchair": "alguien usa silla de ruedas",
-                     "power_wheelchair": "alguien usa silla de ruedas eléctrica", "bedbound": "alguien está en cama"},
-        "assist": {"one_person_assist": "necesita una persona que le ayude", "two_person_lift": "necesita dos personas para levantarle"},
-        "oxygen": "con oxígeno", "at": "en {address}",
+        "needs_on_file": "Nuestros registros dicen que {on_file}. ¿Sigue siendo así? ¿Alguien necesita oxígeno?",
+        "people": lambda n: "una persona" if n == 1 else f"{n} personas", "at": "en {address}",
     },
 }
+# Every other line, by its key in voice/agent/lines, so the stand-in says exactly what the real agent says.
+FROM_AGENT = {
+    "greet_in": "greetInbound", "ask_address": "askAddress", "address_escalated": "addressEscalated", "can_leave": "askCanLeave",
+    "has_car": "askHasCar", "household": "askHousehold", "needs": "askNeeds", "assistance": "askAssistance",
+    "chair_kind": "askChairKind", "readback_intro": "readbackIntro", "readback_q": "readbackQuestion", "fixed": "readbackFixed",
+    "fix": "whatToFix", "neighbor": "askNeighbor", "leave_now": "leaveNow", "goodbye": "goodbye", "repeat": "repeatPrompt",
+    "emergency": "emergency", "pets": "pets", "no_car": "noCar", "leaving": "leavingOnOwn", "by_car": "byCar",
+    "mobility": "mobility", "assist": "assistance", "oxygen": "oxygen",
+}
+
+
+def _lines(language: str) -> dict:
+    agent = lines_for(language)
+    lines = {key: agent[source] for key, source in FROM_AGENT.items()}
+    lines["waiting"] = with_safety(agent["waiting"], language)
+    return {**lines, **FORMATTED[language]}
+
+
+LINES = {language: _lines(language) for language in ("en", "es")}
 
 STAGE_OF = {"ask_address": "confirm_address", "confirm_address": "confirm_address", "can_leave": "can_leave", "has_car": "can_leave",
-            "household": "household", "needs": "needs", "assistance": "needs", "readback": "readback", "fix": "readback",
+            "household": "household", "needs": "needs", "chair_kind": "needs", "assistance": "needs", "readback": "readback", "fix": "readback",
             "neighbor": "close", "done": "close"}
 LIMITED = {"walker", "manual_wheelchair", "power_wheelchair", "bedbound"}
 ADDRESS_STEPS = {"ask_address", "confirm_address", "readback", "fix"}
@@ -81,6 +62,8 @@ NO = re.compile(SENTENCE_START + r"(no|nope|not really)\b(?!,? (we|i|todos|puedo
 REPEAT = re.compile(r"(what\?|say that again|can'?t hear|repeat|como\?|no le oigo|repetir)")
 FLAMES = re.compile(r"(flames|fire is (here|at)|llamas|fuego (esta|en))")
 MEDICAL = re.compile(r"(trouble breathing|can'?t breathe|chest pain|no puede respirar|dolor de pecho|heart attack)")
+# Which kind of wheelchair: one that's pushed, or one with a motor (interpreter.ts says_chair_kind).
+CHAIR_KIND = re.compile(r"(manual|push|power|electric|motor|battery|electrica|empuj|bateria)")
 RIDE = re.compile(r"(someone coming|anyone coming|are they coming|va a venir|vienen por|come get me)")
 NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6}
 
@@ -146,7 +129,7 @@ def interpret(utterance: str, book: AddressBook) -> dict:
     text = strip_accents(utterance.lower())
     if REPEAT.search(text) and not digits_in(utterance):
         # "Sorry, I can't hear you" asks for the question again; it answers nothing.
-        return {"updates": {}, "answer": None, "emergency": None, "asksAboutRide": False, "wantsRepeat": True}
+        return {"updates": {}, "answer": None, "emergency": None, "asksAboutRide": False, "wantsRepeat": True, "saysChairKind": False}
     updates: dict = {}
     for key, value in (("peopleCount", _people(text)), ("mobility", _mobility(text)), ("assistanceRequired", _assistance(text)),
                        ("canLeave", _can_leave(text))):
@@ -169,7 +152,7 @@ def interpret(utterance: str, book: AddressBook) -> dict:
     answer = "yes" if YES.search(text) else "no" if NO.search(text) else None
     emergency = "flames" if FLAMES.search(text) else "medical" if MEDICAL.search(text) else None
     return {"updates": updates, "answer": answer, "emergency": emergency, "asksAboutRide": bool(RIDE.search(text)),
-            "wantsRepeat": False}
+            "wantsRepeat": False, "saysChairKind": bool(CHAIR_KIND.search(text))}
 
 
 @dataclass
@@ -182,6 +165,7 @@ class ScriptedConversation:
     step: str = "ask_address"
     tries: int = 0
     readbacks: int = 0
+    chair_kind_known: bool = False  # "wheelchair" alone doesn't say whether it's a 400-pound battery chair
     escalations: list = field(default_factory=list)
     nominations: list = field(default_factory=list)
 
@@ -217,7 +201,7 @@ class ScriptedConversation:
         leaving = r.get("canLeave") == "yes" and r.get("hasCar") is not False and not r.get("mobility")
         parts = [l["leaving"] if leaving else None, l["by_car"] if leaving and r.get("hasCar") else None,
                  l["people"](r["peopleCount"]) if "peopleCount" in r else None, l["mobility"].get(r.get("mobility")),
-                 l["oxygen"] if "oxygen" in (r.get("medical") or []) else None, l["assist"].get(r.get("assistanceRequired")),
+                 l["oxygen"] if "oxygen" in (r.get("medical") or []) else None, l["assist"].get(r.get("assistanceRequired")) if r.get("assistanceRequired") != "none" else None,
                  l["pets"] if r.get("pets") else None, l["no_car"] if r.get("hasCar") is False else None,
                  l["at"].format(address=r["address"]) if r.get("address") else None]
         summary = ", ".join(p for p in parts if p)
@@ -239,6 +223,8 @@ class ScriptedConversation:
             heard["updates"].pop("canLeave", None)  # "no se puede levantar" isn't an answer to "can you leave"
         changed = {k: v for k, v in heard["updates"].items() if self.record.get(k) != v}
         self.record.update(changed)
+        if heard["saysChairKind"] and "mobility" in heard["updates"]:
+            self.chair_kind_known = True
         urgent = []
         if heard["emergency"] and heard["emergency"] not in self.escalations:
             self.escalations.append(heard["emergency"])
@@ -288,7 +274,15 @@ class ScriptedConversation:
                 r["mobility"] = "walks"
             if "mobility" not in r:
                 return self._retry_or("readback"), []
-            return ("assistance" if r["mobility"] in LIMITED and "assistanceRequired" not in r else "readback"), []
+            return self._after_mobility(), []
+        if step == "chair_kind":
+            if heard["answer"] == "yes" and r["mobility"] == "manual_wheelchair":
+                r["mobility"] = "power_wheelchair"
+            settled = heard["answer"] in ("yes", "no") or r["mobility"] != "manual_wheelchair"
+            if not settled and self.tries + 1 < 2:
+                return "chair_kind", []
+            self.chair_kind_known = True
+            return self._after_mobility(), []
         if step == "assistance":
             if "assistanceRequired" not in r and heard["answer"] == "no":
                 r["assistanceRequired"] = "none"
@@ -315,7 +309,17 @@ class ScriptedConversation:
             return "household"
         if "mobility" not in r:
             return "needs"
-        return "assistance" if r["mobility"] in LIMITED and "assistanceRequired" not in r else "readback"
+        return self._after_mobility()
+
+    def _needs_chair_kind(self) -> bool:
+        """A wheelchair heard on this call with no kind said; the agency's file already says which kind (conversation.ts)."""
+        mobility = self.record.get("mobility")
+        return mobility == "manual_wheelchair" and mobility != self.on_file.get("mobility") and not self.chair_kind_known
+
+    def _after_mobility(self) -> str:
+        if self._needs_chair_kind():
+            return "chair_kind"
+        return "assistance" if self.record["mobility"] in LIMITED and "assistanceRequired" not in self.record else "readback"
 
     def _after_leave(self) -> str:
         """Residents leaving on their own still hear a short read-back, so a mistaken yes can be corrected."""

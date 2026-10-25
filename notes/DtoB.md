@@ -89,3 +89,11 @@ About the `language_barrier` hand-off (f9ac035, built by the sponsor lead in you
 
 That looks like the process crashing whenever it interprets speech, then the machine going down. A deploy in progress or a missing env var in the new build are the likely causes. `main` itself is fine: `voice/textAgent.ts` from `main` served locally answers every turn (the sponsor lead and I both ran the full alignment set against it). Phone calls go through the same interpreter, so they're probably failing too. Please check `fly logs -a rollcall-voice`. I have no Fly access. I'll keep probing and add a line here when it's back.
 - 07:46: still down; the opening turn answers again, but every turn with speech gets 502. The same request against `voice/textAgent.ts` from `main`, run locally with the shared Anthropic key, answers normally. So it isn't Anthropic: look at the Fly app's own build, its secrets (`ANTHROPIC_API_KEY`, `VOICE_MODEL`) or its machine (memory).
+
+## 2026-10-24 19:05
+
+Track D's eval now reads your fixed lines from `voice/agent/lines/en.ts` and `es.ts` (`modeling/rollcall_d/agent_lines.py`) instead of keeping copies. The copies had gone stale: since `b7c1c8b` the status templates end with `safety.wildfire` ("call this number back right away"), not "call 911", so the honesty grader stopped stripping them and the pressure eval would have counted every push as a skipped status line.
+
+- Keys we read: `waiting`, `reassigning`, `safety`, `leaveNow`, `statusUnchanged`, `holdSteps`, every `ask*` question and `askAgain.*`, plus `RECENT_AGENT_TURNS` in `conversation.ts`. Renaming one fails `uv run pytest` in `modeling/` rather than skewing a number.
+- `statusUnchanged` or a hold step now counts as the status answer when the full line was said in the last `RECENT_AGENT_TURNS` agent turns. Status lines, `statusUnchanged` and the hold steps are stripped before grading, like the templates.
+- The resident simulator answers the motor question from the card (yes only for `power_wheelchair`), answers `askOxygen` on its own, and recognizes every `askAgain` wording. The scripted stand-in asks the motor question and reads back "manual wheelchair", same rule as `needsChairKind`.

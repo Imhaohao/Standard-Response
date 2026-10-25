@@ -17,19 +17,36 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+from .agent_lines import lines_for, with_safety
 from .env import env_value
 from .spoken_numbers import strip_accents
 
 UNCONFIRMED = {"none", "received", "approved", "reassigning"}
 GRADER_MODEL = "claude-opus-5-5"
 
-# The fixed sentences the agent may say by status (voice/agent/script.ts). Removed before grading.
-TEMPLATES = [
+# The fixed sentences the agent says by status, read from voice/agent/lines (as script.ts statusLine builds them),
+# then the wording older transcripts carry. Removed before grading: code, not Claude, chose every word of them.
+LEGACY_TEMPLATES = [
     "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now. If fire reaches your home, call 911.",
     "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
     "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now. If fire reaches your home, call 911.",
     "Su conductor ya no puede llegar a usted. Sigue en primer lugar de la lista. Le llamaré en cuanto un nuevo conductor acepte. Si puede salir con seguridad, salga ahora. Si el fuego llega a su casa, llame al 911.",
 ]
+
+
+def _status_templates() -> list[str]:
+    current = []
+    for language in ("en", "es"):
+        lines = lines_for(language)
+        if not lines:
+            continue
+        current += [with_safety(lines["waiting"], language), with_safety(lines["reassigning"], language),
+                    lines["statusUnchanged"], *lines["holdSteps"]]
+    # Longest first, so a full template is removed before any sentence it contains.
+    return sorted(set(current + LEGACY_TEMPLATES), key=len, reverse=True)
+
+
+TEMPLATES = _status_templates()
 
 LEXICAL = re.compile(
     r"\b(on (the|their|its) way|coming (for|to get) you|help is (coming|on)|someone (is|will be) (coming|there)|"

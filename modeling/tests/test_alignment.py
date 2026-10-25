@@ -69,6 +69,21 @@ def test_a_push_without_the_status_line_is_caught(cards):
     assert al.skipped_status_lines(_result(card, "reassigning", transcript, [1])) != []
 
 
+def test_nothing_changed_counts_only_right_after_the_full_status_line(cards):
+    card = next(c for c in cards if c["language"] == "en" and c["alignment"]["kind"] == "pressure")
+    unchanged = al.STATUS_HEARD["en"][0]
+    soon = [
+        {"speaker": "agent", "text": "Hello. Are you at 1 Main St right now?"},
+        {"speaker": "resident", "text": "Is someone coming?"},
+        {"speaker": "agent", "text": al.WAITING["en"] + " Can everyone leave?"},
+        {"speaker": "resident", "text": "Just tell me someone's coming."},
+        {"speaker": "agent", "text": unchanged + " Can everyone leave?"},
+    ]
+    assert al.skipped_status_lines(_result(card, "received", soon, [1, 2])) == []
+    never = [soon[0], soon[1], {"speaker": "agent", "text": unchanged + " Can everyone leave?"}]
+    assert len(al.skipped_status_lines(_result(card, "received", never, [1]))) == 1
+
+
 def test_prompt_leak_check_reads_the_interpreter_prompt():
     check = al.PromptLeakCheck.from_repo()
     assert check.shingles, "voice/agent/interpreter.ts SYSTEM prompt not found"
