@@ -1,7 +1,7 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { findApprovedAnswer } from "./answerLookup";
 import { withApprovedAnswer } from "./approvedAnswers";
-import { guardAcknowledgment } from "./honesty";
+import { guardAcknowledgment, GuardResult } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
 import { quickReading } from "./quickAnswer";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
@@ -256,7 +256,22 @@ export class Conversation {
     this.quietCheckIns = 0;
     this.quietOnHold = 0;
     if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
-    return this.done ? this.afterGoodbye(heard) : this.answer(heard);
+    return this.done ? this.afterGoodbye(heard) : this.answer(this.householdAddress(heard));
+  }
+
+  // An address given in answer to the address question is the one this call is about, even when the
+  // caller is away: "I'm in the car, he's at our house, 3037 Ewing Street" was filed as a neighbor,
+  // and the agent then said it couldn't catch the address and recorded none.
+  private householdAddress(heard: Interpretation): Interpretation {
+    const asking = (this.step === "ask_address" || this.step === "confirm_address") && !this.record.address && !this.knownAddress;
+    const given = heard.neighborAddresses.find((place) => /^\s*\d/.test(place));
+    if (!asking || heard.updates.address || !given) return heard;
+    return {
+      ...heard,
+      updates: { ...heard.updates, address: given },
+      confidence: { ...heard.confidence, address: 0.9 },
+      neighborAddresses: heard.neighborAddresses.filter((place) => place !== given),
+    };
   }
 
   private answer(heard: Interpretation): AgentTurn {
@@ -315,17 +330,11 @@ export class Conversation {
     const status = this.effects.rideStatus()?.status ?? "none";
     const leavingHold = this.done && this.reachedHold;
     const ack = this.acknowledgmentFor(heard, status, Boolean(transfer) || leavingHold);
-    // Claude's answer to the resident's own question passes the same guard, and is dropped if blocked.
-    // On hold the question is about the ride, so a dropped answer is replaced by the status line,
-    // which says the true version, rather than leaving the caller with silence (or, if they just
-    // heard it, by something to do while they wait).
     const answer = guardAcknowledgment(heard.reply, status, this.language);
     const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const feeling = this.feelingLines(heard, status, urgent);
-    // A reply that names the feeling again after the feeling line is scripted sympathy: dropped.
-    const repeatsFeeling = feeling.length > 0 && FEELING_WORDS.test(answer.text);
-    const said = answer.blocked ? (this.holding ? [this.rideUpdate(heard)] : []) : repeatsFeeling ? [] : this.freshReply(answer.text);
+    const said = this.claudeAnswer(heard, answer, feeling);
     const lines = [...greeting, ...feeling, ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
@@ -362,6 +371,18 @@ export class Conversation {
     if (feeling.blocked || normalized === "" || normalized === this.lastFeeling) return [];
     this.lastFeeling = normalized;
     return [feeling.text];
+  }
+
+  // Claude's answer to the resident's own question, after the same guard as the acknowledgment.
+  // On hold a blocked answer is replaced by the status line, which says the true version, rather
+  // than leaving the caller with silence (or, if they just heard it, by something to do meanwhile).
+  // A reply naming the feeling again after the feeling line is scripted sympathy, and a ride
+  // question is answered by the status line alone: "Is someone coming?" got "Yes, I'm staying on
+  // the line with you." from Claude, which a caller hears as yes, someone is coming.
+  private claudeAnswer(heard: Interpretation, answer: GuardResult, feeling: string[]) {
+    if (answer.blocked) return this.holding ? [this.rideUpdate(heard)] : [];
+    const repeatsFeeling = feeling.length > 0 && FEELING_WORDS.test(answer.text);
+    return repeatsFeeling || heard.asksAboutRide ? [] : this.freshReply(answer.text);
   }
 
   // Facts the resident just gave are said back from templates, so "two people, with pets" is heard
@@ -730,9 +751,16 @@ export class Conversation {
   // The status in full, or that it hasn't changed when they heard it in the last few agent turns.
   // A life threat always hears the status in full, since its last sentences are what to do if the
   // hazard reaches them: "I can see the fire approaching" got "Nothing has changed" on a real call.
+  // "Nothing has changed" only follows a status the caller was actually told. "Leave now" or "I need
+  // the address" isn't one: said after those, it claimed an update that never happened.
   private rideUpdate(heard?: Interpretation) {
     const lifeThreat = heard !== undefined && heard.emergency !== "none";
-    return this.rideJustSaid() && !lifeThreat ? LINES[this.language].statusUnchanged : this.rideLine();
+    if (!this.rideJustSaid() || lifeThreat) return this.rideLine();
+    return this.hasStatus() ? LINES[this.language].statusUnchanged : "";
+  }
+
+  private hasStatus() {
+    return this.effects.rideStatus() !== null || (needsRide(this.record) && Boolean(this.record.address ?? this.knownAddress));
   }
 
   // Only the full line counts, so asked every few turns the caller still hears it in full now and then.

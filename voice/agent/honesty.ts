@@ -10,8 +10,8 @@ import { Language, RequestStatus } from "./script";
 // HELP_ON_THE_WAY holds what the voice exam caught Claude saying instead ("we're working on getting
 // help to you", "the crew knows to bring", "Estamos trabajando para ayudarle", "Seguimos con usted").
 const HELP_ON_THE_WAY = [
-  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by|here with you|your agent|i'?m marking|i'?m noting|i'?ve noted|when (help|someone|they)|plan (a|the|your) (ride|pickup)|the code|the system|yes,? (it'?s|that'?s) (fine|okay|ok)|to send|for the vehicle|the vehicle (will|is|that)|i can help with that|bring (the|a) (right )?vehicle|who'?s coming|someone'?s coming|noted|i can (hear|see) (the|that) (fire|flames|smoke))\b/i,
-  /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|estamos con usted|estoy aqu[ií] con usted|cu[aá]ndo (lleg|vien)|lleg(a|ue) (la )?ayuda|el c[oó]digo|el sistema|^s[ií],? est[aá] bien|despachadores? (ya )?(tienen|saben|ven))/i,
+  /\b((get|getting|send|sending|bring|bringing) (you )?(the right )?help|help (will|gets?|is coming|arriv|to send)|working (on|to)|crews?|the right (help|people)|dispatchers? (can see|have|has|know|are|is)|handled by|here with you|your agent|i'?m marking|i'?m noting|i'?ve noted|when (help|someone|they)|plan (a|the|your) (ride|pickup)|the code|the system|yes,? (it'?s|that'?s) (fine|okay|ok)|to send|for the vehicle|the vehicle (will|is|that)|i can help with that|bring (the|a) (right )?vehicle|send (you|the|a) |who'?s coming|someone'?s coming|noted|i can (hear|see) (the|that) (fire|flames|smoke))\b/i,
+  /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|estamos con usted|estamos ayudando|lo m[aá]s r[aá]pido|estoy aqu[ií] con usted|cu[aá]ndo (lleg|vien)|lleg(a|ue) (la )?ayuda|el c[oó]digo|el sistema|^s[ií],? est[aá] bien|despachadores? (ya )?(tienen|saben|ven))/i,
 ];
 
 // Advice the agent can't stand behind: it sees no fire, roads or officers. The fixed lines carry the

@@ -25,6 +25,8 @@ const CAUGHT = [
   ["en", "I can help with that, and I'll need her address first."],
   ["en", "It helps us bring the right vehicle for your chair."],
   ["en", "You want to know who's coming."],
+  ["en", "That helps us send the right vehicle for you."],
+  ["es", "Le estamos ayudando lo más rápido posible."],
   ["en", "Your local news and the official alerts will have the latest on that."],
   ["en", "Embers on you means danger, so keep driving and stay on the main road out."],
   ["en", "I can't say when anyone will reach her, but I can take her address now."],

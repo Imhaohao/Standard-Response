@@ -188,6 +188,20 @@ describe("answers that don't answer", () => {
     assert.equal(conversation.record.canLeave, "unsure");
   });
 
+  it("never says nothing has changed before any status was given", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("yes, we're leaving", heard({ answer: "yes", updates: { canLeave: "yes" }, asksAboutRide: true }));
+    const again = conversation.respond("yes we have the car", heard({ answer: "yes", updates: { hasCar: true }, asksAboutRide: true }));
+    assert.ok(!again.sentences.includes(EN.statusUnchanged));
+  });
+
+  it("takes an address given at the address question as the household's, even filed as a neighbor", () => {
+    const { conversation } = call(null);
+    conversation.respond("I'm in the car. He's at our house, 3037 Ewing Street.", heard({ neighborAddresses: ["3037 Ewing Street"] }));
+    assert.equal(conversation.record.address, "3037 Ewing Street");
+    assert.equal(conversation.step, "confirm_address");
+  });
+
   it("passes on a neighbor named on two turns once", () => {
     const nominations: string[] = [];
     const conversation = new Conversation({
