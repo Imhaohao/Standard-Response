@@ -43,7 +43,7 @@
 | Apify: best use, and best Actor | Our public Actor "California evacuation status" (apify.com/sangria_marzipan/california-evacuation-status) normalizes CA evacuation zones and Caltrans closures and starts Rider Check when a zone with riders goes to warning. |
 | Microsoft: Built for the Real World, and Customer Impact | Built with firefighters and battalion officers; human-approved dispatch, honest status lines, measured evals, data deleted when the incident closes. |
 | MLH: Auth0 | Dispatcher login with role-gated access to the at-risk list and step-up auth on the first ride approval. |
-| MLH: DigitalOcean | The OR-Tools dispatch solver runs on DigitalOcean App Platform. |
+| MLH: DigitalOcean | Our dispatch solver, an adaptive large neighborhood search (ALNS) with OR-Tools and a greedy heuristic as baselines, runs on DigitalOcean App Platform. |
 | MLH: Gen AI | Claude (Anthropic) powers the voice agent. |
 | MLH: Commit Fellowship | Opt in, then fill in MLH's extra form. |
 | MLH: .tech / GoDaddy domain | Only if someone registers a domain before submitting. |
@@ -189,3 +189,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - **`claim` now clears `away`**, which an old "nobody's home" call left on the house.
 - **New `claims:releaseHouse({ householdId })` (internal):** gives back one judge's house. Use it to undo a test claim; `clearAll` also clears every real judge's house (one is on the deployment now, +86...).
 - Tests: `tests/workflow/claimStatus.test.ts`.
+
+## 2026-10-25 03:45
+
+**Devpost check:** the README now says the live solver is ALNS, not OR-Tools (`convex/dispatchWorld.ts` asks for `alns`), so the DigitalOcean paste above says so too. Whoever has the Devpost text: check it against the README's sponsor table. Gemini, Elastic, Fetch.ai and Bright Data are built but haven't run, and Atlassian isn't deployed. Don't call any of them live.
