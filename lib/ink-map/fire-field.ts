@@ -14,14 +14,25 @@ export type FireField = {
 export const NEVER_BURNS = 1e4;
 const FRONT_SPACING_MINUTES = 30;
 
-type GeoJsonFeature = { properties: { minutesAfterWarning: number }; geometry: { coordinates: number[][][] } };
+type Ring = number[][];
+type GeoJsonFeature = {
+  properties: { minutesAfterWarning: number };
+  geometry: { type: "Polygon"; coordinates: Ring[] } | { type: "MultiPolygon"; coordinates: Ring[][] };
+};
+
+// A front's outline: the outer ring of the polygon, or of the largest polygon when a band comes in
+// several pieces.
+function outerRing(geometry: GeoJsonFeature["geometry"]): Ring {
+  if (geometry.type === "Polygon") return geometry.coordinates[0];
+  return geometry.coordinates.map((polygon) => polygon[0]).reduce((largest, ring) => (ring.length > largest.length ? ring : largest));
+}
 export type ScenarioGeoJson = { features: GeoJsonFeature[] };
 
 export function scenarioFronts(geojson: ScenarioGeoJson, toLocal: (p: LatLng) => Point): ScenarioFront[] {
   return geojson.features
     .map((f) => ({
       minutes: f.properties.minutesAfterWarning,
-      ring: f.geometry.coordinates[0].map(([lng, lat]) => toLocal({ lat, lng })),
+      ring: outerRing(f.geometry).map(([lng, lat]) => toLocal({ lat, lng })),
     }))
     .sort((a, b) => a.minutes - b.minutes);
 }

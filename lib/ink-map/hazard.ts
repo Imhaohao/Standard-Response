@@ -8,7 +8,9 @@ import { simTime } from "@/lib/sim-clock";
 import { createProjection } from "./data";
 import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts } from "./fire-field";
 
-export type Hazard = { field: FireField; label: string; basis: string };
+// `burns` is false for a hazard that isn't a fire, such as an earthquake's damage bands: the map
+// shades the area it reaches but draws no flames, embers or smoke over it.
+export type Hazard = { field: FireField; label: string; basis: string; burns?: boolean };
 
 type ScenarioFile = ScenarioGeoJson & { metadata?: { label?: string; basis?: string } };
 
@@ -37,8 +39,9 @@ export function useHazard(origin: LatLng | undefined): Hazard | null {
       field: buildFireField(fronts),
       label: file.metadata?.label ?? "Scenario input, not a forecast",
       basis: file.metadata?.basis ?? "",
+      burns: loaded?.kind === "wildfire",
     };
-  }, [origin, file]);
+  }, [origin, file, loaded?.kind]);
 }
 
 // Minute 0 is the warning, and the fire runs on the night's clock, the same clock Track D's

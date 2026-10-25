@@ -209,12 +209,18 @@ export function MapStage({
         <StageContext.Provider value={value}>
           {underlay && <OverlayLayer size={value.size}>{underlay}</OverlayLayer>}
           <OverlayLayer size={value.size}>{children}</OverlayLayer>
-          {mode === "ink" && hazard && <SmokeLayer fronts={hazard.field.fronts} minutes={minutes ?? 0} />}
+          {mode === "ink" && <HazardSmoke hazard={hazard} minutes={minutes} />}
           {controls}
         </StageContext.Provider>
       )}
     </div>
   );
+}
+
+// Smoke rises only from a hazard that burns.
+function HazardSmoke({ hazard, minutes = 0 }: { hazard?: Hazard | null; minutes?: number }) {
+  if (!hazard || hazard.burns === false) return null;
+  return <SmokeLayer fronts={hazard.field.fronts} minutes={minutes} />;
 }
 
 // Each overlay is its own compositor layer, so a marker that changes repaints only the markers and

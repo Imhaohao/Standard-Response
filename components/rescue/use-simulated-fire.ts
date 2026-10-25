@@ -16,6 +16,20 @@ import { Home } from "./marks";
 
 type Ignition = { point: Point; wind: Point; startedAt: number };
 
+const BUILDING_REACH_METERS = 40;
+
+// Any building on the map can be lit, not only the homes on file: the one whose middle is nearest
+// the click, if it is close enough to be the one clicked.
+function nearestBuilding(data: InkMapData, [x, y]: Point): Point | null {
+  let best: Point | null = null;
+  let bestDistance = BUILDING_REACH_METERS;
+  for (const building of data.buildings) {
+    const distance = Math.hypot(building.center[0] - x, building.center[1] - y);
+    if (distance < bestDistance) [best, bestDistance] = [building.center, distance];
+  }
+  return best;
+}
+
 const FIRST_RESPONSE: FireResponse = { construction: "older", engines: 1 };
 
 // A fire the dispatcher lights at a house to rehearse. It stands in for the scenario on this screen
@@ -30,10 +44,11 @@ export function useSimulatedFire(scenario: Hazard | null, data: InkMapData | nul
   const ignite = useCallback(
     (point: Point) => {
       const home = nearestHome(homes, point, toLocal);
-      if (!home) return;
-      setIgnition({ point: toLocal(home), wind: downwindOf(scenario?.field.fronts), startedAt: simTime(clock, Date.now()) });
+      const at = home ? toLocal(home) : data ? nearestBuilding(data, point) : null;
+      if (!at) return;
+      setIgnition({ point: at, wind: downwindOf(scenario?.field.fronts), startedAt: simTime(clock, Date.now()) });
     },
-    [homes, toLocal, scenario, clock],
+    [homes, toLocal, scenario, clock, data],
   );
 
   const fire = useMemo(() => (ignition && data ? ignitionHazard(data.buildings, ignition.point, ignition.wind, response) : null), [data, ignition, response]);

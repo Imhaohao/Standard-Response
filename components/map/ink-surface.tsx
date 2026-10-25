@@ -43,7 +43,7 @@ export function InkSurface({
 
   useEffect(() => {
     if (!handle) return;
-    handle.renderer.setFire(hazard?.field ?? null);
+    handle.renderer.setFire(hazard?.field ?? null, hazard?.burns !== false);
     handle.renderer.setBuildingStates(highlights);
     if (hazard || highlights.size > 0) handle.renderer.start();
     else handle.renderer.stop();

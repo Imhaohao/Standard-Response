@@ -205,6 +205,7 @@ export class InkMapRenderer {
       uForecastRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
       uForecastOn: { value: 0 },
       uForecastAhead: { value: 60 },
+      uBurning: { value: 1 },
     };
   }
 
@@ -472,13 +473,15 @@ export class InkMapRenderer {
     cancelAnimationFrame(this.frame);
   }
 
-  setFire(field: FireField | null) {
+  // `burning` false shades the area the hazard reaches without flames or embers (an earthquake).
+  setFire(field: FireField | null, burning = true) {
     const u = this.composite.material.uniforms;
     this.fireTexture?.dispose();
     this.fireTexture = null;
     this.baseDirty = true;
-    this.fireField = field;
-    this.flames.place(field, u.uFireNow.value);
+    this.fireField = burning ? field : null;
+    u.uBurning.value = burning ? 1 : 0;
+    this.flames.place(this.fireField, u.uFireNow.value);
     if (!field) {
       u.uFireOn.value = 0;
       return;

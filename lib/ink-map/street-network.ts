@@ -250,3 +250,35 @@ export function blockedStreets(network: StreetNetwork, data: InkMapData, closedE
   }
   return blocked;
 }
+
+// The block of drawn street under a point: the run of links between the two corners either side of
+// the nearest link, for closing a street the drive graph doesn't have.
+export function streetBlockAt(network: StreetNetwork, point: Point, withinMeters: number) {
+  const near = nearestStreetNode(network, point, withinMeters + GRID_METERS);
+  if (near === null) return null;
+  let best: { a: number; b: number; distance: number } | null = null;
+  for (const from of [near, ...network.links[near].map((link) => link.to)]) {
+    for (const { to } of network.links[from]) {
+      const distance = distanceToChord(point, network.points[from], network.points[to]);
+      if (distance <= withinMeters && (!best || distance < best.distance)) best = { a: from, b: to, distance };
+    }
+  }
+  if (!best) return null;
+  const forward = walkToCorner(network, best.a, best.b);
+  const backward = walkToCorner(network, best.b, best.a);
+  const nodes = [...backward.reverse(), ...forward];
+  return { path: nodes.map((node) => network.points[node]), key: `street:${linkKey(nodes[0], nodes[nodes.length - 1])}` };
+}
+
+// From one end of a link through its other end and on along the street until a corner or a dead end.
+function walkToCorner(network: StreetNetwork, from: number, to: number) {
+  const nodes = [to];
+  let [previous, current] = [from, to];
+  while (network.links[current].length === 2 && nodes.length < 400) {
+    const next = network.links[current].find((link) => link.to !== previous)?.to;
+    if (next === undefined || next === to) break;
+    nodes.push(next);
+    [previous, current] = [current, next];
+  }
+  return nodes;
+}

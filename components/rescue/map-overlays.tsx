@@ -197,7 +197,7 @@ const TAG_CHAR_WIDTH = 6.4;
 // The street block under the pointer while the closing tool is out, marked the way a closed road
 // is marked, with a tag saying which street a click closes.
 function StreetUnderPointer({ street }: { street: StreetPick }) {
-  const shape = street.edge.shape;
+  const shape = street.shape;
   const middle = shape[Math.floor(shape.length / 2)];
   const label = `Close ${street.name ?? "this street"}`;
   const width = label.length * TAG_CHAR_WIDTH + 16;

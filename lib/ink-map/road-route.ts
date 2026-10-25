@@ -65,8 +65,8 @@ export function nearestStreetBlock(data: InkMapData, point: Point, withinMeters:
 }
 
 // The street's name, from the drawn road that runs closest to the middle of a block.
-export function streetName(data: InkMapData, edge: GraphEdge): string | null {
-  const middle = edge.shape[Math.floor(edge.shape.length / 2)];
+export function streetName(data: InkMapData, shape: Point[]): string | null {
+  const middle = shape[Math.floor(shape.length / 2)];
   let best: string | null = null;
   let bestDistance = 25;
   for (const road of data.roads) {

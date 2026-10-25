@@ -636,6 +636,7 @@ uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uPatternScale;
+uniform float uBurning;
 
 // A roof waiting on a ride breathes: the base drew it at full red, and this eases it toward paper.
 vec3 breathe(vec4 base) {
@@ -694,7 +695,7 @@ void main() {
   if (depth < 1.0) {
     vec3 w = worldPosition(uv, depth);
     vec2 mapXY = vec2(w.x, -w.z);
-    color = embers(color, mapXY, bloom.g);
+    color = embers(color, mapXY, bloom.g * uBurning);
     color = burntPaperEdge(color, mapXY, bloom.r, glow);
   }
   color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.4);

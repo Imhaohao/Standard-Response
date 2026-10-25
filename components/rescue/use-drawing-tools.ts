@@ -4,15 +4,26 @@ import { useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
-import { GraphEdge, InkMapData, Point } from "@/lib/ink-map/data";
+import { InkMapData, Point } from "@/lib/ink-map/data";
 import { nearestStreetBlock, streetName } from "@/lib/ink-map/road-route";
-import { nearestCorner, StreetNetwork, streetNetwork, streetsBetweenCorners } from "@/lib/ink-map/street-network";
+import { nearestCorner, streetBlockAt, StreetNetwork, streetNetwork, streetsBetweenCorners } from "@/lib/ink-map/street-network";
 import { MapTool } from "./map-chrome";
 
 const CORNER_REACH_METERS = 150;
 const STREET_REACH_METERS = 45;
 
-export type StreetPick = { edge: GraphEdge; name: string | null };
+// A block of street to close. `edgeKey` names it in the dispatcher's drive graph when it is one of
+// its blocks; streets the graph lacks go without, and the dispatcher snaps them itself.
+export type StreetPick = { key: string; shape: Point[]; edgeKey: string | null; name: string | null };
+
+const ON_DRIVE_GRAPH_METERS = 15;
+
+function streetPickAt(data: InkMapData, point: Point): StreetPick | null {
+  const edge = nearestStreetBlock(data, point, ON_DRIVE_GRAPH_METERS);
+  if (edge) return { key: edge.key, shape: edge.shape, edgeKey: edge.key, name: streetName(data, edge.shape) };
+  const block = streetBlockAt(streetNetwork(data), point, STREET_REACH_METERS);
+  return block ? { key: block.key, shape: block.path, edgeKey: null, name: streetName(data, block.path) } : null;
+}
 
 // A warning zone is drawn corner by corner. Every corner is a street corner, and the edge between
 // two corners runs along the streets, so the zone's boundary is a line a crew can actually drive.
@@ -116,22 +127,21 @@ function useStreetClosing(data: InkMapData | null, toLatLng: (point: Point) => L
 
   const pickAt = useCallback(
     (point: Point | null): StreetPick | null => {
-      const edge = point && data ? nearestStreetBlock(data, point, STREET_REACH_METERS) : null;
-      return edge && data ? { edge, name: streetName(data, edge) } : null;
+      return point && data ? streetPickAt(data, point) : null;
     },
     [data],
   );
 
   const hover = useCallback((point: Point | null) => setStreet((current) => {
     const next = pickAt(point);
-    return next?.edge.key === current?.edge.key ? current : next;
+    return next?.key === current?.key ? current : next;
   }), [pickAt]);
 
   const close = useCallback(
     async (point: Point) => {
       const pick = pickAt(point);
       if (!pick) return;
-      await addClosures({ closures: [{ edgeKey: pick.edge.key, path: pick.edge.shape.map(toLatLng), source: "manual" }] });
+      await addClosures({ closures: [{ edgeKey: pick.edgeKey ?? undefined, path: pick.shape.map(toLatLng), source: "manual" }] });
       onClosed(`${pick.name ?? "Street"} closed`);
     },
     [pickAt, addClosures, toLatLng, onClosed],
