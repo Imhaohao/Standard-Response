@@ -13,7 +13,9 @@ import { blockedMask, isBurning, JAM_SPACING_METERS, MIN_SPEED_SHARE, Potential,
 // e(x) aims at a point a little way ahead on the driver's street (pure pursuit; the route is in
 // navigation.ts). v_des is the street's free speed slowed by the road ahead (Greenshields:
 // v_free (1 - k / k_jam)), with k read from the gap to the nearest car ahead going the same way and
-// k_jam the route choice's 7.5 m of lane per car; s = v_des / v_free is the driver's pace. lambda
+// k_jam the route choice's 7.5 m of lane per car; s = v_des / v_free is the driver's pace. Ahead of
+// a corner v_des drops further, so the car brakes in time to take it at sqrt(a_lat R), R the turn's
+// radius, and no faster than the street it turns onto (see `cornerBraking`). lambda
 // matches the speed of that car ahead (the full velocity difference model), weighted by how near
 // it is (w). F_rep is a soft exponential repulsion between vehicles (Helbing and Molnar's social
 // force), felt from the car ahead and barely from the car behind, settled by right of way where two
@@ -72,6 +74,10 @@ export type CrowdParams = {
   // How far ahead a driver reads the road's density, in metres. Gaps past half of it count for
   // less, down to free flow at the full distance.
   lookAhead: number;
+  // Lateral acceleration a driver takes a turn at, m/s², and how hard it brakes ahead of one,
+  // m/s². A 90-degree turn comes out at about 20 km/h.
+  turnAcceleration: number;
+  comfortBraking: number;
   refreshMinutes: number;
   // Logit spread of route choice in seconds: a street whose route is this much slower than the
   // fastest is taken 1/e as often. 0 always takes the fastest.
@@ -99,6 +105,8 @@ export const DEFAULT_CROWD: CrowdParams = {
   maxRepulsion: 8,
   speedMatching: 0.5,
   lookAhead: 20,
+  turnAcceleration: 3,
+  comfortBraking: 2,
   refreshMinutes: 5,
   routeSpreadSeconds: 60,
   congestionMemory: 0.5,
@@ -135,6 +143,16 @@ export function speedShare(gap: number, lanes: number, lookAhead: number) {
 export const gapWeight = (gap: number, lookAhead: number) => Math.max(0, Math.min(1, 2 * (1 - gap / lookAhead)));
 
 type Ou = ReturnType<typeof ouCoefficients>;
+
+// The share of `open` (open-road speed, or a sum of them) that `speed` falls short of, 0 to 1.
+// Speeds are along each car's route, so a stalled car's can dip below 0; the share stops at 1.
+export const crowdingShare = (speed: number, open: number) => (open > 0 ? Math.min(1, Math.max(0, 1 - speed / open)) : 0);
+
+// The angle in radians between two directions, 0 for straight on and pi for a U-turn.
+function turnAngle(ax: number, ay: number, bx: number, by: number) {
+  const lengths = Math.hypot(ax, ay) * Math.hypot(bx, by);
+  return lengths < 1e-9 ? 0 : Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by) / lengths)));
+}
 
 export type Discovery = { agent: number; segments: number[]; at: number };
 
@@ -175,6 +193,10 @@ export class CrowdSim {
   readonly edge: Int32Array;
   readonly point: Int32Array;
   readonly goal: Int32Array;
+  // The street the driver will turn onto at the end of `edge`, chosen as it enters `edge` so it can
+  // slow for the turn (-1 for none yet), and the route potential it was chosen on.
+  readonly next: Int32Array;
+  private plannedOn: (Potential | null)[];
   readonly stuck: Uint8Array;
   readonly known: Set<number>[];
   readonly discoveries: Discovery[] = [];
@@ -185,17 +207,27 @@ export class CrowdSim {
   // speed sample is how fast the car is making way along its route, not |v|: the velocity noise
   // alone gives a stopped car an |v| of about 1 m/s, and a car turning a corner isn't moving along
   // the street it is on.
+  //
+  // Crowding is measured against each car's open-road speed (`openSpeed`): how fast the same car
+  // would be driving at the same point of its route with nobody else on the road, slowing for the
+  // same corners and pulling away from them the same way. Measured against the street's free speed
+  // instead, every corner and every car pulling away from its driveway would count as traffic.
   readonly segmentEntries: Uint32Array;
   readonly segmentSpeedSum: Float64Array;
+  readonly segmentOpenSpeedSum: Float64Array;
   readonly segmentSpeedSamples: Uint32Array;
   // Driving seconds lost to crowding on each segment: every sample counts 30 s times the share of
-  // the street's free-flow speed the car didn't get.
+  // its open-road speed the car didn't get.
   readonly segmentLostSeconds: Float64Array;
   // The same speed samples by directed edge, so each direction of a street has its own speed: an
   // outbound jam says nothing about the empty lanes heading into the zone. The dispatcher's drive
   // times read these (convex/traffic.ts).
   readonly edgeSpeedSum: Float64Array;
+  readonly edgeOpenSpeedSum: Float64Array;
   readonly edgeSpeedSamples: Uint32Array;
+  // Each moving car's open-road speed along its heading, m/s: its along-heading dynamics with the
+  // noise and every other car taken away.
+  readonly openSpeed: Float64Array;
 
   private trueShut: Uint8Array;
   private trueBlocked = new Set<number>();
@@ -212,6 +244,10 @@ export class CrowdSim {
   private hashNext: Int32Array;
   private hashKey: Int32Array;
   private hashCols: number;
+  // Each edge's distance along it to each shape point, and the speed its bend at each interior
+  // shape point can be taken at (Infinity at the ends).
+  private pointAlong: Float64Array[];
+  private bendSpeed: Float64Array[];
 
   constructor(
     readonly ground: Ground,
@@ -222,7 +258,7 @@ export class CrowdSim {
   ) {
     this.count = households.length;
     const n = this.count;
-    [this.x, this.y, this.vx, this.vy, this.fx, this.fy, this.hx, this.hy, this.pace] = Array.from({ length: 9 }, () => new Float64Array(n));
+    [this.x, this.y, this.vx, this.vy, this.fx, this.fy, this.hx, this.hy, this.pace, this.openSpeed] = Array.from({ length: 10 }, () => new Float64Array(n));
     this.state = new Uint8Array(n);
     this.keen = new Uint8Array(n);
     this.people = new Uint16Array(n);
@@ -232,6 +268,8 @@ export class CrowdSim {
     this.edge = new Int32Array(n).fill(-1);
     this.point = new Int32Array(n);
     this.goal = new Int32Array(n);
+    this.next = new Int32Array(n).fill(-1);
+    this.plannedOn = Array(n).fill(null);
     this.stuck = new Uint8Array(n);
     this.known = Array.from({ length: n }, () => new Set<number>());
     this.agentPotential = Array(n).fill(null);
@@ -243,10 +281,25 @@ export class CrowdSim {
     this.router = new RoadRouter(ground, params.safeLat);
     this.segmentEntries = new Uint32Array(ground.segments.length);
     this.segmentSpeedSum = new Float64Array(ground.segments.length);
+    this.segmentOpenSpeedSum = new Float64Array(ground.segments.length);
     this.segmentSpeedSamples = new Uint32Array(ground.segments.length);
     this.segmentLostSeconds = new Float64Array(ground.segments.length);
     this.edgeSpeedSum = new Float64Array(this.router.edgeSpeed.length);
+    this.edgeOpenSpeedSum = new Float64Array(this.router.edgeSpeed.length);
     this.edgeSpeedSamples = new Uint32Array(this.router.edgeSpeed.length);
+    this.pointAlong = this.router.edgeShape.map((shape) => {
+      const along = new Float64Array(shape.length / 2);
+      for (let p = 1; p < along.length; p++) along[p] = along[p - 1] + Math.hypot(shape[2 * p] - shape[2 * p - 2], shape[2 * p + 1] - shape[2 * p - 1]);
+      return along;
+    });
+    this.bendSpeed = this.router.edgeShape.map((shape, e) => {
+      const speeds = new Float64Array(shape.length / 2).fill(Infinity);
+      for (let p = 1; p < speeds.length - 1; p++) {
+        const turn = turnAngle(shape[2 * p] - shape[2 * p - 2], shape[2 * p + 1] - shape[2 * p - 1], shape[2 * p + 2] - shape[2 * p], shape[2 * p + 3] - shape[2 * p + 1]);
+        speeds[p] = Math.min(this.router.edgeSpeed[e], this.turnSpeed(turn));
+      }
+      return speeds;
+    });
     for (const [i, household] of households.entries()) {
       [this.x[i], this.y[i]] = toXY(household);
       this.people[i] = Math.max(1, household.peopleCount);
@@ -275,6 +328,8 @@ export class CrowdSim {
       this.edge[agent] = -1;
       this.goal[agent] = this.router.edgeStart(edge);
     }
+    const next = this.next[agent];
+    if (this.edge[agent] < 0 || (next >= 0 && known.has(this.router.edgeSegment[next]))) this.next[agent] = -1;
   }
 
   trulyBlocked(): ReadonlySet<number> {
@@ -302,6 +357,7 @@ export class CrowdSim {
       hx: this.hx.slice(),
       hy: this.hy.slice(),
       pace: this.pace.slice(),
+      openSpeed: this.openSpeed.slice(),
       state: this.state.slice(),
       decision: this.decision.slice(),
       departedAt: this.departedAt.slice(),
@@ -309,14 +365,18 @@ export class CrowdSim {
       edge: this.edge.slice(),
       point: this.point.slice(),
       goal: this.goal.slice(),
+      next: this.next.slice(),
+      plannedOn: [...this.plannedOn],
       stuck: this.stuck.slice(),
       known: this.known.map((segments) => new Set(segments)),
       discoveries: [...this.discoveries],
       segmentEntries: this.segmentEntries.slice(),
       segmentSpeedSum: this.segmentSpeedSum.slice(),
+      segmentOpenSpeedSum: this.segmentOpenSpeedSum.slice(),
       segmentSpeedSamples: this.segmentSpeedSamples.slice(),
       segmentLostSeconds: this.segmentLostSeconds.slice(),
       edgeSpeedSum: this.edgeSpeedSum.slice(),
+      edgeOpenSpeedSum: this.edgeOpenSpeedSum.slice(),
       edgeSpeedSamples: this.edgeSpeedSamples.slice(),
       trueShut: this.trueShut.slice(),
       trueBlocked: new Set(this.trueBlocked),
@@ -521,12 +581,71 @@ export class CrowdSim {
       this.vy[i] = 0;
       return;
     }
-    const next = this.router.chooseEdge(node, this.potentialFor(i), this.known[i], this.params.routeSpreadSeconds, this.random);
+    const potential = this.potentialFor(i);
+    // The street planned on entering the last one, unless what the driver knows has changed since.
+    const planned = this.next[i];
+    const next =
+      planned >= 0 && this.plannedOn[i] === potential && this.router.edgeStart(planned) === node
+        ? planned
+        : this.router.chooseEdge(node, potential, this.known[i], this.params.routeSpreadSeconds, this.random);
     this.stuck[i] = next < 0 ? 1 : 0;
     if (next >= 0 && this.router.edgeSegment[next] >= 0) this.segmentEntries[this.router.edgeSegment[next]] += 1;
     this.edge[i] = next;
     this.goal[i] = node;
     this.point[i] = 1;
+    const end = next >= 0 ? this.router.edgeEnd(next) : -1;
+    this.next[i] = end >= 0 && !this.router.safe[end] ? this.router.chooseEdge(end, potential, this.known[i], this.params.routeSpreadSeconds, this.random) : -1;
+    this.plannedOn[i] = potential;
+  }
+
+  // The speed a turn through `angle` radians can be taken at: sqrt(a_lat R), with R the radius of
+  // the arc a driver steering pursuitMeters ahead cuts the corner on, pursuitMeters / (2 sin(angle / 2)).
+  private turnSpeed(angle: number) {
+    const { turnAcceleration, pursuitMeters } = this.params;
+    const half = Math.sin(angle / 2);
+    return half < 1e-6 ? Infinity : Math.sqrt((turnAcceleration * pursuitMeters) / (2 * half));
+  }
+
+  // The speed car i can take the corner at the end of its edge at: the turn onto the street it
+  // plans to take, no faster than that street's free speed. Infinity with no street planned.
+  private junctionSpeed(i: number, edge: number) {
+    const next = this.next[i];
+    if (next < 0) return Infinity;
+    const a = this.router.edgeShape[edge];
+    const b = this.router.edgeShape[next];
+    const n = a.length;
+    const turn = turnAngle(a[n - 2] - a[n - 4], a[n - 1] - a[n - 3], b[2] - b[0], b[3] - b[1]);
+    return Math.min(this.router.edgeSpeed[next], this.turnSpeed(turn));
+  }
+
+  // The deceleration car i needs, going `forward` m/s along its street, to slow to each corner
+  // ahead of it by the time it starts the turn, REACH_METERS short of the corner: the largest
+  // (v^2 - v_corner^2) / 2d over the corners within comfortable braking distance, capped at hard
+  // braking. 0 with no corner to slow for.
+  private cornerBraking(i: number, forward: number) {
+    const edge = this.edge[i];
+    const { comfortBraking, maxRepulsion, dt } = this.params;
+    if (edge < 0 || forward <= 0) return 0;
+    const shape = this.router.edgeShape[edge];
+    const last = shape.length / 2 - 1;
+    const p = Math.min(this.point[i], last);
+    const along = this.pointAlong[edge];
+    // How far the car is along its edge, from the start of the stretch it is on.
+    const [ax, ay] = [shape[2 * p - 2], shape[2 * p - 1]];
+    const stretch = along[p] - along[p - 1];
+    const ux = stretch > 1e-6 ? (shape[2 * p] - ax) / stretch : 0;
+    const uy = stretch > 1e-6 ? (shape[2 * p + 1] - ay) / stretch : 0;
+    const at = along[p - 1] + (this.x[i] - ax) * ux + (this.y[i] - ay) * uy;
+    const horizon = (forward * forward) / (2 * comfortBraking);
+    let need = 0;
+    for (let q = p; q <= last; q++) {
+      const distance = along[q] - at - REACH_METERS;
+      if (distance > horizon) break;
+      const corner = q < last ? this.bendSpeed[edge][q] : this.junctionSpeed(i, edge);
+      if (corner >= forward) continue;
+      need = Math.max(need, (forward * forward - corner * corner) / (2 * Math.max(distance, forward * dt)));
+    }
+    return Math.min(need, maxRepulsion);
   }
 
   private sampleFlow() {
@@ -534,14 +653,16 @@ export class CrowdSim {
       const edge = this.edge[i];
       if (this.state[i] !== STATE.moving || edge < 0) continue;
       const speed = this.routeSpeed(i);
+      const open = this.openSpeed[i];
       this.edgeSpeedSum[edge] += speed;
+      this.edgeOpenSpeedSum[edge] += open;
       this.edgeSpeedSamples[edge] += 1;
       const segment = this.router.edgeSegment[edge];
       if (segment < 0) continue;
       this.segmentSpeedSum[segment] += speed;
+      this.segmentOpenSpeedSum[segment] += open;
       this.segmentSpeedSamples[segment] += 1;
-      const freeSpeed = this.ground.segments[segment].kph / 3.6;
-      if (freeSpeed > 0) this.segmentLostSeconds[segment] += DECISION_EVERY_SECONDS * Math.min(1, Math.max(0, 1 - speed / freeSpeed));
+      if (open > 0) this.segmentLostSeconds[segment] += DECISION_EVERY_SECONDS * crowdingShare(speed, open);
     }
   }
 
@@ -552,7 +673,7 @@ export class CrowdSim {
   }
 
   // Streets where the most driving time was lost to crowding: cars through it times the share of
-  // free-flow speed they didn't get.
+  // open-road speed they didn't get.
   bottlenecks(limit = 10) {
     const rows: { segment: number; entries: number; meanSpeed: number; freeSpeed: number; slowdown: number }[] = [];
     for (let segment = 0; segment < this.segmentEntries.length; segment++) {
@@ -560,7 +681,7 @@ export class CrowdSim {
       if (samples < 5) continue;
       const meanSpeed = this.segmentSpeedSum[segment] / samples;
       const freeSpeed = this.ground.segments[segment].kph / 3.6;
-      const slowdown = Math.min(1, Math.max(0, 1 - meanSpeed / freeSpeed));
+      const slowdown = crowdingShare(this.segmentSpeedSum[segment], this.segmentOpenSpeedSum[segment]);
       rows.push({ segment, entries: this.segmentEntries[segment], meanSpeed, freeSpeed, slowdown });
     }
     return rows.sort((a, b) => b.entries * b.slowdown - a.entries * a.slowdown).slice(0, limit);
@@ -574,6 +695,7 @@ export class CrowdSim {
       if (this.decision[i] < 1) continue;
       this.state[i] = STATE.moving;
       this.departedAt[i] = this.seconds;
+      this.openSpeed[i] = 0;
     }
   }
 
@@ -686,7 +808,11 @@ export class CrowdSim {
     const hx = this.hx[i];
     const hy = this.hy[i];
     this.pace[i] = this.stuck[i] ? 0 : speedShare(gap, lanes, lookAhead);
-    let drive = (free * this.pace[i]) / tau;
+    const forward = this.vx[i] * hx + this.vy[i] * hy;
+    let drive = this.desiredSpeed(i, free * this.pace[i], forward) / tau;
+    // The open-road car relaxes the same way, exactly over the step.
+    const open = this.openSpeed[i];
+    this.openSpeed[i] = open + (this.desiredSpeed(i, free, open) - open) * (1 - Math.exp(-this.params.dt / tau));
     if (leader >= 0) {
       const closing = (this.vx[leader] - this.vx[i]) * hx + (this.vy[leader] - this.vy[i]) * hy;
       drive += speedMatching * gapWeight(gap, lookAhead) * closing;
@@ -694,11 +820,17 @@ export class CrowdSim {
     // Braking, for the car ahead or to match its speed, can bring this car to a stop within the
     // step but not drive it backwards. Without this a packed queue pushes its back end ever
     // further back.
-    const forward = this.vx[i] * hx + this.vy[i] * hy;
     const excess = Math.max(0, -Math.max(0, forward) / this.params.dt - (drive + rx * hx + ry * hy));
     const [ox, oy] = this.laneOffset(i);
     this.fx[i] = drive * hx + rx + excess * hx - laneStiffness * ox;
     this.fy[i] = drive * hy + ry + excess * hy - laneStiffness * oy;
+  }
+
+  // The speed car i, going `forward` m/s, relaxes toward: `wanted`, or less where it has to brake
+  // for a corner ahead, at the rate that corner needs.
+  private desiredSpeed(i: number, wanted: number, forward: number) {
+    const corner = this.cornerBraking(i, forward);
+    return corner > 0 ? Math.min(wanted, forward - this.params.tau * corner) : wanted;
   }
 
   // Anyone the scenario fire reaches before they get out.

@@ -234,6 +234,64 @@ describe("Langevin dynamics", () => {
     assert.equal(sim.point[0], 2, "steering for the next point on the street");
   });
 
+  // A straight one-lane street ending in a turn onto a street nearly at right angles, and the car
+  // that drives it from its start with no noise, planning that turn or none.
+  const intoTurn = (planTurn: boolean) => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const direction = (shape: Float64Array, from: number) => {
+      const dx = shape[from + 2] - shape[from];
+      const dy = shape[from + 3] - shape[from + 1];
+      const length = Math.hypot(dx, dy);
+      return [dx / length, dy / length, length];
+    };
+    let edge = -1;
+    let turn = -1;
+    for (let e = 0; e < EDGES.length && turn < 0; e++) {
+      const shape = router.edgeShape[e];
+      if (shape.length !== 4 || router.edgeLanes[e] !== 1 || router.edgeSpeed[e] < 11 || router.edgeFire[e] < 200 || router.safe[EDGES[e].v]) continue;
+      const [ux, uy, length] = direction(shape, 0);
+      if (length < 150) continue;
+      edge = e;
+      turn = EDGES.findIndex((next, k) => next.u === EDGES[e].v && next.v !== EDGES[e].u && Math.abs(ux * direction(router.edgeShape[k], 0)[0] + uy * direction(router.edgeShape[k], 0)[1]) < 0.1);
+    }
+    assert.ok(turn >= 0);
+    const [ax, ay] = router.edgeShape[edge];
+    const sim = new CrowdSim(ground, [{ ...toLatLng(ax, ay), peopleCount: 1, canLeave: "yes", hasCar: true }], seededRandom(1), () => new Set(), {
+      ...DEFAULT_CROWD,
+      temperature: 0,
+      lateralTemperature: 0,
+    });
+    onStreet(sim, edge);
+    sim.next[0] = planTurn ? turn : -1;
+    // Speeds on the street, up to the last step before the car turns off it.
+    const speeds: number[] = [];
+    while (sim.seconds < 120) {
+      sim.step();
+      if (sim.edge[0] !== edge) break;
+      speeds.push(sim.routeSpeed(0));
+    }
+    return { sim, speeds, free: router.edgeSpeed[edge] };
+  };
+
+  it("slows for a turn ahead in time to take it at about 20 km/h, and only when it turns", () => {
+    const turning = intoTurn(true);
+    const straight = intoTurn(false);
+    // sqrt(3 m/s² x 15 m / (2 sin 45°)) = 5.6 m/s for a right-angle turn.
+    const atTurn = turning.speeds[turning.speeds.length - 1];
+    assert.ok(atTurn > 4 && atTurn < 7.5, `${atTurn.toFixed(1)} m/s into the turn`);
+    assert.ok(Math.max(...turning.speeds) > turning.free * 0.9, "up to speed before braking");
+    assert.ok(straight.speeds[straight.speeds.length - 1] > straight.free * 0.9, "no braking with no turn");
+  });
+
+  it("counts none of a lone car's slowing for corners as time lost to crowding", () => {
+    const { sim } = intoTurn(true);
+    for (let s = 0; s < 240; s++) sim.step();
+    const samples = sim.segmentSpeedSamples.reduce((a, b) => a + b, 0);
+    const lost = sim.segmentLostSeconds.reduce((a, b) => a + b, 0);
+    assert.ok(samples >= 5, `${samples} samples`);
+    assert.ok(lost < 0.05 * 30 * samples, `${lost.toFixed(0)} s lost of ${30 * samples} s driven`);
+  });
+
   it("leaves keen households earlier than reluctant ones", () => {
     const departure = (keen: boolean, seed: number) => {
       const random = seededRandom(seed);

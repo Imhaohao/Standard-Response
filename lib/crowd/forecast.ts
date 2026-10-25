@@ -3,8 +3,7 @@ import { Segment } from "../mesh/roads";
 import { seededRandom } from "../mesh/random";
 import { Ground } from "./grid";
 import { MIN_SPEED_SHARE } from "./greenshields";
-import { CrowdParams, CrowdSim, DEFAULT_CROWD, Household } from "./langevin";
-import { freeSpeedOf } from "./navigation";
+import { CrowdParams, CrowdSim, crowdingShare, DEFAULT_CROWD, Household } from "./langevin";
 
 // A traffic forecast from the Langevin crowd model, for the agency. An ensemble of simulations of
 // the town follows the incident on the wall clock, each with its own noise (who leaves when, how
@@ -46,9 +45,11 @@ type Window = { from: number; to: number };
 type Counters = {
   entries: Uint32Array;
   speedSum: Float64Array;
+  openSum: Float64Array;
   samples: Uint32Array;
   lost: Float64Array;
   edgeSpeedSum: Float64Array;
+  edgeOpenSum: Float64Array;
   edgeSamples: Uint32Array;
 };
 
@@ -56,9 +57,11 @@ function countersOf(sim: CrowdSim): Counters {
   return {
     entries: sim.segmentEntries.slice(),
     speedSum: sim.segmentSpeedSum.slice(),
+    openSum: sim.segmentOpenSpeedSum.slice(),
     samples: sim.segmentSpeedSamples.slice(),
     lost: sim.segmentLostSeconds.slice(),
     edgeSpeedSum: sim.edgeSpeedSum.slice(),
+    edgeOpenSum: sim.edgeOpenSpeedSum.slice(),
     edgeSamples: sim.edgeSpeedSamples.slice(),
   };
 }
@@ -67,9 +70,11 @@ function difference(later: Counters, earlier: Counters): Counters {
   return {
     entries: later.entries.map((value, i) => value - earlier.entries[i]),
     speedSum: later.speedSum.map((value, i) => value - earlier.speedSum[i]),
+    openSum: later.openSum.map((value, i) => value - earlier.openSum[i]),
     samples: later.samples.map((value, i) => value - earlier.samples[i]),
     lost: later.lost.map((value, i) => value - earlier.lost[i]),
     edgeSpeedSum: later.edgeSpeedSum.map((value, i) => value - earlier.edgeSpeedSum[i]),
+    edgeOpenSum: later.edgeOpenSum.map((value, i) => value - earlier.edgeOpenSum[i]),
     edgeSamples: later.edgeSamples.map((value, i) => value - earlier.edgeSamples[i]),
   };
 }
@@ -126,18 +131,19 @@ function timelineOf(branches: Branch[]): TimelinePoint[] {
   }));
 }
 
-// Share of free-flow speed lost, over a set of segments: 1 - mean speed / sample-weighted free speed.
-// Speeds are along each car's route, so a stalled street's mean can dip below 0; the share stops at 1.
-function slowdownOf(counters: Counters, members: number[], segments: Segment[]) {
+// Share of open-road speed lost to crowding, over a set of segments: 1 - the cars' mean speed / the
+// mean speed the same cars would have driven there on an empty road (see CrowdSim.openSpeed), so a
+// street's corners don't count as traffic.
+function slowdownOf(counters: Counters, members: number[]) {
   let speed = 0;
-  let free = 0;
+  let open = 0;
   let samples = 0;
   for (const s of members) {
     speed += counters.speedSum[s];
-    free += (counters.samples[s] * segments[s].kph) / 3.6;
+    open += counters.openSum[s];
     samples += counters.samples[s];
   }
-  return samples < MIN_SPEED_SAMPLES || free <= 0 ? null : Math.min(1, Math.max(0, 1 - speed / free));
+  return samples < MIN_SPEED_SAMPLES || open <= 0 ? null : crowdingShare(speed, open);
 }
 
 // One direction of one street in one member. A member with too few cars on it to measure is free
@@ -145,7 +151,7 @@ function slowdownOf(counters: Counters, members: number[], segments: Segment[]) 
 function edgeSlowdownOf(counters: Counters, edge: number) {
   const samples = counters.edgeSamples[edge];
   if (samples < MIN_SPEED_SAMPLES) return 0;
-  return Math.min(1, Math.max(0, 1 - counters.edgeSpeedSum[edge] / (samples * freeSpeedOf(edge))));
+  return crowdingShare(counters.edgeSpeedSum[edge], counters.edgeOpenSum[edge]);
 }
 
 // Seconds a slowdown adds to one drive along the edge, by the same floor the dynamics use.
@@ -171,7 +177,7 @@ function segmentsOf(windows: Counters[], segments: Segment[]): SegmentForecast[]
   for (const [s, segment] of segments.entries()) {
     const lostCarMinutes = rangeOf(windows.map((w) => w.lost[s] / 60));
     if ((lostCarMinutes.median ?? 0) < MIN_LOST_CAR_MINUTES) continue;
-    rows.push({ key: segment.key, lostCarMinutes, slowdown: rangeOf(windows.map((w) => slowdownOf(w, [s], segments))) });
+    rows.push({ key: segment.key, lostCarMinutes, slowdown: rangeOf(windows.map((w) => slowdownOf(w, [s]))) });
   }
   return rows.sort(byMedianLost).slice(0, SEGMENTS_PER_WINDOW);
 }
@@ -196,7 +202,7 @@ function streetsOf(windows: Counters[], segments: Segment[], groups: Map<string,
     rows.push({
       name,
       lostCarMinutes,
-      slowdown: rangeOf(windows.map((w) => slowdownOf(w, members, segments))),
+      slowdown: rangeOf(windows.map((w) => slowdownOf(w, members))),
       cars: rangeOf(windows.map((w) => carsThrough(w, members))),
     });
   }
