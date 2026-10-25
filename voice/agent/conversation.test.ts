@@ -927,17 +927,32 @@ describe("a caller with fire at the home, on hold", () => {
     assert.ok(!again.sentences.some((line) => line.startsWith("If fire blocks your way out")));
   });
 
-  it("hears them when they plead, if the fire was raised before the hold", () => {
+  it("hears them as the hold begins, if the fire was raised before it", () => {
     const { conversation } = atCanLeave();
     conversation.respond("no, the flames are at my door", heard({ answer: "no", updates: { canLeave: "no" }, emergency: "flames" }));
     conversation.respond("just me", heard({ updates: { peopleCount: 1 } }));
     conversation.respond("I use a walker", heard({ updates: { mobility: "walker" } }));
     conversation.respond("no help needed", heard({ answer: "no", updates: { assistanceRequired: "none" } }));
     conversation.respond("yes", heard({ answer: "yes" }));
-    conversation.respond("no", heard({ answer: "no" }));
+    const holdBegins = conversation.respond("no", heard({ answer: "no" }));
     assert.equal(conversation.step, "hold");
-    const turn = conversation.respond("please hurry", heard({ asksAboutRide: true }));
-    assert.ok(turn.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+    assert.ok(holdBegins.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+    const plea = conversation.respond("please hurry", heard({ asksAboutRide: true }));
+    assert.ok(!plea.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+  });
+
+  it("ignores nothing a caller in danger says on hold", () => {
+    const { conversation } = atHold();
+    conversation.respond("There is fire all around us.", heard({ emergency: "flames", feeling: "That sounds frightening." }));
+    const turn = conversation.respond("Do not risk anybody else's life for mine.", heard({ addressedToAgent: false }));
+    assert.ok(!turn.ignored);
+    assert.ok(turn.sentences.length > 0);
+  });
+
+  it("never says the same words as acknowledgment and feeling", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("Please hurry!", heard({ asksAboutRide: true, acknowledgment: "You need help fast.", feeling: "You need help fast." }));
+    assert.equal([turn.acknowledgment, ...turn.sentences].filter((line) => line === "You need help fast.").length, 1);
   });
 
   it("is never met with silence", () => {
@@ -1046,6 +1061,11 @@ describe("the 911 screen on a call", () => {
     assert.ok(!turn.sentences.includes("I don't know that."));
   });
 
+  it("hears 'We need to know where that fire is.' as asking, with no question mark", () => {
+    const turn = call().conversation.respond("Yes. We need to know where that fire is.", heard({ answer: "yes", asksFire: true }));
+    assert.ok(turn.sentences.includes(EN.notKnownYet));
+  });
+
   it("says it doesn't know yet when the screen has no line for what they asked", () => {
     const conversation = new Conversation({
       language: "en",
@@ -1064,7 +1084,7 @@ describe("the 911 screen on a call", () => {
     assert.ok(!claude.sentences.includes(EN.notKnownYet));
     const known = screened().respond("Where's the fire?", heard({ asksFire: true }));
     assert.ok(!known.sentences.includes(EN.notKnownYet));
-    const report = call().conversation.respond("There's houses on fire!", heard({ asksFire: true }));
+    const report = call().conversation.respond("There's houses on fire!", heard({ asksFire: true, emergency: "flames" }));
     assert.ok(!report.sentences.includes(EN.notKnownYet));
   });
 

@@ -289,7 +289,9 @@ export class Conversation {
   // Acts on what understand() read. A goodbye isn't final: anything the resident adds after it is
   // heard too, so a late correction still reaches the record.
   respond(utterance: string, heard: Interpretation | null): AgentTurn {
-    if (this.handedOff || (heard && isNoise(heard))) return this.ignore();
+    // On hold with danger at home, nothing they say is ignored: "Do not risk anybody else's life for
+    // mine" read as not meant for us, and the caller surrounded by fire heard silence.
+    if (this.handedOff || (heard && isNoise(heard) && !this.inDangerOnHold())) return this.ignore();
     if (!heard && this.done) return this.ignore();
     this.history.push({ speaker: "resident", text: heard?.heardAs ?? utterance });
     this.quietCheckIns = 0;
@@ -398,14 +400,20 @@ export class Conversation {
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
     const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime, passedOn });
     const sentences = this.notSilentInDanger(ack.text, [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== ""));
-    const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked || asked.blocked);
+    // "You need help fast. You need help fast.": Claude's acknowledgment and feeling were the same words.
+    const acknowledgment = sentences.some((line) => normalizeAck(line) === normalizeAck(ack.text)) ? "" : ack.text;
+    const turn = this.say(acknowledgment, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
   }
 
   private notSilentInDanger(acknowledgment: string, sentences: string[]) {
     const silent = acknowledgment === "" && sentences.length === 0;
-    return silent && this.holding && this.dangerAtHome() ? [LINES[this.language].holdPrompt] : sentences;
+    return silent && this.inDangerOnHold() ? [LINES[this.language].holdPrompt] : sentences;
+  }
+
+  private inDangerOnHold() {
+    return this.holding && this.dangerAtHome();
   }
 
   // The answer changed something else ("it's just me") and left the question open: it is asked
@@ -530,7 +538,10 @@ export class Conversation {
     if (this.fireStepsGiven || !this.holding || !this.escalated.has("flames") || heard.approvedAnswer) return [];
     // "There is fire all around us" on hold came with no feeling from Claude, so it got the emergency
     // line and no steps; the fire reported on this very turn counts too.
-    if (!heard.asksAboutRide && heard.feeling === "" && heard.emergency === "none") return [];
+    // They also come as the hold begins: a caller with flames blowing in heard only the waiting line
+    // and "You can hang up any time", and the steps a turn later.
+    const enteringHold = this.holdTurns === 0;
+    if (!enteringHold && !heard.asksAboutRide && heard.feeling === "" && heard.emergency === "none") return [];
     this.fireStepsGiven = true;
     return [bankText("trapped_by_fire", this.language) ?? ""];
   }
@@ -567,13 +578,14 @@ export class Conversation {
   // "Where's the fire?" and "Which way do I go?" get the 911 screen's lines, never Claude's numbers.
   // With nothing on the screen ("Any suggestions which direction I should go?" with no route found,
   // or no fire model for this hazard), and no words of Claude's, the honest answer is said: the
-  // caller's question had gone unanswered. Only to a question: "There's houses on fire!" also reads
-  // as asking about the fire.
+  // caller's question had gone unanswered.
   private screenLines(heard: Interpretation) {
     if (!heard.asksFire && !heard.asksRoute) return [];
     const screen = this.effects.screen?.(this.language);
     const known = [heard.asksFire ? screen?.fire : null, heard.asksRoute ? screen?.route : null].filter((line): line is string => typeof line === "string");
-    const unanswered = known.length === 0 && !this.replyWillPlay(heard) && isQuestion(this.lastResidentLine());
+    // "We need to know where that fire is." asks without a question mark; a fire reported this turn doesn't ask.
+    const asked = isQuestion(this.lastResidentLine()) || heard.emergency === "none";
+    const unanswered = known.length === 0 && !this.replyWillPlay(heard) && asked;
     return unanswered ? [LINES[this.language].notKnownYet] : known;
   }
 
