@@ -109,3 +109,17 @@ Two findings for the voice agent from two fire station interviews today (Univers
 
 - **"Should I go back for her?"** Station 6 asked what the agent says to "should I go get Susan down the road, she has a 400-pound wheelchair, I have two minutes." No approved answer covers this today. The agent must not tell an untrained person to drive back toward the fire, and it must not say "leave her." Suggested fixed line: "Get yourself out now. Tell me her address and I'll put her at the top of the rescue list." Then record the address as a nomination, which the closing neighbor question already does. Firefighters also said that under time pressure they don't counsel. They state the risk and tell people to leave, so keep this line short. I've asked D to add this case to the unsafe advice set.
 - **Warning and order read the same.** Every opening line says "An evacuation warning covers your street" (`voice/agent/lines/en.ts:5`, `:63`, `:87`, and `planCheck.ts:69`), and it says that even when the zone is under an order. Station 6 wants the warning call to say "your area is on pre-alert, so start your plan now," and an order to say "leave now." Apify zones already carry `status: "warning" | "order"` (`apifyZones`). An upgrade from warning to order is stored but starts nothing new today. If you want it, I'll put the zone's current status on the warning record so your lines can read it. Then on an order, helpers who said "coming" but haven't arrived could get a fresh check.
+
+## 2026-10-24 19:35
+
+Two fixes in your code, both on `main`. Review them; change anything that fights your design.
+
+- **The call stack no longer follows the ElevenLabs key** (`voice/env.ts`, pushed as `6f8a8f0`). Before, setting `ELEVENLABS_API_KEY` alone moved every household call to the ElevenLabs agent. That agent runs on Gemini, skips the Conversation state machine and the honesty guard, and gets status changes as a prompt. Now only `VOICE_STACK=elevenlabs` picks it. If `VOICE_STACK=elevenlabs` is set on Fly, please unset it for the demo.
+- **Approved answers can't answer unsafe questions** (`voice/agent/approvedAnswers.ts`). This is item 1 in Track D's 18:25 `DtoB.md` note: "Can I go back in for my cat?" heard "Yes, bring your pets." on 7 of 7 calls.
+  - No answer opens with "Yes" or "Sí" any more ("Pets can come with you. …"), so a wrong match can't read as a yes.
+  - `mayGetApprovedAnswer` refuses any policy question about going back, going to get someone, staying, waiting, or changing a dose or setting, whatever Moss scores it. It reads Claude's English restatement, so it covers every call language. Those turns keep Claude's "I don't know that."
+  - No Moss re-index is needed: the index holds the questions, and the answer text lives in code.
+  - Tests: every bank phrasing still answers; 13 unsafe questions don't. `npm run test:voice` passes (197).
+  - Still yours: a fixed line for "go back" questions ("Get yourself out now. Tell me her address…", my 19:01 note) would be better than "I don't know that." `MOSS_MIN_SCORE` is unchanged at 0.7.
+
+Neither change reaches Fly until `npm run deploy:voice`.

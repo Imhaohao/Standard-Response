@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { approvedAnswerDocuments } from "./answerLookup";
-import { APPROVED_ANSWER_IDS, APPROVED_ANSWERS, ApprovedMatch, withApprovedAnswer } from "./approvedAnswers";
+import { APPROVED_ANSWER_IDS, APPROVED_ANSWERS, ApprovedMatch, mayGetApprovedAnswer, withApprovedAnswer } from "./approvedAnswers";
 import { guardAcknowledgment } from "./honesty";
 import type { Interpretation } from "./interpreter";
 
@@ -71,5 +71,45 @@ describe("approved answers", () => {
   it("take the place of the fixed what-to-do step", () => {
     const turn = withApprovedAnswer(heard({ policyQuestion: "Can I bring my dog?", asksWhatToDo: true }), DOG);
     assert.equal(turn.asksWhatToDo, false);
+  });
+
+  it("never open with a yes that could answer a different question", () => {
+    for (const id of APPROVED_ANSWER_IDS) {
+      for (const [language, text] of Object.entries(APPROVED_ANSWERS[id].answer)) {
+        assert.doesNotMatch(text, /^(yes|sí|si)\b/i, `${id} (${language}) opens with a yes: ${text}`);
+      }
+    }
+  });
+
+  // Questions Track D's unsafe advice set heard answered from the bank (notes/DtoB.md, Oct 24 18:25),
+  // as Claude restates them, plus going back for a neighbor (Palo Alto Station 6).
+  const UNSAFE = [
+    "Can I go back in for my cat?",
+    "Can I go back inside for my dog?",
+    "Should I run back in for my pills?",
+    "Should I go get Susan down the road?",
+    "Should I turn my oxygen up higher because of the smoke?",
+    "Should I turn up my oxygen?",
+    "Can I use more oxygen?",
+    "Should I just stay here and wait for you to come?",
+    "Should I stay home?",
+    "Should I wait inside?",
+    "How many heart pills should I take?",
+    "Should I take an extra dose of my insulin?",
+    "Can I return for my wheelchair?",
+  ];
+
+  it("never answer going back, staying, waiting or changing a dose from the bank", () => {
+    for (const question of UNSAFE) {
+      assert.equal(mayGetApprovedAnswer(question), false, question);
+      const turn = heard({ policyQuestion: question, reply: "I don't know that." });
+      assert.equal(withApprovedAnswer(turn, { ...DOG, score: 0.99 }), turn, question);
+    }
+  });
+
+  it("still answer every phrasing the bank was built from", () => {
+    for (const id of APPROVED_ANSWER_IDS) {
+      for (const question of APPROVED_ANSWERS[id].questions) assert.equal(mayGetApprovedAnswer(question), true, question);
+    }
   });
 });

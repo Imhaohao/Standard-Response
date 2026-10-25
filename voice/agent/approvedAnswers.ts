@@ -31,15 +31,15 @@ type ApprovedAnswer = {
 export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   pets: {
     answer: {
-      en: "Yes, bring your pets. Keep dogs on a leash, and cats in a carrier if you have one.",
-      es: "Sí, traiga a sus mascotas. Los perros con correa, y los gatos en un transportador si tiene uno.",
+      en: "Pets can come with you. Keep dogs on a leash, and cats in a carrier if you have one.",
+      es: "Sus mascotas pueden ir con usted. Los perros con correa, y los gatos en un transportador si tiene uno.",
     },
     questions: ["Can I bring my dog?", "Can I bring my cat?", "Can my pets come with me?", "What do I do with my pets?", "Can I take my bird?", "Is my service dog allowed?"],
   },
   oxygen: {
     answer: {
-      en: "Yes, bring the oxygen, any spare tanks, and the charger if it's a concentrator.",
-      es: "Sí, traiga el oxígeno, los tanques de repuesto, y el cargador si es un concentrador.",
+      en: "Your oxygen can come with you. Bring any spare tanks, and the charger if it's a concentrator.",
+      es: "Su oxígeno puede ir con usted. Traiga los tanques de repuesto, y el cargador si es un concentrador.",
     },
     questions: ["Can I bring my oxygen tank?", "Can he bring his oxygen?", "Can I take my oxygen concentrator?", "What do I do about my oxygen?", "Can the oxygen come with us?", "Can my oxygen come?"],
   },
@@ -52,15 +52,15 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   },
   wheelchair: {
     answer: {
-      en: "Yes, the wheelchair comes with you, powered chairs too.",
-      es: "Sí, la silla de ruedas va con usted, también las eléctricas.",
+      en: "The wheelchair comes with you, powered chairs too.",
+      es: "La silla de ruedas va con usted, también las eléctricas.",
     },
     questions: ["Can I bring my wheelchair?", "Will a power wheelchair fit?", "Is there room for an electric wheelchair?", "Do I have to leave my wheelchair behind?"],
   },
   walker: {
     answer: {
-      en: "Yes, bring the walker or cane. There's room for it.",
-      es: "Sí, traiga la andadera o el bastón. Hay lugar para eso.",
+      en: "A walker or cane can come with you. There's room for it.",
+      es: "La andadera o el bastón pueden ir con usted. Hay lugar para eso.",
     },
     questions: ["Can I bring my walker?", "Can I bring my cane?"],
   },
@@ -73,8 +73,8 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   },
   caregiver: {
     answer: {
-      en: "Yes, a caregiver or family member can ride with you.",
-      es: "Sí, un cuidador o un familiar puede ir con usted.",
+      en: "A caregiver or family member can ride with you.",
+      es: "Un cuidador o un familiar puede ir con usted.",
     },
     questions: ["Can my caregiver come with me?", "Can my daughter ride with me?", "Can a family member come along?", "Can my aide come too?", "Can I go with my husband?", "Can my son come with me?", "Can my granddaughter come?", "Can my mother ride with me?"],
   },
@@ -118,11 +118,34 @@ export const isApprovedAnswerId = (value: string | undefined): value is Approved
 const bankText = (id: ApprovedAnswerId, language: string) =>
   language === "en" || language === "es" ? APPROVED_ANSWERS[id].answer[language] : undefined;
 
+// Questions no approved answer may meet, however close Moss scores them: going back in or back for
+// someone, staying or waiting, and changing a dose or a setting. "Can I go back in for my cat?"
+// scored close to "Can I bring my cat?" and heard "Yes, bring your pets." on every call (Track D,
+// Oct 24). The policy question is Claude's English restatement, so one English list covers every
+// call language.
+const UNSAFE_QUESTIONS = [
+  /\b(go|goes|going|went|run|running|head|heading|drive|driving|walk|walking|come|coming|turn|turning)\s+(right\s+)?back\b/,
+  /\bback\s+(in|inside|into|for|to\s+(get|the|my|our|her|his|their))\b/,
+  /\breturn(ing)?\b/,
+  /\bgo\s+(and\s+)?(get|grab|find|look\s+for|pick\s+up|check\s+on)\b/,
+  /\b(stay|staying|wait|waiting)\b(?!\s+with\b)/,
+  /\b(shelter|hide|hiding)\s+in\s+place\b/,
+  /\b(dose|doses|dosage)\b/,
+  /\bhow\s+(many|much)\b.*\b(pills?|tablets?|medicines?|medications?|insulin|oxygen|puffs?)\b/,
+  /\b(turn|set|put|crank)\b.*\b(up|down|higher|lower)\b/,
+  /\b(more|extra|double|increase|decrease|higher|lower|less)\b.*\b(oxygen|flow|pills?|tablets?|medicines?|medications?|insulin|dose)\b/,
+];
+
+export const mayGetApprovedAnswer = (question: string) => {
+  const text = question.toLowerCase();
+  return !UNSAFE_QUESTIONS.some((pattern) => pattern.test(text));
+};
+
 // The approved answer takes the place of Claude's reply only when Claude heard a policy question
-// and the answer exists in the language the resident is speaking. Otherwise Claude's own reply
-// ("I don't know that.") stands.
+// that is safe to answer from the bank, and the answer exists in the language the resident is
+// speaking. Otherwise Claude's own reply ("I don't know that.") stands.
 export function withApprovedAnswer(heard: Interpretation, match: ApprovedMatch | null): Interpretation {
-  if (heard.policyQuestion === "" || !match) return heard;
+  if (heard.policyQuestion === "" || !match || !mayGetApprovedAnswer(heard.policyQuestion)) return heard;
   const text = bankText(match.id, heard.spokenLanguage);
   if (!text) return heard;
   return { ...heard, reply: text, asksWhatToDo: false, approvedAnswer: match };
