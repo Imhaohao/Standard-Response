@@ -27,13 +27,20 @@ function metresBetween(a: LatLng, b: LatLng) {
   return { east, north, length: Math.hypot(east, north) };
 }
 
-// With a routed van, close the last stretch of its real route before the door. Without one (the
-// dispatch stand-in drives straight lines), cut across the approach a little short of the house;
-// The dispatcher closes every road a cut crosses.
+// The van's road route when it leads to this stop. A van heading to the shelter or to an earlier
+// pickup first is driving somewhere else, and the last stretch of that route isn't this rider's road.
+function routeToStop(route: Route | undefined, stop: Assignment) {
+  const toStop = route?.target.kind === "pickup" && route.target.assignmentId === stop._id;
+  return toStop && route.remaining.length >= 3 ? route : undefined;
+}
+
+// With a van routed to the stop, close the last stretch of its real route before the door. Without
+// one (the dispatch stand-in drives straight lines, or the van has somewhere to go first), cut
+// across the approach a little short of the house; the dispatcher closes every road a cut crosses.
 function closurePath(van: Vehicle, stop: Assignment, route: Route | undefined): LatLng[] | null {
   if (stop.lat === undefined || stop.lng === undefined) return null;
   const door = { lat: stop.lat, lng: stop.lng };
-  if (route && route.remaining.length >= 3) return route.remaining.slice(-3, -1);
+  if (route) return route.remaining.slice(-3, -1);
   const { east, north, length } = metresBetween({ lat: van.lat, lng: van.lng }, door);
   if (length < 1) return null;
   const [ux, uy] = [east / length, north / length];
@@ -46,13 +53,14 @@ function closurePath(van: Vehicle, stop: Assignment, route: Route | undefined): 
 // A straight-line van's cut moves with the van, so once is enough.
 function roadKey(path: LatLng[] | null, route: Route | undefined) {
   if (!path) return null;
-  return route && route.remaining.length >= 3 ? path.map((p) => `${p.lat},${p.lng}`).join(";") : "approach";
+  return route ? path.map((p) => `${p.lat},${p.lng}`).join(";") : "approach";
 }
 
 function VanRow({ van, stop, route }: { van: Vehicle; stop: Assignment; route: Route | undefined }) {
   const addClosures = useMutation(api.roads.addClosures);
-  const path = closurePath(van, stop, route);
-  const key = roadKey(path, route);
+  const toStop = routeToStop(route, stop);
+  const path = closurePath(van, stop, toStop);
+  const key = roadKey(path, toStop);
   const [closedKey, setClosedKey] = useState<string | null>(null);
   const closed = key !== null && key === closedKey;
   return (
