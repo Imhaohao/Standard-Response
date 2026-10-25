@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { InkMapData, Point } from "@/lib/ink-map/data";
-import { runRoute } from "@/lib/ink-map/road-route";
+import { streetDrive } from "@/lib/ink-map/road-route";
 import { searchPlans, type Plan, type Vehicle } from "./plan";
 import type { Home, Town } from "./town";
 
@@ -17,9 +17,11 @@ const ENGINES = 2;
 const ENGINE_SEATS = 4;
 const ENGINE_SPACING_METERS = 260;
 const ENGINE_OUTSIDE_METERS = 250;
+const NO_CLOSURES = new Set<string>();
 
 export type Rescuer = { start: Point; kind: "neighbour" | "engine" };
-export type RescuePlan = { stops: Point[]; rescuers: Rescuer[]; tried: Plan[]; routes: Point[][] };
+// `tried` holds each candidate plan the search considered, already drawn along the streets.
+export type RescuePlan = { stops: Point[]; rescuers: Rescuer[]; tried: Point[][][]; routes: Point[][] };
 
 const distance = ([ax, ay]: Point, [bx, by]: Point) => Math.hypot(ax - bx, ay - by);
 
@@ -64,10 +66,32 @@ function buildPlan(data: InkMapData, town: Town): RescuePlan {
     firstStop: i === 0 ? 0 : undefined,
   }));
   const { tried, best } = searchPlans(vehicles, stops);
-  const routes = best.map((run, v) =>
-    run.length ? (runRoute(data, rescuers[v].start, run.map((stop) => stops[stop]), new Set()) ?? []) : [],
-  );
-  return { stops, rescuers, tried, routes };
+  const along = streetLegs(data, rescuers.map((r) => r.start), stops);
+  const drawn = (plan: Plan) => plan.map((run, v) => along(v, run));
+  return { stops, rescuers, tried: tried.map(drawn), routes: drawn(best) };
+}
+
+// Every run is drawn along the streets, one leg per stop. A leg between the same two places is found
+// once and reused, since the candidate plans share most of their legs.
+function streetLegs(data: InkMapData, starts: Point[], stops: Point[]) {
+  const legs = new Map<string, Point[]>();
+  const leg = (from: Point, to: Point, key: string) => {
+    let route = legs.get(key);
+    if (!route) {
+      route = streetDrive(data, from, to, NO_CLOSURES) ?? [from, to];
+      legs.set(key, route);
+    }
+    return route;
+  };
+  return (vehicle: number, run: number[]) => {
+    const route: Point[] = [];
+    let [from, fromKey] = [starts[vehicle], `v${vehicle}`];
+    for (const stop of run) {
+      route.push(...leg(from, stops[stop], `${fromKey}>${stop}`));
+      [from, fromKey] = [stops[stop], `s${stop}`];
+    }
+    return route;
+  };
 }
 
 export function useRescuePlan(data: InkMapData | null, town: Town | null) {

@@ -79,10 +79,7 @@ function paintPlan(paint: Paint, layers: Layers, scene: Scene) {
   if (layers.requests) paintRequests(ctx, project, plan.stops, { elapsed, color: palette.signal, night: palette.night });
   if (layers.candidates) {
     const tried = plan.tried[Math.floor(elapsed / FLICKER_MS) % plan.tried.length];
-    for (const [v, run] of tried.entries()) {
-      const line = [plan.rescuers[v].start, ...run.map((stop) => plan.stops[stop])];
-      strokeRoute(ctx, project, line, { color: palette.ink, width: 1.6, progress: 1 });
-    }
+    for (const route of tried) strokeRoute(ctx, project, route, { color: palette.ink, width: 1.8, progress: 1 });
   }
   if (layers.routes !== "off") {
     const faint = layers.routes === "faint";
