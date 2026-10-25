@@ -32,9 +32,9 @@ export function canDrive(household: Household) {
 }
 
 // Palo Alto Fire told us a neighbor sent back for someone can end up "going backwards" into the
-// danger zone. So we only ask a neighbor the fire reaches no later than the resident: driving over
-// to pick them up is then driving away from the fire. That also leaves out a neighbor outside the
-// warning zone, who would have to drive in.
+// danger zone. Prefer a neighbor the fire reaches no later than the resident: driving over to pick
+// them up is then driving away from the fire. That also leaves out a neighbor outside the warning
+// zone, who would have to drive in. When nobody like that can go, the nearest driver is still asked.
 export const awayFromTheFire = (neighbor: Household, resident: Household) => neighbor.fireArrivalAt <= resident.fireArrivalAt;
 
 export const waitingForANeighbor = (resident: Household | null): resident is Located =>

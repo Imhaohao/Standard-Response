@@ -7,7 +7,7 @@ import type { HazardKind } from "@/lib/cities";
 import { LatLng } from "@/lib/geo";
 import { simTime } from "@/lib/sim-clock";
 import { createProjection } from "./data";
-import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts } from "./fire-field";
+import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts, WILDFIRE_LINE_HOLD } from "./fire-field";
 import type { Scenario } from "./scenario";
 
 // `burns` is false for a hazard that isn't a fire, such as an earthquake's damage bands: the map
@@ -65,12 +65,13 @@ export function useFireClock(hazard: Hazard | null, issuedAt: number | undefined
   const [minutes, setMinutes] = useState(0);
   useEffect(() => {
     const read = () => {
-      const elapsed = issuedAt === undefined ? 0 : ((simTime(clock, Date.now()) - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND;
+      const hold = !hazard?.kind || hazard.kind === "wildfire" ? WILDFIRE_LINE_HOLD : 1;
+      const elapsed = issuedAt === undefined ? 0 : ((simTime(clock, Date.now()) - issuedAt) / 1000) * SIM_MINUTES_PER_SECOND / hold;
       setMinutes(Math.round(Math.min(Math.max(0, elapsed), last) / MINUTE_STEP) * MINUTE_STEP);
     };
     read();
     const id = setInterval(read, CLOCK_TICK_MS);
     return () => clearInterval(id);
-  }, [clock, issuedAt, last]);
+  }, [clock, issuedAt, last, hazard?.kind]);
   return { minutes, last };
 }

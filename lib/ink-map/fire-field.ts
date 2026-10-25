@@ -15,6 +15,9 @@ export type FireField = {
 };
 
 export const NEVER_BURNS = 1e4;
+// Engines holding the line. The published wildfire fronts are an uncontained run. Crews on the
+// streets stretch every one of those minutes by this many times, on the map and in the deadlines.
+export const WILDFIRE_LINE_HOLD = 8;
 const FRONT_SPACING_MINUTES = 30;
 // How fast the fire is taken to have grown into its first front, for points inside it.
 const FIRST_FRONT_METERS_PER_MINUTE = 25;

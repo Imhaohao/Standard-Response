@@ -1,6 +1,6 @@
 import { QueryCtx } from "./_generated/server";
 import { createProjection } from "../lib/ink-map/data";
-import { arrivalAt, holds, NEVER_BURNS, ScenarioFront, scenarioFronts } from "../lib/ink-map/fire-field";
+import { arrivalAt, holds, NEVER_BURNS, ScenarioFront, scenarioFronts, WILDFIRE_LINE_HOLD } from "../lib/ink-map/fire-field";
 import { DEFAULT_HAZARD, Hazard } from "./hazards";
 import { callPriorityFor, FIRE_FIRST_ARRIVAL_MINUTES, FIRE_ORIGIN, FIRE_SPREAD_METERS_PER_MINUTE, metersBetween } from "./model";
 import { SCENARIO_FRONTS } from "./scenarioFronts";
@@ -29,12 +29,18 @@ function radialMinutes(point: Point) {
   return FIRE_FIRST_ARRIVAL_MINUTES + metersBetween(point, FIRE_ORIGIN) / FIRE_SPREAD_METERS_PER_MINUTE;
 }
 
+// Crews holding a wildfire line stretch the uncontained scenario. Other hazards keep their own clock.
+function held(minutes: number, hazard: Hazard) {
+  return hazard === "wildfire" ? minutes * WILDFIRE_LINE_HOLD : minutes;
+}
+
 export function minutesUntilHazard(point: Point, hazard: Hazard) {
   const fronts = FRONTS.get(hazard);
-  if (!fronts?.length) return radialMinutes(point);
+  if (!fronts?.length) return held(radialMinutes(point), hazard);
   const [x, y] = projection.toLocal(point);
   const arrival = arrivalAt(fronts, x, y);
-  return arrival >= NEVER_BURNS ? fronts[fronts.length - 1].minutes + PAST_SCENARIO_MINUTES : arrival;
+  const minutes = arrival >= NEVER_BURNS ? fronts[fronts.length - 1].minutes + PAST_SCENARIO_MINUTES : arrival;
+  return held(minutes, hazard);
 }
 
 // False for a home the scenario's fire never reaches: its arrival is only a deadline past the last front.

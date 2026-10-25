@@ -90,13 +90,29 @@ describe("neighbor pickup ask", () => {
     expect(await plansFor(t, another)).toHaveLength(0);
   });
 
-  test("a neighbor the fire reaches after the resident is still not asked", async () => {
+  test("a neighbor the fire reaches later is asked when nobody safer can go", async () => {
     const t = setup();
     const resident = await insertHousehold(t, "1210 Palm St", "+15550000001", RESIDENT, 60);
     const neighbor = await insertHousehold(t, "1212 Palm St", "+15550000002", NEIGHBOR, 90);
 
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
     await t.mutation(api.households.update, { householdId: neighbor, patch: { canLeave: "yes", hasCar: true } });
-    expect(await plansFor(t, resident)).toHaveLength(0);
+    const plans = await plansFor(t, resident);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ helperHouseholdId: neighbor, status: "checking" });
+  });
+
+  test("a neighbor the fire reaches sooner is asked ahead of one it reaches later", async () => {
+    const t = setup();
+    const resident = await insertHousehold(t, "1210 Palm St", "+15550000001", RESIDENT, 60);
+    const later = await insertHousehold(t, "1212 Palm St", "+15550000002", NEIGHBOR, 90);
+    const sooner = await insertHousehold(t, "1208 Palm St", "+15550000003", { lat: 34.1904, lng: -118.155 }, 40);
+
+    await t.mutation(api.households.update, { householdId: later, patch: { canLeave: "yes", hasCar: true } });
+    await t.mutation(api.households.update, { householdId: sooner, patch: { canLeave: "yes", hasCar: true } });
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const plans = await plansFor(t, resident);
+    expect(plans).toHaveLength(1);
+    expect(plans[0]?.helperHouseholdId).toBe(sooner);
   });
 });

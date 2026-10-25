@@ -210,3 +210,10 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - `nightRuns` gains optional `rewindTo`, `archiveStage`, `archiveCursor`, `archiveSavedRows` and `archiveTouchedAt`. Nothing else reads them. They record where the copy is, so a dead one starts again from there.
 - `ready:start` and `control:issueWarning` start a dead copy again and return instead of throwing. A throw would undo that restart, and the call floor doesn't catch it. Rewind and reset still refuse while a copy is running.
 - The stuck night on `robust-penguin-834` is saved (7,041 rows) and the homes are back to just before the warning. The Ready check is running again.
+
+## 2026-10-25 04:25
+
+**Wildfire moves slower, and a last-chance neighbor still gets the pickup call.** No schema change.
+
+- Engines holding the line stretch every wildfire minute by 8 (`WILDFIRE_LINE_HOLD` in `lib/ink-map/fire-field.ts`). The map clock and `minutesUntilHazard` both use it. Floods and hurricanes do not. Homes already timed for this warning keep their saved arrival until the next warning runs `retimeArea`.
+- A neighbor the fire reaches sooner is still asked first. When nobody like that can go, the nearest driver is asked anyway, even if the drive points toward the fire (`convex/neighborPickups.ts`). Boris is queued for Jerry on that rule. The dialer is paused, so the call rings when it is resumed.
