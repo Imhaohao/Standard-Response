@@ -4,6 +4,7 @@ import type { LatLng } from "../geo";
 type RawMap = {
   origin: LatLng;
   detail: [number, number, number, number];
+  extent?: [number, number, number, number];
   terrain: { cols: number; rows: number; cell: number; x0: number; y0: number };
   buildings: number[][];
   roads: number[][];
@@ -38,7 +39,11 @@ export type Terrain = {
 
 export type InkMapData = {
   origin: LatLng;
+  // The town the camera frames and keeps to.
   detail: { x0: number; y0: number; x1: number; y1: number };
+  // The wider ground buildings, streets and trees cover, so a view near the town's edge looks out
+  // over its neighbours.
+  extent: { x0: number; y0: number; x1: number; y1: number };
   terrain: Terrain;
   buildings: Building[];
   roads: Road[];
@@ -98,9 +103,11 @@ function decodeTerrain(raw: RawMap["terrain"], buffer: ArrayBuffer): Terrain {
 
 function decode(raw: RawMap, terrainBuffer: ArrayBuffer): InkMapData {
   const [x0, y0, x1, y1] = raw.detail;
+  const [ex0, ey0, ex1, ey1] = raw.extent ?? raw.detail;
   return {
     origin: raw.origin,
     detail: { x0, y0, x1, y1 },
+    extent: { x0: ex0, y0: ey0, x1: ex1, y1: ey1 },
     terrain: decodeTerrain(raw.terrain, terrainBuffer),
     buildings: raw.buildings.map((b, id) => {
       const ring = points(b, 4);

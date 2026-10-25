@@ -18,6 +18,10 @@ import {
 } from "./shaders";
 
 // Palette in linear-ish sRGB floats. These mirror --paper, --ink, --signal and --ember in globals.css.
+function terrainExtent({ terrain }: InkMapData) {
+  return new THREE.Vector4(terrain.x0, terrain.y0, terrain.x0 + (terrain.cols - 1) * terrain.cell, terrain.y0 + (terrain.rows - 1) * terrain.cell);
+}
+
 export const INK_PALETTE = {
   paper: [0.965, 0.953, 0.925],
   ink: [0.11, 0.1, 0.09],
@@ -107,7 +111,7 @@ export class InkMapRenderer {
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
     const region = viewRegion(data, view);
     const fine = view.kind === "closeup";
-    this.landuse = landuseTexture(data, region.buildings, fine ? 4 : 0.75);
+    this.landuse = landuseTexture(data, region.buildings, fine ? 4 : 0.6);
     this.gbuffer = new THREE.WebGLRenderTarget(1, 1, { count: 3, depthTexture: new THREE.DepthTexture(1, 1, THREE.FloatType) });
     for (const texture of this.gbuffer.textures) {
       texture.minFilter = THREE.NearestFilter;
@@ -208,6 +212,8 @@ export class InkMapRenderer {
       uForecastRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
       uForecastOn: { value: 0 },
       uForecastAhead: { value: 60 },
+      uExtent: { value: new THREE.Vector4(this.data.extent.x0, this.data.extent.y0, this.data.extent.x1, this.data.extent.y1) },
+      uTerrainExtent: { value: terrainExtent(this.data) },
       uBurning: { value: 1 },
     };
   }
@@ -333,7 +339,7 @@ export class InkMapRenderer {
   }
 
   private clampPan() {
-    const region = viewRegion(this.data, this.view).buildings;
+    const region = viewRegion(this.data, this.view).pan;
     const t = this.home.target;
     const x = THREE.MathUtils.clamp(t.x + this.nav.pan.x, region.x0, region.x1);
     const z = THREE.MathUtils.clamp(t.z + this.nav.pan.z, -region.y1, -region.y0);

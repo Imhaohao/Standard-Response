@@ -291,6 +291,8 @@ uniform sampler2D tForecast;
 uniform vec4 uForecastRegion;
 uniform float uForecastOn;
 uniform float uForecastAhead;
+uniform vec4 uExtent;
+uniform vec4 uTerrainExtent;
 
 // Tone is printed on the town, not on the glass: every dot, hatch and speck is laid out in the
 // camera's own right and up directions but measured in metres, so it slides with the streets when
@@ -609,6 +611,20 @@ vec3 hazardEdge(vec3 color, float minutes) {
   return mix(color, uRed, edge * 0.95);
 }
 
+// How far a point is inside a box, in metres; negative outside it.
+float insideBy(vec2 p, vec4 box) {
+  return min(min(p.x - box.x, box.z - p.x), min(p.y - box.y, box.w - p.y));
+}
+
+// The baked map has to end somewhere, so it fades out rather than stopping at a cut: the town's
+// buildings, streets and trees thin to bare paper over the last stretch before the edge of what was
+// baked, and the hills fade out the same way near the end of the terrain.
+float edgeFade(vec2 mapXY, float surface) {
+  float terrain = 1.0 - smoothstep(0.0, 1500.0, insideBy(mapXY, uTerrainExtent));
+  if (surface == S_TERRAIN) return terrain;
+  return max(terrain, 1.0 - smoothstep(0.0, 700.0, insideBy(mapXY, uExtent)));
+}
+
 void main() {
   vec2 uv = vUv;
   float depth = texture(tDepth, uv).r;
@@ -650,7 +666,7 @@ void main() {
   float lod = 1.0 - 0.55 * smoothstep(0.45, 1.5, metersPerPixel);
   float tone = surfaceInk(surface, shade, up, w, metersPerPixel, detail) * (surface == S_TERRAIN && up < 0.9 ? 1.0 : lod);
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
-  float ink = max(tone * 0.85, lines);
+  float ink = max(tone * 0.85, lines) * (1.0 - edgeFade(mapXY, surface));
   vec3 color = mix(paper, uInk, ink * uInkStrength);
   float minutes = arrivalMinutes(mapXY);
   if (uBurning > 0.5) color = fireZone(color, ink * uInkStrength, surface, mapXY, minutes);

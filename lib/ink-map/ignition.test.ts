@@ -19,11 +19,17 @@ const buildings: Building[] = raw.buildings.map((flat, id) => {
   return { id, kind: flat[0], roof: flat[1], walls: flat[2] / 10, rise: flat[3] / 10, ring, center };
 });
 
-// A house with plenty of other houses within a block, so the fire has somewhere to go.
+// A house in central west Altadena with plenty of other houses within a block, so the fire has
+// somewhere to go. Picked by place, not by its position in the baked list, which follows OSM's order.
+const NEIGHBOURHOOD: Point = [1518, 835];
+const NEIGHBOURHOOD_METERS = 400;
+
 function crowdedHouse(): Point {
   const houses = buildings.filter((building) => building.kind === BUILDING_KIND.house);
-  const crowding = (house: Building) => houses.filter((other) => Math.hypot(other.center[0] - house.center[0], other.center[1] - house.center[1]) < 60).length;
-  return houses.slice(0, 4000).reduce((best, house) => (crowding(house) > crowding(best) ? house : best)).center;
+  const near = (a: Point, b: Point, meters: number) => Math.hypot(a[0] - b[0], a[1] - b[1]) < meters;
+  const crowding = (house: Building) => houses.filter((other) => near(other.center, house.center, 60)).length;
+  const candidates = houses.filter((house) => near(house.center, NEIGHBOURHOOD, NEIGHBOURHOOD_METERS));
+  return candidates.reduce((best, house) => (crowding(house) > crowding(best) ? house : best)).center;
 }
 
 const ignition = crowdedHouse();

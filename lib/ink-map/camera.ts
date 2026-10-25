@@ -75,9 +75,12 @@ export function configureCamera(camera: THREE.PerspectiveCamera, data: InkMapDat
   placeCamera(camera, groundPoint(data, view.center), CLOSEUP.bearing, CLOSEUP.pitch, distance);
 }
 
+// What a view draws, and how far its camera may pan. The overview draws everything baked but keeps
+// the camera over the town.
 export function viewRegion(data: InkMapData, view: InkMapView) {
-  if (view.kind === "overview") return { buildings: data.detail, terrain: null };
+  if (view.kind === "overview") return { buildings: data.extent, terrain: null, pan: data.detail };
   const [x, y] = view.center;
   const r = view.radius * 3.2;
-  return { buildings: { x0: x - r, y0: y - r * 0.6, x1: x + r, y1: y + r * 1.8 }, terrain: { x0: x - r * 2, y0: y - r, x1: x + r * 2, y1: y + r * 4 } };
+  const buildings = { x0: x - r, y0: y - r * 0.6, x1: x + r, y1: y + r * 1.8 };
+  return { buildings, terrain: { x0: x - r * 2, y0: y - r, x1: x + r * 2, y1: y + r * 4 }, pan: buildings };
 }

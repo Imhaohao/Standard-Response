@@ -2,28 +2,28 @@
 // The baked output in public/map is committed, so nobody else needs the network.
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { CACHE, DETAIL, TERRAIN, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
+import { CACHE, EXTENT, TERRAIN, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
 const USER_AGENT = "rollcall-calhacks/0.1 (evacuation coordination map)";
 const box = ({ south, west, north, east }) => `${south},${west},${north},${east}`;
-const DETAIL_BOX = box(DETAIL);
+const EXTENT_BOX = box(EXTENT);
 
 // Buildings come from before the January 2025 Eaton Fire, so the scenario plays out over the town as it stood.
 const BEFORE_EATON_FIRE = '[date:"2024-12-15T00:00:00Z"]';
 
 const QUERIES = {
-  buildings: `way["building"](${DETAIL_BOX});out geom tags;`,
+  buildings: `way["building"](${EXTENT_BOX});out geom tags;`,
   // Homes the fire destroyed that mappers only traced afterwards. Merged back in by bake.mjs.
-  destroyed: `way["destroyed:building"](${DETAIL_BOX});out geom tags;`,
-  roads: `way["highway"](${DETAIL_BOX});out geom tags;`,
+  destroyed: `way["destroyed:building"](${EXTENT_BOX});out geom tags;`,
+  roads: `way["highway"](${EXTENT_BOX});out geom tags;`,
   areas:
-    `(way["leisure"~"park|golf_course|pitch|playground|nature_reserve|garden"](${DETAIL_BOX});` +
-    `way["landuse"~"cemetery|grass|recreation_ground|forest|meadow|religious|reservoir|basin"](${DETAIL_BOX});` +
-    `way["amenity"~"school|grave_yard|parking"](${DETAIL_BOX});` +
-    `way["natural"~"wood|scrub|water|bare_rock|grassland"](${DETAIL_BOX});` +
-    `relation["leisure"="golf_course"](${DETAIL_BOX});relation["landuse"="cemetery"](${DETAIL_BOX}););out geom tags;`,
-  trees: `node["natural"="tree"](${DETAIL_BOX});out;`,
+    `(way["leisure"~"park|golf_course|pitch|playground|nature_reserve|garden"](${EXTENT_BOX});` +
+    `way["landuse"~"cemetery|grass|recreation_ground|forest|meadow|religious|reservoir|basin"](${EXTENT_BOX});` +
+    `way["amenity"~"school|grave_yard|parking"](${EXTENT_BOX});` +
+    `way["natural"~"wood|scrub|water|bare_rock|grassland"](${EXTENT_BOX});` +
+    `relation["leisure"="golf_course"](${EXTENT_BOX});relation["landuse"="cemetery"](${EXTENT_BOX}););out geom tags;`,
+  trees: `node["natural"="tree"](${EXTENT_BOX});out;`,
 };
 
 async function exists(path) {

@@ -1,11 +1,12 @@
 // Turns the cached OSM and terrain inputs into the files the ink map loads:
-//   public/map/altadena.json  buildings, streets, areas, trees and the road graph, in decimeters from ORIGIN
+//   public/map/altadena.json  buildings, streets, areas, trees and the road graph, in decimeters from ORIGIN,
+//                             over EXTENT; `detail` is the frame the camera keeps to
 //   public/map/terrain.bin    a Uint16 elevation grid in decimeters
 // Run after fetch.mjs: `node scripts/map/bake.mjs`.
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
-import { CACHE, DETAIL, ORIGIN, OUT, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_ZOOM, tileCoords, toLatLng, toLocal } from "./frame.mjs";
+import { CACHE, DETAIL, EXTENT, ORIGIN, OUT, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_ZOOM, tileCoords, toLatLng, toLocal } from "./frame.mjs";
 import {
   SpatialGrid,
   centroid,
@@ -185,6 +186,30 @@ function bakeAreas(elements) {
   return areas.sort((a, b) => Math.abs(ringArea(b.ring)) - Math.abs(ringArea(a.ring)));
 }
 
+const localBox = (bounds) => {
+  const [x0, y0] = toLocal(bounds.south, bounds.west);
+  const [x1, y1] = toLocal(bounds.north, bounds.east);
+  return { x0, y0, x1, y1 };
+};
+const EXTENT_BOX = localBox(EXTENT);
+const DETAIL_BOX = localBox(DETAIL);
+const inBox = (box, [x, y], pad = 0) => x >= box.x0 - pad && x <= box.x1 + pad && y >= box.y0 - pad && y <= box.y1 + pad;
+
+// Overpass returns every way that touches the box whole, so a highway can run on for kilometres past
+// it. Keeps only the stretches inside, each with one point past the edge so it still reaches it.
+function insideRuns(path, box) {
+  const runs = [];
+  let run = [];
+  path.forEach((point, i) => {
+    const near = [path[i - 1], point, path[i + 1]].some((p) => p && inBox(box, p));
+    if (near) return run.push(point);
+    if (run.length >= 2) runs.push(run);
+    run = [];
+  });
+  if (run.length >= 2) runs.push(run);
+  return runs;
+}
+
 function bakeRoads(elements) {
   const names = [];
   const nameIndex = new Map();
@@ -198,7 +223,7 @@ function bakeRoads(elements) {
       names.push(name);
     }
     const tunnel = element.tags.tunnel === "yes" || element.tags.covered === "yes";
-    roads.push({ roadClass, name: nameIndex.get(name), path: localRing(element.geometry), tunnel });
+    for (const path of insideRuns(localRing(element.geometry), EXTENT_BOX)) roads.push({ roadClass, name: nameIndex.get(name), path, tunnel });
   }
   return { roads, names };
 }
@@ -244,15 +269,16 @@ function plantTrees(buildings, roads, osmTrees, areas) {
   const homes = buildingIndex(buildings);
   const streets = roadIndex(roads);
   const water = areas.filter((a) => a.kind === AREA_KIND.water || a.kind === AREA_KIND.parking || a.kind === AREA_KIND.pitch);
-  const [x0, y0] = toLocal(DETAIL.south, DETAIL.west);
-  const [x1, y1] = toLocal(DETAIL.north, DETAIL.east);
+  const { x0, y0, x1, y1 } = EXTENT_BOX;
   const trees = osmTrees.map((t) => toLocal(t.lat, t.lon));
   const step = 7.5;
   for (let y = y0; y < y1; y += step) {
     for (let x = x0; x < x1; x += step) {
       const px = x + (random() - 0.5) * step;
       const py = y + (random() - 0.5) * step;
-      if (random() > clumpNoise(px, py) * 0.95) continue;
+      // Past the town the trees thin to half: they only have to read as tree cover from afar.
+      const density = inBox(DETAIL_BOX, [px, py]) ? 0.95 : 0.48;
+      if (random() > clumpNoise(px, py) * density) continue;
       if (!nearHome(homes, px, py) || onBuilding(homes, px, py) || onRoad(streets, px, py)) continue;
       if (water.some((a) => pointInRing(px, py, a.ring))) continue;
       trees.push([px, py]);
@@ -312,12 +338,11 @@ async function main() {
   const areas = bakeAreas(await readJson("areas"));
   const trees = plantTrees(buildings, roads, await readJson("trees"), areas);
   const graph = await bakeGraph();
-  const [fx0, fy0] = toLocal(DETAIL.south, DETAIL.west);
-  const [fx1, fy1] = toLocal(DETAIL.north, DETAIL.east);
 
   const out = {
     origin: ORIGIN,
-    detail: [fx0, fy0, fx1, fy1].map(Math.round),
+    detail: [DETAIL_BOX.x0, DETAIL_BOX.y0, DETAIL_BOX.x1, DETAIL_BOX.y1].map(Math.round),
+    extent: [EXTENT_BOX.x0, EXTENT_BOX.y0, EXTENT_BOX.x1, EXTENT_BOX.y1].map(Math.round),
     terrain,
     buildings: buildings.map((b) => [b.kind, b.roof, dm(b.walls), dm(b.rise), ...flat(b.ring)]),
     roads: roads.map((r) => [r.roadClass, r.name, r.tunnel ? 1 : 0, ...flat(r.path)]),

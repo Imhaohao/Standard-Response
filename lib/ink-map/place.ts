@@ -17,7 +17,7 @@ export type PlaceIndex = {
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 
 export function buildPlaceIndex(data: InkMapData): PlaceIndex {
-  const { x0, y0, x1, y1 } = data.detail;
+  const { x0, y0, x1, y1 } = data.extent;
   const cols = Math.max(1, Math.ceil((x1 - x0) / CELL_METERS));
   const rows = Math.max(1, Math.ceil((y1 - y0) / CELL_METERS));
   const buckets: number[][] = Array.from({ length: cols * rows }, () => []);

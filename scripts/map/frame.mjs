@@ -1,5 +1,7 @@
-// The extent of the ink map. Buildings and streets cover DETAIL; terrain reaches further north so the
-// San Gabriel foothills close off the top of the frame.
+// The extent of the ink map. DETAIL is the town the map is about: the camera frames it and can't pan
+// past it. Buildings, streets and trees cover EXTENT, a margin a few kilometres wider, so a tilted
+// view near DETAIL's edge still looks out over the neighbouring towns instead of a cut-off edge.
+// Terrain reaches further again, north to the San Gabriel ridges and south past Pasadena.
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -10,7 +12,8 @@ export const OUT = join(here, "..", "..", "public", "map");
 // AREA's centre in convex/model.ts. Every baked coordinate is meters east and north of it.
 export const ORIGIN = { lat: 34.189, lng: -118.154 };
 export const DETAIL = { south: 34.17, north: 34.216, west: -118.178, east: -118.108 };
-export const TERRAIN = { south: 34.16, north: 34.275, west: -118.21, east: -118.07 };
+export const EXTENT = { south: 34.148, north: 34.232, west: -118.205, east: -118.08 };
+export const TERRAIN = { south: 34.125, north: 34.275, west: -118.225, east: -118.065 };
 export const TERRAIN_ZOOM = 14;
 export const TERRAIN_CELL_METERS = 15;
 
