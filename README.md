@@ -128,6 +128,7 @@ Every rider call is heard by Ink and spoken by Sonic. Because both run over WebS
 | Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn. The call then waits 0.3 s after a full stop, 0.6 s with no punctuation, and 1.3 s when the words trail off | `voice/phone/callSession.ts` `turnGap` |
 | Sonic streaming text-to-speech (`sonic-latest`) | Each agent turn is one request. That way intonation carries across its sentences | `voice/phone/speech.ts` |
 | Sonic context cancel | Barge-in: when the rider talks over the agent, the rest of the turn is cancelled at once | `CallSpeech.bargeIn` |
+| Cartesia telephony and the Line agent socket | With `VOICE_CARRIER=cartesia`, Cartesia answers and places the phone call itself and streams the resident's words to our server over the Line SDK's self-hosted agent socket; our server still decides every word. Twilio stays the default carrier | `voice/phone/cartesiaLine.ts`, `voice/phone/line.ts` |
 | Sonic multilingual voices | Calls in en, es, zh, ko, vi, tl, ru and ja. `CARTESIA_VOICE_<CODE>` picks a native voice; otherwise the English voice speaks the language | `voice/env.ts` `voiceFor` |
 | Short Sonic fillers ("Mm-hm.") | Cover Claude's thinking time without claiming to have understood anything | `backchannels` in `voice/agent/lines/*.ts` |
 
