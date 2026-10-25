@@ -4,7 +4,7 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { vehicleCanServe } from "./model";
 import { approveAssignment, liveAssignmentsFor, liveAssignmentsForVehicle, replaceAssignment, revokeAssignment } from "./offers";
-import { audit } from "./requests";
+import { audit, OFFERABLE } from "./requests";
 import { simNow } from "./clock";
 
 const offer = v.object({
@@ -40,6 +40,8 @@ async function assertOfferAllowed(ctx: MutationCtx, item: Offer) {
   const request = await ctx.db.get("requests", item.requestId);
   const vehicle = await ctx.db.get("vehicles", item.vehicleId);
   if (!request || !vehicle) throw new Error("Offer names a missing request or vehicle");
+  // A solver works from a snapshot; the rider may have left on their own, or been picked up, since.
+  if (!OFFERABLE.has(request.status)) throw new Error(`Request ${request._id} is ${request.status} and can't take an offer`);
   if (!vehicleCanServe(vehicle, request)) throw new Error(`${vehicle.label} can't serve request ${request._id}`);
   const vehicleRun = await liveAssignmentsForVehicle(ctx, vehicle._id);
   const lastAccepted = Math.max(-1, ...vehicleRun.filter((a) => a.status === "accepted").map((a) => a.stopOrder));

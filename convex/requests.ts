@@ -13,6 +13,9 @@ export type RequestStatus = Doc<"requests">["status"];
 // Every status but closed.
 const OPEN_STATUSES: RequestStatus[] = ["received", "approved", "driver_accepted", "en_route", "reassigning", "arrived"];
 
+// Waiting for a driver: the only statuses a new offer may be made for.
+export const OFFERABLE = new Set<RequestStatus>(["received", "approved", "reassigning"]);
+
 // The only legal moves. Every status write goes through `transitionRequest`.
 const NEXT: Record<RequestStatus, RequestStatus[]> = {
   received: ["approved", "closed"],

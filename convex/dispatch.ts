@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { liveAssignmentsFor, liveAssignmentsForVehicle } from "./offers";
 import { writePlan } from "./plans";
-import { audit, escalateHousehold } from "./requests";
+import { audit, escalateHousehold, OFFERABLE } from "./requests";
 import { vehicleCanServe } from "./model";
 import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
@@ -133,8 +133,6 @@ async function firstFreeStop(ctx: MutationCtx, vehicleId: Id<"vehicles">, leavin
   const accepted = run.filter((a) => a.status === "accepted" && !leaving.has(a._id));
   return Math.max(-1, ...accepted.map((a) => a.stopOrder)) + 1;
 }
-
-const OFFERABLE = new Set<Doc<"requests">["status"]>(["received", "approved", "reassigning"]);
 
 // The world moved while the solver ran. Keep only offers the contract will still accept.
 async function offerStillValid(ctx: MutationCtx, offer: OfferArg, ending: Set<Id<"assignments">>) {

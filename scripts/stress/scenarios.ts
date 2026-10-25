@@ -16,7 +16,7 @@ const commit = asPublic(internal.dispatch.commit);
 
 // Refusals the contract is meant to give; any other error is a bug. Write conflicts Convex gave up
 // on are counted apart (Lab.conflicts): the write failed whole, so they can't break an invariant.
-const EXPECTED_REFUSAL = /already has a live assignment|accepted run can't take new stops|can't serve request/;
+const EXPECTED_REFUSAL = /already has a live assignment|accepted run can't take new stops|can't serve request|can't take an offer/;
 const NONE = /^$/;
 
 function unexpectedErrors(lab: Lab, results: Outcome<unknown>[], allowed = EXPECTED_REFUSAL) {
