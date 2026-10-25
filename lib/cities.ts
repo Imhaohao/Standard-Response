@@ -81,8 +81,7 @@ const ALTADENA: City = {
   sources: [OSM, TERRAIN_TILES, { label: "CAL FIRE Eaton Fire incident", url: "https://www.fire.ca.gov/incidents/2025/1/7/eaton-fire" }],
 };
 
-// The other five are first drafts from the brief: every date, time and coordinate is checked
-// against sources before its bake, and `verified` flips once it has been.
+// The other five. `verified` is true once a city's boxes have been checked against the map.
 type Draft = Omit<City, "frames" | "files" | "extent" | "terrain"> & { verified: boolean; pad: { extent: number; terrain: number }; closeups: Omit<Extract<CityFrame, { kind: "closeup" }>, "kind">[] };
 
 const grow = (box: GeoBox, degrees: number): GeoBox => ({ south: box.south - degrees, west: box.west - degrees, north: box.north + degrees, east: box.east + degrees });
@@ -98,31 +97,35 @@ function fromDraft({ verified, pad, closeups, ...city }: Draft): City & { verifi
   };
 }
 
+// Boxes checked against OpenStreetMap on 2026-10-25: Paradise's town boundary (relation 3983857),
+// the Lower Ninth Ward place node and the Inner Harbor Navigation Canal (relation 2189784), Fort
+// Myers Beach's boundary (relation 1216971), and Hilo Bay (node 368391211). Paradise's and Buffalo's
+// detail boxes are the ones their scenario data uses (data/cities/<id>).
 const DRAFTS: Draft[] = [
   {
     id: "paradise",
     name: "Paradise",
     event: { name: "Camp Fire", date: "2018-11-08", kind: "wildfire" },
-    verified: false,
-    origin: { lat: 39.76, lng: -121.62 },
-    detail: { south: 39.737, north: 39.783, west: -121.655, east: -121.585 },
-    pad: { extent: 0.02, terrain: 0.04 },
+    verified: true,
+    origin: { lat: 39.77, lng: -121.61 },
+    detail: { south: 39.72, north: 39.82, west: -121.67, east: -121.55 },
+    pad: { extent: 0.015, terrain: 0.035 },
     terrainZoom: 14,
-    terrainCellMeters: 15,
+    terrainCellMeters: 20,
     osmSnapshot: "2018-11-07T00:00:00Z",
     closeups: [],
-    sources: [OSM, TERRAIN_TILES],
+    sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/paradise/sources.md" }],
   },
   {
     id: "lower-ninth",
     name: "Lower Ninth Ward",
     event: { name: "Hurricane Katrina levee breach", date: "2005-08-29", kind: "flood" },
-    verified: false,
+    verified: true,
     origin: { lat: 29.966, lng: -90.009 },
     detail: { south: 29.948, north: 29.984, west: -90.037, east: -89.981 },
-    pad: { extent: 0.015, terrain: 0.03 },
+    pad: { extent: 0.012, terrain: 0.025 },
     terrainZoom: 15,
-    terrainCellMeters: 8,
+    terrainCellMeters: 10,
     osmSnapshot: null,
     closeups: [],
     sources: [OSM, TERRAIN_TILES],
@@ -131,12 +134,12 @@ const DRAFTS: Draft[] = [
     id: "fort-myers-beach",
     name: "Fort Myers Beach",
     event: { name: "Hurricane Ian storm surge", date: "2022-09-28", kind: "surge" },
-    verified: false,
-    origin: { lat: 26.45, lng: -81.95 },
-    detail: { south: 26.427, north: 26.473, west: -81.976, east: -81.924 },
-    pad: { extent: 0.015, terrain: 0.03 },
+    verified: true,
+    origin: { lat: 26.435, lng: -81.925 },
+    detail: { south: 26.398, north: 26.472, west: -81.975, east: -81.875 },
+    pad: { extent: 0.012, terrain: 0.025 },
     terrainZoom: 15,
-    terrainCellMeters: 8,
+    terrainCellMeters: 10,
     osmSnapshot: "2022-09-27T00:00:00Z",
     closeups: [],
     sources: [OSM, TERRAIN_TILES],
@@ -145,26 +148,26 @@ const DRAFTS: Draft[] = [
     id: "buffalo",
     name: "Buffalo East Side",
     event: { name: "Buffalo blizzard", date: "2022-12-23", kind: "blizzard" },
-    verified: false,
-    origin: { lat: 42.89, lng: -78.84 },
-    detail: { south: 42.872, north: 42.908, west: -78.872, east: -78.808 },
-    pad: { extent: 0.015, terrain: 0.03 },
+    verified: true,
+    origin: { lat: 42.9075, lng: -78.8325 },
+    detail: { south: 42.87, north: 42.945, west: -78.87, east: -78.795 },
+    pad: { extent: 0.01, terrain: 0.025 },
     terrainZoom: 14,
-    terrainCellMeters: 12,
+    terrainCellMeters: 15,
     osmSnapshot: "2022-12-22T00:00:00Z",
     closeups: [],
-    sources: [OSM, TERRAIN_TILES],
+    sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/buffalo/sources.md" }],
   },
   {
     id: "hilo",
     name: "Hilo",
     event: { name: "1960 Chile tsunami", date: "1960-05-23", kind: "tsunami" },
-    verified: false,
+    verified: true,
     origin: { lat: 19.72, lng: -155.08 },
     detail: { south: 19.7, north: 19.74, west: -155.11, east: -155.05 },
-    pad: { extent: 0.015, terrain: 0.035 },
+    pad: { extent: 0.012, terrain: 0.025 },
     terrainZoom: 15,
-    terrainCellMeters: 8,
+    terrainCellMeters: 10,
     osmSnapshot: null,
     closeups: [],
     sources: [OSM, TERRAIN_TILES],

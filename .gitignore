@@ -50,6 +50,7 @@ modeling/cache/
 
 # Map bake cache and browser screenshots
 scripts/map/.cache/
+scripts/map/.cache-*/
 .playwright-mcp/
 
 # Moss index cache and the downloaded 911 call transcripts (voice/knowledge)

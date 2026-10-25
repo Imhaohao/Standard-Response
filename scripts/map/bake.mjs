@@ -4,9 +4,11 @@
 //   public/map/terrain.bin    a Uint16 elevation grid in decimeters
 // Run after fetch.mjs: `node scripts/map/bake.mjs`.
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { PNG } from "pngjs";
-import { CACHE, DETAIL, EXTENT, ORIGIN, OUT, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_ZOOM, tileCoords, toLatLng, toLocal } from "./frame.mjs";
+import { CACHE, CITY, DETAIL, EXTENT, MAP_FILE, ORIGIN, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_FILE, TERRAIN_ZOOM, tileCoords, toLatLng, toLocal } from "./frame.mjs";
+import { loadDep } from "./dep.mjs";
+import { waterRings } from "./water.mjs";
 import {
   SpatialGrid,
   centroid,
@@ -56,8 +58,13 @@ function elevationAt(tiles, lat, lng) {
   return top * (1 - fy) + bottom * fy;
 }
 
+// Another city's grid is stored lifted by this much, so ground and sea floor below sea level fit in a
+// Uint16; deeper water is clamped to it. Altadena's grid has no lift.
+const TERRAIN_OFFSET = CITY ? 50 : 0;
+
 async function bakeTerrain() {
   const tiles = await loadTiles();
+  const dep = CITY ? await loadDep(CACHE) : null;
   const [x0, y0] = toLocal(TERRAIN.south, TERRAIN.west);
   const [x1, y1] = toLocal(TERRAIN.north, TERRAIN.east);
   const cols = Math.floor((x1 - x0) / TERRAIN_CELL_METERS) + 1;
@@ -66,11 +73,12 @@ async function bakeTerrain() {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const { lat, lng } = toLatLng(x0 + c * TERRAIN_CELL_METERS, y0 + r * TERRAIN_CELL_METERS);
-      grid[r * cols + c] = dm(elevationAt(tiles, lat, lng));
+      grid[r * cols + c] = dm(Math.max(dep?.(lat, lng) ?? elevationAt(tiles, lat, lng), -TERRAIN_OFFSET) + TERRAIN_OFFSET);
     }
   }
-  await writeFile(join(OUT, "terrain.bin"), Buffer.from(grid.buffer));
-  return { cols, rows, cell: TERRAIN_CELL_METERS, x0: Math.round(x0), y0: Math.round(y0) };
+  await writeFile(TERRAIN_FILE, Buffer.from(grid.buffer));
+  const lift = TERRAIN_OFFSET ? { offsetMeters: TERRAIN_OFFSET } : {};
+  return { cols, rows, cell: TERRAIN_CELL_METERS, x0: Math.round(x0), y0: Math.round(y0), ...lift };
 }
 
 // ---- Buildings ----
@@ -142,14 +150,14 @@ const AREA_KIND = { park: 0, grass: 1, water: 2, school: 3, parking: 4, cemetery
 const AREA_BY_TAG = {
   park: AREA_KIND.park, garden: AREA_KIND.park, nature_reserve: AREA_KIND.wild, playground: AREA_KIND.park, recreation_ground: AREA_KIND.park,
   grass: AREA_KIND.grass, meadow: AREA_KIND.grass, grassland: AREA_KIND.grass, disc_golf_course: AREA_KIND.park,
-  water: AREA_KIND.water, reservoir: AREA_KIND.water, basin: AREA_KIND.water,
+  water: AREA_KIND.water, reservoir: AREA_KIND.water, basin: AREA_KIND.water, bay: AREA_KIND.water, riverbank: AREA_KIND.water,
   school: AREA_KIND.school, religious: AREA_KIND.school,
   parking: AREA_KIND.parking, cemetery: AREA_KIND.cemetery, grave_yard: AREA_KIND.cemetery,
   golf_course: AREA_KIND.golf, pitch: AREA_KIND.pitch,
   wood: AREA_KIND.wild, forest: AREA_KIND.wild, scrub: AREA_KIND.wild, bare_rock: AREA_KIND.wild,
 };
 
-const areaTag = (tags) => tags.leisure ?? tags.landuse ?? tags.amenity ?? tags.natural ?? tags.water;
+const areaTag = (tags) => tags.leisure ?? tags.landuse ?? tags.amenity ?? tags.natural ?? tags.water ?? tags.waterway;
 
 // Joins a relation's outer members end to end into closed rings.
 function relationRings(element) {
@@ -326,8 +334,22 @@ async function bakeGraph() {
 
 const flat = (points) => points.flatMap(([x, y]) => [dm(x), dm(y)]);
 
+const NO_GRAPH = { nodes: [], edges: [] };
+
+// Water for another city: lakes, rivers and bays as areas, and the sea closed from its coastline.
+async function bakeWater() {
+  if (!CITY) return { elements: [], sea: [] };
+  const water = await readJson("water");
+  const coastlines = water.filter((e) => e.tags?.natural === "coastline" && e.geometry).map((e) => localRing(e.geometry));
+  // Relations (rivers and canals mapped as multipolygons) are filled with their islands cut out.
+  const relations = water.filter((e) => e.type === "relation");
+  const multipolygons = relations.map((e) => (e.members ?? []).filter((m) => m.geometry).map((m) => localRing(m.geometry)));
+  const ways = water.filter((e) => e.type === "way" && e.tags?.natural !== "coastline");
+  return { elements: ways, sea: waterRings({ coastlines, multipolygons }, EXTENT_BOX) };
+}
+
 async function main() {
-  await mkdir(OUT, { recursive: true });
+  await mkdir(dirname(MAP_FILE), { recursive: true });
   const random = mulberry32(7);
   const terrain = await bakeTerrain();
   const standing = await readJson("buildings");
@@ -335,9 +357,13 @@ async function main() {
   const destroyed = (await readJson("destroyed")).filter((e) => !known.has(e.id));
   const buildings = [...standing, ...destroyed].map((e) => bakeBuilding(e, random)).filter(Boolean);
   const { roads, names } = bakeRoads(await readJson("roads"));
-  const areas = bakeAreas(await readJson("areas"));
+  const water = await bakeWater();
+  const areaElements = await readJson("areas");
+  const seen = new Set(areaElements.map((e) => `${e.type}${e.id}`));
+  const areas = bakeAreas([...areaElements, ...water.elements.filter((e) => !seen.has(`${e.type}${e.id}`))]);
+  areas.push(...water.sea.map((ring) => ({ kind: AREA_KIND.water, ring })));
   const trees = plantTrees(buildings, roads, await readJson("trees"), areas);
-  const graph = await bakeGraph();
+  const graph = CITY ? NO_GRAPH : await bakeGraph();
 
   const out = {
     origin: ORIGIN,
@@ -356,7 +382,7 @@ async function main() {
     },
   };
   const json = JSON.stringify(out);
-  await writeFile(join(OUT, "altadena.json"), json);
+  await writeFile(MAP_FILE, json);
   const centre = centroid(buildings.map((b) => centroid(b.ring)));
   console.log(
     `buildings ${buildings.length}, roads ${roads.length}, areas ${areas.length}, trees ${trees.length}, ` +

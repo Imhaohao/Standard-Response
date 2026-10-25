@@ -2,7 +2,8 @@
 // The baked output in public/map is committed, so nobody else needs the network.
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { CACHE, EXTENT, TERRAIN, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
+import { fetchDep } from "./dep.mjs";
+import { CACHE, CITY, EXTENT, TERRAIN, TERRAIN_CELL_METERS, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
 const USER_AGENT = "rollcall-calhacks/0.1 (evacuation coordination map)";
@@ -10,7 +11,9 @@ const box = ({ south, west, north, east }) => `${south},${west},${north},${east}
 const EXTENT_BOX = box(EXTENT);
 
 // Buildings come from before the January 2025 Eaton Fire, so the scenario plays out over the town as it stood.
-const BEFORE_EATON_FIRE = '[date:"2024-12-15T00:00:00Z"]';
+// Another city bakes from its own snapshot, or from today's map when lib/cities.ts gives none.
+const snapshot = (date) => (date ? `[date:"${date}"]` : "");
+const BEFORE_EATON_FIRE = CITY ? snapshot(CITY.osmSnapshot) : '[date:"2024-12-15T00:00:00Z"]';
 
 const QUERIES = {
   buildings: `way["building"](${EXTENT_BOX});out geom tags;`,
@@ -25,6 +28,15 @@ const QUERIES = {
     `relation["leisure"="golf_course"](${EXTENT_BOX});relation["landuse"="cemetery"](${EXTENT_BOX}););out geom tags;`,
   trees: `node["natural"="tree"](${EXTENT_BOX});out;`,
 };
+
+// Floods, surges and tsunamis need to know where the water is. The sea comes as coastline ways
+// (land on their left) that bake.mjs closes into polygons; rivers, canals, bays and lakes as areas.
+if (CITY) {
+  QUERIES.water =
+    `(way["natural"="coastline"](${EXTENT_BOX});way["natural"~"water|bay"](${EXTENT_BOX});` +
+    `relation["natural"~"water|bay"](${EXTENT_BOX});way["waterway"="riverbank"](${EXTENT_BOX});` +
+    `relation["waterway"="riverbank"](${EXTENT_BOX});way["landuse"="basin"](${EXTENT_BOX}););out geom;`;
+}
 
 async function exists(path) {
   try {
@@ -78,3 +90,4 @@ async function terrainTiles() {
 await mkdir(CACHE, { recursive: true });
 for (const [name, query] of Object.entries(QUERIES)) await overpass(name, query);
 await terrainTiles();
+if (CITY) await fetchDep(CACHE, TERRAIN, TERRAIN_CELL_METERS, USER_AGENT);
