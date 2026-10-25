@@ -237,3 +237,29 @@ describe("a solve that takes a while at fast playback", () => {
     expect(after.etaUpdatedAt).toBe(snap.now);
   });
 });
+
+describe("an open offer the new plan keeps on the same van", () => {
+  test("stays while its ETA holds, and is offered again with the new ETA when the van will be later", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    const snap = await t.query(internal.dispatchSnapshot.snapshot, {});
+    const world = buildWorld(snap, snap.now);
+    const route = (minutes: number) => ({
+      routes: [{ vehicle: offer.vehicleId, stops: [{ request: request._id, kind: "pickup" as const, shelter: null, arrival: minutes * 60 }] }],
+      dropped: [],
+      solver: "heuristic" as const,
+      solveMs: 1,
+    });
+
+    const holds = planFromSolution(world, route(offer.etaMinutes));
+    expect(holds.replace).not.toContain(offer._id);
+    expect(holds.offers.map((o) => o.requestId)).not.toContain(request._id);
+
+    const slips = planFromSolution(world, route(offer.etaMinutes + 10));
+    expect(slips.replace).toContain(offer._id);
+    expect(slips.offers.find((o) => o.requestId === request._id)?.etaMinutes).toBe(offer.etaMinutes + 10);
+  });
+});

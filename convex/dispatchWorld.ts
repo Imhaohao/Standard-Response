@@ -18,6 +18,8 @@ const OXYGEN_MAX_RIDE_SECONDS = 45 * 60;
 // more than the ETA the rider was given. Being a little later than forecast isn't a reason.
 const REVOKE_TOLERANCE_MS = 10 * 60_000;
 const ETA_REFRESH_MS = 60_000;
+// An open offer whose pickup the new plan has later than this past the ETA it shows is offered again.
+const OFFER_ETA_SLIP_MINUTES = 2;
 // A van whose driver let an offer expire can be offered that rider again after this long.
 const EXPIRED_REFUSAL_MS = 5 * 60_000;
 
@@ -373,10 +375,12 @@ function planPickup(world: World, changes: Changes, vehicleId: Id<"vehicles">, s
   if (!entry) return;
   const requestId = entry.request._id;
   const open = world.offers.get(requestId);
-  const kept = open && !open.stale && open.assignment.vehicleId === vehicleId;
+  const etaMinutes = Math.max(1, Math.ceil(stop.arrival / 60));
+  // An open offer kept on the same van still shows its ETA, and it's the one the rider hears if the
+  // driver accepts. When the plan sends the van somewhere first and that slips, the offer is redone.
+  const kept = open && !open.stale && open.assignment.vehicleId === vehicleId && etaMinutes <= open.assignment.etaMinutes + OFFER_ETA_SLIP_MINUTES;
   if (!kept) {
     if (open) changes.replace.push(open.assignment._id);
-    const etaMinutes = Math.max(1, Math.ceil(stop.arrival / 60));
     changes.offers.push({ requestId, vehicleId, shelterId: shelter as Id<"shelters"> | undefined, etaMinutes, sequence });
   }
   const late = world.now + stop.arrival * 1000 > entry.request.deadlineAt;
