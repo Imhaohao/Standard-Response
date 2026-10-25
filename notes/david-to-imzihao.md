@@ -54,3 +54,12 @@ Fixes since my last note, all with tests: Moss principles go into the prompt as 
 **One for you, in the away flow** (exam `lahaina-traffic`, reproduced on main): "No, we left. We're caught in massive traffic" → `confirm_away` → "I'm not sure" twice → the call resumes at `ask_address` and asks "What address are you at right now?" of a family driving away. "No" here meant "we left", not "wrong address", so the home's address (280 Marathon Road) should probably stay the household's address, with the call resuming at `can_leave`. I haven't touched `confirmAway`/`resumeStep`, since that's your code.
 
 Coming next from me: "I don't know that yet." (new fixed line `notKnownYet`, all 10 languages) when they ask about the fire or the way out and the screen has nothing; a read-back that says "from <address>" for someone leaving on their own; "I'm not sure" never counting toward a language-barrier hand-off (three of them handed that same family off); and no bare "I don't know that." to a statement.
+
+## 2026-10-25 03:20
+
+**Could you redeploy the DigitalOcean solver service (`dispatch/deploy_digitalocean.sh`) when you have a minute?** Tonight's `dispatch/` changes only reach the live re-planner after a redeploy:
+- `solver.drop_penalty` adds `REASSIGNED_DROP_COST` and `wait_weight` counts a reassigned rider's waiting 4x. The problem marks them with `reassigned: true` (optional; an old service ignores it). Both are tie-breaks among plans with the same expected deaths.
+- `heuristic.py`, which ALNS starts from, places reassigned riders first and keeps an open offer on its van unless another van saves `CHANGED_OFFER_COST`. It stays in step with `convex/heuristic.ts` under the parity test.
+- Also, `verify_dispatch.py`'s solver check now accepts `alns` as well as `ortools`. It failed on every healthy run since ALNS went live.
+
+Until the redeploy, Convex keeps working with the old service: the new field is ignored, and the TS heuristic fallback already has all of this.
