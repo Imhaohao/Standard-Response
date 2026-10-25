@@ -16,6 +16,18 @@ export async function readClosures(ctx: QueryCtx) {
   return await ctx.db.query("roadClosures").take(MAX_CLOSURES);
 }
 
+// What the loops that run every tick read instead of the closures themselves.
+export async function closuresVersion(ctx: QueryCtx) {
+  return (await ctx.db.query("roadState").first())?.version ?? 0;
+}
+
+// Every write that adds, lifts or re-snaps a closure calls this.
+export async function markClosuresChanged(ctx: MutationCtx) {
+  const row = await ctx.db.query("roadState").first();
+  if (row) await ctx.db.patch("roadState", row._id, { version: row.version + 1 });
+  else await ctx.db.insert("roadState", { version: 1 });
+}
+
 export const closures = query({
   args: {},
   handler: async (ctx) => await readClosures(ctx),
@@ -61,6 +73,7 @@ export async function insertClosures(ctx: MutationCtx, closures: ClosureInput[])
     await ctx.db.insert("roadClosures", { ...snapped(closure), confirmed, at });
     added += 1;
   }
+  if (added > 0) await markClosuresChanged(ctx);
   return added;
 }
 
@@ -87,6 +100,7 @@ export const setEdgeKey = mutation({
   returns: v.null(),
   handler: async (ctx, { closureId, edgeKey }) => {
     await ctx.db.patch("roadClosures", closureId, { edgeKey });
+    await markClosuresChanged(ctx);
     return null;
   },
 });

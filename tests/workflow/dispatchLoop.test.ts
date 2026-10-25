@@ -147,19 +147,18 @@ describe("a closure lifted and another started between two ticks", () => {
     const request = await requestOf(t, homes[0]);
     const [offer] = await liveFor(t, request._id);
     await t.mutation(api.offers.accept, { assignmentId: offer._id });
-    // A closure far from the run, snapped by a re-plan, so the van's path is planned around it.
+    // An Apify closure far from the run, so the van's path is planned around it.
     const far = EDGES.find((edge) => nodePoint(edge.u).lat > 34.199)!;
-    await t.mutation(api.roads.addClosures, { closures: [{ edgeKey: far.key, path: [nodePoint(far.u), nodePoint(far.v)], source: "manual" }] });
+    const farPath = [nodePoint(far.u), nodePoint(far.v)];
+    await t.mutation(internal.apify.applyClosures, { closures: [{ key: "far", name: "Far St", status: "closed", path: farPath, drill: true }] });
     await replan(t);
     await tick(t, 1);
     const before = await t.run(async (ctx) => (await ctx.db.query("vehicleRoutes").collect()).find((r) => r.vehicleId === offer.vehicleId)!);
 
-    // One batch lifts the far closure and closes every street at the rider's corner, already snapped.
-    const corner = cutOff(HOMES[0]).map((closure) => closure.edgeKey);
-    await t.run(async (ctx) => {
-      for (const row of await ctx.db.query("roadClosures").collect()) await ctx.db.delete("roadClosures", row._id);
-      await ctx.db.insert("roadClosures", { path: [nodePoint(nearestNode(HOMES[0]))], source: "manual", edgeKeys: corner, confirmed: true, at: Date.now() });
-    });
+    // One Apify batch lifts the far closure and closes every street at the rider's corner: as many
+    // closures as before plus some, and none of the old ones.
+    const corner = cutOff(HOMES[0]).map((closure, i) => ({ key: `corner-${i}`, name: "Corner", status: "closed" as const, path: closure.path, drill: true }));
+    await t.mutation(internal.apify.applyClosures, { closures: [{ key: "far", name: "Far St", status: "lifted" }, ...corner] });
     await tick(t, 1);
 
     const after = await t.run(async (ctx) => (await ctx.db.query("vehicleRoutes").collect()).find((r) => r.vehicleId === offer.vehicleId)!);

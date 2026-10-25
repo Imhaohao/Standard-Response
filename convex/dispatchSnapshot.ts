@@ -2,7 +2,7 @@ import { internalQuery, QueryCtx } from "./_generated/server";
 import { simTime } from "../lib/sim-clock";
 import { Doc } from "./_generated/dataModel";
 import { trafficForDispatch } from "./traffic";
-import { readClosures } from "./roads";
+import { closuresVersion, readClosures } from "./roads";
 
 // Everything one re-plan reads, in one consistent read.
 
@@ -74,6 +74,7 @@ export async function readSnapshot(ctx: QueryCtx) {
     vehicles: await ctx.db.query("vehicles").take(200),
     shelters: await ctx.db.query("shelters").take(50),
     closures: await readClosures(ctx),
+    closuresVersion: await closuresVersion(ctx),
     routes: await ctx.db.query("vehicleRoutes").take(200),
     autoApprove: control?.autoApprove ?? false,
     // Forecast evacuation traffic for drive times, or null for free flow.

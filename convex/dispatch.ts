@@ -9,7 +9,7 @@ import { audit, escalateHousehold, OFFERABLE } from "./requests";
 import { vehicleCanServe } from "./model";
 import { positionAt } from "./vehicleRun";
 import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
-import { closureSetKey } from "./roadGraph";
+import { markClosuresChanged } from "./roads";
 import type { Snapshot } from "./dispatchSnapshot";
 import { simNow } from "./clock";
 
@@ -47,13 +47,12 @@ async function hasLiveRuns(ctx: MutationCtx) {
   return false;
 }
 
-// Called from the simulation tick with the closures it read for the vans. Starts a re-plan when one
+// Called from the simulation tick with the closures' roadState version. Starts a re-plan when one
 // is due and none is running.
-export async function maybeReplan(ctx: MutationCtx, now: number, roadClosures: Doc<"roadClosures">[]) {
+export async function maybeReplan(ctx: MutationCtx, now: number, closuresVersion: number) {
   const state = await stateRow(ctx);
   if (state.replanStartedAt && now - state.replanStartedAt < REPLAN_LOCK_MS) return;
-  const closures = closureSetKey(roadClosures);
-  const closuresChanged = closures !== state.closuresSeen;
+  const closuresChanged = closuresVersion !== state.closuresSeen;
   const since = now - state.lastReplanAt;
   const due = (since >= REPLAN_EVERY_MS && (await hasUrgentWork(ctx))) || (since >= REFRESH_EVERY_MS && (await hasLiveRuns(ctx)));
   if (!closuresChanged && !due) return;
@@ -108,12 +107,16 @@ type CommitArgs = {
 };
 type OfferArg = typeof offerArg.type;
 
+// Closures written before they were snapped on insert (convex/roads.ts) get their streets here.
 async function saveClosureEdges(ctx: MutationCtx, closureEdges: CommitArgs["closureEdges"]) {
+  let snapped = 0;
   for (const { closureId, edgeKeys, streets } of closureEdges) {
     const closure = await ctx.db.get("roadClosures", closureId);
     if (!closure) continue;
     await ctx.db.patch("roadClosures", closureId, { edgeKeys, streets, edgeKey: closure.edgeKey ?? edgeKeys[0] });
+    snapped += 1;
   }
+  if (snapped > 0) await markClosuresChanged(ctx);
 }
 
 async function stillAccepted(ctx: MutationCtx, revoke: CommitArgs["revoke"]) {

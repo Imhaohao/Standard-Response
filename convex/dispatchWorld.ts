@@ -3,7 +3,7 @@ import type { Snapshot } from "./dispatchSnapshot";
 import { isSolution, PlannedStop, Problem, ProblemRequest, Solution } from "./dispatchProblem";
 import { solveHeuristic } from "./heuristic";
 import { OFFER_TTL_MS, vehicleCanServe } from "./model";
-import { closedEdgeSet, closedEdgesFor, closureSetKey, edgeKeysOf, EdgeTime, nearestNode, nodePoint, shortestPathsFrom, ShortestPaths, streetNames } from "./roadGraph";
+import { closedEdgeSet, closedEdgesFor, edgeKeysOf, EdgeTime, nearestNode, nodePoint, shortestPathsFrom, ShortestPaths, streetNames } from "./roadGraph";
 import { trafficEdgeTime } from "./traffic";
 import { forecastRun, RunState } from "./vehicleRun";
 
@@ -320,7 +320,7 @@ export function buildWorld(snap: Snapshot, now: number) {
     revoke,
     etaUpdates: allPlans.flatMap((plan) => plan.etaUpdates),
     closureEdges: updates,
-    closuresSeen: closureSetKey(snap.closures),
+    closuresSeen: snap.closuresVersion,
   };
 }
 

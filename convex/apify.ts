@@ -7,7 +7,7 @@ import { point } from "./schema";
 import { insidePolygon, located, Point } from "./model";
 import { simNow } from "./clock";
 import { edgeKeysOf, edgesRunningAlong, streetNames } from "./roadGraph";
-import { insertClosures } from "./roads";
+import { insertClosures, markClosuresChanged } from "./roads";
 
 // Evacuation zones and road closures reported by the "California evacuation status" Apify Actor (convex/http.ts).
 // A zone with riders inside is applied the way the dispatcher does it: riders:setZone, then control:issueWarning.
@@ -148,6 +148,7 @@ async function reopen(ctx: MutationCtx, key: string) {
     .first();
   if (!row || row.source !== "apify") return null;
   await ctx.db.delete("roadClosures", row._id);
+  await markClosuresChanged(ctx);
   return row.streets ?? [];
 }
 

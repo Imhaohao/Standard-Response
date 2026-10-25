@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import { seedSimulatedArea } from "./seed";
 import { simNow } from "./clock";
+import { markClosuresChanged } from "./roads";
 
 // The dispatcher's end-to-end check (dispatch/verify_dispatch.py) on a deployment that already holds a
 // real rider list. Internal only: run with `npx convex run dispatchCheck:<name>`.
@@ -50,6 +51,7 @@ export const reopenCheckClosures = internalMutation({
       await ctx.db.delete("roadClosures", closure._id);
       reopened += 1;
     }
+    if (reopened > 0) await markClosuresChanged(ctx);
     return reopened;
   },
 });

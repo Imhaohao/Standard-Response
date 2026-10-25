@@ -617,12 +617,16 @@ export default defineSchema({
     stats: v.optional(v.record(v.string(), v.number())),
   }),
 
+  // Singleton: bumped by every closure written, lifted or snapped, so the loops that run every tick
+  // learn that the closures changed from this one row instead of reading them all.
+  roadState: defineTable({ version: v.number() }),
+
   // Singleton: the re-planner's lock and what its last run did.
   dispatchState: defineTable({
     replanStartedAt: v.optional(v.number()),
     lastReplanAt: v.number(),
-    // The closures already planned around (closureSetKey in convex/roadGraph.ts). Any added or
-    // lifted closure changes it and triggers a re-plan right away.
+    // The roadState version of the closures already planned around. Any closure added, lifted or
+    // snapped since triggers a re-plan right away.
     closuresSeen: v.number(),
     lastSolver: v.optional(v.union(v.literal("heuristic"), v.literal("ortools"), v.literal("alns"))),
     lastSolveMs: v.optional(v.number()),
@@ -642,7 +646,7 @@ export default defineSchema({
     legSeconds: v.array(v.number()),
     // Road seconds already driven along `path`.
     progressSeconds: v.number(),
-    // The closures this path was computed around (closureSetKey). When it changes, the path is recomputed.
+    // The roadState version this path was computed around. When it changes, the path is recomputed.
     closuresSeen: v.number(),
     // Boarding: the vehicle waits at the pickup until then.
     dwellUntil: v.optional(v.number()),

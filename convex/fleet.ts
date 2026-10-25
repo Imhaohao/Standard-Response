@@ -7,9 +7,9 @@ import { completeAssignment } from "./offers";
 import { maybeReplan } from "./dispatch";
 import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
-import { closedEdgeSet, closureSetKey, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
+import { closedEdgeSet, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
 import { trafficEdgeTime, trafficForDispatch } from "./traffic";
-import { readClosures } from "./roads";
+import { closuresVersion, readClosures } from "./roads";
 import { nextStop, positionAt, RunState } from "./vehicleRun";
 import { simNow } from "./clock";
 
@@ -29,15 +29,18 @@ type Target = Doc<"vehicleRoutes">["target"];
 // gave one; otherwise the nearest reachable shelter is used.
 type Wish = { kind: "pickup"; assignmentId: Id<"assignments"> } | { kind: "shelter"; shelterId?: Id<"shelters"> };
 
+// Drive times in the forecast traffic (the same the re-planner prices ETAs with) and the streets
+// closed to them.
+type Roads = { edgeTime: EdgeTime; closed: ReadonlySet<number> };
+
 type Fleet = {
   now: number;
   tickSeconds: number;
-  closed: ReadonlySet<number>;
+  // The closures' roadState version. A path computed around an older one is computed again.
   closuresSeen: number;
   shelters: Doc<"shelters">[];
-  // Drive times in the forecast traffic, the same the re-planner prices ETAs with. Read only on a
-  // tick where some vehicle needs a new path.
-  edgeTime: () => Promise<EdgeTime>;
+  // Read only on a tick where some vehicle needs a new path.
+  roads: () => Promise<Roads>;
 };
 
 type Rider = Doc<"vehicleLoads">["riders"][number];
@@ -111,9 +114,9 @@ function roadPath(fromRow: Point, toRow: Point, closed: ReadonlySet<number>, edg
   };
 }
 
-function nearestShelter(fleet: Fleet, from: Point, edgeTime: EdgeTime) {
+function nearestShelter(fleet: Fleet, from: Point, { edgeTime, closed }: Roads) {
   const start = nearestNode(from);
-  const paths = shortestPathsFrom(start, fleet.closed, edgeTime);
+  const paths = shortestPathsFrom(start, closed, edgeTime);
   let best: Doc<"shelters"> | null = null;
   for (const shelter of fleet.shelters) {
     const seconds = paths.seconds[nearestNode(shelter)];
@@ -122,18 +125,18 @@ function nearestShelter(fleet: Fleet, from: Point, edgeTime: EdgeTime) {
   return best;
 }
 
-function resolveWish(fleet: Fleet, vehicle: Doc<"vehicles">, wish: Wish, edgeTime: EdgeTime): Target | null {
+function resolveWish(fleet: Fleet, vehicle: Doc<"vehicles">, wish: Wish, roads: Roads): Target | null {
   if (wish.kind === "pickup") return wish;
   if (wish.shelterId) return { kind: "shelter", shelterId: wish.shelterId };
-  const shelter = nearestShelter(fleet, vehicle, edgeTime);
+  const shelter = nearestShelter(fleet, vehicle, roads);
   return shelter ? { kind: "shelter", shelterId: shelter._id } : null;
 }
 
-type NewPath = { target: Target; edgeTime: EdgeTime };
+type NewPath = { target: Target; roads: Roads };
 
-async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, { target, edgeTime }: NewPath, existing: Doc<"vehicleRoutes"> | null) {
+async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, { target, roads }: NewPath, existing: Doc<"vehicleRoutes"> | null) {
   const destination = await destinationOf(ctx, target);
-  const route = destination && roadPath(vehicle, destination, fleet.closed, edgeTime);
+  const route = destination && roadPath(vehicle, destination, roads.closed, roads.edgeTime);
   const fields = {
     target,
     path: route?.path ?? [{ lat: vehicle.lat, lng: vehicle.lng }],
@@ -231,23 +234,27 @@ async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicle
   }
   let route = existing;
   if (needsNewPath(existing, wish, fleet)) {
-    const edgeTime = await fleet.edgeTime();
-    const target = resolveWish(fleet, vehicle, wish, edgeTime);
+    const roads = await fleet.roads();
+    const target = resolveWish(fleet, vehicle, wish, roads);
     if (!target) return;
-    route = await freshRoute(ctx, fleet, vehicle, { target, edgeTime }, existing);
+    route = await freshRoute(ctx, fleet, vehicle, { target, roads }, existing);
   }
   if (route) await drive(ctx, { fleet, vehicle, route, load });
 }
 
-export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number, closures: Doc<"roadClosures">[]) {
-  let edgeTime: Promise<EdgeTime> | undefined;
+async function readRoads(ctx: MutationCtx, now: number): Promise<Roads> {
+  const [traffic, closures] = await Promise.all([trafficForDispatch(ctx, now), readClosures(ctx)]);
+  return { edgeTime: trafficEdgeTime(traffic, now), closed: closedEdgeSet(closures.filter((closure) => closure.confirmed)) };
+}
+
+export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number, closuresVersion: number) {
+  let roads: Promise<Roads> | undefined;
   const fleet: Fleet = {
     now,
     tickSeconds: tickMs / 1000,
-    closed: closedEdgeSet(closures.filter((closure) => closure.confirmed)),
-    closuresSeen: closureSetKey(closures.filter((closure) => closure.edgeKeys !== undefined)),
+    closuresSeen: closuresVersion,
     shelters: await ctx.db.query("shelters").take(50),
-    edgeTime: () => (edgeTime ??= trafficForDispatch(ctx, now).then((traffic) => trafficEdgeTime(traffic, now))),
+    roads: () => (roads ??= readRoads(ctx, now)),
   };
   for (const vehicle of await ctx.db.query("vehicles").take(200)) await moveVehicle(ctx, fleet, vehicle);
 }
@@ -262,11 +269,11 @@ export const tick = internalMutation({
     const control = await ctx.db.query("control").first();
     if (!control || control.simulateDispatch || !control.warningIssuedAt) return null;
     const now = await simNow(ctx);
-    // Read once a tick for both: on a night the fire has crossed there are over a thousand.
-    const closures = await readClosures(ctx);
-    await maybeReplan(ctx, Date.now(), closures);
+    // One row, not the closures: on a night the fire has crossed there are over a thousand.
+    const version = await closuresVersion(ctx);
+    await maybeReplan(ctx, Date.now(), version);
     if (control.simulateDrivers) await standInDrivers(ctx, now);
-    await moveFleet(ctx, now, tickMs, closures);
+    await moveFleet(ctx, now, tickMs, version);
     return null;
   },
 });
