@@ -186,6 +186,7 @@ const TABLES = [
   "zones",
   "personas",
   "pickupPlans",
+  "neighborCalls",
   "households",
   "vehicles",
   "shelters",

@@ -571,6 +571,21 @@ export default defineSchema({
     .index("by_householdId", ["householdId"])
     .index("by_status", ["status"]),
 
+  // A neighbor 911 calls next because of what another home's call heard (convex/neighborCalls.ts):
+  // a home that can't get out needs someone nearby with a car ("driver"), or a neighbor driving out
+  // could take someone nearby who needs a ride ("rider"). Removed when the call is placed.
+  neighborCalls: defineTable({
+    householdId: v.id("households"),
+    forHouseholdId: v.id("households"),
+    want: v.union(v.literal("driver"), v.literal("rider")),
+    // Shown in the call queue: why this home is being called now.
+    reason: v.string(),
+    at: v.number(),
+  })
+    .index("by_householdId", ["householdId"])
+    .index("by_forHouseholdId", ["forHouseholdId"])
+    .index("by_at", ["at"]),
+
   // Singleton row. Operator controls plus one switch per stand-in.
   control: defineTable({
     warningIssuedAt: v.optional(v.number()),

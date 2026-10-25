@@ -4,7 +4,9 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
-import { askNearbyDriver, askNewDriver, busyHelpers } from "./neighborPickups";
+import { askNearbyDriver, askNewDriver } from "./neighborPickups";
+import { busyHelpers } from "./neighborRules";
+import { neighborCallsDue } from "./neighborCalls";
 import { openRequestFor, syncRequest } from "./requests";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
@@ -116,14 +118,16 @@ export const setEstimates = mutation({
 
 const isQueued = (h: Doc<"households">) => (QUEUE_STATUSES as readonly string[]).includes(h.callStatus);
 
-// Claude's plan for this warning goes first (convex/callPlans.ts), then everyone else by callPriority.
-// A neighbor 911 is asking to drive someone, or who is already on the way, isn't rung for their own
-// warning call at the same time: the pickup call would find the line busy.
+// Neighbors a call just made worth calling go first (convex/neighborCalls.ts), then Claude's plan
+// for this warning (convex/callPlans.ts), then everyone else by callPriority. A neighbor 911 is
+// asking to drive someone, or who is already on the way, isn't rung for their own warning call at
+// the same time: the pickup call would find the line busy.
 export async function nextToCall(ctx: QueryCtx, limit: number) {
   const busy = await busyHelpers(ctx);
   const callable = (h: Doc<"households"> | null): h is Doc<"households"> => h !== null && h.inZone && isQueued(h) && !busy.has(h._id);
-  const plan = await currentPlan(ctx);
-  const planned = (await Promise.all([...plan.keys()].map((id) => ctx.db.get("households", id)))).filter(callable);
+  const [neighbors, plan] = await Promise.all([neighborCallsDue(ctx), currentPlan(ctx)]);
+  const ahead = [...neighbors.keys(), ...[...plan.keys()].filter((id) => !neighbors.has(id))];
+  const first = (await Promise.all(ahead.map((id) => ctx.db.get("households", id)))).filter(callable);
   const lists = await Promise.all(
     QUEUE_STATUSES.map((callStatus) =>
       ctx.db
@@ -135,9 +139,9 @@ export async function nextToCall(ctx: QueryCtx, limit: number) {
   );
   const rest = lists
     .flat()
-    .filter((h) => callable(h) && !plan.has(h._id))
+    .filter((h) => callable(h) && !plan.has(h._id) && !neighbors.has(h._id))
     .sort((a, b) => b.callPriority - a.callPriority);
-  return [...planned, ...rest].slice(0, limit);
+  return [...first, ...rest].slice(0, limit);
 }
 
 export const queue = query({
@@ -151,13 +155,14 @@ export const queue = query({
       fireArrivalAt: v.number(),
       attempts: v.number(),
       callStatus,
-      // Why Claude put this home where it is. Absent for homes ordered by callPriority.
+      // Why this home is where it is: a neighbor's call that made it worth calling now, or Claude's
+      // plan. Absent for homes ordered by callPriority.
       planReason: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, { limit }) => {
     const households = await nextToCall(ctx, limit);
-    const plan = await currentPlan(ctx);
+    const [neighbors, plan] = await Promise.all([neighborCallsDue(ctx), currentPlan(ctx)]);
     return households.map((h) => ({
       _id: h._id,
       address: h.address,
@@ -166,7 +171,7 @@ export const queue = query({
       fireArrivalAt: h.fireArrivalAt,
       attempts: h.attempts,
       callStatus: h.callStatus,
-      planReason: plan.get(h._id),
+      planReason: neighbors.get(h._id) ?? plan.get(h._id),
     }));
   },
 });

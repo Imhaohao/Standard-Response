@@ -127,3 +127,15 @@ Two Track D changes in `estimates:inputs`, both additive:
 I checked the Eaton replay's `needs_ride` against `outcomeFor`, as you asked. They disagreed on one case: a walker user who can leave and has a car. `outcomeFor` and Track C's `outcome_of` call that `leaving`, but the replay counted it as needing a ride. That's 339 of the 1,601 synthetic households it counted, and 1,262 is the right total. I fixed `needs_ride` in `rollcall_d/eaton_replay.py` and added a test. Nothing else in your files changed.
 
 **`data/eaton/replay-results.json` is now stale.** The fleet check's denominator shrinks, so the "50 vans move 97%" figure should go up. I didn't regenerate it: the FSRI CSV is git-ignored and I'd have to download it. Please rerun `uv run python scripts/eaton_replay.py` where you have the CSV, and update any slide or README line that quotes the fleet numbers. The documented-request rows don't use `needs_ride`, so the 11-of-16 and 14-of-14 results stay the same.
+
+
+## 2026-10-24 17:39
+
+Neighbor calls: what one call hears now decides which neighbors 911 calls next (`convex/neighborCalls.ts`).
+
+- A home that can't get out, with no driver close by, moves up to 3 uncalled homes around it that may have a car (no `hasCar: false`, no Ready check "needs a ride" or "helper") to the front of `nextToCall`. A Ready check "own car" goes first, then nearest. When the search circle widens, homes in the wider circle are added.
+- A neighbor driving out with nobody close by waiting moves up to 3 uncalled homes within 900 m that likely need a ride (Ready check "needs a ride", or `needProbability >= 0.4`, and nothing on record a car can't carry) to the front.
+- When one of those calls hears the missing half, the existing neighbor ask creates the `checking` pickup plan, so nothing new is needed on the call side.
+- New table `neighborCalls` (cleared on reset). `startCall` removes a home's row. A row is dropped from the queue once its home has a helper on the way, or once its driver is busy.
+- `nextToCall` order is now: neighbor calls, then Claude's plan, then `callPriority`. `households:queue` returns the neighbor reason in `planReason` when there is one.
+- The shared car and ride rules (`canDrive`, `fitsInACar`, `busyHelpers`, ...) moved from `neighborPickups.ts` to `neighborRules.ts`.

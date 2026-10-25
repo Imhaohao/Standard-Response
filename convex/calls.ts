@@ -6,6 +6,7 @@ import { callPhase, callStage, requestStatus } from "./schema";
 import { outcomeFor } from "./model";
 import { simNow } from "./clock";
 import { ladderOnDial, recordMiss, STAND_IN_MAX_VOICE_ATTEMPTS, stopLadder } from "./reachLadder";
+import { clearNeighborCalls } from "./neighborCalls";
 
 export async function startCall(
   ctx: MutationCtx,
@@ -20,6 +21,7 @@ export async function startCall(
     lastAttemptAt: now,
     ...ladderOnDial(household, now),
   });
+  await clearNeighborCalls(ctx, household._id);
   return await ctx.db.insert("calls", {
     householdId: household._id,
     direction: args.direction,

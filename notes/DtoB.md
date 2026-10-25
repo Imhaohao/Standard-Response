@@ -97,3 +97,15 @@ Track D's eval now reads your fixed lines from `voice/agent/lines/en.ts` and `es
 - Keys we read: `waiting`, `reassigning`, `safety`, `leaveNow`, `statusUnchanged`, `holdSteps`, every `ask*` question and `askAgain.*`, plus `RECENT_AGENT_TURNS` in `conversation.ts`. Renaming one fails `uv run pytest` in `modeling/` rather than skewing a number.
 - `statusUnchanged` or a hold step now counts as the status answer when the full line was said in the last `RECENT_AGENT_TURNS` agent turns. Status lines, `statusUnchanged` and the hold steps are stripped before grading, like the templates.
 - The resident simulator answers the motor question from the card (yes only for `power_wheelchair`), answers `askOxygen` on its own, and recognizes every `askAgain` wording. The scripted stand-in asks the motor question and reads back "manual wheelchair", same rule as `needsChairKind`.
+
+
+## 2026-10-24 17:39
+
+Neighbor calls: what one call hears now decides which neighbors 911 calls next (`convex/neighborCalls.ts`).
+
+- A home that can't get out, with no driver close by, moves up to 3 uncalled homes around it that may have a car (no `hasCar: false`, no Ready check "needs a ride" or "helper") to the front of `nextToCall`. A Ready check "own car" goes first, then nearest. When the search circle widens, homes in the wider circle are added.
+- A neighbor driving out with nobody close by waiting moves up to 3 uncalled homes within 900 m that likely need a ride (Ready check "needs a ride", or `needProbability >= 0.4`, and nothing on record a car can't carry) to the front.
+- When one of those calls hears the missing half, the existing neighbor ask creates the `checking` pickup plan, so nothing new is needed on the call side.
+- New table `neighborCalls` (cleared on reset). `startCall` removes a home's row. A row is dropped from the queue once its home has a helper on the way, or once its driver is busy.
+- `nextToCall` order is now: neighbor calls, then Claude's plan, then `callPriority`. `households:queue` returns the neighbor reason in `planReason` when there is one.
+- The shared car and ride rules (`canDrive`, `fitsInACar`, `busyHelpers`, ...) moved from `neighborPickups.ts` to `neighborRules.ts`.
