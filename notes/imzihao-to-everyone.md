@@ -227,7 +227,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 
 ## 2026-10-25 05:06
 
-**House cards can edit a home's phone, language and name, on the rescue map and now on the call floor** (`8901e0a`). Click a home on `/dashboard` and the same house card opens as on `/map`.
+**House cards can edit a home's phone, language and name, on the rescue map and now on the call floor** (`d897228`). Click a home on `/dashboard` and the same house card opens as on `/map`.
 - **New, `convex/homeEdits.ts`:** `homeEdits:save({ householdId, language?, residentName?, phone?: string | null })` (send only what changed; `phone: null` takes the real number off) and `homeEdits:numberState({ householdId })` (`keeper`: `null`, `{ kind: "judge" }` or `{ kind: "team", name }`, plus `canTakeOff`). One transaction: a refused number leaves the language and name unsaved too.
 - **Not a correction:** a dispatcher's edit never goes in `households.corrections`, so the voice evals' correction numbers stay caller-only. A language change logs a `record` event ("Dispatcher set <address> to Spanish"). The next call reads `households.language` as before.
 - **Numbers keep one writer:** changes go through `putRealNumber` / `takeRealNumberOff`. A judge's house (any `claims` row) and a house holding a Real phones number refuse number changes, and a Real phones number can't be typed onto another house; the kiosk and Real phones stay their owners. Language still edits on those houses.
