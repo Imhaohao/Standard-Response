@@ -61,3 +61,15 @@ export function dedupeZones(records: EvacuationRecord[]) {
     return true;
   });
 }
+
+// The same fire can arrive from both CAL FIRE hosts with the same UniqueId. Keep the first, so list the direct source first.
+export function dedupeIncidents(records: EvacuationRecord[]) {
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    if (record.kind !== "incident") return true;
+    const key = record.id.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

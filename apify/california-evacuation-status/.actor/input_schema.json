@@ -6,7 +6,7 @@
     "sources": {
       "title": "Sources",
       "type": "array",
-      "description": "Which public sources to read. calOesZones: Cal OES statewide active evacuation zones. calFireZones: CAL FIRE statewide evacuation status zones. calFireIncidents: CAL FIRE active incidents. caltransClosures: Caltrans lane and road closures.",
+      "description": "Which public sources to read. calOesZones: Cal OES statewide active evacuation zones. calFireZones: CAL FIRE statewide evacuation status zones. calFireIncidents: CAL FIRE active incidents. calFireWebIncidents: the same list from www.fire.ca.gov, which blocks plain requests, read through Bright Data (skipped when no Bright Data key is set). caltransClosures: Caltrans lane and road closures.",
       "editor": "select",
       "items": {
         "type": "string",
@@ -14,12 +14,14 @@
           "calOesZones",
           "calFireZones",
           "calFireIncidents",
+          "calFireWebIncidents",
           "caltransClosures"
         ],
         "enumTitles": [
           "Cal OES active evacuation zones",
           "CAL FIRE evacuation status zones",
           "CAL FIRE active incidents",
+          "CAL FIRE incidents from www.fire.ca.gov (needs Bright Data)",
           "Caltrans road closures"
         ]
       },
@@ -27,12 +29,14 @@
         "calOesZones",
         "calFireZones",
         "calFireIncidents",
+        "calFireWebIncidents",
         "caltransClosures"
       ],
       "prefill": [
         "calOesZones",
         "calFireZones",
         "calFireIncidents",
+        "calFireWebIncidents",
         "caltransClosures"
       ]
     },
@@ -159,6 +163,19 @@
       "type": "string",
       "description": "Name shown for the drill closure.",
       "default": "Drill closure",
+      "editor": "textfield"
+    },
+    "brightDataApiKey": {
+      "title": "Bright Data API key",
+      "type": "string",
+      "description": "Optional. Lets the Actor read public pages that block plain requests (www.fire.ca.gov) through Bright Data Web Unlocker. Falls back to the BRIGHTDATA_API_KEY environment variable.",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "brightDataZone": {
+      "title": "Bright Data Web Unlocker zone",
+      "type": "string",
+      "description": "Name of your Web Unlocker zone. Falls back to the BRIGHTDATA_ZONE environment variable.",
       "editor": "textfield"
     },
     "requestTimeoutSecs": {

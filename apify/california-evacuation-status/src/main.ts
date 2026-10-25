@@ -1,8 +1,9 @@
 import { Actor, log } from "apify";
 import { buildDrillClosure, buildDrillRecord, validDrillLine, validDrillRing } from "./drill.js";
-import { applyFilters, dedupeZones } from "./filters.js";
+import { applyFilters, dedupeIncidents, dedupeZones } from "./filters.js";
 import { fetchClosures } from "./sources/caltrans.js";
-import { fetchIncidents } from "./sources/incidents.js";
+import { brightDataConfigured, configureBrightData, fetchStats, resetFetchStats, resolveBrightData, withSourceLabel } from "./http.js";
+import { fetchIncidents, fetchWebIncidents } from "./sources/incidents.js";
 import { fetchZones } from "./sources/zones.js";
 import { isStale } from "./status.js";
 import { ALL_SOURCES, type ActorInput, type EvacuationRecord, type SourceName, type SourceResult } from "./types.js";
@@ -18,6 +19,7 @@ const RECORD_SOURCE: Record<SourceName, string> = {
   calOesZones: "cal-oes",
   calFireZones: "cal-fire-zones",
   calFireIncidents: "cal-fire-incidents",
+  calFireWebIncidents: "cal-fire-incidents-web",
   caltransClosures: "caltrans-lcs",
 };
 
@@ -32,6 +34,8 @@ const DEFAULT_INPUT: ActorInput = {
   requestTimeoutSecs: 45,
 };
 
+const NEEDS_BRIGHT_DATA = "skipped: needs Bright Data";
+
 const blankToUndefined = (text: string | undefined) => text?.trim() || undefined;
 
 function withDefaults(raw: Partial<ActorInput> | null): ActorInput {
@@ -43,14 +47,20 @@ function withDefaults(raw: Partial<ActorInput> | null): ActorInput {
     webhookUrl: blankToUndefined(merged.webhookUrl),
     closureWebhookUrl: blankToUndefined(merged.closureWebhookUrl),
     webhookSecret: merged.webhookSecret || undefined,
+    brightDataApiKey: blankToUndefined(merged.brightDataApiKey),
+    brightDataZone: blankToUndefined(merged.brightDataZone),
     drillZoneName: blankToUndefined(merged.drillZoneName) ?? DEFAULT_INPUT.drillZoneName,
     drillClosureName: blankToUndefined(merged.drillClosureName) ?? DEFAULT_INPUT.drillClosureName,
   };
 }
 
 async function runSource(source: SourceName, input: ActorInput): Promise<SourceResult> {
+  if (source === "calFireWebIncidents" && !brightDataConfigured()) {
+    log.warning(`Source ${source} ${NEEDS_BRIGHT_DATA}. Set brightDataApiKey and brightDataZone to read www.fire.ca.gov.`);
+    return { source, ok: true, records: [], unreadFeeds: [], skipped: NEEDS_BRIGHT_DATA };
+  }
   try {
-    return { source, ok: true, ...(await readSource(source, input)) };
+    return { source, ok: true, ...(await withSourceLabel(source, () => readSource(source, input))) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.error(`Source ${source} is unavailable, continuing without it: ${message}`);
@@ -60,6 +70,7 @@ async function runSource(source: SourceName, input: ActorInput): Promise<SourceR
 
 async function readSource(source: SourceName, input: ActorInput): Promise<{ records: EvacuationRecord[]; unreadFeeds: string[] }> {
   if (source === "calOesZones" || source === "calFireZones") return { records: await fetchZones(source, input.requestTimeoutSecs), unreadFeeds: [] };
+  if (source === "calFireWebIncidents") return { records: await fetchWebIncidents(input.requestTimeoutSecs), unreadFeeds: [] };
   if (source === "calFireIncidents") return { records: await fetchIncidents(input.requestTimeoutSecs), unreadFeeds: [] };
   const outcome = await fetchClosures(input.requestTimeoutSecs, input.closureDetail === "all");
   if (outcome.failedDistricts.length > 0) log.warning(`Caltrans districts skipped because their feeds failed: ${outcome.failedDistricts.join(", ")}`);
@@ -129,13 +140,16 @@ async function main() {
   await Actor.init();
   const input = withDefaults(await Actor.getInput<Partial<ActorInput>>());
   const now = new Date();
+  configureBrightData(resolveBrightData(input));
+  resetFetchStats();
+  log.info(brightDataConfigured() ? "Bright Data Web Unlocker is configured for sources that need it." : "Bright Data is not configured. Every request goes direct.");
 
   const results = await Promise.all(input.sources.map((source) => runSource(source, input)));
   const ordered = ALL_SOURCES.flatMap((source) => results.filter((result) => result.source === source));
-  const fetched = new Set(ordered.filter((result) => result.ok).map((result) => RECORD_SOURCE[result.source]));
-  const perSource = Object.fromEntries(ordered.map((result) => [result.source, result.ok ? result.records.length : "failed"]));
+  const fetched = new Set(ordered.filter((result) => result.ok && !result.skipped).map((result) => RECORD_SOURCE[result.source]));
+  const perSource = Object.fromEntries(ordered.map((result) => [result.source, result.skipped ?? (result.ok ? result.records.length : "failed")]));
 
-  const real = dedupeZones(applyFilters(ordered.flatMap((result) => result.records), input.counties, input.boundingBox));
+  const real = dedupeZones(dedupeIncidents(applyFilters(ordered.flatMap((result) => result.records), input.counties, input.boundingBox)));
   markStaleZones(real, input.staleAfterHours, now.getTime());
   const records = [...real, ...drillRecords(input, now)];
 
@@ -152,6 +166,9 @@ async function main() {
     byKind: countBy(records.map((record) => record.kind)),
     byStatus: countBy(records.map((record) => record.status)),
     staleZones: records.filter((record) => record.stale).length,
+    fetchedVia: fetchStats().fetchedVia,
+    blockedBySource: fetchStats().blocked,
+    skippedSources: ordered.filter((result) => result.skipped).map((result) => ({ source: result.source, reason: result.skipped })),
     failedSources: ordered.filter((result) => !result.ok).map((result) => ({ source: result.source, error: result.error })),
     webhook,
     closureWebhook,

@@ -40,6 +40,7 @@ Example zone:
 | `calOesZones` | Cal OES statewide active evacuation zones (ArcGIS feature service, aggregates county layers) | Orders and warnings |
 | `calFireZones` | CAL FIRE statewide evacuation status (ArcGIS feature service, Genasys Protect schema) | Orders, warnings, advisories |
 | `calFireIncidents` | CAL FIRE active incidents (`incidents.fire.ca.gov`) | Point per incident |
+| `calFireWebIncidents` | The same CAL FIRE incident list from `www.fire.ca.gov`, read through Bright Data Web Unlocker | Point per incident, merged with `calFireIncidents` by `UniqueId` (kind `incident`, source `cal-fire-incidents-web`) |
 | `caltransClosures` | Caltrans lane closure feeds (`cwwp2.dot.ca.gov`, districts 1 to 12) | Closures in effect now |
 
 Zones that appear in both statewide layers are returned once. If one source is down, the run logs the error, skips it and returns the rest. The run fails only when every requested source fails.
@@ -53,8 +54,17 @@ County layers are only as fresh as the county that edits them. Counties sometime
 - `boundingBox`: `{ west, south, east, north }` in degrees
 - `closureDetail`: `full` for fully closed roads and ramps only, `all` to add lane closures (reported as `open`)
 - `staleAfterHours`: default 72
+- `brightDataApiKey` (secret), `brightDataZone`: optional, or env `BRIGHTDATA_API_KEY` and `BRIGHTDATA_ZONE`; see below
 - `webhookUrl`, `closureWebhookUrl`, `webhookSecret`: see below
 - `drill`, `drillPolygon`, `drillZoneName`: add one labelled practice zone
+
+## Bright Data
+
+`www.fire.ca.gov` answers plain requests to its incident list with `403 Access Denied` from Akamai bot protection (checked 2026-10-25 with curl). The `calFireWebIncidents` source reads that page through Bright Data Web Unlocker: a `POST https://api.brightdata.com/request` with `{ "zone", "url", "format": "raw" }` and `Authorization: Bearer <key>`. It only reads public pages, never anything behind a login.
+
+- Set `brightDataApiKey` and `brightDataZone` (or the env vars). Without them the source is not run and the run summary says `skipped: needs Bright Data`. Nothing else changes.
+- Only sources marked `unblock` use Bright Data. The other sources always go direct.
+- The run summary reports `fetchedVia: { direct, brightData }` and `blockedBySource`, the count of direct requests refused with 403 or 429 or answered with a challenge page, per source. That shows exactly what Bright Data unlocked.
 
 ## Webhook
 

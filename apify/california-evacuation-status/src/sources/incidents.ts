@@ -2,6 +2,8 @@ import { fetchJson } from "../http.js";
 import type { EvacuationRecord } from "../types.js";
 
 const INCIDENTS_URL = "https://incidents.fire.ca.gov/umbraco/api/IncidentApi/List?inactive=false";
+// The www host serves the same list but answers plain requests with 403 (Akamai bot block).
+const WEB_INCIDENTS_URL = "https://www.fire.ca.gov/umbraco/api/IncidentApi/List?inactive=false";
 
 interface CalFireIncident {
   Name?: string;
@@ -43,11 +45,11 @@ function detailsOf(item: CalFireIncident) {
   };
 }
 
-function incidentRecord(item: CalFireIncident): EvacuationRecord | null {
+function incidentRecord(item: CalFireIncident, recordSource: string, listUrl: string): EvacuationRecord | null {
   if (!item.UniqueId || !hasLocation(item)) return null;
   return {
-    source: "cal-fire-incidents",
-    sourceUrl: item.Url || INCIDENTS_URL,
+    source: recordSource,
+    sourceUrl: item.Url || listUrl,
     kind: "incident",
     id: item.UniqueId,
     name: item.Name || item.UniqueId,
@@ -59,11 +61,15 @@ function incidentRecord(item: CalFireIncident): EvacuationRecord | null {
   };
 }
 
-export async function fetchIncidents(timeoutSecs: number) {
-  const items = await fetchJson<CalFireIncident[]>(INCIDENTS_URL, timeoutSecs);
+async function readList(url: string, recordSource: string, timeoutSecs: number, unblock: boolean) {
+  const items = await fetchJson<CalFireIncident[]>(url, timeoutSecs, { unblock });
   if (!Array.isArray(items)) throw new Error("CAL FIRE incidents response was not a list");
   return items
     .filter(isOngoing)
-    .map(incidentRecord)
+    .map((item) => incidentRecord(item, recordSource, url))
     .filter((record): record is EvacuationRecord => record !== null);
 }
+
+export const fetchIncidents = (timeoutSecs: number) => readList(INCIDENTS_URL, "cal-fire-incidents", timeoutSecs, false);
+
+export const fetchWebIncidents = (timeoutSecs: number) => readList(WEB_INCIDENTS_URL, "cal-fire-incidents-web", timeoutSecs, true);
