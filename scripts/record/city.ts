@@ -19,14 +19,53 @@ export type CityClip = {
   name: string;
   city: string;
   about: string;
-  frames: Record<Aspect, string>;
+  // The framing per aspect; an aspect left out isn't filmed.
+  frames: Partial<Record<Aspect, string>>;
   segments: Segment[];
   replay: boolean;
 };
 
-export const CITY_CLIPS: CityClip[] = [
+// The reels: one vertical clip of the moment that matters in each hazard.
+const REELS: CityClip[] = [
   {
-    name: "lower-ninth",
+    name: "tsunami-hilo",
+    city: "hilo",
+    about: "Hilo, 1960: the bore comes into the frame and runs up over the bayfront, slowly",
+    frames: { tall: "event" },
+    segments: [{ from: 266, to: 280, seconds: 14 }],
+    replay: true,
+  },
+  {
+    name: "flood-lower-ninth",
+    city: "lower-ninth",
+    about: "Lower Ninth Ward, Katrina: the breach, the water spreading across the ward, roofs left as islands",
+    frames: { tall: "event" },
+    segments: [{ from: 1045, to: 1400, seconds: 14 }],
+    replay: true,
+  },
+  {
+    name: "snowstorm-buffalo",
+    city: "buffalo",
+    about: "Buffalo East Side by MLK Park: the town whitening through the storm's peak, red homes and vans, past the 15:00 cutoff",
+    frames: { tall: "mlk-park" },
+    segments: [{ from: 120, to: 700, seconds: 14 }],
+    replay: true,
+  },
+  {
+    // The fronts reach this framing's north edge at minute 330, its east at 420 and its south at 480.
+    name: "fire-eaton",
+    city: "altadena",
+    about: "West Altadena, the Eaton Fire: the fire runs down into the neighbourhoods while the replay's red roofs clear and vans run",
+    frames: { tall: "west" },
+    segments: [{ from: 300, to: 560, seconds: 15 }],
+    replay: true,
+  },
+];
+
+export const CITY_CLIPS: CityClip[] = [
+  ...REELS,
+  {
+    name: "city-lower-ninth",
     city: "lower-ninth",
     about: "Lower Ninth Ward, Katrina: the Industrial Canal breach, water spreading through the ward, roofs left as islands and red roofs going out",
     frames: { wide: "event", tall: "event" },
@@ -34,7 +73,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: true,
   },
   {
-    name: "hilo",
+    name: "city-hilo",
     city: "hilo",
     about: "Hilo, 1960 tsunami: the sea draws down off the bayfront, then the bore comes in, played slowly",
     frames: { wide: "event", tall: "event" },
@@ -45,7 +84,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: true,
   },
   {
-    name: "fort-myers-beach",
+    name: "city-fort-myers-beach",
     city: "fort-myers-beach",
     about: "Fort Myers Beach, Hurricane Ian: Estero Island dry, then the storm surge rising over it and red roofs going out",
     frames: { wide: "event", tall: "event" },
@@ -53,7 +92,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: true,
   },
   {
-    name: "buffalo-mlk",
+    name: "city-buffalo-mlk",
     city: "buffalo",
     about: "Buffalo East Side blizzard around MLK Park: the town whitening under the storm, red homes and the vans",
     frames: { wide: "mlk-park", tall: "mlk-park" },
@@ -61,7 +100,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: true,
   },
   {
-    name: "buffalo-overview",
+    name: "city-buffalo-overview",
     city: "buffalo",
     about: "Buffalo East Side from above: the town buried and the streets closing through the blizzard",
     frames: { wide: "overview", tall: "broadway-fillmore" },
@@ -69,7 +108,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: true,
   },
   {
-    name: "paradise",
+    name: "city-paradise",
     city: "paradise",
     about: "Paradise, the Camp Fire: the fire's fronts crossing the town from the first report to the last",
     frames: { wide: "overview", tall: "downtown" },
@@ -77,7 +116,7 @@ export const CITY_CLIPS: CityClip[] = [
     replay: false,
   },
   {
-    name: "altadena",
+    name: "city-altadena",
     city: "altadena",
     about: "Altadena, the Eaton Fire night (about ten hours) at high speed with its replay: homes clearing and vans running as the fire comes down the foothills",
     frames: { wide: "overview", tall: "west" },
@@ -99,7 +138,7 @@ export function minuteSchedule(segments: Segment[], fps = CITY_FPS) {
 }
 
 function sceneUrl(appUrl: string, clip: CityClip, aspect: Aspect) {
-  const query = new URLSearchParams({ city: clip.city, frame: clip.frames[aspect], chrome: "0", tally: "0", t: String(clip.segments[0].from) });
+  const query = new URLSearchParams({ city: clip.city, frame: clip.frames[aspect] ?? "overview", chrome: "0", tally: "0", t: String(clip.segments[0].from) });
   if (clip.replay) query.set("replay", "1");
   return `${appUrl}/lab/scenes?${query}`;
 }
@@ -135,7 +174,7 @@ async function stepFrames(page: Page, clip: CityClip, aspect: Aspect, dir: strin
 
 async function filmCityClip(appUrl: string, outDir: string, clip: CityClip, aspect: Aspect): Promise<Clip> {
   console.log(`  ${await requireFreeMemory(MIN_FREE_FOR_CITY)}% of memory free`);
-  const dir = path.join(outDir, ".frames", `city-${clip.name}-${aspect}`);
+  const dir = path.join(outDir, ".frames", `${clip.name}-${aspect}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const browser = await launchBrowser();
@@ -149,7 +188,7 @@ async function filmCityClip(appUrl: string, outDir: string, clip: CityClip, aspe
     await closeBrowser(browser);
   }
   watchdog.assertHealthy();
-  const file = path.join(outDir, `city-${clip.name}-${aspect}.mp4`);
+  const file = path.join(outDir, `${clip.name}-${aspect}.mp4`);
   const endAt = frames[frames.length - 1].at + 1 / CITY_FPS;
   return await encode({ frames, endAt, file, aspect, speedUp: 1 }, CITY_FPS);
 }
@@ -159,7 +198,7 @@ export async function filmCityClips(appUrl: string, outDir: string, clips: CityC
   for (const clip of clips) {
     console.log(`\n▶ city ${clip.name}: ${clip.about}`);
     const filmed: Clip[] = [];
-    for (const aspect of Object.keys(ASPECTS) as Aspect[]) {
+    for (const aspect of (Object.keys(ASPECTS) as Aspect[]).filter((aspect) => clip.frames[aspect])) {
       const result = await filmCityClip(appUrl, outDir, clip, aspect);
       console.log(`  ${path.basename(result.file)}  ${result.seconds.toFixed(1)} s, ${result.frames} frames`);
       filmed.push(result);
