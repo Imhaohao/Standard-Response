@@ -137,7 +137,8 @@ async function helpersOnAPickup(ctx: QueryCtx) {
 }
 
 // Neighbors a call just made worth calling go first (convex/neighborCalls.ts), then Claude's plan
-// for this warning (convex/callPlans.ts), then everyone else by callPriority.
+// for this warning (convex/callPlans.ts), then everyone else by callPriority. Real riders go ahead of
+// simulated homes in that order, so a real phone never waits behind the stand-in's 200 homes.
 export async function nextToCall(ctx: QueryCtx, limit: number) {
   const busy = await helpersOnAPickup(ctx);
   const callable = (h: Doc<"households"> | null): h is Doc<"households"> => h !== null && h.inZone && isQueued(h) && !busy.has(h._id);
@@ -153,11 +154,13 @@ export async function nextToCall(ctx: QueryCtx, limit: number) {
         .take(limit),
     ),
   );
-  const rest = lists
-    .flat()
+  const realRiders = await ctx.db.query("households").withIndex("by_simulated", (q) => q.eq("simulated", false)).take(limit);
+  const unique = new Map([...lists.flat(), ...realRiders].map((h) => [h._id, h]));
+  const rest = [...unique.values()]
     .filter((h) => callable(h) && !plan.has(h._id) && !neighbors.has(h._id))
     .sort((a, b) => b.callPriority - a.callPriority);
-  return [...first, ...rest].slice(0, limit);
+  const ordered = [...first, ...rest];
+  return [...ordered.filter((h) => !h.simulated), ...ordered.filter((h) => h.simulated)].slice(0, limit);
 }
 
 export const queue = query({

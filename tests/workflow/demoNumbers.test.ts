@@ -114,6 +114,46 @@ describe("demo numbers", () => {
     expect(await t.mutation(api.demoNumbers.addNumbersOnHouses, {})).toBe(0);
   });
 
+  test("a number whose house is gone goes on the simulated home called first", async () => {
+    const t = setup();
+    const numberId = await t.mutation(api.demoNumbers.add, { name: "Jerry", phone: "6506567040" });
+    await t.run(async (ctx) => ctx.db.patch("demoNumbers", numberId, { address: "3060 Olive Avenue, Altadena", paused: true }));
+    await seededHome(t, "1181 Olive Ave", "+16265551017");
+    const first = await seededHome(t, "1572 Olive Ave", "+16265551028");
+    await t.run(async (ctx) => ctx.db.patch("households", first, { callPriority: 5 }));
+
+    await t.mutation(api.demoNumbers.setOn, { numberId, on: true });
+    expect((await t.query(api.demoNumbers.list, {})).numbers[0]).toMatchObject({
+      on: true,
+      home: { householdId: first },
+      rememberedAddress: "1572 Olive Ave",
+    });
+  });
+
+  test("a number whose house has another real phone moves to a free simulated home", async () => {
+    const t = setup();
+    const taken = await seededHome(t, "12 Oak St", "+16502230000", false);
+    const free = await seededHome(t, "14 Oak St");
+    const numberId = await t.mutation(api.demoNumbers.add, { name: "Jerry", phone: "6506567040" });
+    await t.run(async (ctx) => ctx.db.patch("demoNumbers", numberId, { address: "12 Oak St" }));
+
+    expect(await t.mutation(api.demoNumbers.putBack, {})).toBe(1);
+    expect(await t.run(async (ctx) => ctx.db.get("households", taken))).toMatchObject({ callbackNumber: "+16502230000" });
+    expect(await t.run(async (ctx) => ctx.db.get("households", free))).toMatchObject({ callbackNumber: "+16506567040", simulated: false });
+  });
+
+  test("a real phone is dialed ahead of simulated homes with a higher priority", async () => {
+    const t = setup();
+    for (let i = 0; i < 8; i++) {
+      const id = await seededHome(t, `${i} Elm St`, `+1626555${1100 + i}`);
+      await t.run(async (ctx) => ctx.db.patch("households", id, { callStatus: "not_called", callPriority: 10 }));
+    }
+    const real = await seededHome(t, "12 Oak St", "+16506567040", false);
+    await t.run(async (ctx) => ctx.db.patch("households", real, { callStatus: "not_called", callPriority: 0 }));
+
+    expect((await t.query(api.voice.dialQueue, { limit: 1 })).map((h) => h._id)).toEqual([real]);
+  });
+
   test("after a reset, put back finds each number's house by address", async () => {
     const t = setup();
     const householdId = await seededHome(t, "12 Oak St");

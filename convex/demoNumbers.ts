@@ -148,25 +148,41 @@ export const remove = mutation({
   },
 });
 
+function takesRealNumber(home: Doc<"households"> | null): home is Doc<"households"> {
+  return home !== null && isFictionalNumber(home.callbackNumber) && home.callStatus !== "in_call";
+}
+
+// The house the number remembers, or when that house is gone (another scenario's town), has another real
+// phone or is on a call, the simulated home the warning would call first. A real phone always gets a house.
+async function houseFor(ctx: MutationCtx, row: Doc<"demoNumbers">, homes: Doc<"households">[]) {
+  const remembered = homes.filter((household) => household.address === row.address);
+  const simulated = homes.filter((household) => household.simulated && household.inZone).sort((a, b) => b.callPriority - a.callPriority);
+  for (const candidate of [...remembered, ...simulated]) {
+    // Read again: a number put back earlier in this loop may already be on it.
+    const home = await ctx.db.get("households", candidate._id);
+    if (takesRealNumber(home)) return home;
+  }
+  return null;
+}
+
 async function putBackOne(ctx: MutationCtx, row: Doc<"demoNumbers">, homes: Doc<"households">[]) {
-  if (!row.address || (await homeWithNumber(ctx, row.phone))) return false;
-  const match = homes.find((household) => household.address === row.address);
-  // Read again: a number put back earlier in this loop may already be on it.
-  const home = match && (await ctx.db.get("households", match._id));
-  if (!home || !isFictionalNumber(home.callbackNumber) || home.callStatus === "in_call") return false;
+  if (await homeWithNumber(ctx, row.phone)) return false;
+  const home = await houseFor(ctx, row, homes);
+  if (!home) return false;
   await putRealNumber(ctx, home._id, row.phone, row.name);
+  await ctx.db.patch("demoNumbers", row._id, { address: home.address });
   return true;
 }
 
 async function putBackOnRememberedHouse(ctx: MutationCtx, row: Doc<"demoNumbers">) {
-  if (await homeWithNumber(ctx, row.phone)) return;
-  if (!row.address) throw new ConvexError(`Put ${row.name}'s number on a house first`);
   const homes = await ctx.db.query("households").take(MAX_HOMES);
-  if (!(await putBackOne(ctx, row, homes))) throw new ConvexError(`${row.address} is gone or has another real phone. Move this number to another house`);
+  if (!(await homeWithNumber(ctx, row.phone)) && !(await putBackOne(ctx, row, homes))) {
+    throw new ConvexError("No house is free for this number yet. Start the Ready check or a scenario to load the town");
+  }
 }
 
-// After a reset clears every home: each number that's on goes back on the house it was last on, where a house
-// at that address exists again with a fictional number. Returns how many went back.
+// After a reset clears every home: each number that's on goes back on the house it was last on, or on the
+// simulated home called first when that house is gone or taken. Returns how many went back.
 export const putBack = mutation({
   args: {},
   returns: v.number(),
