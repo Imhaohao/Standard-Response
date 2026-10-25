@@ -5,8 +5,10 @@ import { Doc } from "./_generated/dataModel";
 // Events that come out of a call to a home: the activity list opens that call's transcript.
 const CALL_KINDS: ReadonlySet<Doc<"events">["kind"]> = new Set(["call", "record", "retry"]);
 
-// The call an event is about: the latest call at its home that had started by the time it happened.
+// The call an event is about: the one it names, or else the latest call at its home that had started
+// by the time it happened.
 async function callFor(ctx: QueryCtx, event: Doc<"events">) {
+  if (event.callId) return event.callId;
   const householdId = event.householdId;
   if (!householdId || !CALL_KINDS.has(event.kind)) return null;
   const call = await ctx.db

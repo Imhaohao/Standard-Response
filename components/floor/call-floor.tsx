@@ -134,20 +134,24 @@ function useFollowedCall() {
   };
 }
 
-function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
-  const [tab, setTab] = useState<Tab>("lines");
+// Before the warning only the Ready check is calling: no reach to count and no warning queue yet.
+function WorkColumn({ floor, warned }: { floor: ReturnType<typeof useFollowedCall>; warned: boolean }) {
+  const [chosenTab, setTab] = useState<Tab>("lines");
   const [open, setOpen] = useState(true);
+  const tab = !warned && chosenTab === "queue" ? "lines" : chosenTab;
   return (
     <div className="pointer-events-auto flex min-h-0 w-[23rem] max-w-[40vw] shrink-0 flex-col gap-3">
-      <ReachPanel />
+      {warned && <ReachPanel />}
       <section className={`flex min-h-0 flex-col overflow-hidden card ${open ? "flex-1" : ""}`}>
         <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
           <TabButton active={tab === "lines"} onClick={() => setTab("lines")}>
             On the phone <span className="tabular-nums text-on-panel-muted">{floor.calls.length}</span>
           </TabButton>
-          <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>
-            Next to call
-          </TabButton>
+          {warned && (
+            <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>
+              Next to call
+            </TabButton>
+          )}
           <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
             Activity
           </TabButton>
@@ -185,15 +189,10 @@ export function CallFloor() {
           {issuedAt && <WarningClock issuedAt={issuedAt} />}
           <FloorControls control={control} />
         </AppBar>
-        {control && !issuedAt && (
-          <div className="grid flex-1 place-items-center p-6">
-            <BeforeWarning />
-          </div>
-        )}
-        {issuedAt && (
+        {control && (
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
-            <WorkColumn floor={floor} />
-            <div className="min-w-0 flex-1" />
+            <WorkColumn floor={floor} warned={Boolean(issuedAt)} />
+            <div className="grid min-w-0 flex-1 place-items-center">{!issuedAt && <BeforeWarning />}</div>
             <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col">
               {floor.listening && (
                 <ListeningPanel callId={floor.shownId} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />

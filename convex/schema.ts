@@ -357,6 +357,8 @@ export default defineSchema({
     ),
     message: v.string(),
     householdId: v.optional(v.id("households")),
+    // The call the event came out of, when it did: the activity list opens its transcript.
+    callId: v.optional(v.id("calls")),
     at: v.number(),
   }),
 

@@ -140,3 +140,10 @@ Every night is now kept, and there's a rewind (`convex/nightRuns.ts`). The contr
 - **When a run starts:** `ready:start` or `control:issueWarning`, whichever comes first after the last rewind. Both refuse while `control.archivingRunId` is set, which is while the copy runs, in batches.
 - **Tables a rewind clears:** transcriptLines, texts, calls, events, callbacks, auditLog, assignments, plans, requests, nominations, roadClosures, neighborCalls, pickupPlans, vehicles, shelters, vehicleRoutes, vehicleLoads, dispatchState. That's what reset already cleared, less the setup. `callPlans`, the mesh tables and the prepare tables are untouched, as before.
 - **Readers keyed to a night:** nothing to change. After a rewind, `warningIssuedAt` is unset and the next warning gets a new one.
+
+## 2026-10-24 21:10
+
+The activity list now opens calls, including ended ones. Two small additions, both optional fields only:
+
+- `events` has a new optional `callId`. An event that names a call opens that call's transcript; older events without it are matched to the latest call at their home.
+- `endCall` writes one `call` event, with `callId`, when a pickup or Ready call (`flow` set) ends: "Ready check call with <address> ended" or "Ready check: no answer at <address>". Those calls wrote nothing to the activity list before, so a finished one couldn't be found again. Warning calls are unchanged: their record and retry events already point at them.
