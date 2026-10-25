@@ -40,6 +40,33 @@ function Portraits({ shown }: { shown: boolean }) {
 const GROW: Transition = { type: "spring", duration: 1.6, bounce: 0 };
 const MARK_PX = { alone: 230, full: 340 };
 
+function GrowingMark({ shown, full }: { shown: boolean; full: boolean }) {
+  const size = full ? MARK_PX.full : MARK_PX.alone;
+  return (
+    <motion.span className="flex shrink-0" initial={false} animate={{ width: size, height: size, scale: shown ? 1 : 0.6 }} transition={GROW}>
+      <BrandMark className="size-full" />
+    </motion.span>
+  );
+}
+
+function WordmarkWords({ beat, shown, full }: { beat: Beat; shown: boolean; full: boolean }) {
+  return (
+    <span className="flex flex-col items-start">
+      <motion.span
+        className="overflow-hidden"
+        initial={false}
+        animate={full ? { height: "auto", opacity: 1, y: 0 } : { height: 0, opacity: 0, y: -40 }}
+        transition={{ ...GROW, opacity: { duration: 0.9, delay: full ? 0.35 : 0 } }}
+      >
+        {WORDMARK_LEADING}
+      </motion.span>
+      <motion.span initial={false} animate={{ opacity: shown ? 1 : 0, x: shown ? 0 : -40 }} transition={{ ...sceneMove, delay: beat === "saveLives" ? 1.4 : 0 }}>
+        {WORDMARK_LAST_WORD}
+      </motion.span>
+    </span>
+  );
+}
+
 function ClosingWordmark({ beat }: { beat: Beat }) {
   const shown = beat === "saveLives" || beat === "wordmark";
   const full = beat === "wordmark";
@@ -52,27 +79,8 @@ function ClosingWordmark({ beat }: { beat: Beat }) {
       role="img"
       aria-label={PRODUCT_NAME}
     >
-      <motion.span
-        className="flex shrink-0"
-        initial={false}
-        animate={{ width: full ? MARK_PX.full : MARK_PX.alone, height: full ? MARK_PX.full : MARK_PX.alone, scale: shown ? 1 : 0.6 }}
-        transition={GROW}
-      >
-        <BrandMark className="size-full" />
-      </motion.span>
-      <span className="flex flex-col items-start">
-        <motion.span
-          className="overflow-hidden"
-          initial={false}
-          animate={full ? { height: "auto", opacity: 1, y: 0 } : { height: 0, opacity: 0, y: -40 }}
-          transition={{ ...GROW, opacity: { duration: 0.9, delay: full ? 0.35 : 0 } }}
-        >
-          {WORDMARK_LEADING}
-        </motion.span>
-        <motion.span initial={false} animate={{ opacity: shown ? 1 : 0, x: shown ? 0 : -40 }} transition={{ ...sceneMove, delay: beat === "saveLives" ? 1.4 : 0 }}>
-          {WORDMARK_LAST_WORD}
-        </motion.span>
-      </span>
+      <GrowingMark shown={shown} full={full} />
+      <WordmarkWords beat={beat} shown={shown} full={full} />
     </motion.div>
   );
 }
@@ -83,12 +91,6 @@ export function CloseScene({ beat }: { beat: Beat }) {
       <Show when={beat === "told"} delay={0.8} className="absolute" style={{ right: 128, top: 300, width: 860 }}>
         <blockquote className="type-deck-title">“They’re on their way.”</blockquote>
         <p className="type-deck-lede mt-8 text-on-night-muted">911 dispatcher to Anthony Mitchell</p>
-      </Show>
-      <Show when={beat === "reached"} delay={0.8} className="absolute rounded-3xl bg-night/85 p-8" style={{ left: 96, bottom: 96, width: 860 }}>
-        <p className="type-deck-title">Every home gets a call</p>
-        <p className="type-deck-lede mt-6 text-on-night-muted">
-          The dashed line is a rescue crew driving in from the edge of the zone, on streets the fire hasn’t reached.
-        </p>
       </Show>
       <Show when={beat === "everyone"} delay={0.2} className="absolute" style={{ left: 128, top: 110, width: 1500 }}>
         <p className="type-deck-title">For all of the Anthonys, Justins and Roselands</p>

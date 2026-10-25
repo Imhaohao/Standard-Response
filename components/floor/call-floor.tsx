@@ -1,8 +1,8 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQueries, useQuery } from "convex/react";
 import { motion } from "motion/react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { CaretDown, PhoneCall, Siren } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -103,6 +103,19 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
+// Every line on the phone keeps its transcript subscribed, so clicking one opens it from what the
+// client already holds instead of waiting on a round trip to Convex with an empty panel.
+const WARM_LINES = 12;
+
+function useWarmTranscripts(callIds: Id<"calls">[]) {
+  const key = callIds.slice(0, WARM_LINES).join(",");
+  const requests = useMemo(
+    () => Object.fromEntries(key.split(",").filter(Boolean).map((callId) => [callId, { query: api.calls.detail, args: { callId: callId as Id<"calls"> } }])),
+    [key],
+  );
+  useQueries(requests);
+}
+
 function useFollowedCall() {
   const calls = useQuery(api.calls.active);
   const [pinnedId, setPinnedId] = useState<Id<"calls"> | null>(null);
@@ -110,6 +123,7 @@ function useFollowedCall() {
   const pinned = sorted.find((call) => call._id === pinnedId);
   const oldestLive = sorted.find((call) => call.phase === "live");
   const followed = pinned ?? oldestLive ?? null;
+  useWarmTranscripts(sorted.map((call) => call._id));
   // A call opened from the activity list, which may have ended: it stays open until the operator follows a line again.
   const [reviewId, setReviewId] = useState<Id<"calls"> | null>(null);
   const [listening, setListening] = useState(true);
