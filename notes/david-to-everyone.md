@@ -171,3 +171,9 @@ For the demo, this is what sends Luis's van to Carmen once Maria's pickup is rev
 ## 2026-10-25 03:20
 
 `data/flow-results.json` is regenerated on the Eaton Fire scenario with today's crowd model (4 seeds, 30% of households), offline. The flow lab and the under-the-hood screen read it directly; nothing else quoted its numbers except `docs/mesh.md`, now updated. What moved: the shared model's AUC is 0.74 (it was 0.93 on seed 7), and so is the central fit on raw data (0.75), so it's the data, not the privacy. On this fire phones come to know of about 40 blocked streets, against 115. The agency still hears about 2 minutes sooner with the mesh in every seed, and now knows of more of what phones saw (80% against 64%, median). Evacuation totals still don't move.
+
+## 2026-10-25 03:45
+
+**Found, not fixed: 1,020 of the 11,855 synthetic households (2,404 people, 81 who can't leave on their own) are more than 200 m from any street in the road graph,** up to 620 m. They cluster in the northwest corner, around 34.20–34.21 N, 118.17–118.18 W, which is inside the graph's box but has no streets in it, likely the foothills, where a block group's homes got spread over its whole area. In the crowd model those cars cross that far of yards at 1.2 m/s before reaching a street. Anything that snaps a home to its nearest graph node (the dispatcher's pickups, door checks) starts or ends those trips up to 600 m from the house. Whoever owns `data/population.json` and `data/roads/altadena.json`: either the homes should be placed on residential land, or the graph is missing streets there.
+
+The crowd model now pulls each car out onto the street in front of its house instead of the nearest intersection (`8b02ded`); `RoadRouter.streetPoints(x, y)` gives the nearest point on a street, in each direction, if anyone else needs it.
