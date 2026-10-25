@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { HAZARDS, type Hazard } from "../../convex/hazards";
@@ -24,7 +24,7 @@ const CONCURRENCY = 32;
 const CARDS_PER_PRINCIPLE_AND_HAZARD = 10;
 const MIN_CHECKED_TURNS = 3;
 
-const client = new Anthropic({ maxRetries: 8 });
+const client = newAnthropic({ maxRetries: 8 });
 
 const objectOf = (properties: Record<string, object>) => ({
   type: "object",

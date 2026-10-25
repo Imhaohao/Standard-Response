@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import { CALL_TAKER_PRINCIPLES, PrincipleId } from "../agent/interpreter";
 import { LINES, withSafety } from "../agent/script";
 import { CallOutcome } from "./call";
@@ -89,7 +90,7 @@ function promptFor(call: CallOutcome) {
 }
 
 let client: Anthropic | null = null;
-const anthropic = () => (client ??= new Anthropic());
+const anthropic = () => (client ??= newAnthropic());
 
 async function verdictFor(call: CallOutcome): Promise<Verdict> {
   const response = await anthropic().beta.messages.create({

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -86,7 +87,7 @@ export function parseRanking(text: string, homes: Candidate[]): RankedHome[] {
 let client: Anthropic | null = null;
 
 export async function rankHomes(homes: Candidate[], hazard: Hazard): Promise<RankedHome[]> {
-  client ??= new Anthropic({ timeout: TIMEOUT_MS });
+  client ??= newAnthropic({ timeout: TIMEOUT_MS });
   const response = await client.beta.messages.create({
     model: PLANNER_MODEL,
     max_tokens: 8000,

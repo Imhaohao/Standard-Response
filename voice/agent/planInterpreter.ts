@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import { env } from "../env";
 import { Hazard, hazardEscalation, HazardEscalation, HAZARDS } from "../../convex/hazards";
 import { currentHazard } from "../hazard";
@@ -112,7 +113,7 @@ function promptFor(turn: PlanTurnContext) {
 
 function request(kind: Hazard, user: string, maxTokens = 256) {
   warmers[kind].used();
-  client ??= new Anthropic();
+  client ??= newAnthropic();
   return client.messages.create({
     model: env.anthropicModel,
     max_tokens: maxTokens,

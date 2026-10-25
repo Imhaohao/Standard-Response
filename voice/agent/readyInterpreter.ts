@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { env } from "../env";
 import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
@@ -227,7 +228,7 @@ function promptFor(turn: ReadyTurnContext) {
 
 function request(user: string, maxTokens = 512) {
   warm.used();
-  client ??= new Anthropic();
+  client ??= newAnthropic();
   return client.messages.create({
     model: env.anthropicModel,
     max_tokens: maxTokens,

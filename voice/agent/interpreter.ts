@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newAnthropic } from "../anthropicClient";
 import { env } from "../env";
 import type { AgentRecord, Confidence, Field } from "./record";
 import { FIELDS } from "./record";
@@ -242,7 +243,7 @@ export const OUTPUT_SCHEMA = forEachHazard(outputSchemaFor);
 
 // Made on the first turn, so the state machine can be loaded (and tested) without a key.
 let client: Anthropic | null = null;
-const anthropic = () => (client ??= new Anthropic());
+const anthropic = () => (client ??= newAnthropic());
 
 const CHOICES: Partial<Record<Field, readonly string[]>> = {
   canLeave: ["yes", "no", "unsure"],
