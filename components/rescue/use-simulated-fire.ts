@@ -33,7 +33,8 @@ function nearestBuilding(data: InkMapData, [x, y]: Point): Point | null {
 const FIRST_RESPONSE: FireResponse = { construction: "older", engines: 1 };
 
 // A fire the dispatcher lights at a house to rehearse. It stands in for the scenario on this screen
-// only, starts burning the moment it is lit, and spreads the way the scenario's wind blows. Changing
+// only, starts burning the moment it is lit, and spreads the way the scenario's wind blows, with
+// the same shifts and gusts each time, held by the streets, washes and open ground between buildings. Changing
 // how the homes are built or how many crews respond re-runs the same fire from the same moment.
 // The warning zone it proposes holds every building that burns, and the homes to warn are the ones inside it.
 export function useSimulatedFire(scenario: Hazard | null, data: InkMapData | null, homes: Home[], toLocal: (at: LatLng) => Point) {
@@ -51,7 +52,7 @@ export function useSimulatedFire(scenario: Hazard | null, data: InkMapData | nul
     [homes, toLocal, scenario, clock, data],
   );
 
-  const fire = useMemo(() => (ignition && data ? ignitionHazard(data.buildings, ignition.point, ignition.wind, response) : null), [data, ignition, response]);
+  const fire = useMemo(() => (ignition && data ? ignitionHazard(data.buildings, ignition.point, ignition.wind, response, data) : null), [data, ignition, response]);
   const zone = useMemo(() => (fire && data ? warningZoneAround(streetNetwork(data), fire.burnedAt) : null), [fire, data]);
   const homesToWarn = useMemo(() => {
     const ring = zone?.ring ?? fire?.field.fronts[fire.field.fronts.length - 1].ring;

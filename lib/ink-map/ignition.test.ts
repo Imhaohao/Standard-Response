@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { BUILDING_KIND, Building, InkMapData, Point } from "./data";
+import { AREA_KIND, Area, BUILDING_KIND, Building, InkMapData, Point, Road } from "./data";
+import { fireGround } from "./fire-barriers";
 import { contains } from "./fire-field";
 import { Construction, Crews, ignitionHazard } from "./ignition";
+import { windWalk } from "./wind-walk";
 import { streetNetwork } from "./street-network";
 import { warningZoneAround } from "./warning-zone";
 
-const raw = JSON.parse(readFileSync(new URL("../../public/map/altadena.json", import.meta.url), "utf8")) as { buildings: number[][]; roads: number[][] };
+const raw = JSON.parse(readFileSync(new URL("../../public/map/altadena.json", import.meta.url), "utf8")) as { buildings: number[][]; roads: number[][]; areas: number[][] };
 const decodePoints = (flat: number[], start: number) => {
   const points: Point[] = [];
   for (let i = start; i + 1 < flat.length; i += 2) points.push([flat[i] / 10, flat[i + 1] / 10]);
@@ -32,9 +34,13 @@ function crowdedHouse(): Point {
   return candidates.reduce((best, house) => (crowding(house) > crowding(best) ? house : best)).center;
 }
 
+const roads: Road[] = raw.roads.map((road) => ({ roadClass: road[0], name: "", tunnel: road[2] === 1, path: decodePoints(road, 3) }));
+const areas: Area[] = raw.areas.map((area) => ({ kind: area[0], ring: decodePoints(area, 1) }));
+const ground = { roads, areas };
+
 const ignition = crowdedHouse();
 const SOUTHWEST: Point = [-Math.SQRT1_2, -Math.SQRT1_2];
-const run = (engines: Crews, construction: Construction = "older") => ignitionHazard(buildings, ignition, SOUTHWEST, { engines, construction })!;
+const run = (engines: Crews, construction: Construction = "older", over = ground) => ignitionHazard(buildings, ignition, SOUTHWEST, { engines, construction }, over)!;
 
 describe("simulated house fire", () => {
   it("stays a house fire when crews reach it in time", () => {
@@ -58,8 +64,52 @@ describe("simulated house fire", () => {
   });
 });
 
+describe("what the fire meets", () => {
+  it("is held by the roads, washes and open ground between buildings", () => {
+    const open = run(0, "older", { roads: [], areas: [] }).burnedAt.length;
+    const held = run(0).burnedAt.length;
+    assert.ok(held < open, `${held} buildings burned with the ground, ${open} without`);
+  });
+
+  it("finds the Arroyo Seco and the streets between two points across it", () => {
+    const crossing = fireGround(ground)([-1900, -2000], [-900, -2000]);
+    assert.ok(crossing.water, "the Arroyo Seco channel wasn't crossed");
+    assert.ok(crossing.widestRoad !== null && crossing.widestRoad <= 4, `widest road class ${crossing.widestRoad}`);
+  });
+
+  it("reads open ground in the middle of a gap", () => {
+    const middle = (ring: Point[]) => ring.reduce<Point>((sum, [px, py]) => [sum[0] + px / ring.length, sum[1] + py / ring.length], [0, 0]);
+    const park = areas.find((area) => area.kind === AREA_KIND.park && contains(area.ring, ...middle(area.ring)))!;
+    const [x, y] = middle(park.ring);
+    assert.equal(fireGround(ground)([x - 1, y], [x + 1, y]).ground, AREA_KIND.park);
+  });
+
+  it("leaves some buildings standing inside the burn", () => {
+    const fire = run(0);
+    const burned = new Set(fire.burnedAt.map(([x, y]) => `${x},${y}`));
+    const hull = fire.field.fronts[fire.field.fronts.length - 1].ring;
+    const standing = buildings.filter((b) => contains(hull, b.center[0], b.center[1]) && !burned.has(`${b.center[0]},${b.center[1]}`));
+    assert.ok(standing.length > 0, "every building inside the burn caught");
+  });
+
+  it("burns the same way every time it is lit at the same house", () => {
+    assert.deepEqual(run(1).burnedAt, run(1).burnedAt);
+  });
+
+  it("swings the wind by tens of degrees and gusts, the same way for the same seed", () => {
+    const wind = windWalk(SOUTHWEST, 42, 240);
+    const headings = Array.from({ length: 49 }, (_, step) => {
+      const [x, y] = wind(step * 5).direction;
+      return (Math.atan2(x, y) * 180) / Math.PI;
+    });
+    const strengths = Array.from({ length: 49 }, (_, step) => wind(step * 5).strength);
+    assert.ok(Math.max(...headings) - Math.min(...headings) > 20, `heading range ${Math.max(...headings) - Math.min(...headings)}`);
+    assert.ok(Math.max(...strengths) > 1.1 && Math.min(...strengths) < 0.9, "no gusts or lulls");
+    assert.deepEqual(windWalk(SOUTHWEST, 42, 240)(120), wind(120));
+  });
+});
+
 describe("warning zone around a simulated fire", () => {
-  const roads = raw.roads.map((road) => ({ roadClass: road[0], name: "", tunnel: road[2] === 1, path: decodePoints(road, 3) }));
   const network = streetNetwork({ roads } as unknown as InkMapData);
 
   for (const engines of [1, 0] as const) {
