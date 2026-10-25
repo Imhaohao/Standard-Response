@@ -74,6 +74,21 @@ function drawsOnCpu(renderer: THREE.WebGLRenderer) {
   return /swiftshader|llvmpipe|softpipe|software/i.test(name);
 }
 
+const EXTENT_FADE_M = 700;
+const TERRAIN_FADE_M = 1500;
+// Points round the screen's border, in normalized device coordinates: the corners and the middle of each side.
+const SCREEN_BORDER: [number, number][] = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
+
+const insetBox = (box: Box, by: number): Box => ({ x0: box.x0 + by, y0: box.y0 + by, x1: box.x1 - by, y1: box.y1 - by });
+const intersectBoxes = (a: Box, b: Box): Box => ({ x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1) });
+
+// How far a span has to move to sit inside a range: zero when it already does.
+function overflow(low: number, high: number, min: number, max: number) {
+  if (low < min) return min - low;
+  if (high > max) return max - high;
+  return 0;
+}
+
 function emptyTexture() {
   const texture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
   texture.needsUpdate = true;
@@ -338,7 +353,7 @@ export class InkMapRenderer {
     configureCamera(this.camera, this.data, this.view, this.cssSize.width / this.cssSize.height);
     this.home = { position: this.camera.position.clone(), target: this.lookTarget() };
     this.composite.material.uniforms.uResolution.value.set(w, h);
-    this.applyNavigation();
+    this.keepInside();
     this.renderStatic();
     this.renderFrame();
   }
@@ -419,12 +434,62 @@ export class InkMapRenderer {
     return this.nav.zoom;
   }
 
-  private clampPan() {
-    const region = viewRegion(this.data, this.view).pan;
-    const t = this.home.target;
-    const x = THREE.MathUtils.clamp(t.x + this.nav.pan.x, region.x0, region.x1);
-    const z = THREE.MathUtils.clamp(t.z + this.nav.pan.z, -region.y1, -region.y0);
-    this.nav.pan.set(x - t.x, 0, z - t.z);
+  // The ground a view may show without reaching the edge of what was baked: for the overview, short
+  // of where the town's buildings fade out (700 m inside the extent) and the hills fade (1500 m inside
+  // the terrain); for a close-up, the ground built around it.
+  private safeGround(): Box {
+    const t = this.data.terrain;
+    const terrain = { x0: t.x0 + TERRAIN_FADE_M, y0: t.y0 + TERRAIN_FADE_M, x1: t.x0 + (t.cols - 1) * t.cell - TERRAIN_FADE_M, y1: t.y0 + (t.rows - 1) * t.cell - TERRAIN_FADE_M };
+    const region = viewRegion(this.data, this.view);
+    const built = this.view.kind === "overview" ? insetBox(this.data.extent, EXTENT_FADE_M) : region.buildings;
+    return intersectBoxes(intersectBoxes(built, terrain), region.terrain ?? terrain);
+  }
+
+  // The lowest ground in the safe area. Measuring the view against it errs toward showing less,
+  // because a ray meets higher ground sooner.
+  private groundFloor = Infinity;
+  private lowestGround(box: Box) {
+    if (Number.isFinite(this.groundFloor)) return this.groundFloor;
+    for (let x = box.x0; x <= box.x1; x += 200) for (let y = box.y0; y <= box.y1; y += 200) this.groundFloor = Math.min(this.groundFloor, terrainHeight(this.data.terrain, x, y));
+    return this.groundFloor;
+  }
+
+  // The ground the screen's border looks at, as a box in map metres, or null when part of the border
+  // looks above the horizon.
+  private visibleGround(floor: number): Box | null {
+    const seen: Box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    for (const [nx, ny] of SCREEN_BORDER) {
+      const ray = new THREE.Vector3(nx, ny, 0.5).unproject(this.camera).sub(this.camera.position).normalize();
+      if (ray.y >= -1e-3) return null;
+      const hit = this.camera.position.clone().addScaledVector(ray, (floor - this.camera.position.y) / ray.y);
+      seen.x0 = Math.min(seen.x0, hit.x);
+      seen.x1 = Math.max(seen.x1, hit.x);
+      seen.y0 = Math.min(seen.y0, -hit.z);
+      seen.y1 = Math.max(seen.y1, -hit.z);
+    }
+    return seen;
+  }
+
+  // Keeps the edges of the baked map off screen at any zoom: slides the view back inside the safe
+  // ground, and zooms in when the view is wider or deeper than the safe ground itself.
+  private keepInside() {
+    const safe = this.safeGround();
+    const floor = this.lowestGround(safe);
+    for (let step = 0; step < 16; step++) {
+      this.applyNavigation();
+      const seen = this.visibleGround(floor);
+      const over = seen ? Math.max((seen.x1 - seen.x0) / (safe.x1 - safe.x0), (seen.y1 - seen.y0) / (safe.y1 - safe.y0)) : 1.25;
+      if (over > 1) {
+        this.nav.zoom *= over * 1.01;
+        continue;
+      }
+      const dx = overflow(seen!.x0, seen!.x1, safe.x0, safe.x1);
+      const dy = overflow(seen!.y0, seen!.y1, safe.y0, safe.y1);
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+      this.nav.pan.x += dx;
+      this.nav.pan.z -= dy;
+    }
+    this.applyNavigation();
   }
 
   panBetween(fromX: number, fromY: number, toX: number, toY: number) {
@@ -433,7 +498,7 @@ export class InkMapRenderer {
     if (!from || !to) return;
     this.nav.pan.x -= to[0] - from[0];
     this.nav.pan.z += to[1] - from[1];
-    this.clampPan();
+    this.keepInside();
     this.redrawView();
   }
 
@@ -447,13 +512,14 @@ export class InkMapRenderer {
       this.nav.pan.x += before[0] - after[0];
       this.nav.pan.z -= before[1] - after[1];
     }
-    this.clampPan();
+    this.keepInside();
     this.redrawView();
   }
 
   resetView() {
     cancelAnimationFrame(this.flight);
     this.nav = { pan: new THREE.Vector3(), zoom: 1 };
+    this.keepInside();
     this.redrawView();
   }
 
@@ -474,7 +540,7 @@ export class InkMapRenderer {
       const eased = 1 - (1 - t) ** 3;
       this.nav.pan.lerpVectors(from.pan, to.pan, eased);
       this.nav.zoom = from.zoom * (to.zoom / from.zoom) ** eased;
-      this.clampPan();
+      this.keepInside();
       this.redrawView();
       if (t < 1) this.flight = requestAnimationFrame(step);
     };
@@ -509,7 +575,7 @@ export class InkMapRenderer {
       const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
       this.nav.pan.lerpVectors(from.pan, to.pan, eased);
       this.nav.zoom = from.zoom * (to.zoom / from.zoom) ** eased;
-      this.clampPan();
+      this.keepInside();
       this.redrawView();
       if (t < 1) this.flight = requestAnimationFrame(step);
     };
