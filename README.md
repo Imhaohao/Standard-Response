@@ -245,7 +245,7 @@ Every rider call is heard by Ink and spoken by Sonic. Because both run over WebS
 | Cartesia feature | What we use it for | Where |
 | --- | --- | --- |
 | Ink streaming speech-to-text (`ink-2`, `ink-whisper`) | Hears the rider live. English, Spanish and Japanese use Ink-2, which decides when the rider has finished; other languages use `ink-whisper`. It restarts in a new language when the rider switches | `voice/phone/cartesia.ts` `Transcriber` |
-| Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn. The call then waits 0.3 s after a full stop, 0.6 s with no punctuation, and 1.3 s when the words trail off | `voice/phone/callSession.ts` `turnGap` |
+| Ink end-of-speech (`max_silence_duration_secs` 0.5) | Ends the rider's turn. Without Ink's turn end, the call waits 0.7 s after a full stop, 1 s with no punctuation, and 1.8 s when the words trail off. Claude starts reading as soon as Ink's words are final, so that wait overlaps Claude's reading instead of coming before it | `voice/phone/callSession.ts` `turnGap`, `readAhead` |
 | Sonic streaming text-to-speech (`sonic-latest`) | Each agent turn is one request. That way intonation carries across its sentences | `voice/phone/speech.ts` |
 | Sonic context cancel | Barge-in: when the rider talks over the agent, the rest of the turn is cancelled at once | `CallSpeech.bargeIn` |
 | Cartesia telephony and the Line agent socket | With `VOICE_CARRIER=cartesia`, Cartesia answers and places the phone call itself and streams the resident's words to our server over the Line SDK's self-hosted agent socket; our server still decides every word. Twilio stays the default carrier | `voice/phone/cartesiaLine.ts`, `voice/phone/line.ts` |
