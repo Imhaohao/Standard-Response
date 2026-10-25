@@ -648,7 +648,34 @@ export default defineSchema({
     readyCheckGeneration: v.optional(v.number()),
     // Track A: the night's clock (lib/sim-clock.ts). Absent means it reads the wall clock.
     clock: v.optional(v.object({ speed: v.number(), realAt: v.number(), simAt: v.number(), ranMs: v.number() })),
+    // Track A: set while a rewind or reset copies the night into `nightRuns`; nothing new starts until it's done.
+    archivingRunId: v.optional(v.id("nightRuns")),
   }),
+
+  // Track A: every night, kept when it is rewound or reset (convex/nightRuns.ts). A run starts at the
+  // first Ready check or warning after the last rewind. Its `start` rows are the homes and arranged
+  // pickups as they were then, which a rewind puts back; its `end` rows are everything the night left.
+  // Times here are on the wall clock: they say when the run happened, not where the night's clock was.
+  nightRuns: defineTable({
+    startedAt: v.number(),
+    endedAt: v.optional(v.number()),
+    warningIssuedAt: v.optional(v.number()),
+    hazard: v.optional(hazard),
+    status: v.union(v.literal("current"), v.literal("archiving"), v.literal("archived")),
+    endedBy: v.optional(v.union(v.literal("rewind"), v.literal("reset"))),
+    // How many `end` rows the run kept.
+    savedRows: v.optional(v.number()),
+  }).index("by_status", ["status"]),
+
+  // One saved document. `doc` is the row without its system fields, which are `docId` and `createdAt`.
+  nightRunRows: defineTable({
+    runId: v.id("nightRuns"),
+    kind: v.union(v.literal("start"), v.literal("end")),
+    table: v.string(),
+    docId: v.string(),
+    createdAt: v.number(),
+    doc: v.any(),
+  }).index("by_runId_and_kind_and_table", ["runId", "kind", "table"]),
 
   // Mesh add-on (lib/mesh, convex/mesh.ts). Separate from the core flow, except that the dispatcher
   // reads `meshDriveTimes` for its drive times (convex/traffic.ts).

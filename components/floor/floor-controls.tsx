@@ -2,6 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { FunctionReturnType } from "convex/server";
+import { ConvexError } from "convex/values";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
@@ -65,14 +66,19 @@ const STAND_INS: { key: StandInKey; label: string; owner: string }[] = [
   { key: "simulateNeedModel", label: "Need model", owner: "Track D" },
 ];
 
-function ResetButton() {
-  const reset = useMutation(api.control.reset);
+// Ends the night after a second click. Either way the night is saved in `nightRuns` first; a
+// refusal (a real call still live, or the last night still saving) shows in place of the label.
+function EndNightButton({ end, label, armedLabel }: { end: () => Promise<null>; label: string; armedLabel: string }) {
   const [armed, setArmed] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   useEffect(() => {
-    if (!armed) return;
-    const id = setTimeout(() => setArmed(false), 4000);
+    if (!armed && !refusal) return;
+    const id = setTimeout(() => {
+      setArmed(false);
+      setRefusal(null);
+    }, 4000);
     return () => clearTimeout(id);
-  }, [armed]);
+  }, [armed, refusal]);
   return (
     <Button
       variant={armed ? "onPanel" : "onPanelQuiet"}
@@ -80,12 +86,23 @@ function ResetButton() {
       onClick={() => {
         if (!armed) return setArmed(true);
         setArmed(false);
-        void reset({});
+        end().catch((error: unknown) => setRefusal(error instanceof ConvexError ? String(error.data) : "Couldn't end the night"));
       }}
     >
       <ArrowCounterClockwise weight="bold" className="size-4" />
-      {armed ? "Click again to erase every call and record" : "Reset the simulation"}
+      {refusal ?? (armed ? armedLabel : label)}
     </Button>
+  );
+}
+
+function EndNightButtons() {
+  const rewind = useMutation(api.control.rewind);
+  const reset = useMutation(api.control.reset);
+  return (
+    <div className="flex flex-col gap-2">
+      <EndNightButton end={() => rewind({})} label="Rewind to before the Ready check" armedLabel="Click again: save the night, keep the homes" />
+      <EndNightButton end={() => reset({})} label="Reset the simulation" armedLabel="Click again: save the night, clear every home" />
+    </div>
   );
 }
 
@@ -132,7 +149,7 @@ function StandIns({ control }: { control: ControlState }) {
             />
           ))}
           <div className="border-t border-panel-raised p-3">
-            <ResetButton />
+            <EndNightButtons />
           </div>
         </div>
       )}

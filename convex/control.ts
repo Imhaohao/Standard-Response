@@ -1,7 +1,7 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
-import { internalMutation, mutation } from "./functions";
+import { mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { retimeArea, seedFleetIfEmpty, seedSimulatedArea } from "./seed";
 import { coverAreaIfNoZone } from "./riders";
@@ -11,6 +11,7 @@ import { MAX_RUN_MS, TICK_MS } from "./sim";
 import { simNow } from "./clock";
 import { clockAtSpeed, PLAYBACK_SPEEDS, runningMs } from "../lib/sim-clock";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
+import { archiveNight, startRunIfNone } from "./nightRuns";
 
 const DEFAULTS = {
   dialerRunning: false,
@@ -54,10 +55,14 @@ export const issueWarning = mutation({
   handler: async (ctx) => {
     const control = await controlRow(ctx);
     if (control.warningIssuedAt) return null;
+    if (control.archivingRunId) throw new ConvexError("The last night is still being saved. Try again in a moment");
     const clock = clockAtSpeed(control.clock, control.clock?.speed || 1, Date.now());
     const now = clock.simAt;
-    if (await ctx.db.query("households").first()) await retimeArea(ctx, now);
-    else await seedSimulatedArea(ctx, now);
+    const empty = !(await ctx.db.query("households").first());
+    if (empty) await seedSimulatedArea(ctx, now);
+    // Before the warning changes any home: this is what a rewind puts back, unless the Ready check started the run.
+    await startRunIfNone(ctx);
+    if (!empty) await retimeArea(ctx, now);
     await coverAreaIfNoZone(ctx);
     // Simulated drivers drive only in a simulated town. Real households get the driver-page vans.
     await seedFleetIfEmpty(ctx, now, !(await hasSimulatedHouseholds(ctx)));
@@ -173,65 +178,54 @@ export const inboundSurge = mutation({
   },
 });
 
-const TABLES = [
-  "transcriptLines",
-  "texts",
-  "calls",
-  "events",
-  "callbacks",
-  "auditLog",
-  "assignments",
-  "plans",
-  "requests",
-  "nominations",
-  "roadClosures",
-  "zones",
-  "personas",
-  "pickupPlans",
-  "neighborCalls",
-  "households",
-  "vehicles",
-  "shelters",
-  "vehicleRoutes",
-  "vehicleLoads",
-  "dispatchState",
-] as const;
-const DELETE_BATCH = 2000;
+// What every new night starts from: the loops stopped, the clock back on the wall clock.
+const NIGHT_OVER = {
+  warningIssuedAt: undefined,
+  dialerRunning: false,
+  readyCheckRunning: false,
+  readyCheckStartedAt: undefined,
+  clock: undefined,
+};
 
-export const reset = mutation({
+// A real call whose row is this old was dropped by a restart and never ended.
+const STALE_CALL_MS = 30 * 60_000;
+
+async function liveRealCall(ctx: MutationCtx) {
+  for (const phase of ["ringing", "live"] as const) {
+    const calls = await ctx.db.query("calls").withIndex("by_phase", (q) => q.eq("phase", phase)).take(100);
+    if (calls.some((call) => !call.simulated && Date.now() - call._creationTime < STALE_CALL_MS)) return true;
+  }
+  return false;
+}
+
+async function endNight(ctx: MutationCtx, mode: "rewind" | "reset") {
+  const control = await controlRow(ctx);
+  if (control.archivingRunId) throw new ConvexError("The last night is still being saved. Try again in a moment");
+  if (await liveRealCall(ctx)) throw new ConvexError("A real call is still live. Let it finish first");
+  const stopLoops = { tickGeneration: control.tickGeneration + 1, readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1 };
+  const runId = await archiveNight(ctx, control, mode);
+  // A reset also puts the stand-in switches back; a rewind keeps how the night was set up.
+  const settings = mode === "reset" ? DEFAULTS : {};
+  await ctx.db.patch("control", control._id, { ...settings, ...NIGHT_OVER, ...stopLoops, archivingRunId: runId });
+}
+
+// Back to before the Ready check, on the same homes: the night is saved in `nightRuns`, then cleared,
+// and every home and arranged pickup is put back as it was when the run started (convex/nightRuns.ts).
+export const rewind = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const control = await controlRow(ctx);
-    await ctx.db.patch("control", control._id, {
-      ...DEFAULTS,
-      warningIssuedAt: undefined,
-      tickGeneration: control.tickGeneration + 1,
-      readyCheckRunning: false,
-      readyCheckStartedAt: undefined,
-      readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1,
-      clock: undefined,
-    });
-    await ctx.scheduler.runAfter(0, internal.control.clearTables, {});
+    await endNight(ctx, "rewind");
     return null;
   },
 });
 
-export const clearTables = internalMutation({
+// Clears everything, homes included, after saving it in `nightRuns`.
+export const reset = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // One run may read 4,096 rows in total, so the batch is shared across tables, not per table.
-    let budget = DELETE_BATCH;
-    for (const table of TABLES) {
-      const rows = await ctx.db.query(table).take(budget);
-      for (const row of rows) await ctx.db.delete(table, row._id);
-      budget -= rows.length;
-      if (budget === 0) {
-        await ctx.scheduler.runAfter(0, internal.control.clearTables, {});
-        return null;
-      }
-    }
+    await endNight(ctx, "reset");
     return null;
   },
 });

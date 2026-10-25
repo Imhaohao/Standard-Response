@@ -102,3 +102,14 @@ The simulation loop in `convex/sim.ts` is now a heartbeat plus a work step. Unti
 ## 2026-10-24 18:42
 
 `households.inZone` for homes added after a zone is drawn: `ready:submit` (and `ready:reregister`) and `riders:importCsv` now mark a new home in the zone when it falls inside the zone drawn last. With no zone drawn, a home that signs up after the warning is out counts as covered, the same as `coverAreaIfNoZone` gave the homes already on file. Until now every new home started with `inZone: false`, so a home that signed up inside a zone that was already drawn was never called, and no neighbor was asked for it, until somebody redrew the zone. A sign-up that moves an existing home to a new address also gets its `inZone` recomputed. The helper is `warningCovers` in `convex/riders.ts`. Nothing in the contract changed.
+
+## 2026-10-24 19:55
+
+Every night is now kept, and there's a rewind (`convex/nightRuns.ts`). The contract only gains things: two new tables and one optional `control` field.
+
+- **`control:rewind`** goes back to before the Ready check on the same homes. It saves the night, clears the night's tables, and puts every home and arranged pickup back as they were when the run started. Zones and personas stay. Stand-in switches are kept.
+- **`control:reset`** still clears everything, homes included, but saves the night first. It also refuses while a real call is live, the same as the rewind.
+- **Where it's kept:** `nightRuns` holds one row per night (`startedAt`/`endedAt` on the wall clock, `warningIssuedAt`, `hazard`, `endedBy`, `savedRows`). `nightRunRows` holds the saved documents: `start` rows are the homes and pickups when the run began, `end` rows are everything the night left. Read them with `nightRuns:list` and `nightRuns:rows({ runId, table, kind, paginationOpts })`.
+- **When a run starts:** `ready:start` or `control:issueWarning`, whichever comes first after the last rewind. Both refuse while `control.archivingRunId` is set, which is while the copy runs, in batches.
+- **Tables a rewind clears:** transcriptLines, texts, calls, events, callbacks, auditLog, assignments, plans, requests, nominations, roadClosures, neighborCalls, pickupPlans, vehicles, shelters, vehicleRoutes, vehicleLoads, dispatchState. That's what reset already cleared, less the setup. `callPlans`, the mesh tables and the prepare tables are untouched, as before.
+- **Readers keyed to a night:** nothing to change. After a rewind, `warningIssuedAt` is unset and the next warning gets a new one.

@@ -1,4 +1,4 @@
-import { ObjectType, v } from "convex/values";
+import { ConvexError, ObjectType, v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
@@ -13,6 +13,7 @@ import { seededRandom } from "./roll";
 import { simNow } from "./clock";
 import { syncRequest } from "./requests";
 import { warningCovers } from "./riders";
+import { startRunIfNone } from "./nightRuns";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
@@ -248,9 +249,12 @@ export const start = mutation({
   returns: v.null(),
   handler: async (ctx) => {
     const control = await controlRow(ctx);
-    if (control.warningIssuedAt) throw new Error("The Ready check runs before a warning. Reset first");
+    if (control.warningIssuedAt) throw new Error("The Ready check runs before a warning. Rewind first");
+    if (control.archivingRunId) throw new ConvexError("The last night is still being saved. Try again in a moment");
     const now = await simNow(ctx);
     if (!(await ctx.db.query("households").first())) await seedSimulatedArea(ctx, now);
+    // Before any Ready call changes a home: this is what a rewind puts back.
+    await startRunIfNone(ctx);
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { readyCheckRunning: true, readyCheckStartedAt: now, readyCheckGeneration });
     await ctx.db.insert("events", { kind: "control", message: "Ready check started: calling every household ahead of time", at: now });
