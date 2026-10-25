@@ -2,8 +2,9 @@ import WebSocket from "ws";
 import { randomUUID } from "node:crypto";
 import { env } from "../env";
 import type { Language } from "../agent/script";
+import { SPOKEN_LANGUAGES } from "../../convex/languages";
 import { Delivery, generationConfig, ROUTINE } from "./delivery";
-import { isPhantom, VoiceActivity } from "./phantomSpeech";
+import { decodeMulaw, isPhantom, VoiceActivity } from "./phantomSpeech";
 
 // Cartesia carries both directions of the call. Twilio sends and expects 8 kHz μ-law, and Cartesia
 // accepts and produces it directly, so audio passes through without transcoding.
@@ -47,13 +48,22 @@ type Heard = { text: string; isFinal: boolean };
 // turn so far on every update, then once more on turn.end.
 type SttProtocol = { url: string; closeMessage: string; read: (message: SttMessage) => Heard | null };
 
+const usesInk2 = (language: Language) => env.cartesia.sttModel === "ink-2" && INK_2_LANGUAGES.has(language);
+
+// The call languages a transcriber opened in this language writes as something else: Mandarin on an
+// English Ink-2 stream came back as "What she would shout, Jonguen." or as kana that spell nothing.
+export function unheardLanguages(language: Language): Language[] {
+  const heard: ReadonlySet<Language> = usesInk2(language) ? INK_2_LANGUAGES : new Set([language]);
+  return SPOKEN_LANGUAGES.filter((other) => !heard.has(other));
+}
+
 export function protocolFor(language: Language): SttProtocol {
   const common = {
     encoding: PHONE_AUDIO.encoding,
     sample_rate: String(PHONE_AUDIO.sample_rate),
     cartesia_version: env.cartesia.version,
   };
-  if (env.cartesia.sttModel === "ink-2" && INK_2_LANGUAGES.has(language)) {
+  if (usesInk2(language)) {
     const params = new URLSearchParams({ model: "ink-2", ...common, end_timeout_ms: String(UNSURE_TURN_END_MS) });
     for (const term of KEYTERMS) params.append("keyterm", term);
     return { url: `wss://api.cartesia.ai/stt/turns/websocket?${params}`, closeMessage: JSON.stringify({ type: "close" }), read: readTurn };
@@ -130,6 +140,42 @@ export class Transcriber {
     if (this.socket.readyState === WebSocket.OPEN) this.socket.send(this.protocol.closeMessage);
     setTimeout(() => this.socket.terminate(), 1000);
   }
+}
+
+// 16-bit PCM in a WAV container: the batch endpoint decodes containers, and every decoder reads PCM.
+function wavFromMulaw(mulaw: Buffer) {
+  const pcm = Buffer.alloc(mulaw.length * 2);
+  mulaw.forEach((byte, index) => pcm.writeInt16LE(decodeMulaw(byte), index * 2));
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVEfmt ", 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(PHONE_AUDIO.sample_rate, 24);
+  header.writeUInt32LE(PHONE_AUDIO.sample_rate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+
+// One stretch of call audio transcribed by ink-whisper in the given language (batch, not streamed).
+export async function transcribeClip(mulaw: Buffer, language: Language): Promise<string> {
+  const form = new FormData();
+  form.append("file", new Blob([new Uint8Array(wavFromMulaw(mulaw))], { type: "audio/wav" }), "turn.wav");
+  form.append("model", "ink-whisper");
+  form.append("language", language);
+  const response = await fetch("https://api.cartesia.ai/stt", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.cartesia.apiKey()}`, "Cartesia-Version": env.cartesia.version },
+    body: form,
+  });
+  if (!response.ok) throw new Error(`stt batch ${language}: ${response.status} ${await response.text()}`);
+  const { text } = (await response.json()) as { text?: string };
+  return (text ?? "").replace(SOUND_TAGS, " ").replace(/\s+/g, " ").trim();
 }
 
 type ChunkMessage = { type: "chunk"; data: string; context_id: string };

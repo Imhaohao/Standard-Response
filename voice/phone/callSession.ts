@@ -305,7 +305,7 @@ export class CallSession implements LiveCall {
       });
     }, BACKCHANNEL_AFTER_MS);
     try {
-      const act = await this.conversation.read(utterance);
+      const act = await this.conversation.read(utterance, this.line.rehear?.bind(this.line));
       clearTimeout(backchannel);
       // They kept talking while Claude read the first part: answer all of it together instead. Any
       // speech counts, not only a finished transcript, so the reply never starts over a resident who
@@ -317,6 +317,7 @@ export class CallSession implements LiveCall {
       }
       this.rereads = 0;
       this.heardSoFar = this.heardSoFar.trim().slice(utterance.length);
+      this.line.nextTurn?.();
       this.answer(utterance, act(), { spokeAt, heardAt: () => heardAt }, backchanneled);
     } catch (error) {
       console.error(`[call ${this.callSid}] turn failed`, error);
@@ -328,7 +329,7 @@ export class CallSession implements LiveCall {
   }
 
   private answer(utterance: string, turn: AgentTurn, timing: TurnTiming, backchanneled: boolean) {
-    this.logLine("resident", utterance);
+    this.logLine("resident", turn.heardAs ?? utterance);
     this.syncLanguage();
     const cutOff = this.cutOff;
     this.cutOff = false;

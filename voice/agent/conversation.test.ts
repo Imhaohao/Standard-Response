@@ -426,6 +426,17 @@ describe("what the agent says it heard", () => {
   });
 });
 
+describe("a turn reheard in another language", () => {
+  it("switches to the language the rehearing heard and keeps what the resident actually said", () => {
+    const { conversation } = call();
+    const turn = conversation.respond("What she would shout, Jonguen.", heard({ spokenLanguage: "zh", heardAs: "我只会说中文" }));
+    assert.equal(turn.heardAs, "我只会说中文");
+    assert.equal(conversation.language, "zh");
+    // The hand-over line is said in the language the call leaves.
+    assert.equal(turn.transfer?.language, "en");
+  });
+});
+
 describe("nobody can understand each other", () => {
   it("says a person was told, once in the call language and once in English, and never promises a transfer", () => {
     const conversation = new Conversation({

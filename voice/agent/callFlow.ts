@@ -1,4 +1,4 @@
-import type { AgentTurn } from "./conversation";
+import type { AgentTurn, Rehear } from "./conversation";
 import type { Language } from "./script";
 
 // What a live phone call drives: the evening survey (Conversation), the pickup check (PlanCheck) and
@@ -13,7 +13,8 @@ export interface CallFlow {
   // hear() in two halves: read() interprets without changing anything, and the function it returns
   // acts on that reading. A call throws the reading away and reads again when the resident turns
   // out to still be talking. After the closing line, the reading is all the flow still listens to.
-  read(utterance: string): Promise<() => AgentTurn>;
+  // rehear transcribes the turn again in other languages, on lines that carry the call audio.
+  read(utterance: string, rehear?: Rehear): Promise<() => AgentTurn>;
   // The line went quiet after a question: check in. The voice eval still uses it; live calls don't
   // speak on a quiet line and call lineWentQuiet instead.
   checkIn?(): AgentTurn;

@@ -1,3 +1,4 @@
+import type { Rehearing } from "../agent/interpreter";
 import type { Language } from "../agent/script";
 import type { StreamParameters } from "./callParameters";
 import type { Delivery } from "./delivery";
@@ -32,6 +33,11 @@ export interface CallLine {
   readonly fillsPauses: boolean;
   // Starts hearing the resident in this language, replacing any earlier listener.
   listen(language: Language, hearing: Hearing): void;
+  // This turn's audio transcribed again in each call language the listener can't hear. Only a line
+  // that carries the call audio itself can; the others leave both of these out.
+  rehear?(): Promise<Rehearing[]>;
+  // The turn was taken: audio from here on belongs to the next one.
+  nextTurn?(): void;
   hangUp(): Promise<void>;
   // Puts the resident through to another phone; our side of the call ends there.
   connectTo(phone: string): Promise<void>;

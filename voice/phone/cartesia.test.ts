@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
 import WebSocket from "ws";
 import type { Language } from "../agent/script";
-import { protocolFor, Speaker, SpeakerSocket, spokenForm } from "./cartesia";
+import { protocolFor, Speaker, SpeakerSocket, spokenForm, unheardLanguages } from "./cartesia";
 import type { Delivery } from "./delivery";
 
 describe("listening", () => {
@@ -12,6 +12,12 @@ describe("listening", () => {
     assert.equal(url.pathname, "/stt/turns/websocket");
     assert.equal(url.searchParams.get("end_timeout_ms"), "2000");
     assert.equal(url.searchParams.get("language"), null);
+  });
+
+  it("names the call languages a listener writes as something else", () => {
+    // Ink-2 hears its five languages in one stream; ink-whisper only the one it was opened in.
+    assert.deepEqual(unheardLanguages("en"), ["zh", "ko", "vi", "tl", "ru"]);
+    assert.deepEqual(unheardLanguages("zh"), ["en", "es", "ko", "vi", "tl", "ru", "ja", "fr", "hi"]);
   });
 });
 

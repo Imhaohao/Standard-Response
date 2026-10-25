@@ -38,7 +38,7 @@ const SILENCE_PHRASES = new Set([
 
 const normalize = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
 
-function decodeMulaw(byte: number) {
+export function decodeMulaw(byte: number) {
   const inverted = ~byte & 0xff;
   const exponent = (inverted >> 4) & 0x07;
   const magnitude = (((inverted & 0x0f) << 3) + 0x84) << exponent;
@@ -52,12 +52,14 @@ export function mulawLevel(chunk: Buffer) {
   return Math.sqrt(sumOfSquares / chunk.length);
 }
 
+export const isVoiced = (chunk: Buffer) => mulawLevel(chunk) >= VOICE_LEVEL;
+
 // How much of the audio since the last finished transcript was someone speaking.
 export class VoiceActivity {
   voicedMs = 0;
 
   hear(chunk: Buffer) {
-    if (mulawLevel(chunk) >= VOICE_LEVEL) this.voicedMs += chunk.length / MULAW_SAMPLES_PER_MS;
+    if (isVoiced(chunk)) this.voicedMs += chunk.length / MULAW_SAMPLES_PER_MS;
   }
 
   reset() {

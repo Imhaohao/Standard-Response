@@ -58,7 +58,15 @@ export type Interpretation = {
   ask?: Ask;
   // "I don't know", "I'm not sure": the question has no better answer to wait for.
   unsure?: boolean;
+  // The words make no sense as anything said here: likely another language that speech-to-text
+  // forced into the call language's words.
+  mistranscribed?: boolean;
+  // What the resident said, when it was read from a rehearing rather than the live transcript.
+  heardAs?: string;
 };
+
+// The same turn transcribed again in a language the live speech-to-text couldn't hear it in.
+export type Rehearing = { language: Language; text: string };
 
 export type TurnContext = {
   language: Language;
@@ -73,6 +81,8 @@ export type TurnContext = {
   // Other residents on file, so a misheard name ("It bores" for Boris) is still written right.
   neighborNames?: readonly string[];
   utterance: string;
+  // Set when the utterance read as nonsense and the audio was transcribed again in other languages.
+  rehearings?: Rehearing[];
 };
 
 const enumOf = (values: readonly string[]) => ({ type: "string", enum: values });
@@ -90,7 +100,7 @@ const objectOf = (properties: Record<string, object>) => ({
 // as both medical and flames, and the wrong escalation won.
 // Names say what the resident does: a bare "repeat" was read as "the resident is repeating
 // themselves" and held a question for eleven turns, and "ends" hung up on "I won't leave without my son".
-const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind", "says_unsure", "away_from_home"] as const;
+const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind", "says_unsure", "away_from_home", "mistranscribed"] as const;
 type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
@@ -201,10 +211,12 @@ Other outputs:
   - wants_time: they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
   - says_chair_kind: they say which kind of wheelchair it is: manual, one they or someone else pushes, or electric, powered, motorized or battery.
   - says_unsure: they say they don't know or aren't sure, and give no answer to the question.
+  - mistranscribed: the words make no sense as anything the resident would say here: unrelated words strung together ("What she would shout, Jonguen."), or kana, letters or syllables that spell nothing. That is most likely speech in a language the speech-to-text wasn't listening for, forced into the call language's words or script. Not for a short or unclear answer that fits the question, a misheard word in an answer that otherwise makes sense, or plain background talk. When you list it, set nothing.
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
 - neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set. When they name the person, start with the name as said ("Boris, bedridden", "Boris, down the road"); a name is enough, so don't ask for an address they say they don't know. Speech-to-text mishears names: when a word in a neighbor mention sounds like a name under "Other residents on file" ("It bores ate twenty burgers" for Boris), write that name.
 - neighbor_danger: true when someone in neighbors is dying, hurt, can't breathe, overdosed or drank or took something dangerous right now ("he's actively dying", "he chugged five bottles"). Then list that person in neighbors again on this turn, even if they were named before, and keep the danger in the words ("Boris, dying"). Leave it out otherwise.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, fr French, hi Hindi, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
+- Rehearings: when the prompt lists the same audio transcribed again in other languages, each transcriber was forced to write its own language whatever was said, so speech in another language comes out as nonsense or as a fluent translation. The resident spoke the language whose rehearing sounds like the others, the call-language transcript included: "What she would shout, Jonguen." sounds like "wǒ zhǐ huì shuō zhōngwén", so 我只会说中文 is what was said, in zh. Set language to that one and read that rehearing as what the resident said, for every other key too. Fluent text alone doesn't decide it. Keep the call language when its transcript makes sense and no rehearing sounds closer.
 - feeling: when the resident sounds frightened, panicked, desperate or upset (pleading, asking anxiously whether anyone knows they are there, saying not to risk anyone for them), at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
 - ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists canLeave, hasCar, peopleCount, mobility, medical, assistanceRequired or pets, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("Alright, that's the address."). On hold, or when they plead or ask about the ride, reflect their words in a few words without any promise ("You need help fast.", "You want to know they know you're here."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
 - reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused, that they won't leave without someone, whether the agent will stay on the line), one short, calm sentence of at most 20 words in the resident's language that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads, shelters, routes or orders. Never mention help, crews, vehicles, sending, plans or what dispatchers are doing: the code's status line is the only thing said about those. If you don't know, say so ("I don't know that."). Never give safety advice or directions of your own; the code's lines give the only advice. Never say you are marking, noting or recording anything. "Are we supposed to evacuate?" gets "If you can leave safely, leave now." (say a warning covers their street only if the agent's greeting said so). Never repeat sympathy the feeling already named. Name people only as the resident did ("he", "my son"); never guess who someone is. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, asked what to do or bring (asks_what_to_do), or when not_to_agent is listed. The ack's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.
@@ -308,8 +320,14 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     reply: textOf(raw.reply),
     ask: askFrom(raw.ask),
     unsure: flags.has("says_unsure"),
+    mistranscribed: flags.has("mistranscribed"),
   };
 }
+
+const rehearingsText = (rehearings: Rehearing[] | undefined) =>
+  rehearings?.length
+    ? `The same audio transcribed again in other languages:\n${rehearings.map(({ language, text }) => `- ${language}: ${text}`).join("\n")}`
+    : "";
 
 function promptFor(turn: TurnContext, guidance: Guidance | null) {
   const history = turn.recentTurns.map((line) => `${line.speaker}: ${line.text}`).join("\n");
@@ -323,6 +341,7 @@ function promptFor(turn: TurnContext, guidance: Guidance | null) {
     goalsText(turn.goals),
     `Agent's last question: ${turn.question}`,
     `Resident just said: ${turn.utterance}`,
+    rehearingsText(turn.rehearings),
   ]
     .filter((part) => part !== "")
     .join("\n\n");

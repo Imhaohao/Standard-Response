@@ -5,7 +5,7 @@ import { AskVerdict, checkAsk, GoalPrompt } from "./askLine";
 import { withApprovedAnswer } from "./approvedAnswers";
 import { nameOnFile } from "../../lib/name-on-file";
 import { guardAcknowledgment, GuardResult } from "./honesty";
-import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
+import { canSpeak, Emergency, interpret, Interpretation, Rehearing, TurnContext } from "./interpreter";
 import { quickReading } from "./quickAnswer";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
 import { echo, Language, LINES, readback, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
@@ -108,6 +108,8 @@ export type AgentTurn = {
   transfer?: { line: string; language: Language };
   // The resident asked for a moment, so the phone call waits longer before checking in.
   givesTime?: boolean;
+  // What the resident said, when the turn was read from a rehearing rather than the live transcript.
+  heardAs?: string;
   // How the phone voice should say this turn: urgently when a medical emergency or flames were
   // raised this turn, slower when the resident asked to hear it again.
   deliveryCue?: { emergency: boolean; slower: boolean };
@@ -242,19 +244,22 @@ export class Conversation {
     return (await this.read(utterance))();
   }
 
-  async read(utterance: string): Promise<() => AgentTurn> {
-    const heard = await this.understand(utterance);
+  // rehear: the phone line's way to transcribe this turn's audio again in other languages.
+  async read(utterance: string, rehear?: Rehear): Promise<() => AgentTurn> {
+    const heard = await this.understand(utterance, rehear);
     return () => this.respond(utterance, heard);
   }
 
   // Claude's reading of one utterance. It changes nothing, so a phone call can throw it away and
   // read again when the resident turns out to still be talking. Null when the interpreter failed.
   // A policy question Claude heard ("can my dog come?") then gets the agency's approved answer.
-  async understand(utterance: string): Promise<Interpretation | null> {
+  async understand(utterance: string, rehear?: Rehear): Promise<Interpretation | null> {
     const quick = quickReading(utterance, this.step, this.language);
     if (quick) return quick;
     try {
-      const heard = await interpret(this.turnContext(utterance));
+      const context = this.turnContext(utterance);
+      const first = await interpret(context);
+      const heard = rehear && mayBeAnotherLanguage(first) ? await readRehearings(context, first, rehear) : first;
       return withApprovedAnswer(heard, await findApprovedAnswer(heard.policyQuestion));
     } catch (error) {
       console.error("[agent] interpreter failed", error);
@@ -267,11 +272,12 @@ export class Conversation {
   respond(utterance: string, heard: Interpretation | null): AgentTurn {
     if (this.handedOff || (heard && isNoise(heard))) return this.ignore();
     if (!heard && this.done) return this.ignore();
-    this.history.push({ speaker: "resident", text: utterance });
+    this.history.push({ speaker: "resident", text: heard?.heardAs ?? utterance });
     this.quietCheckIns = 0;
     this.quietOnHold = 0;
     if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
-    return this.done ? this.afterGoodbye(heard) : this.answer(this.householdAddress(heard));
+    const turn = this.done ? this.afterGoodbye(heard) : this.answer(this.householdAddress(heard));
+    return heard.heardAs ? { ...turn, heardAs: heard.heardAs } : turn;
   }
 
   // An address given in answer to the address question is the one this call is about, even when the
@@ -1115,6 +1121,28 @@ function sameGist(a: string, b: string) {
 // A "correction" that says again what is already recorded confirms it: the caller is restating, and
 // asking "What should I change?" again looped the call.
 const restated = (heard: Interpretation) => !isEmpty(heard.updates);
+
+export type Rehear = () => Promise<Rehearing[]>;
+
+// Speech-to-text only writes the languages it listens for, so a resident speaking any other comes
+// through as nonsense in the call language's words or script.
+const mayBeAnotherLanguage = (heard: Interpretation) => heard.mistranscribed === true || heard.spokenLanguage === "other";
+
+// The turn read as nonsense: its audio is transcribed again in the languages the live speech-to-text
+// can't hear, and Claude reads all of them together. The first reading stands if that fails.
+async function readRehearings(context: TurnContext, first: Interpretation, rehear: Rehear): Promise<Interpretation> {
+  try {
+    const rehearings = await rehear();
+    if (rehearings.length === 0) return first;
+    const heard = await interpret({ ...context, rehearings });
+    const heardAs = rehearings.find((rehearing) => rehearing.language === heard.spokenLanguage)?.text;
+    console.log(`[agent] reheard "${context.utterance}" in ${rehearings.map((r) => r.language).join(", ")}: read as ${heard.spokenLanguage}`);
+    return heardAs ? { ...heard, heardAs } : heard;
+  } catch (error) {
+    console.error("[agent] rehearing failed", error);
+    return first;
+  }
+}
 
 // Claude judged it not meant for the agent, and it carries nothing we must act on.
 function isNoise(heard: Interpretation) {
