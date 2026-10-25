@@ -26,7 +26,15 @@ function setup() {
 
 type T = ReturnType<typeof setup>;
 
-type World = { assignments: Doc<"assignments">[]; requests: Doc<"requests">[]; vehicles: Doc<"vehicles">[]; shelters: Doc<"shelters">[]; state: Doc<"dispatchState"> | null };
+type World = {
+  assignments: Doc<"assignments">[];
+  requests: Doc<"requests">[];
+  vehicles: Doc<"vehicles">[];
+  shelters: Doc<"shelters">[];
+  callbacks: Doc<"callbacks">[];
+  plans: Doc<"plans">[];
+  state: Doc<"dispatchState"> | null;
+};
 
 const read = (t: T): Promise<World> =>
   t.run(async (ctx) => ({
@@ -34,10 +42,29 @@ const read = (t: T): Promise<World> =>
     requests: await ctx.db.query("requests").collect(),
     vehicles: await ctx.db.query("vehicles").collect(),
     shelters: await ctx.db.query("shelters").collect(),
+    callbacks: await ctx.db.query("callbacks").collect(),
+    plans: await ctx.db.query("plans").collect(),
     state: await ctx.db.query("dispatchState").first(),
   }));
 
-function checkContract({ assignments, requests, vehicles, shelters, state }: World) {
+const EVER_ACCEPTED = new Set<Doc<"assignments">["status"]>(["accepted", "completed", "revoked"]);
+
+// What a rider hears: one call when a driver accepts, one more only when that pickup is revoked.
+function checkCallbacks({ assignments, callbacks, plans }: World) {
+  expect(new Set(callbacks.map((c) => c.key)).size).toBe(callbacks.length);
+  for (const assignment of assignments) {
+    const told = callbacks.filter((c) => c.assignmentId === assignment._id);
+    expect(told.filter((c) => c.announces === "driver_accepted").length).toBe(EVER_ACCEPTED.has(assignment.status) ? 1 : 0);
+    const reassigning = told.filter((c) => c.announces === "reassigning").length;
+    expect(reassigning).toBeLessThanOrEqual(1);
+    if (reassigning > 0) expect(assignment.status).toBe("revoked");
+  }
+  const versions = plans.map((p) => p.version).sort((a, b) => a - b);
+  expect(versions).toEqual(versions.map((_, i) => i + 1));
+}
+
+function checkContract({ assignments, requests, vehicles, shelters, state, ...rest }: World) {
+  checkCallbacks({ assignments, requests, vehicles, shelters, state, ...rest });
   expect(state?.lastError).toBeUndefined();
   const live = assignments.filter((a) => ["proposed", "offered", "accepted"].includes(a.status));
   // One live assignment per request.
