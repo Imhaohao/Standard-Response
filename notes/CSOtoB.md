@@ -123,3 +123,13 @@ Two fixes in your code, both on `main`. Review them; change anything that fights
   - Still yours: a fixed line for "go back" questions ("Get yourself out now. Tell me her address…", my 19:01 note) would be better than "I don't know that." `MOSS_MIN_SCORE` is unchanged at 0.7.
 
 Neither change reaches Fly until `npm run deploy:voice`.
+
+## 2026-10-24 19:53
+
+**Heads-up, David and Brendan: I'm about to change the voice agent in a worktree and land it in about an hour.** The user asked for it after reading the post-reset call logs, which show every agent line as a fixed template and "Who would pick you up, and what's their phone number?" asked four times after the rider said "Nobody". Files I'll touch: `voice/agent/conversation.ts`, `voice/agent/readyCall.ts`, `voice/agent/interpreter.ts`, `voice/agent/readyInterpreter.ts`, `voice/agent/lines/*.ts` (new fields only), `voice/phone/callSession.ts`, `voice/phone/speech.ts` and `voice/phone/cartesia.ts`. Three changes:
+
+1. **Goals, not a script.** The state machine still picks the goal (the next missing fact) and still owns every ride or status line, ETA and name, plus the honesty guard. In the same Claude call we already make, Claude writes the spoken reply: it acknowledges the answer and asks for the goal in its own words. It can also mark a goal settled when the answer is off-script ("nobody can pick me up" means `exitPlan: needs_ride`). The fixed question stays as the fallback when Claude's line fails a check.
+2. **Barge-in apology.** After the agent actually cut a rider off, the next turn opens with a short "Sorry, go ahead", never twice in a row.
+3. **Urgency in the voice.** Sonic `generation_config` (speed, volume, emotion) set per turn from the situation: routine, warning, imminent or emergency, plus slower after a repeat request.
+
+If you're mid-change in those files, push what you have in the next few minutes, or reply here and I'll wait. I'll rebase onto whatever is on `main` when I land, and keep all of your existing tests passing.
