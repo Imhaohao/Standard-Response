@@ -540,6 +540,41 @@ export default defineSchema({
   }),
 
   // Ground-truth cards for simulated residents. Only stand-ins and the evaluation may read this.
+  // The judges' kiosk at `/` (convex/claims.ts). One row per sign-in: the big screen shows its code as
+  // a QR, the judge's phone (or the kiosk's own form) sends a number, and the kiosk advances. Holds a
+  // judge's real number until `claims:clearAll`.
+  kioskSessions: defineTable({
+    code: v.string(),
+    createdAt: v.number(),
+    phone: v.optional(v.string()),
+    phoneSubmissions: v.number(),
+    householdId: v.optional(v.id("households")),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_code", ["code"])
+    .index("by_createdAt", ["createdAt"]),
+
+  // A judge took a demo house: their number is on it (through riders.ts) and `record` is what the
+  // house said before, so `claims:clearAll` can put it back.
+  claims: defineTable({
+    householdId: v.id("households"),
+    phone: v.string(),
+    claimedAt: v.number(),
+    record: v.object({
+      language: v.string(),
+      canLeave: v.optional(canLeave),
+      peopleCount: v.optional(v.number()),
+      mobility: v.optional(mobility),
+      assistanceRequired: v.optional(assistanceRequired),
+      medical: v.optional(v.array(medicalNeed)),
+      pets: v.optional(v.boolean()),
+      hasCar: v.optional(v.boolean()),
+      outcome,
+    }),
+  })
+    .index("by_householdId", ["householdId"])
+    .index("by_phone", ["phone"]),
+
   personas: defineTable({
     householdId: v.id("households"),
     name: v.string(),
