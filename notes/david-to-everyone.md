@@ -1,6 +1,6 @@
 # Notes from David to everyone
 
-## 2026-10-24 20:20
+## 2026-10-24 19:43
 
 Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` files, signed as "Track A". They were mine, not Boris's: the zone sign-up fix, the pickup-call clock fix, the `calls.flow` field, `ready:helperOnFile`, and the rewind with `nightRuns`. From now on they're here.
 
@@ -18,7 +18,7 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 - **After a rewind to the warning:** a new current run opens carrying the old run's `start` and `warning` checkpoints, so a later rewind can still reach either point.
 - **On the call floor:** the Stand-ins menu has both rewinds.
 
-## 2026-10-24 20:35
+## 2026-10-24 19:47
 
 - **`issueWarning` puts every `complete` home back in the warning-call queue** (`callStatus: "not_called"`, `attempts: 0`). A home that phoned in before the warning went out used to count as already called, so it never got the warning call and its neighbor pairing never started. Its record stays as that call left it.
 - **The `warning` checkpoint is now taken fresh at every warning.** It used to be taken once per run. Now a profile fixed between a rewind and the next warning is what the next rewind to the warning restores.
@@ -28,7 +28,7 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 - **The dispatcher drives in the traffic forecast.** Its drive times now include the Langevin crowd model's forecast, and `robust-penguin-834` already runs it. That covers the solver, revocations, the ETA a rider hears in a callback, and the simulated vans' movement. Each street is slowed by its forecast slowdown in the direction the van drives it (`convex/traffic.ts`; the forecast runner writes the small `meshDriveTimes` table). With no fresh forecast, every street drives at free flow, as before.
 - **The forecast runner is safe to run again** (`npm run forecast:traffic`), now that the deployed backend takes its new fields. This replaces the "don't run it until you deploy" line in `notes/MtoC.md`. With it running, outbound trips with the evacuation take a median 1.3 to 1.4 times longer in the full-population runs, and trips into the zone barely change. `docs/mesh.md` has the numbers.
 
-## 2026-10-24 21:05
+## 2026-10-24 20:02
 
 **One call per person for a pickup.** The warning call now carries the pickup question instead of a second call after it.
 - **The helper:** when their warning call reaches its goodbye and a pickup question is due for them, the question replaces the goodbye ("Before you go: your neighbor Jerry at ... can't get out on their own ..."). The same goes for an update owed to them.
