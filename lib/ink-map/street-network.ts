@@ -116,10 +116,28 @@ function tracePath(network: StreetNetwork, via: Int32Array, from: number, to: nu
   return path.reverse();
 }
 
+// A street route this many times longer than the straight line between its corners, plus a block's
+// slack, is a detour: in the foothills two corners a few hundred metres apart can be joined only by
+// driving down into town and back up, and a boundary that follows that drive cuts through whatever
+// it was drawn around.
+const DETOUR_RATIO = 2.5;
+const DETOUR_SLACK_METERS = 200;
+
+const pathLength = (path: Point[]) => path.reduce((sum, point, i) => (i === 0 ? 0 : sum + Math.hypot(point[0] - path[i - 1][0], point[1] - path[i - 1][1])), 0);
+
 // The streets from one corner to another. A boundary should go where the person drawing it pointed,
 // not along the quickest drive, so each stretch costs its length, doubled for every 50 m it strays
-// from the straight line between the corners. Falls back to that straight line when no street joins them.
+// from the straight line between the corners. Falls back to that straight line when no street joins
+// them, or when the only streets that do are a long detour (see DETOUR_RATIO).
 export function streetsBetweenCorners(network: StreetNetwork, from: number, to: number): Point[] {
+  const [a, b] = [network.points[from], network.points[to]];
+  const path = streetPathBetween(network, from, to);
+  if (!path) return [a, b];
+  const straight = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  return pathLength(path) > straight * DETOUR_RATIO + DETOUR_SLACK_METERS ? [a, b] : path;
+}
+
+function streetPathBetween(network: StreetNetwork, from: number, to: number): Point[] | null {
   const [a, b] = [network.points[from], network.points[to]];
   if (from === to) return [a];
   const cost = new Float64Array(network.points.length).fill(Infinity);
@@ -139,7 +157,7 @@ export function streetsBetweenCorners(network: StreetNetwork, from: number, to: 
       frontier.push(next, total);
     }
   }
-  return [a, b];
+  return null;
 }
 
 // ---- Routes along every drawn street ----

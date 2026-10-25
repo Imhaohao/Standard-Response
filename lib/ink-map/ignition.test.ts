@@ -39,6 +39,7 @@ const areas: Area[] = raw.areas.map((area) => ({ kind: area[0], ring: decodePoin
 const ground = { roads, areas };
 
 const ignition = crowdedHouse();
+const FOOTHILL_HOUSE: Point = [1106, 1701];
 const SOUTHWEST: Point = [-Math.SQRT1_2, -Math.SQRT1_2];
 const run = (engines: Crews, construction: Construction = "older", over = ground) => ignitionHazard(buildings, ignition, SOUTHWEST, { engines, construction }, over)!;
 
@@ -121,6 +122,15 @@ describe("warning zone around a simulated fire", () => {
       assert.ok(fire.burnedAt.every(([x, y]) => contains(zone.ring, x, y)), "a burned building is outside the zone");
     });
   }
+
+  // Lit near the top of the street grid, it burns up into homes on hillside roads that only join
+  // each other by way of the town below. The zone has to cross the wildland between them.
+  it("holds a fire that burns up into the foothills", () => {
+    const fire = ignitionHazard(buildings, FOOTHILL_HOUSE, SOUTHWEST, { engines: 1, construction: "older" })!;
+    const zone = warningZoneAround(network, fire.burnedAt);
+    assert.ok(zone, `no zone drawn around ${fire.burnedAt.length} burned buildings`);
+    assert.ok(fire.burnedAt.every(([x, y]) => contains(zone.ring, x, y)), "a burned building is outside the zone");
+  });
 
   it("draws nothing rather than a zone that misses the fire", () => {
     const pastTheStreets: Point[] = [[-1e5, -1e5]];

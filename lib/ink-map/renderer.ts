@@ -82,6 +82,37 @@ function emptyTexture() {
 
 const TREE_FAR_METERS_PER_PIXEL = 0.6;
 
+type Box = { x0: number; y0: number; x1: number; y1: number };
+
+// The sun's shadow map covers the ground on screen with this much margin on every side, as a share
+// of the view's width, so a pan can go a fair way before the map has to be drawn again.
+const SHADOW_MARGIN = 0.35;
+// Zoomed in this far past the ground the shadow map was fitted to, its texels have grown too coarse
+// for the houses on screen, and it is fitted again.
+const SHADOW_REFIT_ZOOM = 3;
+// Tall ground just off screen still throws shadows onto it.
+const SHADOW_CASTER_METERS = 300;
+
+const boxSize = (box: Box) => Math.max(box.x1 - box.x0, box.y1 - box.y0);
+const boxHolds = (outer: Box, inner: Box) => inner.x0 >= outer.x0 && inner.y0 >= outer.y0 && inner.x1 <= outer.x1 && inner.y1 <= outer.y1;
+const grownBy = (box: Box, by: number): Box => ({ x0: box.x0 - by, y0: box.y0 - by, x1: box.x1 + by, y1: box.y1 + by });
+const clippedTo = (box: Box, to: Box): Box => ({ x0: Math.max(box.x0, to.x0), y0: Math.max(box.y0, to.y0), x1: Math.min(box.x1, to.x1), y1: Math.min(box.y1, to.y1) });
+
+// The map ground under the four corners of the screen, as a box: where each corner's ray meets
+// the level the camera looks down on. A ray at or above the horizon reaches the camera's far plane.
+function groundOnScreen(camera: THREE.PerspectiveCamera, level: number): Box {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const ray = new THREE.Vector3(sx, sy, 0.5).unproject(camera).sub(camera.position).normalize();
+    const t = ray.y < -1e-3 ? Math.min((level - camera.position.y) / ray.y, camera.far) : camera.far;
+    const ground = camera.position.clone().addScaledVector(ray, t);
+    xs.push(ground.x);
+    ys.push(-ground.z);
+  }
+  return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+}
+
 export class InkMapRenderer {
   readonly camera = new THREE.PerspectiveCamera();
   private renderer: THREE.WebGLRenderer;
@@ -244,9 +275,26 @@ export class InkMapRenderer {
     };
   }
 
-  // Fits an orthographic sun camera around everything the view can show, for crisp cast shadows.
-  private fitShadowCamera() {
-    const region = viewRegion(this.data, this.view).buildings;
+  private shadowBox: Box | null = null;
+
+  // Keeps the shadow map over the ground on screen, so its fixed 2048 texels are spent where they
+  // show: at the town scale a texel is a few metres, zoomed in to a street it is under one. Draws the
+  // shadow map again only when the view has left the box it covers or zoomed well inside it.
+  private keepShadowsOnScreen(force = false) {
+    const drawn = viewRegion(this.data, this.view).buildings;
+    const onScreen = clippedTo(groundOnScreen(this.camera, this.lookTarget().y), drawn);
+    const seen = onScreen.x1 > onScreen.x0 && onScreen.y1 > onScreen.y0 ? onScreen : drawn;
+    const box = this.shadowBox;
+    if (!force && box && boxHolds(box, seen) && boxSize(box) < boxSize(seen) * SHADOW_REFIT_ZOOM) return;
+    this.shadowBox = grownBy(seen, boxSize(seen) * SHADOW_MARGIN);
+    this.fitShadowCamera(grownBy(this.shadowBox, SHADOW_CASTER_METERS));
+    this.renderer.setRenderTarget(this.shadow);
+    this.renderer.clear();
+    this.renderer.render(this.depthScene, this.shadowCamera);
+  }
+
+  // Fits an orthographic sun camera around a stretch of ground, for crisp cast shadows.
+  private fitShadowCamera(region: Box) {
     const corners: THREE.Vector3[] = [];
     for (const x of [region.x0, region.x1]) {
       for (const y of [region.y0, region.y1]) {
@@ -349,6 +397,7 @@ export class InkMapRenderer {
   private redrawView() {
     this.lastViewDraw = performance.now();
     this.applyNavigation();
+    this.keepShadowsOnScreen();
     this.renderer.setRenderTarget(this.gbuffer);
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.clear();
@@ -466,10 +515,7 @@ export class InkMapRenderer {
   }
 
   private renderStatic() {
-    this.fitShadowCamera();
-    this.renderer.setRenderTarget(this.shadow);
-    this.renderer.clear();
-    this.renderer.render(this.depthScene, this.shadowCamera);
+    this.keepShadowsOnScreen(true);
     if (!this.treesUploaded) {
       this.uploadTrees();
       this.treesUploaded = true;
