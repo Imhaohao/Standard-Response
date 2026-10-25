@@ -409,17 +409,24 @@ vec4 breachPull(vec2 xy) {
 `;
 
 const SURFACE_MARKS = `
+// Standing water (the sea, a bay, a canal) is one pale plate that darkens gently offshore, the woodblock's
+// bokashi, so the new water over the land, printed by its depth, is what the eye finds.
+float seaTone(float offshore) {
+  return 0.24 + 0.2 * smoothstep(0.0, 900.0, offshore);
+}
+
 vec4 printWater(vec4 ink, Water plate, Water key, vec2 uv) {
   vec3 deep = mix(uIndigo, uInk, 0.35);
   float red = buildingRed(uv);
-  float clarity = mix(0.52, 0.93, smoothstep(0.15, 2.5, plate.path));
-  float tone = plateTone(plate.column, plate.at);
+  float clarity = mix(mix(0.52, 0.93, smoothstep(0.15, 2.5, plate.path)), 0.8, plate.standing);
+  float tone = mix(plateTone(plate.column, plate.at), seaTone(plate.shore), plate.standing);
   vec3 wash = mix(mix(uPaper, uIndigo, tone / 0.82), deep, smoothstep(0.78, 0.82, tone) * 0.35);
   float plateAlpha = plate.cover * clarity * pigment() * mix(1.0, 0.28, red);
   ink = over(ink, wash, plateAlpha);
-  float edges = plateEdges(plate.column, plate.at) * plate.cover * (1.0 - plate.standing * 0.6);
+  float edges = plateEdges(plate.column, plate.at) * plate.cover * (1.0 - plate.standing);
   ink = over(ink, deep, edges * 0.42 * mix(1.0, 0.3, red));
-  float dots = dotTone(0.03 + 0.2 * smoothstep(1.0, 8.0, plate.column)) * plate.cover;
+  float coverage = mix(0.03 + 0.2 * smoothstep(1.0, 8.0, plate.column), 0.02 + 0.08 * smoothstep(200.0, 900.0, plate.shore), plate.standing);
+  float dots = dotTone(coverage) * plate.cover;
   ink = over(ink, deep, dots * 0.45 * mix(1.0, 0.3, red));
   return ink;
 }
