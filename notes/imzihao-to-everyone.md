@@ -176,3 +176,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 ## 2026-10-25 01:13
 
 **Voice: new fixed line `waitingForRequest`** ("I'm putting in your ride request now. No driver has accepted yet. I'll call you back the moment one does." plus the safety line), in all 10 languages. `rideLine` uses it when the ride need is known but no request has reached the call yet; before, it said the `received` template ("I've placed your ride request"), and the exam judge called that an invented fact. Graders that strip every fixed line from `voice/agent/lines` pick it up on their own. The honesty guard also drops "we've got you", "your dog is coming with you" and "ya lo tenemos" from Claude's words while no driver has accepted (approved answers can still say a pet may come).
+
+## 2026-10-25 08:30
+
+**Voice deploys now drain live calls, and the next one waits about five minutes.** Since d4b9ba2 the server stops dialing on SIGINT and lets live calls finish (up to 280 s, `kill_timeout = 300` in `voice/fly.toml`). The image ran under `npx tsx`, which didn't pass the signal on, so v54 waited the full five minutes and then was killed anyway. 36e502e starts it with `node --import tsx`. The first deploy of main after this still stops the old server and waits; after that a deploy with no live call restarts at once. A call dropped by a restart stays "live" in Convex for 30 minutes and holds the deploy guard until then (`/live` on the server is the real count).
