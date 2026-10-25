@@ -19,6 +19,9 @@ MPH_TO_MPS = 0.44704
 MILES_TO_M = 1609.344
 INCH_TO_CM = 2.54
 SNOW_DEPTH_HOUR = "07:00"
+# Assumption: National Grid's customers in the City of Buffalo are its occupied housing units, ACS 2019-2023 B11001
+# for place 3611000 (119,548), and the city-wide share out stands for the East Side's.
+BUFFALO_OCCUPIED_UNITS = 119_548
 
 
 def write(city: str, scenario: dict) -> None:
@@ -106,7 +109,15 @@ def blizzard_series(intermediate: dict, warning_at: datetime) -> dict:
         for h in hours
     ]
     visibility = [{"minutes": h["minutesAfterWarning"], "meters": round(h["visibilityMiles"] * MILES_TO_M)} for h in hours]
-    return {"snow": snow, "wind": wind, "visibility": visibility, "roadClosures": road_closures(intermediate)}
+    return {"snow": snow, "wind": wind, "visibility": visibility, "roadClosures": road_closures(intermediate), "power": power_series(intermediate)}
+
+
+def power_series(intermediate: dict) -> list[dict]:
+    """Share of the city's homes without power, from National Grid's outage counts in the NYU Wagner review."""
+    return [
+        {"minutes": point["minutesAfterWarning"], "shareOut": round(point["customersOut"] / BUFFALO_OCCUPIED_UNITS, 4)}
+        for point in intermediate["series"]["cityCustomersWithoutPower"]
+    ]
 
 
 def road_closures(intermediate: dict) -> list[dict]:
