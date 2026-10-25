@@ -1,4 +1,4 @@
-import { FULLSCREEN_HEADER, GBUFFER_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
+import { FULLSCREEN_HEADER, GBUFFER_GLSL, GROUND_HATCH_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
 
 // The blizzard's shaders. On a paper map snow can't be added as white: the paper is already white.
 // It shows the way a woodblock printer shows it, by what disappears. As the snow deepens the fine
@@ -36,11 +36,11 @@ ${GBUFFER_GLSL}
 ${TERRAIN_GLSL}
 ${NOISE_GLSL}
 ${HOME_STATE_GLSL}
+${GROUND_HATCH_GLSL}
 uniform sampler2D tNormal;
 uniform sampler2D tFootprints;
 uniform vec4 uFootprintRegion;
 uniform vec2 uResolution;
-uniform float uPixelRatio;
 uniform vec3 uPaper;
 uniform vec3 uInk;
 uniform float uInkStrength;
@@ -88,6 +88,21 @@ float windwardDrift(vec2 p, float reach) {
   return drift;
 }
 
+// The lee of a building upwind: the snow there lies in the building's shadow.
+float leeShelter(vec2 p, float reach) {
+  float lee = 0.0;
+  for (int i = 1; i <= 5; i++) {
+    float d = float(i) / 5.0;
+    lee = max(lee, footprintAt(p - uWindToward * reach * d) * (1.0 - d * 0.8));
+  }
+  return lee;
+}
+
+// Fresh snow is whiter than the paper it lies on, so a cap shows even where a roof is two pixels wide.
+vec3 snowWhite() {
+  return min(uPaper * 1.035, vec3(1.0));
+}
+
 // A few soft hatch curves along a drift's slope, broken so they read as strokes, not contours.
 float driftHatch(float drift, vec2 mapXY) {
   if (drift < 0.05) return 0.0;
@@ -118,7 +133,7 @@ float roofOutline(vec2 uv, float idC) {
 
 vec4 roofCap(vec2 uv, float idC, float up) {
   float cap = capped() * smoothstep(0.3, 0.62, up);
-  return vec4(mix(uPaper, uInk, roofOutline(uv, idC) * uInkStrength), cap);
+  return vec4(mix(snowWhite(), uInk, roofOutline(uv, idC) * uInkStrength), cap);
 }
 
 // Walls hold no snow, but the drift banks up the ones facing the wind, with a wavering ink line along
@@ -129,24 +144,30 @@ vec4 wallSnow(vec2 uv, vec3 n, vec2 mapXY) {
   float windward = max(0.0, dot(facing, -uWindToward));
   float height = surfaceElevation(uv) - groundElevation(mapXY);
   float along = dot(mapXY, vec2(-facing.y, facing.x));
-  float top = uDepth * (0.7 + 2.4 * windward * windy) * (0.7 + 0.6 * valueNoise(vec2(along * 0.4, 1.7)));
+  // Drawn taller than life so a drift reads at the close-ups: up to three and a half metres up a
+  // windward wall once the snow is deep.
+  float top = clamp(uDepth * (1.5 + 6.0 * windward * windy), 0.0, 3.5) * (0.7 + 0.6 * valueNoise(vec2(along * 0.4, 1.7)));
   float aa = max(fwidth(height), 0.01);
   float detail = detailAt();
   float banked = (1.0 - smoothstep(top - aa * 0.5, top + aa * 0.5, height)) * detail;
   float rim = (1.0 - smoothstep(0.4, 1.4, abs(height - top) / aa)) * step(0.02, top) * detail;
   float snow = max(banked, rim);
-  if (snow > 0.01) return vec4(mix(uPaper, uInk, rim * 0.75 * uInkStrength), snow);
+  if (snow > 0.01) return vec4(mix(snowWhite(), uInk, rim * 0.75 * uInkStrength), snow);
   return vec4(uInk, 0.1 * buried());
 }
 
-// Open ground, streets, paths and area tints fade into the white; only a few drift strokes stay,
-// against the walls that face the wind, and only close up.
+// Open ground, streets, paths and area tints fade into the white. What gives the snow its mass is
+// what is left: a light hatched shadow in the lee of every building, and close up a few drift strokes
+// against the walls that face the wind.
 vec4 groundSnow(vec2 mapXY, float surface) {
   float fade = buried() * (surface == SURFACE_WATER_AREA ? 0.6 : 1.0);
   float windy = smoothstep(4.0, 14.0, uWindSpeed);
-  float drift = windwardDrift(mapXY, 3.0 + uDepth * 10.0) * windy * smoothstep(0.08, 0.3, uDepth);
-  float hatch = driftHatch(drift, mapXY) * smoothstep(0.3, 0.8, detailAt());
-  return vec4(mix(uPaper, uInk, hatch * 0.6 * uInkStrength), max(fade, hatch));
+  float drift = windwardDrift(mapXY, 4.0 + uDepth * 16.0) * windy * smoothstep(0.08, 0.3, uDepth);
+  float strokes = driftHatch(drift, mapXY) * smoothstep(0.3, 0.8, detailAt()) * 0.6;
+  float lee = leeShelter(mapXY, 5.0 + uDepth * 24.0) * mix(0.5, 1.0, windy) * capped();
+  float shadow = groundHatch(mapXY, 4.5 * uPixelRatio, 0.7854, 0.3) * lee * 0.45;
+  float ink = max(strokes, shadow);
+  return vec4(mix(uPaper, uInk, ink * uInkStrength), max(fade, ink));
 }
 
 void main() {
@@ -214,7 +235,7 @@ uniform float uDaylight;
 uniform vec2 uVeilTravel;
 
 const float MOST_VEIL = 0.25;
-const float NIGHT_SKY = 0.28;
+const float NIGHT_SKY = 0.18;
 
 vec3 breathe(vec4 base) {
   return mix(base.rgb, uPaper, base.a * 0.3 * (1.0 - uPulse));
@@ -238,10 +259,10 @@ void main() {
   float charcoal = step(0.75, home.b) * (1.0 - step(0.001, red));
   color = mix(color, uPaper, veil() * (1.0 - red) * (1.0 - 0.5 * charcoal));
   color = mix(color, uInk, nightSky() * (1.0 - red));
-  // Two blurs spread one house's mask to a few hundredths, so the glow answers exponentially: a
-  // single home still glows, and a street of them doesn't turn into a red sea.
-  vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 28.0);
-  float halo = glow.r * 0.4 * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
+  // The blur spreads one house's mask thin, so the glow answers exponentially: a single home still
+  // glows, and a street of them stays a row of homes rather than a red haze.
+  vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 12.0);
+  float halo = glow.r * 0.24 * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
   color = mix(color, mix(uRed, uEmber, 0.22), halo * (1.0 - 0.6 * red));
   fragColor = vec4(color, 1.0);
 }

@@ -5,8 +5,9 @@ import { MOST_STREET_CLASS, type ClosureWindow } from "./roads";
 
 // Every street the snow can bury, as a ribbon just above the town's own. Once snow lies, an open (or
 // ploughed) street is two dark tyre ruts on white, a single dark line when the street is only a pixel
-// or two across; a street the scenario closes is erased into the white over the hour and a half after
-// it shuts. At the overview the network thinning to a few dark lines is the story of a town cut off.
+// or two across. A street the scenario closes fills in over the hour and a half after it shuts and is
+// then snow lying on the road: soft, broken curb lines and a wavy drift ridge across it every so often,
+// only a faint ghost at the overview. The network thinning to a few dark lines is the town cut off.
 // Drawn into the cached map, so it never costs a frame.
 
 const LIFT_METERS = 0.45;
@@ -86,9 +87,10 @@ export function streetRibbons(data: InkMapData, windows: ClosureWindow[], region
 }
 
 // Geometry drawn into the cached map has no depth buffer of its own, so it tests itself against the
-// town's: anything nearer the camera than this fragment (a house, a tree) hides it.
+// town's: anything nearer the camera than this fragment (a house, a wall) hides it.
 export const SCENE_DEPTH_GLSL = `
 uniform sampler2D tDepth;
+uniform sampler2D tShade;
 uniform float uNear;
 uniform float uFar;
 
@@ -97,7 +99,10 @@ float sceneDistance() {
   return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear));
 }
 
+// Tree crowns don't count: they fade under the snow, and a rut broken at every tree reads as dashes.
 bool hiddenByTown(float viewDepth) {
+  float surface = floor(texelFetch(tShade, ivec2(gl_FragCoord.xy), 0).g * 255.0 + 0.5);
+  if (surface == 4.0) return false;
   float scene = sceneDistance();
   return viewDepth > scene + 0.8 + scene * 0.0004;
 }
@@ -155,6 +160,18 @@ float ruts(float across, float along, float metersPerPixel) {
   return rut;
 }
 
+// Snow lying on a closed street: curbs softened to broken lines, and a drift ridge across the road
+// every dozen metres or so, wavering and missing here and there.
+float buriedRoad(float a, float along, float w, float metersPerPixel) {
+  float curb = (1.0 - smoothstep(0.5, 1.5, abs(abs(a) - 0.9) / w)) * step(0.45, valueNoise(vec2(along * 0.12, sign(a) * 5.0)));
+  float spacing = 13.0;
+  float wave = sin(a * 2.4 + along * 0.05) * 1.2 + (valueNoise(vec2(a * 1.5, along * 0.1)) - 0.5) * 1.5;
+  float u = (along + wave) / spacing;
+  float kept = step(0.45, hash12(vec2(floor(u), 3.0)));
+  float ridge = (1.0 - smoothstep(0.15, 0.15 + metersPerPixel, abs(fract(u) - 0.5) * spacing)) * kept * (1.0 - smoothstep(0.7, 0.9, abs(a)));
+  return max(curb * 0.3, ridge * 0.45);
+}
+
 void main() {
   if (hiddenByTown(vViewDepth)) discard;
   float snowy = smoothstep(0.008, 0.03, uDepth);
@@ -166,7 +183,9 @@ void main() {
   float metersPerPixel = w * vHalf;
   float fine = 1.0 - smoothstep(0.4, 0.9, metersPerPixel);
   float line = 1.0 - smoothstep(0.6 - w, 0.6 + w, abs(a));
-  float ink = mix(0.6 * line, 0.9 * ruts(a * vHalf, vStreet.y, metersPerPixel), fine) * (1.0 - erased);
+  float open = mix(0.6 * line, 0.9 * ruts(a * vHalf, vStreet.y, metersPerPixel), fine);
+  float buried = mix(0.1 * line, buriedRoad(a, vStreet.y, w, metersPerPixel), fine);
+  float ink = mix(open, buried, erased);
   fragColor = vec4(mix(uPaper, uInk, ink * uInkStrength), snowy);
 }
 `;

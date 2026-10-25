@@ -20,9 +20,9 @@ export type FlakeLayer = {
 };
 
 // A few hundred flakes on screen at the very worst: motion carries "snowing", so a still stays the town.
-export const NEAR_FLAKES: FlakeLayer = { count: 50, size: 4.6, speed: 560, outline: 0.9, opacity: 0.95, seed: 1 };
-export const MID_FLAKES: FlakeLayer = { count: 130, size: 2.6, speed: 330, outline: 0.7, opacity: 0.9, seed: 2 };
-export const FAR_FLAKES: FlakeLayer = { count: 220, size: 1.5, speed: 190, outline: 0.55, opacity: 0.8, seed: 3 };
+export const NEAR_FLAKES: FlakeLayer = { count: 60, size: 5.2, speed: 560, outline: 1.0, opacity: 0.95, seed: 1 };
+export const MID_FLAKES: FlakeLayer = { count: 150, size: 3.0, speed: 330, outline: 0.8, opacity: 0.9, seed: 2 };
+export const FAR_FLAKES: FlakeLayer = { count: 220, size: 1.8, speed: 190, outline: 0.65, opacity: 0.85, seed: 3 };
 
 const FLAKE_VERTEX = `
 precision highp float;
@@ -103,6 +103,8 @@ export function flakeMesh(layer: FlakeLayer, shared: Record<string, THREE.IUnifo
     },
     glslVersion: THREE.GLSL3,
     transparent: true,
+    // The quad is laid out across and along the fall, a mirrored basis, so it faces away: draw both sides.
+    side: THREE.DoubleSide,
     depthTest: false,
     depthWrite: false,
   });

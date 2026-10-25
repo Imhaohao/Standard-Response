@@ -141,7 +141,7 @@ class BlizzardLayer implements HazardLayer {
     const { terrain } = this.context;
     const uniforms = {
       ...this.pick("tDepth", "tShade", "tId", "tNormal", "tBuildingState", "uInvProjection", "uCameraWorld", "uBaseElevation", "uResolution"),
-      ...this.pick("uPaper", "uInk", "uInkStrength", "uViewMpp", "uPixelRatio"),
+      ...this.pick("uPaper", "uInk", "uInkStrength", "uViewMpp", "uPixelRatio", "uPatternScale"),
       ...this.ownUniforms("uDepth", "uWindToward", "uWindScreen", "uWindSpeed"),
       tTerrain: { value: terrain.texture },
       uTerrainRegion: { value: terrain.region },
@@ -155,7 +155,7 @@ class BlizzardLayer implements HazardLayer {
 
   private buildBaseScene(town: Region) {
     const { data } = this.context;
-    const baseUniforms = { ...this.pick("tDepth", "uPaper", "uInk", "uInkStrength", "uResolution", "uPixelRatio"), ...this.ownUniforms("uNear", "uFar", "uMinutes", "uDepth") };
+    const baseUniforms = { ...this.pick("tDepth", "tShade", "uPaper", "uInk", "uInkStrength", "uResolution", "uPixelRatio"), ...this.ownUniforms("uNear", "uFar", "uMinutes", "uDepth") };
     const streets = new THREE.Mesh(streetRibbons(data, this.windows, town), streetMaterial(baseUniforms));
     const barriers = barrierCards(data, closureBarriers(data, this.windows).filter((barrier) => within(town, barrier.at)), baseUniforms);
     streets.frustumCulled = false;
@@ -217,7 +217,8 @@ class BlizzardLayer implements HazardLayer {
     this.glowDirty = true;
   }
 
-  // The red homes' glow, rebuilt only when the cached map was: a mask of the red roofs, blurred twice.
+  // The red homes' glow, rebuilt only when the cached map was: a mask of the red roofs, blurred once,
+  // so it stays a tight halo round each home instead of a haze over a street of them.
   prepare() {
     if (!this.glowDirty) return;
     this.glowDirty = false;
@@ -225,18 +226,15 @@ class BlizzardLayer implements HazardLayer {
     const [mask, across, glow] = this.glowTargets;
     three.setRenderTarget(mask);
     this.glowMask.draw();
-    const texel = new THREE.Vector2(1 / mask.width, 1 / mask.height);
     const b = this.blur.material.uniforms;
-    for (let pass = 0; pass < 2; pass++) {
-      b.tInput.value = pass === 0 ? mask.texture : glow.texture;
-      b.uDirection.value.set(texel.x * (1 + pass), 0);
-      three.setRenderTarget(across);
-      this.blur.draw();
-      b.tInput.value = across.texture;
-      b.uDirection.value.set(0, texel.y * (1 + pass));
-      three.setRenderTarget(glow);
-      this.blur.draw();
-    }
+    b.tInput.value = mask.texture;
+    b.uDirection.value.set(1 / mask.width, 0);
+    three.setRenderTarget(across);
+    this.blur.draw();
+    b.tInput.value = across.texture;
+    b.uDirection.value.set(0, 1 / mask.height);
+    three.setRenderTarget(glow);
+    this.blur.draw();
   }
 
   drawScreen({ seconds }: HazardFrame) {
