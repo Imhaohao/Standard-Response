@@ -1,9 +1,14 @@
 import type WebSocket from "ws";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { Language, languageOf } from "../agent/script";
+import { convex } from "../convex";
 import { env } from "../env";
 import { callQuery, StreamParameters } from "./callParameters";
 import { CallSession } from "./callSession";
 import { reportUnreached } from "./callStatus";
 import { CartesiaInput, CartesiaLine } from "./cartesiaLine";
+import { planRow } from "./outboundFlows";
 import { callSidByCallId, streamedCallSids } from "./registry";
 
 // Calls on Cartesia's telephony. We place outbound calls through its agents API; for every call,
@@ -66,17 +71,45 @@ export async function cancelCartesiaCall(callSid: string) {
   }
 }
 
-// POST /chats: Cartesia asks where this call's socket goes.
-export function chatSession(body: { metadata?: unknown }) {
-  return { websocket_url: "/ws", cartesia_version: PROTOCOL_VERSION, metadata: body.metadata ?? {} };
+type ChatRequest = { metadata?: unknown; call_id?: string; agent_call_id?: string };
+
+// POST /chats: Cartesia asks where this call's socket goes. Its transcriber opens in the language
+// named here, and a later config message doesn't swap it: on its default, Ink 2 (en, es, fr, hi,
+// ja only), a Mandarin "是的" came back as "Peter." A call whose language we can't look up gets
+// Cartesia's defaults.
+export async function chatSession(body: ChatRequest) {
+  const session = { websocket_url: "/ws", cartesia_version: PROTOCOL_VERSION, metadata: body.metadata ?? {} };
+  const language = await languageFor(await waitForPlaced(body.agent_call_id ?? body.call_id ?? ""));
+  return language ? { ...session, config: openingConfig(language) } : session;
+}
+
+export const openingConfig = (language: Language) => ({
+  stt: { language },
+  tts: { voice_id: env.cartesia.voiceFor(language), language },
+});
+
+async function languageFor(parameters: StreamParameters | undefined): Promise<Language | null> {
+  try {
+    if (parameters?.planId) return languageOf((await planRow(parameters.planId)).language);
+    if (!parameters?.householdId) return null;
+    const household = await convex().query(api.voice.household, { householdId: parameters.householdId as Id<"households"> });
+    return household ? languageOf(household.language) : null;
+  } catch (error) {
+    console.error("[cartesia] no language for the call's opening config", error);
+    return null;
+  }
 }
 
 const digits = (phone: string | undefined) => (phone ?? "").replace(/\D/g, "");
 
-async function placedCall(callSid: string) {
+async function waitForPlaced(callSid: string) {
   const deadline = Date.now() + START_WAIT_MS;
   while (!placed.has(callSid) && placing > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
-  const parameters = placed.get(callSid);
+  return placed.get(callSid);
+}
+
+async function placedCall(callSid: string) {
+  const parameters = await waitForPlaced(callSid);
   placed.delete(callSid);
   return parameters;
 }

@@ -19,7 +19,7 @@ export const isOutboundFlowMode = (mode: CallMode) => mode === "plan_check" || m
 
 const hasHouseNumber = (address: string) => /\d/.test(address);
 
-async function planRow(planId: string) {
+export async function planRow(planId: string) {
   const queue = await convex().query(api.pickups.callQueue, {});
   const plan = queue.find((row) => row._id === planId);
   if (!plan) throw new Error(`Pickup plan ${planId} is no longer being checked`);

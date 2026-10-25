@@ -71,8 +71,8 @@ async function twilioWebhook(req: http.IncomingMessage, res: http.ServerResponse
 }
 
 async function chats(req: http.IncomingMessage, res: http.ServerResponse) {
-  const body = JSON.parse((await readBody(req)) || "{}") as { metadata?: unknown };
-  send(res, 200, JSON.stringify(chatSession(body)), "application/json");
+  const body = JSON.parse((await readBody(req)) || "{}") as { metadata?: unknown; call_id?: string; agent_call_id?: string };
+  send(res, 200, JSON.stringify(await chatSession(body)), "application/json");
 }
 
 async function turn(req: http.IncomingMessage, res: http.ServerResponse) {
