@@ -68,6 +68,28 @@ describe("neighbor pickup ask", () => {
     expect(await plansFor(t, resident)).toHaveLength(1);
   });
 
+  test("a neighbor who turns down a pickup is never asked again tonight, for anyone", async () => {
+    const t = setup();
+    const resident = await insertHousehold(t, "1210 Palm St", "+15550000001", RESIDENT);
+    const neighbor = await insertHousehold(t, "1212 Palm St", "+15550000002", NEIGHBOR);
+    const another = await insertHousehold(t, "1208 Palm St", "+15550000003", { lat: 34.19005, lng: -118.1552 });
+
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    await t.mutation(api.households.update, { householdId: neighbor, patch: { canLeave: "yes", hasCar: true } });
+    const [plan] = await plansFor(t, resident);
+
+    // The call queue carries what the appeal may say: a real drive time, and that no driver is coming.
+    const row = (await t.query(api.pickups.callQueue, {})).find((queued) => queued._id === plan._id);
+    expect(row?.appeal).toMatchObject({ driverComing: false });
+    expect(row?.appeal?.driveMinutes).toBeGreaterThan(0);
+
+    await t.mutation(api.pickups.helperAnswered, { planId: plan._id, coming: false });
+    expect((await t.run(async (ctx) => ctx.db.get("households", neighbor)))?.helperDeclinedAt).toBeDefined();
+
+    await t.mutation(api.households.update, { householdId: another, patch: { canLeave: "no" } });
+    expect(await plansFor(t, another)).toHaveLength(0);
+  });
+
   test("a neighbor the fire reaches after the resident is still not asked", async () => {
     const t = setup();
     const resident = await insertHousehold(t, "1210 Palm St", "+15550000001", RESIDENT, 60);

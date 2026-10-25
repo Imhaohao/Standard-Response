@@ -35,6 +35,19 @@ type NeedLines = {
   oxygen: string;
 };
 
+// What 911 knows when a recruited neighbor wavers (convex/pickups.ts appealFacts). Every figure is
+// real, so the appeal can be moving without saying anything untrue.
+export type PickupAppeal = { driveMinutes: number | null; fireMinutes: number | null; driverComing: boolean };
+
+type AppealLines = {
+  closeBy: (minutes: number | null) => string;
+  // Said only when no driver has said yes to the resident.
+  nobodyElse: (residentName: string | undefined) => string;
+  // True by construction: 911 only asks a neighbor the fire reaches no later than the resident.
+  awayFromFire: (fireMinutes: number | null) => string;
+  askAgain: (residentName: string | undefined) => string;
+};
+
 type PlanCheckLines = {
   helperIntro: (helperName: string, residentName: string | undefined, address: string) => string;
   // A neighbor with a car who has no arrangement with the resident.
@@ -45,6 +58,9 @@ type PlanCheckLines = {
   askMinutes: string;
   helperComing: (residentName: string | undefined, residentPhone: string | undefined) => string;
   helperNotComing: string;
+  appeal: AppealLines;
+  // A recruited neighbor's final no: thanks, and their own family's safety first.
+  helperDeclined: string;
   residentIntro: (residentName: string | undefined) => string;
   // Said in place of the greeting when the question comes on the person's own warning call.
   helperContinued: (residentName: string | undefined, address: string, recruited: boolean) => string;
@@ -95,6 +111,14 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     helperComing: (residentName, residentPhone) =>
       `Thank you.${residentPhone ? ` ${possessive(residentName ?? "Their")} number is ${spokenDigits(residentPhone)}, if you need to reach them.` : ""} We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
     helperNotComing: "Thanks for telling us. We'll find them another way.",
+    appeal: {
+      closeBy: (minutes) => (minutes ? `You're about ${minutes === 1 ? "1 minute" : `${minutes} minutes`} from them, and you have a car.` : "You're close by, and you have a car."),
+      nobodyElse: (residentName) => `No driver has said yes to ${residentName ?? "them"} yet, so right now you may be their best chance.`,
+      awayFromFire: (fireMinutes) =>
+        `Their house is farther from the fire than yours, so going to them takes you away from it, not toward it.${fireMinutes ? ` Our fire map gives about ${fireMinutes} minutes before it reaches their street.` : ""}`,
+      askAgain: (residentName) => `Could you go for ${residentName ?? "them"}? If you can't do it safely, it's okay to say no.`,
+    },
+    helperDeclined: "Thank you for thinking about it. Please get yourself and your family out safely now.",
     residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's 911 calling about your pickup.`,
     helperContinued: (residentName, address, recruited) =>
       recruited
@@ -153,6 +177,14 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
     helperComing: (residentName, residentPhone) =>
       `Gracias.${residentPhone ? ` El número de ${residentName ?? "esa persona"} es ${spokenDigits(residentPhone)}, por si necesita comunicarse.` : ""} Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
     helperNotComing: "Gracias por avisarnos. Buscaremos otra manera.",
+    appeal: {
+      closeBy: (minutes) => (minutes ? `Usted está a unos ${minutes === 1 ? "1 minuto" : `${minutes} minutos`} de esa casa, y tiene carro.` : "Usted está cerca, y tiene carro."),
+      nobodyElse: (residentName) => `Ningún conductor ha aceptado ir por ${residentName ?? "esa persona"} todavía, así que ahora mismo usted puede ser su mejor oportunidad.`,
+      awayFromFire: (fireMinutes) =>
+        `Esa casa está más lejos del fuego que la suya, así que ir por esa persona le aleja del fuego, no le acerca.${fireMinutes ? ` Nuestro mapa calcula unos ${fireMinutes} minutos antes de que el fuego llegue a su calle.` : ""}`,
+      askAgain: (residentName) => `¿Podría ir por ${residentName ?? "esa persona"}? Si no puede hacerlo sin peligro, está bien decir que no.`,
+    },
+    helperDeclined: "Gracias por pensarlo. Por favor, salga ya con su familia sin peligro.",
     residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos del 911 por su transporte.`,
     helperContinued: (residentName, address, recruited) =>
       recruited
@@ -228,6 +260,8 @@ export type PlanCheckOptions = {
   recruited?: boolean;
   // Told to the helper before they're asked, so they know what they're agreeing to.
   needs?: PickupNeeds;
+  // What a recruited neighbor who wavers hears, once, before being asked again.
+  appeal?: PickupAppeal | null;
   purpose?: PlanPurpose;
   // Minutes until the helper's ETA, said in the resident's confirmation call.
   minutes?: number;
@@ -257,6 +291,7 @@ export class PlanCheck implements CallFlow {
   private unclearAnswers = 0;
   private reported = false;
   private escalated = false;
+  private appealed = false;
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   // The number to put the resident through to, once they've said yes to being connected.
   connectTo: string | null = null;
@@ -299,6 +334,7 @@ export class PlanCheck implements CallFlow {
   }
 
   question(): string {
+    if (this.step === "ask_coming" && this.appealed) return this.lines.appeal.askAgain(this.options.residentName);
     return QUESTIONS[this.step](this.lines, this.options);
   }
 
@@ -425,8 +461,27 @@ export class PlanCheck implements CallFlow {
   private askComing(heard: PlanHeard): Transition {
     if (heard.answer === "yes" && heard.minutes !== null) return this.helperComing(heard.minutes);
     if (heard.answer === "yes") return { step: "ask_minutes", lines: [] };
+    if (this.mayAppeal(heard)) return this.appeal();
     if (heard.answer === "no" || this.secondUnclear()) return this.helperNotComing();
     return { step: this.step, lines: [this.lines.sorry] };
+  }
+
+  // A neighbor we found tonight who wavers, or says no without meaning it as final, hears once why
+  // it's them. A firm no, or anyone asked a second time, is thanked and let go.
+  private mayAppeal(heard: PlanHeard) {
+    const { recruited, appeal } = this.options;
+    if (!recruited || !appeal || this.appealed || heard.firmNo) return false;
+    return heard.hesitant || heard.answer === "no";
+  }
+
+  private appeal(): Transition {
+    this.appealed = true;
+    this.unclearAnswers = 0;
+    const { residentName } = this.options;
+    const facts = this.options.appeal as PickupAppeal;
+    const lines = this.lines.appeal;
+    const nobodyElse = facts.driverComing ? [] : [lines.nobodyElse(residentName)];
+    return { step: this.step, lines: [...this.needLines().slice(0, 1), lines.closeBy(facts.driveMinutes), ...nobodyElse, lines.awayFromFire(facts.fireMinutes)] };
   }
 
   // A helper who can't say how long gets the backend's default rather than a number we made up.
@@ -455,7 +510,7 @@ export class PlanCheck implements CallFlow {
 
   private helperNotComing(): Transition {
     this.report(() => this.options.effects.helperAnswered(false));
-    return { step: "done", lines: [this.lines.helperNotComing] };
+    return { step: "done", lines: [this.options.recruited ? this.lines.helperDeclined : this.lines.helperNotComing] };
   }
 
   // The honesty rule: no pickup and no time is promised, only that a driver's yes comes first.

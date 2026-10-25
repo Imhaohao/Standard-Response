@@ -68,6 +68,7 @@ export async function pickupFlowFor({ planId, role, purpose, continued }: Pickup
     helperPhone: plan.helperPhone || undefined,
     recruited: plan.recruited,
     needs: { mobility: plan.mobility, assistance: plan.assistanceRequired, oxygen: plan.oxygen },
+    appeal: plan.appeal,
     purpose,
     minutes: minutesUntil(plan.helperEtaAt, simTime(control.clock, Date.now())),
     notice,

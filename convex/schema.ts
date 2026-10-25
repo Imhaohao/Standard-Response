@@ -309,6 +309,8 @@ export default defineSchema({
     // How far 911 is looking for a neighbor to drive this home out, and since when (night
     // clock) nobody in that circle is being asked. Three quiet minutes widen the circle.
     neighborSearch: v.optional(v.object({ reachMeters: v.number(), idleSince: v.optional(v.number()) })),
+    // Night clock when this neighbor turned down picking someone up. 911 asks them for nobody else tonight.
+    helperDeclinedAt: v.optional(v.number()),
     // The reach ladder workflow for a real rider nobody has reached yet.
     ladder: v.optional(reachLadder),
     simulated: v.boolean(),

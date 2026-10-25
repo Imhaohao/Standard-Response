@@ -23,9 +23,10 @@ export function fitsInACar(household: Household) {
 const needsRide = (household: Household) =>
   (household.outcome === "needs_ride" || household.outcome === "needs_accessible") && household.canLeave !== undefined;
 
-// Has a car, by tonight's call or the Ready check.
+// Has a car, by tonight's call or the Ready check, and hasn't turned down a pickup tonight: a
+// neighbor who said no is never asked again, for anyone.
 export function canDrive(household: Household) {
-  if (!household.callbackNumber || household.away) return false;
+  if (!household.callbackNumber || household.away || household.helperDeclinedAt !== undefined) return false;
   const hasCar = household.hasCar === true || household.ready?.exitPlan === "own_car";
   return hasCar && (household.outcome === "leaving" || household.outcome === "unknown");
 }

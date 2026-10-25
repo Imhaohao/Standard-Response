@@ -193,3 +193,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 ## 2026-10-25 03:45
 
 **Devpost check:** the README now says the live solver is ALNS, not OR-Tools (`convex/dispatchWorld.ts` asks for `alns`), so the DigitalOcean paste above says so too. Whoever has the Devpost text: check it against the README's sponsor table. Gemini, Elastic, Fetch.ai and Bright Data are built but haven't run, and Atlassian isn't deployed. Don't call any of them live.
+
+## 2026-10-25 09:10
+
+**Neighbor pickup asks: one truthful appeal, then no repeat asks.** Additive contract changes only. `households.helperDeclinedAt` (optional, night clock) is set when a recruited neighbor turns down a pickup, and `canDrive` (convex/neighborRules.ts) now returns false for them, so 911 asks them for nobody else tonight. `pickups.callQueue` rows gain `appeal: { driveMinutes, fireMinutes, driverComing } | null` for recruited plans. On the call, a neighbor who wavers or gives a soft no hears once: the resident's need, their real drive time, "no driver has said yes yet" (only when true), and that going to the resident takes them away from the fire (true by `awayFromTheFire`). A firm no or a second no is thanked and let go.

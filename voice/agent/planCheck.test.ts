@@ -14,6 +14,8 @@ const heard = (partial: Partial<PlanHeard>): PlanHeard => ({
   wantsRepeat: false,
   addressedToAgent: true,
   acknowledgment: "",
+  hesitant: false,
+  firmNo: false,
   ...partial,
 });
 
@@ -439,5 +441,56 @@ describe("Ready check call", () => {
 
   it("reads a phone number back digit by digit", () => {
     assert.equal(spokenDigits("+16265550123"), "6 2 6, 5 5 5, 0 1 2 3");
+  });
+});
+
+describe("a neighbor who wavers over a pickup", () => {
+  const APPEAL = { driveMinutes: 4, fireMinutes: 35, driverComing: false };
+  const WHEELCHAIR: PickupNeeds = { mobility: "manual_wheelchair" };
+
+  it("hears once, from real facts, why it's them, then the question again with room to say no", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "no", hesitant: true, acknowledgment: "You've got your kids with you." }], "en", true, WHEELCHAIR, { appeal: APPEAL });
+    call.start();
+    const turn = spoken(await call.hear("I don't know, my kids are with me and it's bad out there"));
+    assert.match(turn, /You've got your kids with you\./);
+    assert.match(turn, /They use a manual wheelchair/);
+    assert.match(turn, /You're about 4 minutes from them, and you have a car\./);
+    assert.match(turn, /No driver has said yes to Walter yet, so right now you may be their best chance\./);
+    assert.match(turn, /going to them takes you away from it, not toward it\. Our fire map gives about 35 minutes/);
+    assert.match(turn, /Could you go for Walter\? If you can't do it safely, it's okay to say no\./);
+    assert.deepEqual(recorded.helper, []);
+  });
+
+  it("is thanked and let go after a second no, with no third ask", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "no", hesitant: true }, { answer: "no", hesitant: true }], "en", true, WHEELCHAIR, { appeal: APPEAL });
+    call.start();
+    await call.hear("I'm not sure");
+    const turn = spoken(await call.hear("No, I'm sorry, I can't"));
+    assert.match(turn, /Thank you for thinking about it\. Please get yourself and your family out safely now\./);
+    assert.ok(call.done);
+    assert.deepEqual(recorded.helper, [[false, undefined]]);
+  });
+
+  it("never argues with a firm no", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "no", firmNo: true }], "en", true, WHEELCHAIR, { appeal: APPEAL });
+    call.start();
+    const turn = spoken(await call.hear("No. Stop calling me."));
+    assert.doesNotMatch(turn, /best chance/);
+    assert.ok(call.done);
+    assert.deepEqual(recorded.helper, [[false, undefined]]);
+  });
+
+  it("doesn't say nobody else is coming when a driver already said yes", async () => {
+    const { call } = planCall("helper", [{ answer: "no", hesitant: true }], "en", true, undefined, { appeal: { ...APPEAL, driverComing: true } });
+    call.start();
+    assert.doesNotMatch(spoken(await call.hear("I don't know")), /best chance/);
+  });
+
+  it("can still say yes after the appeal", async () => {
+    const { call, recorded } = planCall("helper", [{ answer: "no", hesitant: true }, { answer: "yes", minutes: 5 }], "en", true, WHEELCHAIR, { appeal: APPEAL });
+    call.start();
+    await call.hear("it's dangerous");
+    await call.hear("Okay, okay. Five minutes.");
+    assert.deepEqual(recorded.helper, [[true, 5]]);
   });
 });

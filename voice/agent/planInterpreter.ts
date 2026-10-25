@@ -18,6 +18,10 @@ export type PlanHeard = {
   wantsRepeat: boolean;
   addressedToAgent: boolean;
   acknowledgment: string;
+  // A neighbor who wavers or raises a worry (danger, family, room in the car) rather than refusing.
+  hesitant: boolean;
+  // A clear refusal, or a request not to be called again: no appeal follows.
+  firmNo: boolean;
 };
 
 export type PlanTurnContext = {
@@ -46,8 +50,10 @@ const outputSchemaFor = (kind: Hazard) => ({
     wantsRepeat: { type: "boolean" },
     addressedToAgent: { type: "boolean" },
     acknowledgment: { type: "string" },
+    hesitant: { type: "boolean" },
+    firmNo: { type: "boolean" },
   },
-  required: ["answer", "minutes", "emergency", "wantsRepeat", "addressedToAgent", "acknowledgment"],
+  required: ["answer", "minutes", "emergency", "wantsRepeat", "addressedToAgent", "acknowledgment", "hesitant", "firmNo"],
   additionalProperties: false,
 });
 
@@ -58,7 +64,9 @@ const systemFor = (kind: Hazard) => `You interpret one thing a person just said 
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${AT_HOME[kind]}; otherwise none.
 - wantsRepeat: true if they didn't hear or understand the question.
 - addressedToAgent: false for background noise, an animal, a TV, filler alone ("um"), or talk to someone else in the room. True otherwise.
-- acknowledgment: at most 5 words in the call language that show what you understood, such as "Okay, thank you." or "Alright." Empty when addressedToAgent is false or nothing fits. Never mention a driver, a vehicle, a time, minutes or that anyone is safe or coming. Never ask a question.`;
+- acknowledgment: at most 5 words in the call language that show what you understood, such as "Okay, thank you." or "Alright." Empty when addressedToAgent is false or nothing fits. Never mention a driver, a vehicle, a time, minutes or that anyone is safe or coming. Never ask a question. When they waver or raise a worry, reflect the worry in their terms instead ("You've got your kids with you.", "That's a lot to ask.").
+- hesitant: true when a helper wavers or raises a worry instead of answering plainly: the danger, their own family or kids in the car, room for a wheelchair, not knowing the person, "I don't know", "I'm not sure", "it's really bad out there", or a no with a reason that sounds reluctant rather than final ("I'd like to, but my kids are with me"). False for a plain yes, and for a firm no.
+- firmNo: true when they clearly refuse ("No, I can't.", "Absolutely not.", "I'm already gone.", "I'm not home.") or ask not to be called again ("stop calling me", "take me off the list"). A firm no never gets talked back into anything.`;
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
@@ -84,6 +92,8 @@ function parse(text: string): PlanHeard {
     wantsRepeat: raw.wantsRepeat === true,
     addressedToAgent: raw.addressedToAgent !== false,
     acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",
+    hesitant: raw.hesitant === true,
+    firmNo: raw.firmNo === true,
   };
 }
 

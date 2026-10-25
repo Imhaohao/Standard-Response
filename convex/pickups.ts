@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, MutationCtx } from "./_generated/server";
+import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { applyRecordPatch } from "./households";
@@ -9,6 +9,8 @@ import { canDrive, fitsInACar } from "./neighborRules";
 import { syncRequest } from "./requests";
 import { pickupFailure, pickupPurpose, pickupRole, pickupStatus } from "./schema";
 import { simNow } from "./clock";
+import { openRequestFor } from "./requests";
+import { nearestNode, shortestPathsFrom } from "./roadGraph";
 import { scheduleReimbursement } from "./reimburse";
 
 // The pickup check. When a warning covers a household with a helper on file, or tonight's calls
@@ -156,8 +158,9 @@ export async function beginAttempt(ctx: MutationCtx, plan: Plan, who: Role, why:
 
 export async function helperReplied(ctx: MutationCtx, plan: Plan, coming: boolean, etaMinutes?: number) {
   if (plan.status !== "checking") return;
-  if (coming) await markComing(ctx, plan, etaMinutes);
-  else await fellThrough(ctx, plan, "helper_declined");
+  if (coming) return await markComing(ctx, plan, etaMinutes);
+  if (plan.recruited && plan.helperHouseholdId) await ctx.db.patch("households", plan.helperHouseholdId, { helperDeclinedAt: await simNow(ctx) });
+  await fellThrough(ctx, plan, "helper_declined");
 }
 
 export async function residentReplied(ctx: MutationCtx, plan: Plan, pickedUp: boolean) {
@@ -388,6 +391,23 @@ const callRow = (plan: Plan, household: Doc<"households"> | null, helper: Doc<"h
   ...residentPart(household),
 });
 
+// What 911 knows when a neighbor wavers over picking someone up (voice/agent/planCheck.ts appeal).
+// Every figure is real: their drive on the road graph, the fire model's time at the resident's
+// street, and whether any driver has said yes. Null when the helper isn't a recruited neighbor.
+const DRIVING: ReadonlySet<string> = new Set(["driver_accepted", "en_route", "arrived"]);
+
+async function appealFacts(ctx: QueryCtx, plan: Plan, household: Doc<"households"> | null, helper: Doc<"households"> | null, now: number) {
+  if (!plan.recruited || !household || household.lat === undefined || household.lng === undefined) return null;
+  const request = await openRequestFor(ctx, household._id);
+  const fireMinutes = Math.round((household.fireArrivalAt - now) / 60_000);
+  let driveMinutes: number | null = null;
+  if (helper?.lat !== undefined && helper.lng !== undefined) {
+    const seconds = shortestPathsFrom(nearestNode({ lat: helper.lat, lng: helper.lng }), new Set()).seconds[nearestNode({ lat: household.lat, lng: household.lng })];
+    driveMinutes = Number.isFinite(seconds) ? Math.max(1, Math.round(seconds / 60)) : null;
+  }
+  return { driveMinutes, fireMinutes: fireMinutes > 0 ? fireMinutes : null, driverComing: request !== null && DRIVING.has(request.status) };
+}
+
 const owesNotice = (plan: Plan) => plan.helperNotice !== undefined || plan.residentNotice !== undefined;
 
 // Voice server: real pickup calls to place, including pickups that ended with an update still owed
@@ -403,9 +423,11 @@ export const callQueue = query({
     const real = lists.flat().filter((plan) => !plan.simulated && (isLive(plan) || owesNotice(plan)));
     const now = await simNow(ctx);
     return await Promise.all(
-      real.map(async (plan) =>
-        callRow(plan, await ctx.db.get("households", plan.householdId), plan.helperHouseholdId ? await ctx.db.get("households", plan.helperHouseholdId) : null, now),
-      ),
+      real.map(async (plan) => {
+        const household = await ctx.db.get("households", plan.householdId);
+        const helper = plan.helperHouseholdId ? await ctx.db.get("households", plan.helperHouseholdId) : null;
+        return { ...callRow(plan, household, helper, now), appeal: await appealFacts(ctx, plan, household, helper, now) };
+      }),
     );
   },
 });
