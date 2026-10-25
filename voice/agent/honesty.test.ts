@@ -65,6 +65,14 @@ describe("the honesty guard", () => {
     assert.equal(guardAcknowledgment("Necesita ayuda rápido.", "received", "es").blocked, false);
   });
 
+  it("drops a short English echo of a record fact on a Spanish call, and keeps the Spanish one", () => {
+    assert.equal(guardAcknowledgment("Mm, a walker.", "received", "es").blocked, true);
+    assert.equal(guardAcknowledgment("Thanks, two people.", "received", "es").blocked, true);
+    assert.equal(guardAcknowledgment("Mm, una andadera.", "received", "es").blocked, false);
+    assert.equal(guardAcknowledgment("Mm, a walker.", "received", "en").blocked, false);
+    assert.equal(guardAcknowledgment("Mm, no car.", "received", "en").blocked, false);
+  });
+
   it("still lets through why a question is asked", () => {
     assert.equal(guardAcknowledgment("It helps us match the right vehicle to your needs.", "received", "en").blocked, false);
     assert.equal(guardAcknowledgment("Nos ayuda a elegir el vehículo adecuado.", "received", "es").blocked, false);
