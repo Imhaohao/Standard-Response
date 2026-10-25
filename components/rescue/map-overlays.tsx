@@ -73,6 +73,18 @@ function StillHomeMark({ at, fire }: { at: Point; fire: FireState }) {
   );
 }
 
+// A home the fire has reached, or will within the hour, that nobody has confirmed is out: red,
+// larger than a quiet home, and ringing while the fire is on it.
+function UnreachedMark({ at, inFire, fire }: { at: Point; inFire: boolean; fire: FireState }) {
+  return (
+    <Anchor point={at}>
+      <FireHalo state={fire} r={7} />
+      {inFire && <circle r={8} fill="none" stroke={HAZARD} strokeWidth={2} className="animate-ring-out" />}
+      <rect x={-6.5} y={-6.5} width={13} height={13} fill={HAZARD} stroke={PAPER} strokeWidth={2.5} />
+    </Anchor>
+  );
+}
+
 // The little round badge on a van's corner: the one thing worth knowing about it right now.
 const STATE_BADGE: Partial<Record<VanState, { icon: ReactNode; spin?: boolean; label: string }>> = {
   rerouting: { icon: <ArrowsClockwise weight="bold" size={11} color="white" x={-5.5} y={-5.5} />, spin: true, label: "Changed course" },
@@ -224,6 +236,7 @@ type OverlayProps = {
   vans: Van[];
   focusId: string | null;
   stillHome: Point[];
+  unreached: { at: Point; inFire: boolean; home: { _id: string } }[];
   vanFocusId: string | null;
   onVanHover: (id: string | null) => void;
   fireAt: FireAt;
@@ -234,7 +247,7 @@ function lookedAtVan(people: Person[], focusId: string | null, vanFocusId: strin
   return vanFocusId ?? people.find((person) => person._id === focusId)?.assignment?.vehicleId ?? null;
 }
 
-export function MapOverlays({ zone, street, people, vans, focusId, stillHome, vanFocusId, onVanHover, fireAt }: OverlayProps) {
+export function MapOverlays({ zone, street, people, vans, focusId, stillHome, unreached, vanFocusId, onVanHover, fireAt }: OverlayProps) {
   const focusedVan = lookedAtVan(people, focusId, vanFocusId);
   // Red pins draw last so a person waiting is never hidden under a van or a covered neighbour.
   const ordered = [...people].sort((a, b) => Number(WAITING.includes(a.status)) - Number(WAITING.includes(b.status)));
@@ -249,6 +262,9 @@ export function MapOverlays({ zone, street, people, vans, focusId, stillHome, va
       ))}
       {stillHome.map((at, index) => (
         <StillHomeMark key={index} at={at} fire={fireAt(at)} />
+      ))}
+      {unreached.map((entry) => (
+        <UnreachedMark key={entry.home._id} at={entry.at} inFire={entry.inFire} fire={fireAt(entry.at)} />
       ))}
       {vans.map((van) => (
         <VanMark key={van.vehicle._id} van={van} fire={fireAt(van.at)} onHover={onVanHover} />

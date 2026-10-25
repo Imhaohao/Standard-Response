@@ -34,6 +34,8 @@ import { ReadyPanel } from "./ready-panel";
 import { useMapClick, useMapFocus } from "./use-map-focus";
 import { usePickups } from "./use-pickups";
 import { useSimulatedFire } from "./use-simulated-fire";
+import { FireView, skippedCount, unreachedHomes } from "./unreached";
+import { UnreachedPanel } from "./unreached-panel";
 
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 // Panels keep their full height and the column scrolls, so no panel is ever cut short.
@@ -48,8 +50,9 @@ export function RescueMap() {
   const { toLatLng, toLocal } = useMemo(() => createProjection(data?.origin ?? { lat: 0, lng: 0 }), [data?.origin]);
 
   const board = useRescueBoard(data, toLocal);
-  const { homes, withOpenRequest, highlights, stillHome } = useRoofs(data, board.people, toLocal);
+  const { homes, withOpenRequest, highlights, stillHome: quietHomes } = useRoofs(data, board.people, toLocal);
   const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
+  const { unreached, skipped, stillHome } = useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire: { hazard, danger, minutes: clock.minutes }, toLocal });
   const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, clock.minutes) : null), [hazard, clock.minutes]);
   const forecast = useMemo(() => (danger ? { field: forecastField(danger), aheadMinutes: FORECAST_AHEAD_MINUTES } : null), [danger]);
   const mapFocus = useMapFocus(homes, toLocal);
@@ -109,6 +112,7 @@ export function RescueMap() {
           vans={board.vans}
           focusId={mapFocus.pinFocus}
           stillHome={stillHome}
+          unreached={unreached}
           vanFocusId={vanFocusId}
           onVanHover={setVanFocusId}
           fireAt={fireAt}
@@ -120,6 +124,7 @@ export function RescueMap() {
           <MapTopBar issuedAt={control?.warningIssuedAt} />
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
             <div className={`${PANEL_COLUMN} w-[25rem] max-w-[40vw] pr-1`}>
+              <UnreachedPanel unreached={unreached} skipped={skipped} focus={mapFocus.homeFocus} />
               <ReadyPanel homes={homes} pickups={pickups} control={control} focus={mapFocus.homeFocus} />
               <HomesPanel homes={homes} withOpenRequest={withOpenRequest} />
               <NeedPanel people={board.people} unplaced={board.unplaced} focus={mapFocus.focusProps} />
@@ -129,7 +134,7 @@ export function RescueMap() {
             <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
-              <DoorCheckPanel />
+              <DoorCheckPanel unreached={unreached.length} />
               <RiderUpload />
             </div>
           </div>
@@ -164,6 +169,35 @@ function useRoofs(data: InkMapData | null, people: Person[], toLocal: (point: La
   const highlights = useBuildingHighlights(data, marks);
   const stillHome = useMemo(() => occupancy.filter((mark) => mark.occupancy === "stillHome").map((mark) => mark.point), [occupancy]);
   return { homes, withOpenRequest, highlights, stillHome };
+}
+
+type UnreachedArgs = {
+  homes: Home[];
+  withOpenRequest: Set<string>;
+  quietHomes: Point[];
+  control: ReturnType<typeof useQuery<typeof api.control.get>>;
+  fire: FireView;
+  toLocal: (point: LatLng) => Point;
+};
+
+// After the warning, homes nobody confirmed out with the fire on them or due within the hour. They
+// leave the quiet ink squares and get their own red marks, so a glance can't miss them.
+function useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire, toLocal }: UnreachedArgs) {
+  const warned = control?.warningIssuedAt !== undefined;
+  const voiceStandIn = control?.simulateVoice ?? true;
+  // Once a minute is plenty for a list sorted in minutes, and keeps the forecast's polygon tests off every frame.
+  const { hazard, danger } = fire;
+  const minutes = Math.floor(fire.minutes);
+  const unreached = useMemo(
+    () => (warned ? unreachedHomes({ homes, withOpenRequest, fire: { hazard, danger, minutes }, voiceStandIn, toLocal }) : []),
+    [warned, homes, withOpenRequest, hazard, danger, minutes, voiceStandIn, toLocal],
+  );
+  const skipped = useMemo(() => (warned ? skippedCount(homes, voiceStandIn) : 0), [warned, homes, voiceStandIn]);
+  const stillHome = useMemo(() => {
+    const alarmed = new Set(unreached.map((entry) => `${entry.at[0]},${entry.at[1]}`));
+    return quietHomes.filter((at) => !alarmed.has(`${at[0]},${at[1]}`));
+  }, [quietHomes, unreached]);
+  return { unreached, skipped, stillHome };
 }
 
 // The scenario's fire, or the one the dispatcher lit at a house to rehearse, which replaces it here

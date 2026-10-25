@@ -9,6 +9,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import { AREA_NAME } from "@/lib/brand";
 import { AppBar, WarningClock } from "../ui/app-bar";
 import { Button } from "../ui/button";
+import { skippedCount } from "../rescue/unreached";
+import { StandInWarning } from "../rescue/unreached-panel";
 import { ActivityList } from "./activity-list";
 import { FloorControls } from "./floor-controls";
 import { FloorMap } from "./floor-map";
@@ -41,10 +43,19 @@ function ReadyCheckButton({ running }: { running: boolean }) {
   );
 }
 
+// Real homes the voice stand-in would never ring if the warning went out now.
+function useSkippedBeforeWarning() {
+  const control = useQuery(api.control.get);
+  const homes = useQuery(api.households.coverage);
+  if (!control || !homes) return 0;
+  return skippedCount(homes, control.simulateVoice);
+}
+
 function BeforeWarning() {
   const issueWarning = useMutation(api.control.issueWarning);
   const [pending, setPending] = useState(false);
   const ready = useReadyCount();
+  const skipped = useSkippedBeforeWarning();
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -55,6 +66,7 @@ function BeforeWarning() {
       <h1 className="type-display">
         {ready.onFile > 0 ? `${ready.onFile} of ${ready.total} homes are on file. Nobody has been warned yet.` : `Nobody in ${AREA_NAME} has been called yet.`}
       </h1>
+      {skipped > 0 && <StandInWarning count={skipped} />}
       <div className="flex flex-wrap gap-3">
         <ReadyCheckButton running={ready.running} />
         <Button

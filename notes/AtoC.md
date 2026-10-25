@@ -113,3 +113,9 @@ Every night is now kept, and there's a rewind (`convex/nightRuns.ts`). The contr
 - **When a run starts:** `ready:start` or `control:issueWarning`, whichever comes first after the last rewind. Both refuse while `control.archivingRunId` is set, which is while the copy runs, in batches.
 - **Tables a rewind clears:** transcriptLines, texts, calls, events, callbacks, auditLog, assignments, plans, requests, nominations, roadClosures, neighborCalls, pickupPlans, vehicles, shelters, vehicleRoutes, vehicleLoads, dispatchState. That's what reset already cleared, less the setup. `callPlans`, the mesh tables and the prepare tables are untouched, as before.
 - **Readers keyed to a night:** nothing to change. After a rewind, `warningIssuedAt` is unset and the next warning gets a new one.
+
+## 2026-10-24 19:45
+
+`households:coverage` rows now also carry `address`, `residentName`, `callbackNumber`, `attempts` and `simulated`. This is additive. The rescue map uses them for a new "Not reached" list: homes nobody confirmed are out, with the fire on them or due within the hour, painted red on the map. It also uses them for a warning when the voice agent is a stand-in but the homes are real, because the stand-in never calls real homes. Please deploy `convex/` from main. Until then the screen still works, but rows show "Address not on file" with no call button, and the stand-in warning stays hidden.
+
+Separately, CSV riders get `fireArrivalAt` from `retimeArea`'s radial stand-in model at the warning, while the map draws Track D's scenario fire. With the need-model stand-in on, ride deadlines can disagree with the fire the dispatcher sees. Worth checking that the hazard runner overwrites them on real nights.

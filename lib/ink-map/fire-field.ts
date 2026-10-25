@@ -110,6 +110,16 @@ export function fireStateAt(field: FireField, [x, y]: Point, minutes: number): F
   return minutes - arrival <= BURNING_MINUTES ? "burning" : "burned";
 }
 
+// The minute after the warning the fire reaches a point, or null where it never does in this scenario.
+export function arrivalMinutesAt(field: FireField, [x, y]: Point): number | null {
+  const { region, width, height } = field;
+  const col = Math.floor(((x - region.x0) / (region.x1 - region.x0)) * width);
+  const row = Math.floor(((y - region.y0) / (region.y1 - region.y0)) * height);
+  if (col < 0 || row < 0 || col >= width || row >= height) return null;
+  const arrival = field.minutes[row * width + col];
+  return arrival >= NEVER_BURNS ? null : arrival;
+}
+
 // The field as a grid for tracing outlines (isolines.ts): each cell's arrival minute at its centre.
 export function fieldGrid(field: FireField) {
   const cellX = (field.region.x1 - field.region.x0) / field.width;

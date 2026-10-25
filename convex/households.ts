@@ -194,6 +194,12 @@ export const coverage = query({
       mobility: v.optional(mobility),
       assistanceRequired: v.optional(assistanceRequired),
       oxygen: v.boolean(),
+      // Track A: who to name and phone when the fire reaches a home nobody confirmed out.
+      address: v.string(),
+      residentName: v.optional(v.string()),
+      callbackNumber: v.string(),
+      attempts: v.number(),
+      simulated: v.boolean(),
     }),
   ),
   handler: async (ctx) => {
@@ -210,6 +216,11 @@ export const coverage = query({
       mobility: h.mobility,
       assistanceRequired: h.assistanceRequired,
       oxygen: h.medical?.includes("oxygen") ?? false,
+      address: h.address,
+      residentName: h.residentName,
+      callbackNumber: h.callbackNumber,
+      attempts: h.attempts,
+      simulated: h.simulated,
     }));
   },
 });

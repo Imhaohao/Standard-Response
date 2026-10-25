@@ -20,7 +20,13 @@ function DoorRow({ address, position }: { address: string; position: number }) {
 
 // Nobody answered the phone or the text. These are the doors a crew has to knock, in the order
 // the fire will reach them.
-export function DoorCheckPanel({ className = "" }: { className?: string }) {
+function emptyDoors(warned: boolean, unreached: number) {
+  if (!warned) return "After the warning, homes nobody reaches by phone show up here, nearest the fire first.";
+  if (unreached > 0) return `No crew has been sent yet. ${unreached === 1 ? "One home" : `${unreached} homes`} in the fire's path ${unreached === 1 ? "hasn't" : "haven't"} been reached.`;
+  return "No doors to knock right now.";
+}
+
+export function DoorCheckPanel({ unreached = 0, className = "" }: { unreached?: number; className?: string }) {
   const homes = useQuery(api.doorChecks.queue, { limit: 12 });
   const control = useQuery(api.control.get);
   const warned = control?.warningIssuedAt !== undefined;
@@ -46,7 +52,7 @@ export function DoorCheckPanel({ className = "" }: { className?: string }) {
           )}
         </>
       ) : (
-        <PanelEmpty>{warned ? "No doors to knock right now." : "After the warning, homes nobody reaches by phone show up here, nearest the fire first."}</PanelEmpty>
+        <PanelEmpty>{emptyDoors(warned, unreached)}</PanelEmpty>
       )}
     </Panel>
   );
