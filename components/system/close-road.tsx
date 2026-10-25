@@ -41,10 +41,20 @@ function closurePath(van: Vehicle, stop: Assignment, route: Route | undefined): 
   return [offset(centre, -uy * CUT_HALF_WIDTH, ux * CUT_HALF_WIDTH), offset(centre, uy * CUT_HALF_WIDTH, -ux * CUT_HALF_WIDTH)];
 }
 
+// Which road the button would close. A routed van that drives around a closure has a new last
+// stretch, so the button comes back for it: closing that one too is how a pickup becomes unreachable.
+// A straight-line van's cut moves with the van, so once is enough.
+function roadKey(path: LatLng[] | null, route: Route | undefined) {
+  if (!path) return null;
+  return route && route.remaining.length >= 3 ? path.map((p) => `${p.lat},${p.lng}`).join(";") : "approach";
+}
+
 function VanRow({ van, stop, route }: { van: Vehicle; stop: Assignment; route: Route | undefined }) {
   const addClosures = useMutation(api.roads.addClosures);
-  const [closed, setClosed] = useState(false);
   const path = closurePath(van, stop, route);
+  const key = roadKey(path, route);
+  const [closedKey, setClosedKey] = useState<string | null>(null);
+  const closed = key !== null && key === closedKey;
   return (
     <li className="flex items-center gap-3 px-4 pb-4">
       <span className="flex min-w-0 flex-1 flex-col">
@@ -57,7 +67,7 @@ function VanRow({ van, stop, route }: { van: Vehicle; stop: Assignment; route: R
         variant={closed ? "onPanelQuiet" : "onPanel"}
         size="lg"
         disabled={!path || closed}
-        onClick={() => path && void addClosures({ closures: [{ path, source: "manual" }] }).then(() => setClosed(true))}
+        onClick={() => path && void addClosures({ closures: [{ path, source: "manual" }] }).then(() => setClosedKey(key))}
       >
         <RoadHorizon weight="bold" className="size-4" />
         {closed ? "Closed" : "Close this road"}
