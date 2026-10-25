@@ -44,6 +44,7 @@ import type * as fleet from "../fleet.js";
 import type * as functions from "../functions.js";
 import type * as hazards from "../hazards.js";
 import type * as heuristic from "../heuristic.js";
+import type * as homeEdits from "../homeEdits.js";
 import type * as householdCounts from "../householdCounts.js";
 import type * as households from "../households.js";
 import type * as http from "../http.js";
@@ -131,6 +132,7 @@ declare const fullApi: ApiFromModules<{
   functions: typeof functions;
   hazards: typeof hazards;
   heuristic: typeof heuristic;
+  homeEdits: typeof homeEdits;
   householdCounts: typeof householdCounts;
   households: typeof households;
   http: typeof http;

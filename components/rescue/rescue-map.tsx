@@ -30,7 +30,7 @@ import { Person, useRescueBoard } from "./use-rescue-board";
 import { PlanPanel } from "./plan-panel";
 import { RiderUpload } from "./map-tools";
 import { useDrawingTools } from "./use-drawing-tools";
-import { HouseCard } from "./house-card";
+import { besidePanels, HouseCard } from "./house-card";
 import { PickupLayer } from "./pickup-layer";
 import { useFireCrews } from "./use-fire-crews";
 import { ReadyPanel } from "./ready-panel";
@@ -43,6 +43,8 @@ import { UnreachedPanel } from "./unreached-panel";
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
 // Panels keep their full height and the column scrolls, so no panel is ever cut short.
 const PANEL_COLUMN = "pointer-events-auto flex shrink-0 flex-col gap-3 overflow-y-auto [&>*]:shrink-0";
+// The house card goes between the two panel columns below when they leave room for it.
+const CARD_ROOM = besidePanels({ rem: 25, maxShare: 0.4 }, { rem: 20, maxShare: 0.32 });
 // The whole door-check list: the fire crews work all of it, and the panel shows all of it.
 const DOOR_QUEUE_LIMIT = 1000;
 
@@ -100,7 +102,7 @@ export function RescueMap() {
         controls={
           <>
             <ZoomControls className="absolute right-3 bottom-3" />
-            {mapFocus.card && <HouseCard householdId={mapFocus.card.householdId} at={mapFocus.card.point} onClose={mapFocus.closeCard} />}
+            {mapFocus.card && <HouseCard householdId={mapFocus.card.householdId} at={mapFocus.card.point} onClose={mapFocus.closeCard} sideRoom={CARD_ROOM} />}
           </>
         }
         underlay={

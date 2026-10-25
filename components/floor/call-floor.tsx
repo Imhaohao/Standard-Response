@@ -239,7 +239,8 @@ export function CallFloor() {
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
             <WorkColumn floor={floor} warned={Boolean(issuedAt)} />
             <div className="grid min-w-0 flex-1 place-items-center">{!issuedAt && <BeforeWarning />}</div>
-            <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col max-sm:hidden">
+            {/* Only the panel takes clicks: the empty column must not swallow clicks meant for the map. */}
+            <div className="flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col max-sm:hidden [&>*]:pointer-events-auto">
               {floor.listening && (
                 <ListeningPanel callId={floor.shownId} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />
               )}

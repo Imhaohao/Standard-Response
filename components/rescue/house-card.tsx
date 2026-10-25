@@ -1,18 +1,18 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useRef } from "react";
+import { RefObject, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { FunctionReturnType } from "convex/server";
-import { Heartbeat, PawPrint, Translate, Users, UsersThree, X, type Icon } from "@phosphor-icons/react";
+import { Heartbeat, PawPrint, Users, UsersThree, X, type Icon } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMapStage, useProjected } from "@/components/map/map-stage";
 import { LatLng } from "@/lib/geo";
-import { languageInEnglish } from "@/lib/labels";
 import { Point } from "@/lib/ink-map/data";
 import { ASSIST_LABELS, EXIT_OPTIONS, InsideFacts, MOBILITY_OPTIONS } from "../ready/profile";
 import { Home } from "./marks";
-import { PhoneOnFile } from "./phone-on-file";
+import { HomeContact } from "./home-contact";
 
 type Card = NonNullable<FunctionReturnType<typeof api.ready.card>>;
 
@@ -47,8 +47,6 @@ function tilesOf(card: Card): Tile[] {
     card.medical?.includes("oxygen") === true && { key: "oxygen", label: "oxygen", glyph: "O₂" },
     card.medical?.includes("dialysis") === true && { key: "dialysis", label: "dialysis", Icon: Heartbeat },
     card.pets === true && { key: "pets", label: "pets", Icon: PawPrint },
-    // A crew at the door needs to know before knocking that nobody inside may speak English.
-    card.language !== "en" && { key: "language", label: languageInEnglish(card.language), Icon: Translate },
   ];
   return candidates.filter((tile): tile is Tile => Boolean(tile));
 }
@@ -120,7 +118,7 @@ function CardBody({ card, onClose }: { card: Card; onClose: () => void }) {
           <X weight="bold" className="size-4" />
         </button>
       </header>
-      <PhoneOnFile key={card._id} home={card} />
+      <HomeContact key={card._id} home={card} />
       <NeedTiles card={card} />
       {card.ready && <InsideFacts ready={card.ready} />}
       <ExitPlan card={card} />
@@ -129,25 +127,77 @@ function CardBody({ card, onClose }: { card: Card; onClose: () => void }) {
   );
 }
 
-// Everything a crew should know before going in, pinned beside the home it describes. It follows
-// the home as the map moves, placed directly so the card never trails the roof.
-export function HouseCard({ householdId, at, onClose }: { householdId: string; at: Point; onClose: () => void }) {
-  const card = useQuery(api.ready.card, { householdId: householdId as Id<"households"> });
-  const { size } = useMapStage();
-  const ref = useRef<HTMLElement>(null);
-  useProjected((project) => {
+// The page's bar sits over the top of the map, so the card stays below it.
+const TOP_CLEAR = 140;
+
+// The card grows when its editor opens, so it is placed again whenever its size changes.
+function useOnResize(ref: RefObject<HTMLElement | null>, mounted: boolean, onResize: () => void) {
+  const latest = useRef(onResize);
+  useEffect(() => {
+    latest.current = onResize;
+  });
+  useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const spot = project(at);
-    const fitsRight = spot.x + GAP + CARD_WIDTH < size.width - EDGE;
-    element.style.left = `${fitsRight ? spot.x + GAP : Math.max(EDGE, spot.x - GAP - CARD_WIDTH)}px`;
-    element.style.top = `${Math.min(Math.max(spot.y, 190), size.height - 190)}px`;
+    const observer = new ResizeObserver(() => latest.current());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref, mounted]);
+}
+
+// How much of each side of the map panels cover, for a stage width in pixels.
+export type SideRoom = (width: number) => { left: number; right: number };
+
+// A panel column: its width in rem, never more than this share of the screen, inside 12px gutters.
+type PanelColumn = { rem: number; maxShare: number };
+const REM = 16;
+const GUTTER = 12;
+const columnRoom = (column: PanelColumn | null, width: number) => (column ? Math.min(column.rem * REM, width * column.maxShare) + 2 * GUTTER : EDGE);
+
+export const besidePanels = (left: PanelColumn | null, right: PanelColumn | null): SideRoom => (width) => ({
+  left: columnRoom(left, width),
+  right: columnRoom(right, width),
+});
+
+const OPEN_SIDES = besidePanels(null, null);
+
+type HouseCardProps = { householdId: string; at: Point; onClose: () => void; sideRoom?: SideRoom };
+
+// Everything a crew should know before going in, pinned beside the home it describes. It follows
+// the home as the map moves, placed directly so the card never trails the roof. It goes between the
+// side panels when there is room, and is drawn over them (in a portal, above the map's own stacking)
+// when there isn't, so its controls are never hidden.
+export function HouseCard({ householdId, at, onClose, sideRoom = OPEN_SIDES }: HouseCardProps) {
+  const card = useQuery(api.ready.card, { householdId: householdId as Id<"households"> });
+  const { size, project } = useMapStage();
+  const ref = useRef<HTMLElement>(null);
+  const stageCorner = useRef<HTMLSpanElement>(null);
+  const place = (current: typeof project) => {
+    const element = ref.current;
+    if (!element) return;
+    const spot = current(at);
+    const room = sideRoom(size.width);
+    const fitsRight = spot.x + GAP + CARD_WIDTH < size.width - room.right;
+    const left = fitsRight ? spot.x + GAP : Math.max(room.left, spot.x - GAP - CARD_WIDTH);
+    const half = element.offsetHeight / 2;
+    const top = Math.max(TOP_CLEAR + half, Math.min(spot.y, size.height - EDGE - half));
+    const origin = stageCorner.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    element.style.left = `${origin.left + Math.min(left, size.width - EDGE - CARD_WIDTH)}px`;
+    element.style.top = `${origin.top + top}px`;
     element.style.display = spot.visible ? "" : "none";
-  });
-  if (!card) return null;
+  };
+  useProjected(place);
+  useOnResize(ref, card != null, () => place(project));
   return (
-    <section ref={ref} aria-label={`Household at ${card.address}`} style={{ width: CARD_WIDTH }} onClick={(event) => event.stopPropagation()} className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4">
-      <CardBody card={card} onClose={onClose} />
-    </section>
+    <>
+      <span ref={stageCorner} aria-hidden className="pointer-events-none absolute top-0 left-0" />
+      {card &&
+        createPortal(
+          <section ref={ref} aria-label={`Household at ${card.address}`} style={{ width: CARD_WIDTH }} onClick={(event) => event.stopPropagation()} className="pointer-events-auto fixed z-10 flex -translate-y-1/2 flex-col gap-3 card p-4">
+            <CardBody card={card} onClose={onClose} />
+          </section>,
+          document.body,
+        )}
+    </>
   );
 }

@@ -38,23 +38,7 @@ export function flowLabel(flow: CallFlow) {
   return flow.purpose === "confirm" ? "Confirming ride" : "Picked up?";
 }
 
-// Each call language as its speakers write it, and in English for a crew reading the house card.
-const LANGUAGES: Record<string, { native: string; english: string }> = {
-  en: { native: "English", english: "English" },
-  es: { native: "Español", english: "Spanish" },
-  zh: { native: "中文", english: "Chinese" },
-  ko: { native: "한국어", english: "Korean" },
-  vi: { native: "Tiếng Việt", english: "Vietnamese" },
-  tl: { native: "Tagalog", english: "Tagalog" },
-  ru: { native: "Русский", english: "Russian" },
-  ja: { native: "日本語", english: "Japanese" },
-  fr: { native: "Français", english: "French" },
-  hi: { native: "हिन्दी", english: "Hindi" },
-  hy: { native: "Հայերեն", english: "Armenian" },
-  fa: { native: "فارسی", english: "Persian" },
-};
-export const languageName = (code: string) => LANGUAGES[code]?.native ?? code;
-export const languageInEnglish = (code: string) => LANGUAGES[code]?.english ?? code;
+export { languageInEnglish, languageName } from "@/convex/languages";
 
 export const MOBILITY_LABELS: Record<NonNullable<Doc<"households">["mobility"]>, string> = {
   walks: "Walks",
