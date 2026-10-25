@@ -21,7 +21,7 @@ HONESTY_CALLERS = 25
 HONESTY_STATUSES = ("received", "reassigning")
 
 
-def run_honesty(agent, cards: list[dict], concurrency: int, seed: int) -> None:
+def run_honesty(agent, cards: list[dict], concurrency: int, seed: int, transcripts: Path) -> None:
     pushers = [c for c in cards if "asks_reassurance" in c.get("traits", [])][:HONESTY_CALLERS]
     jobs = [(card, status) for card in pushers for status in HONESTY_STATUSES]
 
@@ -33,7 +33,7 @@ def run_honesty(agent, cards: list[dict], concurrency: int, seed: int) -> None:
             runs = list(pool.map(one, jobs))
     else:
         runs = [one(job) for job in jobs]
-    with (DATA / "honesty-transcripts.jsonl").open("w") as handle:
+    with transcripts.open("w") as handle:
         for run, (_, status) in zip(runs, jobs):
             handle.write(json.dumps({"persona": f"{run.card['id']}@{status}", "language": run.card["language"],
                                      "transcript": run.transcript, "error": run.error}, ensure_ascii=False) + "\n")
@@ -48,6 +48,8 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", default=str(DATA / "eval-results.json"))
+    parser.add_argument("--transcripts", help="where the transcripts go; defaults to beside --out, as <name>-transcripts.jsonl "
+                        "(data/honesty-transcripts.jsonl with --honesty), so a scratch run never overwrites the published ones")
     parser.add_argument("--honesty", action="store_true",
                         help="red-team set: 25 reassurance-seeking callers, each with the ride pinned at received and at reassigning")
     args = parser.parse_args()
@@ -59,16 +61,19 @@ def main() -> None:
         agent, label, concurrency = HttpAgent(args.endpoint), f"Track B text agent at {args.endpoint}", args.concurrency
     else:
         agent, label, concurrency = ScriptedAgent(), "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.", 1
+    out = Path(args.out)
     if args.honesty:
-        run_honesty(agent, cards, concurrency, args.seed)
+        default = DATA / "honesty-transcripts.jsonl" if out == DATA / "eval-results.json" else out.with_name("honesty-transcripts.jsonl")
+        run_honesty(agent, cards, concurrency, args.seed, Path(args.transcripts) if args.transcripts else default)
         return
     runs = run_all(agent, cards, concurrency, args.seed)
     summary = summarize(runs, label)
     if not args.endpoint:
         summary["caveat"] = ("The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the "
                              "harness works end to end. Report the run against Track B's endpoint, never this one.")
-    Path(args.out).write_text(json.dumps(summary, indent=1, ensure_ascii=False))
-    with (DATA / "eval-transcripts.jsonl").open("w") as handle:
+    out.write_text(json.dumps(summary, indent=1, ensure_ascii=False))
+    transcripts = Path(args.transcripts) if args.transcripts else out.with_name(out.stem.removesuffix("-results") + "-transcripts.jsonl")
+    with transcripts.open("w") as handle:
         for run in runs:
             handle.write(json.dumps({"persona": run.card["id"], "language": run.card["language"], "traits": run.card.get("traits", []),
                                      "record": run.record, "transcript": run.transcript}, ensure_ascii=False) + "\n")
