@@ -132,21 +132,22 @@ Measured offline on the full synthetic population (4 members, forecasts made 10 
 
 | | Mesh on | Mesh off | Difference |
 | --- | --- | --- | --- |
-| Phones that know of a blocked street, 30 min in | 1,697 | 457 | +1,257 (+1,146 to +1,352) |
-| Phones that know of a blocked street, 60 min in | 2,532 | 784 | +1,850 (+1,626 to +1,878) |
-| Drivers who drove into a blocked street unaware | 993 | 1,255 | −223 (−307 to −156) |
-| Shared model, AUC ranking blocked streets | 0.93 | no model | |
-| Same model fitted centrally on all raw data (no privacy) | 0.93 | 0.93 | |
-| Time from a street blocking to the agency hearing, median | 12.8 min | 15.3 min | −2.0 (−3.2 to −1.6) |
-| Households out of the zone | 2,945 | 2,952 | +21 (−7 to +53) |
+| Phones that know of a blocked street, 30 min in | 1,460 | 438 | +1,022 (+955 to +1,314) |
+| Phones that know of a blocked street, 60 min in | 2,378 | 768 | +1,569 (+1,521 to +1,868) |
+| Drivers who drove into a blocked street unaware | 829 | 1,144 | −193 (−356 to −144) |
+| Shared model, AUC ranking blocked streets | 0.74 | no model | |
+| Same model fitted centrally on all raw data (no privacy) | 0.75 | 0.76 | |
+| Share of the blocked streets phones saw that the agency knows | 0.80 | 0.64 | +0.20 (+0.01 to +0.23) |
+| Time from a street blocking to the agency hearing, median | 15.6 min | 18.0 min | −2.0 (−2.4 to −0.8) |
+| Households out of the zone | 2,924 | 2,947 | −7 (−97 to +4) |
 
-Regenerated after the crowd model's car following and lane keeping changed (section 3); the earlier dynamics, which let cars overtake through yards, got more households out (3,010) and showed no gain in how soon the agency hears.
+Regenerated on the Eaton Fire scenario, after the crowd model's turns, lanes and safe time gap (section 3). On the seed-7 fire, where phones came to know of about three times as many blocked streets (115 against about 40), the shared model and the central fit both reached 0.93.
 
 What this does and doesn't show:
 
 - **People in the zone learn about blocked streets far sooner, and fewer drive into them.** This is the mesh's clearest effect.
-- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model matches a central fit on raw data to within 0.01 AUC in three of the four seeds and trails it by 0.015 in the fourth (0.91 against 0.92).
-- **The agency hears about 2 minutes sooner with the mesh, in every seed (1.6 to 3.2), but its coverage barely changes.** In these runs most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
+- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model is within 0.01 AUC of a central fit on raw data in one seed, ahead of it by 0.06 in another, and behind it by 0.10 and 0.12 in the other two (0.71 and 0.63 against 0.83 and 0.73). The central fit is as low as the shared model: on this fire fewer blocked streets reach phones, so there is less to learn from, private or not.
+- **The agency hears about 2 minutes sooner with the mesh, in every seed (0.8 to 2.4), and knows of more of the blocked streets phones saw** (80% against 64%, median), though how many more varies from 1 to 23 points across seeds. Most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
 - **Evacuation totals don't move.** West Altadena's grid has plenty of detours, so a known blockage costs a driver little. The gain is in not being surprised. Denser blockages or a tighter grid would change that, and we haven't simulated it.
 
 ## How it got there

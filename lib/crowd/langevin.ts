@@ -10,31 +10,32 @@ import { blockedMask, isBurning, JAM_SPACING_METERS, MIN_SPEED_SHARE, Potential,
 //   dv_a = [ (v_des - v_a) / tau  +  lambda w (v_lead - v)_a  +  F_rep,a ] dt  +  sqrt(2 s T / tau) dW_a
 //   dv_c = [ -v_c / tau_c  -  k_lane d_c  +  F_rep,c ] dt                     +  sqrt(2 s T_c / tau_c) dW_c
 //
-// e(x) aims at a point a little way ahead on the driver's street (pure pursuit; the route is in
-// navigation.ts). v_des is the street's free speed slowed by the road ahead (Greenshields:
-// v_free (1 - k / k_jam)), with k read from the gap to the nearest car ahead going the same way and
-// k_jam the route choice's 7.5 m of lane per car; s = v_des / v_free is the driver's pace. Ahead of
-// a corner v_des drops further, so the car brakes in time to take it at sqrt(a_lat R), R the turn's
-// radius, and no faster than the street it turns onto (see `cornerBraking`). lambda
-// matches the speed of that car ahead (the full velocity difference model), weighted by how near
-// it is (w). F_rep is a soft exponential repulsion between vehicles (Helbing and Molnar's social
-// force), felt from the car ahead and barely from the car behind, settled by right of way where two
-// cars' paths cross, kept only in part across the heading, capped at hard braking, and never
-// strong enough to reverse a car. Each car drives a lane, right of the centreline on a two-way
-// street, and k_lane holds it to that lane's line, d_c being how far off it is. It follows, and
-// reads the density from, the car ahead in its lane, and cars a lane apart don't push each other. T is the variance of the velocity noise for a driver with open road: hesitation and the
-// spread in how people drive. It scales with pace, so a car standing in a jam doesn't jitter.
-// Integration is BAOAB splitting (Leimkuhler and Matthews 2013): friction and noise are solved
-// exactly on each axis, so the half-second step is stable.
+// e(x) aims at a point a little way ahead in the driver's lane (pure pursuit; the route is in
+// navigation.ts). Each car drives a lane, right of the centreline on a two-way street, and k_lane
+// holds it to that lane's line, d_c being how far off it is. v_des is the street's free speed
+// slowed by the road ahead (Greenshields: v_free (1 - k / k_jam)), with k read from the gap to the
+// car ahead in the driver's lane and k_jam the route choice's 7.5 m of lane per car, and never so
+// fast that the gap is under the jam spacing plus a safe time gap of driving (Newell). s = v_des /
+// v_free is the driver's pace. Ahead of a corner v_des drops further, so the car brakes in time to
+// take it at sqrt(a_lat R), R the turn's radius, and no faster than the street it turns onto (see
+// `cornerBraking`). lambda matches the speed of the car ahead (the full velocity difference
+// model), weighted by how near it is (w). F_rep is a soft exponential repulsion between vehicles
+// (Helbing and Molnar's social force), felt from the car ahead and barely from the car behind,
+// settled by right of way where two cars' paths cross, along the lane only between cars in one
+// lane, nothing between cars a lane apart, kept only in part across the heading, capped at hard
+// braking, and never strong enough to reverse a car. T is the variance of the velocity noise for a
+// driver with open road: hesitation and the spread in how people drive. It scales with pace, so a
+// car standing in a jam doesn't jitter. Integration is BAOAB splitting (Leimkuhler and Matthews
+// 2013): friction and noise are solved exactly on each axis, so the half-second step is stable.
 //
 // So a queue's front car, with open road ahead, pulls away at speed, nobody is pushed along by the
-// car behind, cars keep to their lane, queue in single file in it, and each lane discharges a queue
-// at about 1,800 cars an hour, a real lane's saturation flow.
+// car behind, cars keep to their lane and queue in single file in it, and a lane discharges a
+// queue at about 1,800 cars an hour in town and 2,100 on the freeway, as real lanes do.
 //
 // Each driver routes on the blockages it knows about and on how crowded the streets were at the
-// last refresh, and picks among near-equal streets at random (see navigation.ts). A driver that runs into a blocked street it
-// didn't know about is stopped by it, learns it, turns back and re-routes. That knowledge is what
-// the phone mesh spreads.
+// last refresh, and picks among near-equal streets at random (see navigation.ts). A driver that
+// runs into a blocked street it didn't know about is stopped by it, learns it, turns back and
+// re-routes. That knowledge is what the phone mesh spreads.
 
 export const STATE = { home: 0, moving: 1, arrived: 2, overrun: 3, waiting: 4 } as const;
 export type AgentState = (typeof STATE)[keyof typeof STATE];
@@ -82,7 +83,7 @@ export type CrowdParams = {
   lookAhead: number;
   // The safe time gap, s: a driver keeps at least the jam spacing plus this many seconds of driving
   // to the car ahead in its lane, seen at any distance (Newell's car following). Greenshields alone
-  // let a queue on a freeway lane go 3,500 cars an hour, 1 s apart; with this a town lane's queue
+  // let a queue on a freeway lane go 3,600 cars an hour, 1 s apart; with this a town lane's queue
   // goes about 1,800 an hour and a freeway lane's 2,100, as real ones do.
   timeGap: number;
   // Lateral acceleration a driver takes a turn at, m/s², and how hard it brakes ahead of one,
