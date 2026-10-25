@@ -1,4 +1,4 @@
-import { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
+import { AnchorHTMLAttributes, ComponentProps } from "react";
 
 const VARIANTS = {
   primary: "bg-ink text-canvas hover:bg-ink/88",
@@ -21,7 +21,8 @@ type Look = {
   square?: boolean;
 };
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & Look;
+// ComponentProps carries `ref`, which React 19 passes to a function component as a plain prop.
+type ButtonProps = ComponentProps<"button"> & Look;
 
 function buttonClass({ variant = "primary", size = "md", square = false }: Look) {
   const sizing = SIZES[size];

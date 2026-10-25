@@ -2,10 +2,9 @@
 
 import { useMutation } from "convex/react";
 import { FunctionReturnType } from "convex/server";
-import { ConvexError } from "convex/values";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { ArrowCounterClockwise, Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
+import { useState } from "react";
+import { Fire, Hurricane, Minus, Pause, PhoneIncoming, Play, Plus, Pulse, SlidersHorizontal, Waves } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Hazard } from "@/convex/hazards";
 import { SegmentedControl } from "../ui/segmented-control";
@@ -68,49 +67,9 @@ const STAND_INS: { key: StandInKey; label: string }[] = [
   { key: "simulateNeedModel", label: "Need model" },
 ];
 
-// Ends the night after a second click. Either way the night is saved in `nightRuns` first; a
-// refusal (a real call still live, or the last night still saving) shows in place of the label.
-function EndNightButton({ end, label, armedLabel }: { end: () => Promise<null>; label: string; armedLabel: string }) {
-  const [armed, setArmed] = useState(false);
-  const [refusal, setRefusal] = useState<string | null>(null);
-  useEffect(() => {
-    if (!armed && !refusal) return;
-    const id = setTimeout(() => {
-      setArmed(false);
-      setRefusal(null);
-    }, 4000);
-    return () => clearTimeout(id);
-  }, [armed, refusal]);
-  return (
-    <Button
-      variant={armed ? "onPanel" : "onPanelQuiet"}
-      className="w-full"
-      onClick={() => {
-        if (!armed) return setArmed(true);
-        setArmed(false);
-        end().catch((error: unknown) => setRefusal(error instanceof ConvexError ? String(error.data) : "Couldn't end the night"));
-      }}
-    >
-      <ArrowCounterClockwise weight="bold" className="size-4" />
-      {refusal ?? (armed ? armedLabel : label)}
-    </Button>
-  );
-}
-
-function EndNightButtons() {
-  const rewind = useMutation(api.control.rewind);
-  const reset = useMutation(api.control.reset);
-  return (
-    <div className="flex flex-col gap-2">
-      <EndNightButton end={() => rewind({ to: "warning" })} label="Rewind to before the warning" armedLabel="Click again: save the night, keep the Ready check" />
-      <EndNightButton end={() => rewind({ to: "start" })} label="Rewind to before the Ready check" armedLabel="Click again: save the night, keep the homes" />
-      <EndNightButton end={() => reset({})} label="Reset the simulation" armedLabel="Click again: save the night, clear every home" />
-    </div>
-  );
-}
-
 // Each piece of the system has a stand-in until someone switches it to Real. The switches are
-// for the team, not the audience, so they live behind one button.
+// for the team, not the audience, so they live behind one button. Ending the night lives in the app
+// bar's Restart menu.
 function StandIns({ control }: { control: ControlState }) {
   const setStandIns = useMutation(api.control.setStandIns);
   const [open, setOpen] = useState(false);
@@ -146,9 +105,6 @@ function StandIns({ control }: { control: ControlState }) {
               hint={control[entry.key] === false ? "Real" : "Stand-in"}
             />
           ))}
-          <div className="border-t border-panel-raised p-3">
-            <EndNightButtons />
-          </div>
         </div>
       )}
     </div>

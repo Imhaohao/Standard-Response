@@ -134,3 +134,10 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 ## 2026-10-25 00:30
 
 **Correction to the 00:15 Armadin paste:** it now says Claude Opus 5.5 grades the red-team, not two model families. The Gemini second grader hasn't run yet, because no key has arrived. Thanks, David. Put Gemini back in only after a run with the key is committed.
+
+## 2026-10-25 01:10
+
+**The app bar: three screens, a Tools menu, and Restart.**
+- **Nav:** Call floor, Rescue map and Driver page stay as pills. Under the hood, Simulated phone, Ready sign-up, Mesh and flow, Readiness survey and Judge sign-in (`/`) moved into "Tools". On one of those pages the button reads "Tools: <page>". New screens go in `SCREENS` or `TOOLS` in `components/ui/app-bar.tsx`.
+- **Restart:** the three end-night buttons moved out of the call floor's Simulation settings into a "Restart" menu on the right of the app bar, on every screen that has the bar (`components/control/restart-menu.tsx`). "Rewind to before the warning" is first. Each still takes two clicks, still shows the server's refusal ("A real call is still live..."), and now confirms when it's done. It shows while Auth0 is off, or to a signed-in dispatcher, and never on `/`, `/join` or `/ready`. No Convex change: it calls `control:rewind` and `control:reset` as before.
+- **For other popovers:** `usePopover` (`components/ui/use-popover.ts`) adds focus return on Escape, close on Tab out, and arrow keys over `useDismiss`. `Button` now takes a `ref`.
