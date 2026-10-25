@@ -7,7 +7,7 @@ import type { FullscreenPass, HazardFrame, HazardLayer, HazardLayerContext } fro
 import { MAX_BREACHES, MAX_WAVES, waterFragment } from "./glsl";
 import { waterIndex } from "./impact";
 import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type WaterKind, type WaterModel } from "./model";
-import { shoreBytes, shoreFor, type ShoreGrid } from "./shore";
+import { shoreBytes, shoreFor, smoothField, type ShoreGrid } from "./shore";
 import { breachAxis, waterField } from "./source";
 
 // The flood, the surge and the tsunami share this layer; each kind's shader (glsl.ts) draws its own
@@ -26,28 +26,9 @@ type ArrivalTexture = { texture: THREE.DataTexture; region: THREE.Vector4; last:
 
 // The arrival field as half floats, less an offset: at minute 1500 a half float steps a whole minute, and
 // every minute's front printed as its own ring. Less the scenario's start it keeps a fraction of a minute.
-const SMOOTHING = [1, 4, 6, 4, 1].map((weight) => weight / 16);
-
-// One pass of a small blur along rows (step 1) or columns (step = width), clamped at the field's edge.
-function blurAlong(values: Float32Array, width: number, height: number, alongRows: boolean) {
-  const out = new Float32Array(values.length);
-  for (let index = 0; index < values.length; index++) {
-    const col = index % width;
-    const row = (index - col) / width;
-    let sum = 0;
-    for (let k = -2; k <= 2; k++) {
-      const c = alongRows ? Math.min(width - 1, Math.max(0, col + k)) : col;
-      const r = alongRows ? row : Math.min(height - 1, Math.max(0, row + k));
-      sum += values[r * width + c] * SMOOTHING[k + 2];
-    }
-    out[index] = sum;
-  }
-  return out;
-}
-
 // The fronts are traced through the field's cells, which kinks the advancing edge every cell; a light
 // blur of what the shader reads lets that edge print as one smooth line. Impact keeps the field as is.
-const smoothedMinutes = (field: FireField) => blurAlong(blurAlong(field.minutes, field.width, field.height, true), field.width, field.height, false);
+const smoothedMinutes = (field: FireField) => smoothField(field.minutes, field.width, field.height);
 
 function arrivalTextureFrom(field: FireField, offset: number): ArrivalTexture {
   const minutes = smoothedMinutes(field);

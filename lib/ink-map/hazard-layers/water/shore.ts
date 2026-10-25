@@ -106,20 +106,47 @@ export function shoreGrid(data: InkMapData, { sea }: { sea: boolean }): ShoreGri
     for (let index = 0; index < ground.length; index++) ground[index] = groundAt(data, cellCentre(raster, index));
     seaFromEdges(raster, ground, water);
   }
-  const distance = signedDistance(water, raster);
+  const distance = smoothField(clampedDistance(signedDistance(water, raster)), raster.width, raster.height);
   return { ...raster, water, distance, onshore: onshoreDirection(raster, water) };
 }
 
-// Metres per step of the distance channel: a byte holds 127 steps, about a kilometre, either side of the shore.
-export const SHORE_METERS_PER_STEP = 8;
+const FARTHEST_METERS = 2000;
+const clampedDistance = (distance: Float32Array) => distance.map((d) => Math.max(-FARTHEST_METERS, Math.min(FARTHEST_METERS, d)));
+
+const SMOOTHING = [1, 4, 6, 4, 1].map((weight) => weight / 16);
+
+function blurAlong(values: Float32Array, width: number, height: number, alongRows: boolean) {
+  const out = new Float32Array(values.length);
+  for (let index = 0; index < values.length; index++) {
+    const col = index % width;
+    const row = (index - col) / width;
+    let sum = 0;
+    for (let k = -2; k <= 2; k++) {
+      const c = alongRows ? Math.min(width - 1, Math.max(0, col + k)) : col;
+      const r = alongRows ? row : Math.min(height - 1, Math.max(0, row + k));
+      sum += values[r * width + c] * SMOOTHING[k + 2];
+    }
+    out[index] = sum;
+  }
+  return out;
+}
+
+// A light blur over a grid, clamped at its edges. A shoreline traced through the water mask's cells is a
+// staircase; through the blurred distance it is a smooth curve.
+export const smoothField = (values: Float32Array, width: number, height: number) => blurAlong(blurAlong(values, width, height, true), width, height, false);
+
+// The distance channel is stored as the square root of the metres, so it is precise to a fraction of a
+// metre at the shore, where the shoreline is drawn, and coarse a kilometre out, where nothing needs it.
+export const SHORE_DISTANCE_SCALE = 0.075;
+
+const distanceSteps = (meters: number) => Math.max(-127, Math.min(127, Math.round(Math.sign(meters) * Math.sqrt(Math.abs(meters) / SHORE_DISTANCE_SCALE))));
 
 // Two bytes a cell for the shader: red is the water, green the distance to the shore centred on 128.
 export function shoreBytes(grid: ShoreGrid) {
   const bytes = new Uint8Array(grid.water.length * 2);
   for (let index = 0; index < grid.water.length; index++) {
-    const steps = Math.max(-127, Math.min(127, Math.round(grid.distance[index] / SHORE_METERS_PER_STEP)));
     bytes[index * 2] = grid.water[index] ? 255 : 0;
-    bytes[index * 2 + 1] = 128 + (Number.isFinite(steps) ? steps : -127);
+    bytes[index * 2 + 1] = 128 + distanceSteps(grid.distance[index]);
   }
   return bytes;
 }

@@ -1,6 +1,6 @@
 import { FULLSCREEN_HEADER, GBUFFER_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
 import type { WaterKind } from "./model";
-import { SHELF, SHORE_METERS_PER_STEP } from "./shore";
+import { SHELF, SHORE_DISTANCE_SCALE } from "./shore";
 
 // The water, printed like a woodblock over the town: an indigo plate multiplied over the map, so every
 // street and wall keeps its ink under shallow water and only deep water hides what is below; a crisp ink
@@ -54,7 +54,7 @@ uniform vec3 uRain;
 const COMMON = `
 const float PI = 3.14159265;
 const float REST_LEVEL = 0.0;
-const float SHORE_METERS_PER_STEP = ${SHORE_METERS_PER_STEP.toFixed(1)};
+const float SHORE_DISTANCE_SCALE = ${SHORE_DISTANCE_SCALE};
 const float NEVER = 1e4;
 
 // Metres on the ground that a number of device pixels cover at the middle of the view, so marks keep
@@ -101,7 +101,8 @@ float ridged(vec2 p) {
 vec2 shoreAt(vec2 xy) {
   vec2 uv = (xy - uShoreRegion.xy) / (uShoreRegion.zw - uShoreRegion.xy);
   vec2 s = texture(tShore, uv).rg;
-  return vec2(s.r, (s.g * 255.0 - 128.0) * SHORE_METERS_PER_STEP);
+  float steps = s.g * 255.0 - 128.0;
+  return vec2(s.r, sign(steps) * steps * steps * SHORE_DISTANCE_SCALE);
 }
 
 // The way to the nearest shore over the water, and on inland from it over the land.
@@ -113,13 +114,12 @@ vec2 towardShore(vec2 xy) {
   return length(g) > 1e-3 ? -normalize(g) : vec2(0.0);
 }
 
-// The bed under standing water: the terrain's own bathymetry where it has some, and a shelf falling away
-// from the shore where the terrain draws the water flat at sea level.
+// The bed under standing water: never shallower than a shelf falling away from the shore, so a seam or
+// a tile of bad bathymetry offshore never bares as a square, and deeper where the terrain is deeper.
 float bedAt(vec2 xy, vec2 shore) {
   float ground = groundElevation(xy);
   float shelf = REST_LEVEL - min(${SHELF.shore} + max(shore.y, 0.0) * ${SHELF.slope}, ${SHELF.deepest.toFixed(1)});
-  float drawnFlat = step(REST_LEVEL - 0.1, ground);
-  return mix(ground, min(ground, shelf), smoothstep(-12.0, 12.0, shore.y) * drawnFlat);
+  return mix(ground, min(ground, shelf), smoothstep(-12.0, 12.0, shore.y));
 }
 
 float buildingRed(vec2 uv) {
@@ -583,7 +583,8 @@ vec4 printBaredBed(vec4 ink, Water key) {
 vec4 printWaterline(vec4 ink, Water key) {
   float reached = max(key.standing, aaStep(key.since) * key.reachable);
   float roomy = 1.0 - smoothstep(1.4, 3.0, uViewMpp);
-  float line = inkLine(key.gap, 1.15 * uPixelRatio) * reached * mix(1.0, roomy, key.building);
+  float atTheSurface = 1.0 - smoothstep(0.6, 1.6, abs(key.gap));
+  float line = inkLine(key.gap, 1.15 * uPixelRatio) * reached * mix(1.0, roomy, key.building) * atTheSurface;
   float front = inkLine(key.since, 1.15 * uPixelRatio) * aaStep(key.gap) * (1.0 - key.standing) * key.reachable;
   return over(ink, mix(uIndigo, uInk, 0.7), max(line, front) * 0.92);
 }
