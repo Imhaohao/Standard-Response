@@ -98,8 +98,17 @@ export function CloseRoadPanel() {
         .sort((a, b) => a.stopOrder - b.stopOrder)[0];
       return stop ? [{ van, stop, route: routes.find((route) => route.vehicleId === van._id) }] : [];
     });
+  // The dispatch stand-in drives straight lines and never reads closures: nothing would re-route or be revoked.
+  const control = useQuery(api.control.get);
+  const standIn = control?.simulateDispatch ?? true;
   return (
     <Panel title="Close this road">
+      {standIn && (
+        <p className="type-small px-4 pb-2 text-on-panel-muted">
+          The dispatch stand-in is on. It ignores closures, so nothing re-routes and no pickup is revoked. Turn off
+          &ldquo;Dispatcher and vehicle movement&rdquo; on the call floor first.
+        </p>
+      )}
       {rows.length === 0 ? (
         <PanelEmpty>Accept a pickup on the driver page, then close the road in front of that van here.</PanelEmpty>
       ) : (
