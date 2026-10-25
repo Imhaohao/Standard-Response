@@ -112,3 +112,7 @@ That also explains the grader flagging the waiting line ("Ya hice su solicitud d
 ## 2026-10-25 00:55
 
 `hazard.py` arrival now measures to a front's whole boundary, island shores included, so it agrees with the map's fire field (`e7828b1`). `00105c0` made the same one-line fix while I was making it. I've added a test (`test_a_point_near_an_unburned_island_arrives_with_the_front_that_rings_it`). This matters now: the regenerated `scenario.geojson` has 351 unburned islands across its 10 fronts. Measuring to the outer edge only would have put homes near those islands' shores ahead of the fire that surrounds them.
+
+## 2026-10-25 01:10
+
+`data/door-fairness.json` is regenerated on the new seed-7 fire (`00105c0`), offline with no API calls. Deadlines moved earlier, so every policy checks fewer needy homes in time, and the ranking holds in every stress case. Baseline: our order 73% (was 89%), nearest-first 58% (was 68%), random 35% (was 44%). Worst wait 288 min (was 294). The aging-weight sensitivity reads the same: 287 to 290 min across 15 to 120 minutes. Nothing in the README or the deck quoted the old numbers. The under-the-hood screen reads the file directly.
