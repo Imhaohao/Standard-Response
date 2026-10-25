@@ -1,5 +1,7 @@
 import { EN } from "@/voice/agent/lines/en";
 import { ES } from "@/voice/agent/lines/es";
+import { FR } from "@/voice/agent/lines/fr";
+import { HI } from "@/voice/agent/lines/hi";
 import { JA } from "@/voice/agent/lines/ja";
 import { KO } from "@/voice/agent/lines/ko";
 import { RU } from "@/voice/agent/lines/ru";
@@ -7,7 +9,7 @@ import { TL } from "@/voice/agent/lines/tl";
 import { VI } from "@/voice/agent/lines/vi";
 import { ZH } from "@/voice/agent/lines/zh";
 
-// The eight languages a whole call can run in (SPOKEN_LANGUAGES in convex/languages.ts), each with the
+// The ten languages a whole call can run in (SPOKEN_LANGUAGES in convex/languages.ts), each with the
 // agent's real "can everyone leave?" question in that language, as Sonic speaks it.
 export const LANGUAGES = [
   { name: "English", question: EN.askCanLeave },
@@ -18,4 +20,6 @@ export const LANGUAGES = [
   { name: "Tagalog", question: TL.askCanLeave },
   { name: "Русский", question: RU.askCanLeave },
   { name: "日本語", question: JA.askCanLeave },
+  { name: "Français", question: FR.askCanLeave },
+  { name: "हिन्दी", question: HI.askCanLeave },
 ];

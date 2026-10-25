@@ -16,7 +16,7 @@
   "census": { "doc": "3.2", "line": "creating a network census with who needs help, who can help, and where people are." },
   "roseland": { "doc": "3.3", "line": "Here's a test call we did with my grandma, Roseland." },
   "testCall": { "doc": "3.4", "line": "[Test call plays]" },
-  "ink": { "doc": "4.1", "line": "Cartesia’s Ink model listens to Roseland in 8 languages" },
+  "ink": { "doc": "4.1", "line": "Cartesia’s Ink model listens to Roseland in 10 languages" },
   "sonic": { "doc": "4.2", "line": "and Sonic speaks the agent’s replies back to her." },
   "claude": { "doc": "4.3", "line": "Claude’s Haiku and Opus models power the logic and alignment of the AI voice agent system," },
   "protocol": { "doc": "4.4", "line": "which makes every reply aligned with real 911 protocols." },
