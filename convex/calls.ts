@@ -43,16 +43,18 @@ export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: b
   const household = await ctx.db.get("households", call.householdId);
   if (!household) throw new Error(`Household ${call.householdId} not found`);
   // A pickup or Ready call reports its own result; the home's warning call and retries are untouched.
-  if (call.flow) return await logFlowCall(ctx, call, household, answered, now);
+  if (call.flow) return await logCallEnd(ctx, call, household, answered, now);
+  // A simulated call always changes the record, which logs it; a real one may not.
+  if (answered && !call.simulated) await logCallEnd(ctx, call, household, answered, now);
   if (answered) return await endAnswered(ctx, household, now);
   // Real riders: the reach ladder workflow owns the retries, the text and the door check.
   if (!household.simulated) return await recordMiss(ctx, household, now);
   await endUnansweredStandIn(ctx, household, now);
 }
 
-// A pickup or Ready call writes nothing else to the activity list, so its end is the row that opens it.
-async function logFlowCall(ctx: MutationCtx, call: Doc<"calls">, household: Doc<"households">, answered: boolean, now: number) {
-  const purpose = call.flow?.kind === "ready" ? "Ready check" : "Pickup check";
+// The activity row that opens a call that may have written nothing else there.
+async function logCallEnd(ctx: MutationCtx, call: Doc<"calls">, household: Doc<"households">, answered: boolean, now: number) {
+  const purpose = !call.flow ? "Warning" : call.flow.kind === "ready" ? "Ready check" : "Pickup check";
   await ctx.db.insert("events", {
     kind: "call",
     message: answered ? `${purpose} call with ${household.address} ended` : `${purpose}: no answer at ${household.address}`,

@@ -157,3 +157,7 @@ Ready check calls on simulated homes are now calls on the floor, so they can be 
 - `sim.ts`: `standInVoiceAgent` skips calls with `flow` set. Before, it would have run the warning script on them.
 - `scripts.ts`: exports `needsLineFor(language, truth)`, the resident's mobility answer, which the Ready script reuses. `scriptFor` is unchanged.
 - Pausing the Ready check or issuing the warning hangs up any stand-in Ready call still on the line.
+
+## 2026-10-24 21:50
+
+`endCall` also writes the `call` event (with `callId`) when a real, non-simulated warning call is answered: "Warning call with <address> ended". A real call that didn't change the home's outcome left no activity row before, so it couldn't be opened afterwards. Simulated warning calls are unchanged.
