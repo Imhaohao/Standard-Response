@@ -59,6 +59,20 @@ describe("Bitdeer fallback", () => {
     assert.equal(called, false);
   });
 
+  it("falls back when the account can't use Claude: no credit, a bad key, no permission", async () => {
+    const noCredit = new Anthropic.BadRequestError(
+      400,
+      { type: "error", error: { type: "invalid_request_error", message: "Your credit balance is too low to access the Anthropic API." } },
+      undefined,
+      new Headers(),
+    );
+    const badKey = new Anthropic.AuthenticationError(401, { type: "error" }, "invalid x-api-key", new Headers());
+    const forbidden = new Anthropic.PermissionDeniedError(403, { type: "error" }, "forbidden", new Headers());
+    for (const error of [noCredit, badKey, forbidden]) {
+      assert.equal(await withFallback(() => Promise.reject(error), REQUEST, bitdeerReply(CLAUDE_JSON)), CLAUDE_JSON);
+    }
+  });
+
   it("does not fall back on a refusal or a bad request", async () => {
     await assert.rejects(withFallback(() => Promise.reject(new Error("no text")), REQUEST, bitdeerReply(CLAUDE_JSON)), /no text/);
     const badRequest = new Anthropic.BadRequestError(400, { type: "error" }, "bad", new Headers());

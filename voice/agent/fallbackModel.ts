@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../env";
 
-// Backup for the three interpreters when Claude is down or slow mid-call. The same system prompt,
+// Backup for the three interpreters when Claude is down, slow or refusing this account mid-call. The same system prompt,
 // user text and JSON schema go to a Bitdeer AI Model Studio model (OpenAI-compatible chat
 // completions), and the reply goes through the same parse function as Claude's. Honesty is not at
 // stake here: whatever model answers, the honesty guard and the fixed templates run on the result.
@@ -15,10 +15,21 @@ const SERVER_ERROR = 500;
 
 type Settled = { ok: true; text: string } | { ok: false; error: unknown };
 
+// The account can't use Claude at all: a bad or revoked key, no permission, or no credit left. The
+// API reports an empty credit balance as a 400 like any bad request, so only its message tells it
+// apart; the eval account ran dry on the night, and every live turn would have been "Say that again?".
+const ACCOUNT_REFUSED = new Set([401, 402, 403]);
+const NO_CREDIT = /credit balance is too low/i;
+
+function isAccountFailure(error: InstanceType<typeof Anthropic.APIError>) {
+  return (typeof error.status === "number" && ACCOUNT_REFUSED.has(error.status)) || NO_CREDIT.test(error.message);
+}
+
 function isOutage(error: unknown): boolean {
   if (error instanceof AggregateError) return error.errors.some(isOutage);
   if (error instanceof Anthropic.APIConnectionError) return true;
   if (!(error instanceof Anthropic.APIError)) return false;
+  if (isAccountFailure(error)) return true;
   return typeof error.status === "number" && (error.status >= SERVER_ERROR || error.status === RATE_LIMITED);
 }
 
