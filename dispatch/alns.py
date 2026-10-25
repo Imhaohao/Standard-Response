@@ -26,8 +26,8 @@ from solver import (
     CAPACITY_FIELDS,
     CHANGED_OFFER_COST,
     UNLOAD_SECONDS,
-    WAIT_COST_PER_WEIGHT_SECOND,
     drop_penalty,
+    wait_weight,
     empty_result,
     worst_case_cost,
 )
@@ -67,7 +67,7 @@ class Rules:
         late = arrival + request["boardingSeconds"] - request["deadline"]
         if late >= RAMP_SECONDS:
             return self.unserved[r]
-        cost = self.worst[r] * max(0.0, late) / RAMP_SECONDS + WAIT_COST_PER_WEIGHT_SECOND * request["weight"] * arrival
+        cost = self.worst[r] * max(0.0, late) / RAMP_SECONDS + wait_weight(request) * arrival
         open_vehicle = request.get("openOfferVehicle")
         if open_vehicle is not None and open_vehicle != k:
             cost += CHANGED_OFFER_COST

@@ -2,6 +2,7 @@ import random
 
 import alns
 import heuristic
+import solver
 from solver import CAPACITY_FIELDS
 from tests.test_parity import random_problem
 from tests.test_solver import pickups, problem, request, vehicle
@@ -93,3 +94,11 @@ def test_finds_a_better_plan_than_the_heuristic_when_one_exists():
     assert pickups(found)["a"][:2] == ["n1", "n2"] or pickups(found)["a"][:2] == ["n2", "n1"]
     assert_valid(p, found)
     assert heuristic.solve(p)["routes"][0]["stops"][0]["request"] == "far"
+
+
+def test_a_reassigned_rider_rides_in_the_vans_next_trip():
+    # Same deadline, same weight, one seat: whoever goes first is the van's next trip. The rider whose
+    # driver dropped out was told they're at the top of the list.
+    p = problem([vehicle("a", 0, seats=1)], [request("waiting", 2, [0], deadline=7200), request("reassigned", 3, [0], deadline=7200, reassigned=True)])
+    for result in [alns.solve(p), solver.solve(p), heuristic.solve(p)]:
+        assert pickups(result)["a"][0] == "reassigned"

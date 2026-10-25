@@ -44,6 +44,9 @@ CHANGED_OFFER_COST = 600  # nu: moving an open offer must save 10 vehicle-minute
 # Dropping them costs this much more, so among plans with the same expected deaths the solver keeps
 # that promise; it never trades a life for it.
 REASSIGNED_DROP_COST = 2 * 3600
+# Their waiting also counts this many times over, so among plans with the same expected deaths
+# they ride in the van's next trip, the one a driver is offered, not a later one.
+REASSIGNED_WAIT_FACTOR = 4
 UNLOAD_SECONDS = 120
 NO_ROUTE = 10**7
 CAPACITY_FIELDS = ("seats", "wheelchairSpaces", "stretcherSpaces")
@@ -60,6 +63,12 @@ class Node:
 
 def worst_case_cost(request: dict) -> float:
     return DEATH_COST * deaths_if_unserved(request["weight"], party_size(request["load"]))
+
+
+def wait_weight(request: dict) -> float:
+    """What each second this rider waits costs, in seconds of driving."""
+    factor = REASSIGNED_WAIT_FACTOR if request.get("reassigned") else 1
+    return WAIT_COST_PER_WEIGHT_SECOND * request["weight"] * factor
 
 
 def drop_penalty(request: dict) -> int:
@@ -145,7 +154,7 @@ def _add_time(routing, manager, model: Model, transit_index):
         time_dim.CumulVar(routing.End(k)).SetMax(max(start, int(vehicle["endBy"])))
     for r, request in enumerate(model.requests):
         pickup = manager.NodeToIndex(model.pickup_of[r])
-        time_dim.SetCumulVarSoftUpperBound(pickup, 0, max(1, round(WAIT_COST_PER_WEIGHT_SECOND * request["weight"])))
+        time_dim.SetCumulVarSoftUpperBound(pickup, 0, max(1, round(wait_weight(request))))
         # The cumul is arrival at the door; the rider is safe once boarding finishes, so that must beat the deadline.
         boarded_by = int(request["deadline"] - request["boardingSeconds"])
         lateness_dim.SetCumulVarSoftUpperBound(pickup, max(0, boarded_by), lateness_cost_per_second(request))
