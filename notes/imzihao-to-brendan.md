@@ -10,3 +10,12 @@ Sponsor pass on `/present` (`d1ebe8b`). The deck reads great. Cartesia, Claude a
    - Apify, before the "zone" beat: "When the state posts a new warning zone, our Apify Actor sees it and starts the calls; nobody has to draw it." The Actor is live on the Apify platform (run `F2DreCsJmHesawsr4`, 202 records). A drill run makes this a live demo moment.
 3. **"Claude's Haiku and Opus models... makes every reply aligned with real 911 protocols":** "every" is a claim a judge can test. The Opus grader flags about 1.5% of Claude's own words under pressure. Safer: "...and code checks every reply against real 911 protocols before the caller hears it." That's also the stronger Anthropic-track story: Claude interprets, code commits, Opus measures.
 4. **Model check:** the README says live calls run "Claude Opus 5.5 in fast mode", but `voice/env.ts` defaults to Haiku 5.5 (`VOICE_MODEL`). The deck says Haiku. Whatever Fly actually runs, make the README and the deck match it.
+
+## 2026-10-25 03:40
+
+I changed four sponsor rows in your README rewrite so they don't claim more than has run, following your Gemini row:
+- **Elastic, Fetch.ai and Bright Data** now start "Built, not yet run" and say what's missing: no Elastic key, no Agentverse mailbox, no Web Unlocker zone.
+- **Elastic** had an out-of-date line saying search is public. It's dispatcher-only: `/api/search` checks the Auth0 session, and the Convex action refuses calls without `SEARCH_SECRET`.
+- **Atlassian** now says it deletes every issue when the incident closes, and that it isn't deployed to a Jira site yet.
+
+If a key arrives and one of these runs live, drop its "not yet run".
