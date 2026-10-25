@@ -5,8 +5,9 @@ import { gaussian, seededRandom } from "../mesh/random";
 import { DEFAULT_DEPARTURE, stepDecision } from "./departure";
 import { advance, FORECAST_HORIZON_MINUTES, FORECAST_WINDOWS, rangeOf, TrafficEnsemble } from "./forecast";
 import { buildGround, cellIndex, toLatLng, toXY } from "./grid";
-import { CrowdSim, DEFAULT_CROWD, Household, ouCoefficients, STATE } from "./langevin";
-import { MIN_SPEED_SHARE, RoadRouter } from "./navigation";
+import { EDGES } from "../../convex/roadGraph";
+import { CrowdSim, DEFAULT_CROWD, Household, ouCoefficients, speedShare, STATE } from "./langevin";
+import { JAM_SPACING_METERS, MIN_SPEED_SHARE, RoadRouter } from "./navigation";
 
 const scenario = JSON.parse(readFileSync(new URL("../../data/hazard/scenario.geojson", import.meta.url), "utf8"));
 const ground = buildGround(30, scenario);
@@ -122,6 +123,50 @@ describe("Langevin dynamics", () => {
       sum += v * v;
     }
     assert.ok(Math.abs(sum / steps - 0.6) < 0.02);
+  });
+
+  it("slows a driver by the gap ahead, to a standstill at the route choice's jam spacing", () => {
+    const { lookAhead } = DEFAULT_CROWD;
+    assert.equal(speedShare(Infinity, 1, lookAhead), 1);
+    assert.equal(speedShare(lookAhead, 1, lookAhead), 1);
+    assert.equal(speedShare(JAM_SPACING_METERS, 1, lookAhead), MIN_SPEED_SHARE);
+    // Within half the look-ahead it is Greenshields with k = 1 / (lanes gap).
+    assert.ok(Math.abs(speedShare(10, 1, lookAhead) - (1 - JAM_SPACING_METERS / 10)) < 1e-12);
+    assert.ok(speedShare(10, 2, lookAhead) > speedShare(10, 1, lookAhead));
+    let previous = 0;
+    for (let gap = 0.5; gap <= lookAhead + 1; gap += 0.25) {
+      const share = speedShare(gap, 1, lookAhead);
+      assert.ok(share >= previous && share - previous < 0.1, `jump at ${gap} m`);
+      previous = share;
+    }
+  });
+
+  it("brakes the car behind for the car ahead, and never pushes the car ahead along", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    // A long one-lane street whose first stretch is straight for 40 m, away from fire and safety.
+    const firstStretch = (k: number) => Math.hypot(router.edgeShape[k][2] - router.edgeShape[k][0], router.edgeShape[k][3] - router.edgeShape[k][1]);
+    const edge = EDGES.findIndex(
+      (e, k) => e.meters > 300 && firstStretch(k) > 40 && router.edgeLanes[k] === 1 && router.edgeFire[k] > 120 && !router.safe[e.v],
+    );
+    assert.ok(edge >= 0);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const [ux, uy] = [(bx - ax) / firstStretch(edge), (by - ay) / firstStretch(edge)];
+    const at = (metres: number) => ({ ...toLatLng(ax + ux * metres, ay + uy * metres), peopleCount: 1, canLeave: "yes", hasCar: true });
+    const sim = new CrowdSim(ground, [at(5), at(11)], seededRandom(1), () => new Set(), { ...DEFAULT_CROWD, temperature: 0 });
+    for (const i of [0, 1]) {
+      sim.state[i] = STATE.moving;
+      sim.edge[i] = edge;
+      sim.point[i] = 1;
+      sim.goal[i] = router.edgeStart(edge);
+    }
+    const free = router.edgeSpeed[edge];
+    const along = (i: number) => sim.vx[i] * sim.hx[i] + sim.vy[i] * sim.hy[i];
+    for (let s = 0; s < 16; s++) {
+      sim.step();
+      assert.ok(along(1) <= free * 1.001, `leader at ${along(1)} m/s on a ${free} m/s street`);
+    }
+    assert.ok(along(0) < along(1), "the car behind is slower");
+    assert.ok(along(1) > free * 0.95, "the leader, with open road ahead, is near free speed");
   });
 
   it("leaves keen households earlier than reluctant ones", () => {

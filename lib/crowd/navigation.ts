@@ -21,8 +21,8 @@ import { segmentKeyOf } from "../mesh/roads";
 
 const DANGER_MINUTES = 15;
 const DANGER_SLOWDOWN = 5;
-// A stated assumption: at a standstill each car takes 7.5 m of one lane.
-const JAM_SPACING_METERS = 7.5;
+// A stated assumption: at a standstill each car takes 7.5 m of one lane. The dynamics use the same spacing.
+export const JAM_SPACING_METERS = 7.5;
 // The slowest a crowded street gets, as a share of its free speed. The dynamics use the same floor.
 export const MIN_SPEED_SHARE = 0.05;
 
@@ -132,7 +132,8 @@ export class RoadRouter {
   readonly edgeSegment = new Int32Array(EDGES.length);
   readonly edgeFire = new Float64Array(EDGES.length);
   readonly edgeSpeed = new Float64Array(EDGES.length);
-  // Cars that fill each edge bumper to bumper: its length times its lanes in that direction.
+  // Lanes in each edge's direction, and the cars that fill it bumper to bumper.
+  readonly edgeLanes = new Float64Array(EDGES.length);
   readonly edgeJamCars = new Float64Array(EDGES.length);
   // Each edge's shape in metres, as [x0, y0, x1, y1, ...] from its start node to its end node.
   readonly edgeShape: Float64Array[];
@@ -156,8 +157,8 @@ export class RoadRouter {
       this.edgeSegment[e] = segmentIndex.get(segmentKeyOf(edge.key)) ?? -1;
       this.edgeSpeed[e] = Math.max(edge.meters / Math.max(edge.seconds, 1), 4);
       // A two-way street's lane count covers both directions.
-      const lanes = directed.has(`${edge.v}-${edge.u}`) ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
-      this.edgeJamCars[e] = Math.max(1, (edge.meters * lanes) / JAM_SPACING_METERS);
+      this.edgeLanes[e] = directed.has(`${edge.v}-${edge.u}`) ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
+      this.edgeJamCars[e] = Math.max(1, (edge.meters * this.edgeLanes[e]) / JAM_SPACING_METERS);
       const shape = (edge.geometry ?? [[nodePoint(edge.u).lat, nodePoint(edge.u).lng], [nodePoint(edge.v).lat, nodePoint(edge.v).lng]]).flatMap(
         ([lat, lng]) => toXY({ lat, lng }),
       );

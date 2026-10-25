@@ -1,16 +1,20 @@
 import { gaussian, Random } from "../mesh/random";
 import { DEFAULT_DEPARTURE, DepartureParams, stepDecision } from "./departure";
 import { cellIndex, Ground, toXY } from "./grid";
-import { blockedMask, isBurning, MIN_SPEED_SHARE, Potential, RoadRouter } from "./navigation";
+import { blockedMask, isBurning, JAM_SPACING_METERS, MIN_SPEED_SHARE, Potential, RoadRouter } from "./navigation";
 
 // Evacuating households as particles under underdamped Langevin dynamics:
 //
 //   dx = v dt
 //   dv = [ (v_des(x, rho) e(x) - v) / tau  +  F_rep(x) ] dt  +  sqrt(2 T / tau) dW
 //
-// e(x) is the unit direction to the next point on the driver's route (see navigation.ts), v_des
-// the street's free speed slowed by local density (Greenshields: v_free (1 - rho / rho_jam)),
-// F_rep a soft exponential repulsion between vehicles (Helbing and Molnar's social force), and T
+// e(x) is the unit direction to the next point on the driver's route (see navigation.ts). v_des is
+// the street's free speed slowed by the density of the road ahead (Greenshields:
+// v_free (1 - k / k_jam)), with k read from the gap to the nearest car ahead going the same way and
+// k_jam the route choice's 7.5 m of lane per car. F_rep is a soft exponential repulsion between
+// vehicles (Helbing and Molnar's social force) that a driver feels from what is ahead of it far
+// more than from what is behind, capped at hard braking. So a queue's front car, with open road
+// ahead, pulls away at speed, and nobody is pushed along by the car behind. T is
 // the variance of the velocity noise: hesitation and the spread in how people drive. Integration
 // is BAOAB splitting (Leimkuhler and Matthews 2013): friction and noise are solved exactly, so the
 // half-second step is stable.
@@ -32,7 +36,15 @@ export type CrowdParams = {
   radius: number;
   repulsion: number;
   repulsionRange: number;
-  jamDensity: number;
+  // Weight of a car directly behind in the repulsion, against 1 for a car directly ahead, with
+  // (1 + cos) / 2 between (Helbing and Molnar's anisotropy). Drivers brake for what they see
+  // ahead; the car behind doesn't push them.
+  repulsionBehind: number;
+  // The largest acceleration repulsion can give, m/s²: about the hardest a car can brake.
+  maxRepulsion: number;
+  // How far ahead a driver reads the road's density, in metres. Gaps past half of it count for
+  // less, down to free flow at the full distance.
+  lookAhead: number;
   refreshMinutes: number;
   // Logit spread of route choice in seconds: a street whose route is this much slower than the
   // fastest is taken 1/e as often. 0 always takes the fastest.
@@ -51,7 +63,9 @@ export const DEFAULT_CROWD: CrowdParams = {
   radius: 2.5,
   repulsion: 3,
   repulsionRange: 1.5,
-  jamDensity: 0.02,
+  repulsionBehind: 0.1,
+  maxRepulsion: 8,
+  lookAhead: 20,
   refreshMinutes: 5,
   routeSpreadSeconds: 60,
   congestionMemory: 0.5,
@@ -59,7 +73,8 @@ export const DEFAULT_CROWD: CrowdParams = {
   departure: DEFAULT_DEPARTURE,
 };
 
-const HASH_CELL = 10;
+// At least the look-ahead, so the 3 x 3 cells around a car hold every car it reacts to.
+const HASH_CELL = 20;
 const DECISION_EVERY_SECONDS = 30;
 const BOUNCE_DAMPING = -0.2;
 // A route point counts as reached within this many metres.
@@ -70,6 +85,17 @@ const REACH_METERS = 9;
 export function ouCoefficients(dt: number, tau: number, temperature: number) {
   const c1 = Math.exp(-dt / tau);
   return { c1, c2: Math.sqrt(temperature * (1 - c1 * c1)) };
+}
+
+// Greenshields on the road ahead: the share of free speed a driver wants with `gap` metres to the
+// car ahead on a road of `lanes` lanes. Cars in this model don't keep to lanes, so the nearest car
+// ahead stands for one in each lane: k = 1 / (lanes gap) per lane, against k_jam = 1 / 7.5 m. Past
+// half the look-ahead the gap counts for less, reaching free flow at the look-ahead, so speed
+// never jumps as a car comes into view.
+export function speedShare(gap: number, lanes: number, lookAhead: number) {
+  const fade = Math.min(1, 2 * (1 - gap / lookAhead));
+  if (fade <= 0) return 1;
+  return Math.max(MIN_SPEED_SHARE, 1 - (JAM_SPACING_METERS / (lanes * gap)) * fade);
 }
 
 export type Discovery = { agent: number; segments: number[]; at: number };
@@ -96,6 +122,9 @@ export class CrowdSim {
   readonly vy: Float64Array;
   readonly fx: Float64Array;
   readonly fy: Float64Array;
+  // Unit direction to the next point on the route, for every moving car, as of the last step.
+  readonly hx: Float64Array;
+  readonly hy: Float64Array;
   readonly state: Uint8Array;
   readonly keen: Uint8Array;
   readonly people: Uint16Array;
@@ -144,7 +173,7 @@ export class CrowdSim {
   ) {
     this.count = households.length;
     const n = this.count;
-    [this.x, this.y, this.vx, this.vy, this.fx, this.fy] = Array.from({ length: 6 }, () => new Float64Array(n));
+    [this.x, this.y, this.vx, this.vy, this.fx, this.fy, this.hx, this.hy] = Array.from({ length: 8 }, () => new Float64Array(n));
     this.state = new Uint8Array(n);
     this.keen = new Uint8Array(n);
     this.people = new Uint16Array(n);
@@ -160,6 +189,7 @@ export class CrowdSim {
     this.hashNext = new Int32Array(n);
     this.hashKey = new Int32Array(n);
     this.hashCols = Math.ceil((ground.cols * ground.cell) / HASH_CELL) + 1;
+    if (params.lookAhead > HASH_CELL) throw new Error(`lookAhead ${params.lookAhead} m is past the ${HASH_CELL} m neighbour search`);
     this.router = new RoadRouter(ground, params.safeLat);
     this.segmentEntries = new Uint32Array(ground.segments.length);
     this.segmentSpeedSum = new Float64Array(ground.segments.length);
@@ -217,6 +247,8 @@ export class CrowdSim {
       vy: this.vy.slice(),
       fx: this.fx.slice(),
       fy: this.fy.slice(),
+      hx: this.hx.slice(),
+      hy: this.hy.slice(),
       state: this.state.slice(),
       decision: this.decision.slice(),
       departedAt: this.departedAt.slice(),
@@ -450,46 +482,61 @@ export class CrowdSim {
     for (let i = 0; i < this.count; i++) {
       if (this.state[i] !== STATE.moving) continue;
       this.advanceRoute(i);
+      const [tx, ty] = this.target(i);
+      const distance = Math.hypot(tx - this.x[i], ty - this.y[i]) || 1;
+      this.hx[i] = (tx - this.x[i]) / distance;
+      this.hy[i] = (ty - this.y[i]) / distance;
+    }
+    for (let i = 0; i < this.count; i++) {
       if (this.state[i] === STATE.moving) this.forceOn(i);
     }
   }
 
-  private repulsionOn(i: number): [number, number, number] {
-    const { radius, repulsion, repulsionRange } = this.params;
+  // Repulsion on car i, and the gap to the nearest car ahead of it going its way (Infinity if none
+  // within the look-ahead).
+  private neighborsOf(i: number): [number, number, number] {
+    const { radius, repulsion, repulsionRange, repulsionBehind, maxRepulsion, lookAhead } = this.params;
     const reach = 2 * radius + 4 * repulsionRange;
+    const hx = this.hx[i];
+    const hy = this.hy[i];
     let rx = 0;
     let ry = 0;
-    let neighbors = 0;
+    let gap = Infinity;
     const key = this.hashKey[i];
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         for (let j = this.hashHead.get(key + dr * this.hashCols + dc) ?? -1; j !== -1; j = this.hashNext[j]) {
           if (j === i) continue;
-          neighbors += 1;
-          const dx = this.x[i] - this.x[j];
-          const dy = this.y[i] - this.y[j];
+          const dx = this.x[j] - this.x[i];
+          const dy = this.y[j] - this.y[i];
           const d = Math.hypot(dx, dy);
-          if (d >= reach || d < 1e-6) continue;
-          const push = repulsion * Math.exp((2 * radius - d) / repulsionRange);
-          rx += (push * dx) / d;
-          ry += (push * dy) / d;
+          if (d < 1e-6 || d >= lookAhead) continue;
+          const forward = dx * hx + dy * hy;
+          // Ahead, within a car's width of this car's line, and going the same way.
+          if (forward > 0 && forward < gap && Math.abs(dx * hy - dy * hx) < 2 * radius && this.hx[j] * hx + this.hy[j] * hy > 0) gap = forward;
+          if (d >= reach) continue;
+          // 1 for a car straight ahead, repulsionBehind for one straight behind.
+          const sight = repulsionBehind + ((1 - repulsionBehind) * (1 + forward / d)) / 2;
+          const push = sight * repulsion * Math.exp((2 * radius - d) / repulsionRange);
+          rx -= (push * dx) / d;
+          ry -= (push * dy) / d;
         }
       }
     }
-    return [rx, ry, neighbors];
+    const magnitude = Math.hypot(rx, ry);
+    const scale = magnitude > maxRepulsion ? maxRepulsion / magnitude : 1;
+    return [rx * scale, ry * scale, gap];
   }
 
   private forceOn(i: number) {
-    const [rx, ry, neighbors] = this.repulsionOn(i);
-    const density = (neighbors + 1) / (9 * HASH_CELL * HASH_CELL);
+    const [rx, ry, gap] = this.neighborsOf(i);
     const edge = this.edge[i];
     const cell = cellIndex(this.ground, this.x[i], this.y[i]);
     const free = this.stuck[i] ? 0 : edge >= 0 ? this.router.edgeSpeed[edge] : cell < 0 ? 0 : this.ground.speed[cell];
-    const desired = free * Math.max(MIN_SPEED_SHARE, 1 - density / this.params.jamDensity);
-    const [tx, ty] = this.target(i);
-    const distance = Math.hypot(tx - this.x[i], ty - this.y[i]) || 1;
-    this.fx[i] = (desired * (tx - this.x[i])) / distance / this.params.tau + rx;
-    this.fy[i] = (desired * (ty - this.y[i])) / distance / this.params.tau + ry;
+    const lanes = edge >= 0 ? Math.max(1, this.router.edgeLanes[edge]) : 1;
+    const desired = free * speedShare(gap, lanes, this.params.lookAhead);
+    this.fx[i] = (desired * this.hx[i]) / this.params.tau + rx;
+    this.fy[i] = (desired * this.hy[i]) / this.params.tau + ry;
   }
 
   // Anyone the scenario fire reaches before they get out.

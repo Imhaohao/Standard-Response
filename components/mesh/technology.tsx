@@ -2,6 +2,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { ReactNode } from "react";
 import { DEFAULT_CROWD } from "@/lib/crowd/langevin";
 import { DEFAULT_DEPARTURE } from "@/lib/crowd/departure";
+import { JAM_SPACING_METERS } from "@/lib/crowd/navigation";
 import { DEFAULT_TRAINING, FEATURE_NAMES, UPLOAD_MIN_MASS } from "@/lib/mesh/federated";
 import { ROUND_MASS } from "@/lib/mesh/rounds";
 import { Tag } from "../ui/tag";
@@ -23,8 +24,8 @@ export const TECHNOLOGIES: Record<Technology, Entry> = {
       "Every evacuating car is a particle on the real street map. It steers toward the next point on its route, slows down when cars bunch up, keeps its distance from the cars around it, and jitters a little, the way real drivers hesitate and differ.",
     equation: "dx = v dt\ndv = [ (v_des − v) / τ + F_rep ] dt\n     + √(2T / τ) dW",
     points: [
-      `v_des is the speed the driver wants: the street's free-flow speed, cut as the cars around get denser (Greenshields: v_free (1 − ρ / ρ_jam), jam at ${DEFAULT_CROWD.jamDensity} cars per m²).`,
-      `τ = ${DEFAULT_CROWD.tau} s is how quickly a driver gets to that speed. F_rep is a soft push between cars a few metres apart (Helbing and Molnár's social force).`,
+      `v_des is the speed the driver wants: the street's free-flow speed, cut as the road ahead fills (Greenshields: v_free (1 − k / k_jam), k from the gap to the car ahead going the same way, within ${DEFAULT_CROWD.lookAhead} m, and a jam at ${JAM_SPACING_METERS} m of lane per car, the same as route choice uses). The front of a queue has open road, so it pulls away at speed.`,
+      `τ = ${DEFAULT_CROWD.tau} s is how quickly a driver gets to that speed. F_rep is a soft push between cars a few metres apart (Helbing and Molnár's social force), felt from the car ahead and barely from the car behind, and never harder than braking at ${DEFAULT_CROWD.maxRepulsion} m/s².`,
       `dW is random noise of strength T = ${DEFAULT_CROWD.temperature} m²/s²: hesitation and the spread in how people drive.`,
       "Routes are the fastest way to safety on open streets, avoiding the fire and any street the driver knows is blocked. A car that hits a blocked street it didn't know about stops, turns back and re-routes.",
       `Drive times count the traffic: every ${DEFAULT_CROWD.refreshMinutes} minutes each street is slowed by the cars on it, so later drivers route around jams. At each corner a driver picks among the streets that head toward safety, mostly the fastest, but a street whose route is ${DEFAULT_CROWD.routeSpreadSeconds} s slower is still taken about a third as often, so near-equal routes share the cars.`,
