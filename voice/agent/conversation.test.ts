@@ -556,6 +556,26 @@ describe("speech the agent can't read", () => {
     assert.ok(escalations.includes("language_barrier"));
   });
 
+  it("counts repeat requests and turns that said nothing together", () => {
+    const { conversation, escalations } = call();
+    conversation.respond("What? I can't hear you.", heard({ answer: "unclear" }));
+    conversation.respond("What?", heard({ wantsRepeat: true }));
+    const third = conversation.respond("Sorry, what was that?", heard({ answer: "unclear" }));
+    assert.ok(third.done);
+    assert.ok(escalations.includes("language_barrier"));
+  });
+
+  it("says the hand-off in the call's own language when the switch was only a guess", () => {
+    const conversation = new Conversation({ language: "es", onFile: {}, knownAddress: ADDRESS, effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null } });
+    conversation.start();
+    conversation.respond("Guo tin bu dun.", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    conversation.respond("Ni su se ma?", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    const third = conversation.respond("Chin chao ren ban guo.", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    assert.ok(third.done);
+    assert.ok(third.sentences[0].startsWith(LINES.es.languageBarrier));
+    assert.ok(third.sentences[1].startsWith(EN.languageBarrier));
+  });
+
   it("starts over when a rehearing confirms the language", () => {
     const { conversation } = call();
     conversation.respond("Well ting boo dung.", heard({ mistranscribed: true }));

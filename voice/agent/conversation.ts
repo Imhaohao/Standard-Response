@@ -141,8 +141,8 @@ const MAX_READBACKS = 3;
 // Turns in a row where nothing usable was heard before the call goes to a person.
 const MAX_MISSED_TURNS = 3;
 const MAX_UNKNOWN_LANGUAGE_TURNS = 2;
-// "Say that again?" this many times in a row before hold, and the call goes to a person.
-const MAX_REPEATS_IN_A_ROW = 3;
+// Turns in a row before hold that asked us to repeat or gave nothing usable, before the call goes to a person.
+const MAX_STUCK_TURNS = 3;
 // Quiet check-ins in a row before the call ends and the reach ladder calls back.
 const MAX_QUIET_CHECK_INS = 2;
 // Quiet stretches in a row on hold before the goodbye. Status changes still reach them by callback.
@@ -188,7 +188,10 @@ export class Conversation {
   private readbacks = 0;
   private missedTurns = 0;
   private unknownLanguageTurns = 0;
-  private repeatsInARow = 0;
+  private stuckTurns = 0;
+  // The call's language is Claude's guess from words that made no sense, never confirmed since.
+  private languageGuessed = false;
+  private readonly startLanguage: Language;
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
   private changesThisTurn: AgentRecord = {};
@@ -211,6 +214,7 @@ export class Conversation {
 
   constructor(options: ConversationOptions) {
     this.language = options.language;
+    this.startLanguage = options.language;
     this.onFile = options.onFile;
     this.record = { ...options.onFile };
     this.knownAddress = options.knownAddress;
@@ -742,10 +746,12 @@ export class Conversation {
     // Neither is "say that again?", which shows they're following along in a language we speak.
     const missed = spoken === "other" || (heardNothing(heard) && !this.holding && !heard.wantsRepeat);
     this.missedTurns = missed ? this.missedTurns + 1 : 0;
+    if (!missed) this.languageGuessed = false;
     // "What? I can't hear you." over and over: each one shows they're trying, but the line isn't
-    // working, and a caller who can't hear us was asked the same question forever.
-    this.repeatsInARow = heard.wantsRepeat && !this.holding ? this.repeatsInARow + 1 : 0;
-    return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS || this.repeatsInARow >= MAX_REPEATS_IN_A_ROW;
+    // working, and a caller who can't hear us was asked the same question forever. Claude reads some
+    // of them as repeat requests and some as saying nothing, so both count here together.
+    this.stuckTurns = missed || (heard.wantsRepeat && !this.holding) ? this.stuckTurns + 1 : 0;
+    return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS || this.stuckTurns >= MAX_STUCK_TURNS;
   }
 
   // Switching to a language we speak is progress, not a missed turn, so the hand-off counters reset.
@@ -754,6 +760,7 @@ export class Conversation {
   private switchLanguageIfNeeded(spoken: Interpretation["spokenLanguage"], guessed = false) {
     if (!canSpeak(spoken) || spoken === this.language) return false;
     this.language = spoken;
+    this.languageGuessed = guessed;
     this.missedTurns = guessed ? this.missedTurns + 1 : 0;
     this.unknownLanguageTurns = 0;
     this.effects.updateRecord({ language: spoken }, {});
@@ -762,11 +769,13 @@ export class Conversation {
 
   // Nobody can understand each other: flag the call for a person and end it without promising anything.
   // One language and English, not a run of three that a confused resident has to sit through.
+  // A language guessed from garbled words and never confirmed is likely wrong: a Spanish call guessed
+  // as Chinese said its hand-off in Chinese and English, and the Spanish speaker understood neither.
   private handOffToPerson(): AgentTurn {
     this.escalateOnce("language_barrier");
     this.handedOff = true;
     this.moveTo("done");
-    const languages = [...new Set<Language>([this.language, "en"])];
+    const languages = [...new Set<Language>([this.languageGuessed ? this.startLanguage : this.language, "en"])];
     return this.say("", languages.map((language) => withSafety(LINES[language].languageBarrier, language)), false);
   }
 
