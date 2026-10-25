@@ -209,7 +209,13 @@ describe("an offer nobody answered", () => {
     await replan(t);
     expect(await liveFor(t, request._id)).toEqual([]);
 
-    vi.advanceTimersByTime(6 * 60_000);
+    // At 10x a minute of the wall clock is ten of the night's, and the drivers still haven't had their five.
+    await t.mutation(api.control.setPlayback, { speed: 10 });
+    vi.advanceTimersByTime(60_000);
+    await replan(t);
+    expect(await liveFor(t, request._id)).toEqual([]);
+
+    vi.advanceTimersByTime(7 * 60_000);
     await replan(t);
     const [again] = await liveFor(t, request._id);
     expect(again?.status).toBe("offered");

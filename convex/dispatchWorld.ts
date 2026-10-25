@@ -20,7 +20,7 @@ const REVOKE_TOLERANCE_MS = 10 * 60_000;
 const ETA_REFRESH_MS = 60_000;
 // An open offer whose pickup the new plan has later than this past the ETA it shows is offered again.
 const OFFER_ETA_SLIP_MINUTES = 2;
-// A van whose driver let an offer expire can be offered that rider again after this long.
+// A van whose driver let an offer expire can be offered that rider again this long after it lapsed.
 const EXPIRED_REFUSAL_MS = 5 * 60_000;
 
 // Drive times between intersections, in the forecast traffic for a trip setting out now. A leg of
@@ -191,14 +191,16 @@ function ridersToPlan(context: Context, revoking: Set<Id<"requests">>) {
 }
 
 // A driver who declined or cancelled isn't offered that rider again. One who let the offer expire
-// didn't say no, only didn't answer: on a small fleet that van may be the rider's only one.
-function stillRefused(assignment: Doc<"assignments">, now: number) {
+// didn't say no, only didn't answer: on a small fleet that van may be the rider's only one. The
+// driver lives on the wall clock, as their two minutes to answer do: at 10x playback a cooldown
+// on the night's clock would hand the same unattended van the same rider every half minute.
+function stillRefused(assignment: Doc<"assignments">, wallNow: number) {
   if (assignment.status !== "expired") return true;
-  return now - (assignment.respondedAt ?? assignment.proposedAt) < EXPIRED_REFUSAL_MS;
+  return wallNow - assignment._creationTime < OFFER_TTL_MS + EXPIRED_REFUSAL_MS;
 }
 
-function refusedPairs(snap: Snapshot, now: number, revoke: { assignmentId: Id<"assignments"> }[]) {
-  const pairs = new Set(snap.refused.filter((a) => stillRefused(a, now)).map((a) => `${a.requestId}:${a.vehicleId}`));
+function refusedPairs(snap: Snapshot, revoke: { assignmentId: Id<"assignments"> }[]) {
+  const pairs = new Set(snap.refused.filter((a) => stillRefused(a, snap.wallNow)).map((a) => `${a.requestId}:${a.vehicleId}`));
   for (const { assignmentId } of revoke) {
     const assignment = snap.live.find((a) => a._id === assignmentId);
     if (assignment) pairs.add(`${assignment.requestId}:${assignment.vehicleId}`);
@@ -266,7 +268,7 @@ export function buildWorld(snap: Snapshot, now: number) {
   const vehiclePlans = vehicles.map((vehicle) => planVehicle(context, vehicle));
   const revoke = vehiclePlans.flatMap((plan) => plan.revoke);
   const revokingRequests = new Set(revoke.map((r) => snap.live.find((a) => a._id === r.assignmentId)!.requestId));
-  const refused = refusedPairs(snap, now, revoke);
+  const refused = refusedPairs(snap, revoke);
   const offers = openOffers(snap, firstFreeStops(snap, revoke));
   const riders = ridersToPlan(context, revokingRequests);
 
