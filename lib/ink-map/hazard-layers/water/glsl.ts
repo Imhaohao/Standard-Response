@@ -258,6 +258,8 @@ struct Water {
   float shore;
   float level;
   float reachable;
+  float island;
+  float building;
   vec2 at;
 };
 
@@ -269,7 +271,9 @@ Water waterAt(vec2 uv) {
   vec2 shore = shoreAt(xy);
   float standing = smoothstep(0.35, 0.65, shore.x);
   float level = levelAt(xy, standing, uMinutes);
-  float ground = isGround(surfaceAt(uv)) ? 1.0 : 0.0;
+  float surfaceCode = surfaceAt(uv);
+  float ground = isGround(surfaceCode) ? 1.0 : 0.0;
+  float building = surfaceCode == SURFACE_WALL || surfaceCode == SURFACE_ROOF ? 1.0 : 0.0;
   float drawn = p.y + uBaseElevation;
   float bed = mix(drawn, min(drawn, bedAt(xy, shore)), ground);
   water.gap = level - bed;
@@ -288,6 +292,8 @@ Water waterAt(vec2 uv) {
   water.since = mix(mix(-NEVER, uMinutes - arrival, water.reachable), NEVER, standing);
   water.sheen = (1.0 - under) * reachedLand * (1.0 - standing) * ground;
   water.bared = (1.0 - under) * standing * ground;
+  water.building = building;
+  water.island = building * (1.0 - under) * max(reachedLand, standing) * smoothstep(0.1, 0.4, level - groundElevation(xy));
   water.standing = standing;
   water.shore = shore.y;
   water.level = level;
@@ -320,7 +326,14 @@ float dotTone(float coverage) {
 // Water over the land darkens with depth as a woodblock's graded wash (bokashi), from a pale tint at the
 // waterline to a mid indigo over the eaves.
 float plateTone(float column) {
-  return 0.14 + 0.42 * (1.0 - exp(-max(column, 0.0) / 2.6));
+  return 0.1 + 0.55 * (1.0 - exp(-max(column, 0.0) / 2.2));
+}
+
+// How much of a pixel of the drawn town is ink rather than tone: outlines and street edges, not the
+// screentone of a roof or a yard.
+float strongInk(vec3 town) {
+  float darkness = 1.0 - dot(town, vec3(0.3, 0.59, 0.11)) / dot(uPaper, vec3(0.3, 0.59, 0.11));
+  return smoothstep(0.32, 0.55, darkness);
 }
 
 // Standing water (the sea, a bay, a canal) is one pale plate that darkens gently offshore, so the new
@@ -380,8 +393,11 @@ float spray(vec2 xy, vec2 dir, float density, float seed) {
 // along the flow at the pixel, so a stroke bends with the water; it tapers at both ends, drifts with the
 // flow and fades over its life. Fast water gets more, longer and heavier strokes; still water almost none.
 const MOTION = `
-float flowStrokes(vec2 xy, vec2 dir, float strength, float seed) {
-  float cell = max(16.0, px(16.0));
+// A stroke stays within a third of a cell of its anchor, and anchors sit in the middle of their cells, so
+// the nine cells around a pixel hold every stroke that can touch it and none is ever cut at a cell edge.
+// \`density\` is the share of cells with a stroke; \`reach\` stretches them (1 is about a third of a cell).
+float flowStrokes(vec2 xy, vec2 dir, float strength, float density, float reach, float seed) {
+  float cell = max(30.0, px(36.0));
   vec2 across = vec2(-dir.y, dir.x);
   vec2 base = floor(xy / cell);
   float ink = 0.0;
@@ -389,18 +405,17 @@ float flowStrokes(vec2 xy, vec2 dir, float strength, float seed) {
     for (int i = -1; i <= 1; i++) {
       vec2 id = base + vec2(float(i), float(j));
       float h = hash12(id + seed);
-      float period = 2.5 + 3.5 * hash12(id + seed + 4.4);
+      float period = 3.0 + 4.0 * hash12(id + seed + 4.4);
       float life = fract(uTime / period + h * 13.0);
-      vec2 anchor = (id + 0.15 + 0.7 * vec2(hash12(id + seed + 1.3), hash12(id + seed + 7.9))) * cell;
-      vec2 centre = anchor + dir * (life - 0.5) * cell * 0.7;
-      float len = cell * (0.55 + 1.1 * hash12(id + seed + 2.2)) * (0.6 + 0.6 * strength);
+      vec2 anchor = (id + 0.25 + 0.5 * vec2(hash12(id + seed + 1.3), hash12(id + seed + 7.9))) * cell;
+      vec2 centre = anchor + dir * (life - 0.5) * cell * 0.08;
+      float len = cell * (0.3 + 0.32 * hash12(id + seed + 2.2)) * clamp(reach, 0.4, 1.3);
       vec2 d = xy - centre;
       float t = dot(d, dir) / len + 0.5;
-      float weight = px(0.35 + 0.75 * hash12(id + seed + 6.6)) * (0.6 + 0.8 * strength);
-      float halfWidth = weight * sin(PI * clamp(t, 0.0, 1.0));
+      float weight = px(0.3 + 0.8 * hash12(id + seed + 6.6) * hash12(id + seed + 8.1)) * (0.7 + 0.7 * strength);
+      float halfWidth = weight * pow(sin(PI * clamp(t, 0.0, 1.0)), 0.7);
       float stroke = filled(halfWidth - abs(dot(d, across))) * step(0.0, t) * step(t, 1.0);
-      float present = step(h, strength * strength * 0.85);
-      ink = max(ink, stroke * present * sin(PI * life));
+      ink = max(ink, stroke * step(h, density) * sin(PI * life));
     }
   }
   return ink;
@@ -436,24 +451,6 @@ float stillRipples(vec2 xy, float stillness) {
   float ring = filled(px(0.45) - abs(length(d) - radius));
   return ring * arc * (1.0 - life) * smoothstep(0.0, 0.15, life) * step(h, 0.16) * stillness;
 }
-
-// The scale pattern of open water (seigaiha), shown in patches rather than as one stamp.
-float seigaiha(vec2 xy, float size) {
-  vec2 p = xy / size;
-  float width = max(fwidth(p.x), fwidth(p.y)) * 8.0;
-  float j0 = floor(p.y * 2.0);
-  float found = -1.0;
-  for (int k = -1; k <= 2; k++) {
-    float j = j0 + float(k);
-    float shift = mod(j, 2.0) * 0.5;
-    vec2 centre = vec2(floor(p.x - shift + 0.5) + shift, j * 0.5);
-    float d = length(p - centre);
-    if (found < 0.0 && d < 0.5) found = d;
-  }
-  float rings = fract(found * 8.0 + 0.5) - 0.5;
-  float patchy = smoothstep(0.45, 0.7, valueNoise(xy / (size * 9.0) + 2.0));
-  return (1.0 - smoothstep(0.6 * width, 1.4 * width, abs(rings))) * step(0.0, found) * patchy;
-}
 `;
 
 // Which way the water runs at a point and how hard (0..1), per kind.
@@ -472,13 +469,35 @@ vec4 breachPull(vec2 xy) {
   return best;
 }
 
+// Around the open breach that pours hardest: metres from the gap, the angle off the jet's axis (straight
+// into the ground the water floods), how near (1 at the gap) and how hard it pours.
+vec4 breachJet(vec2 xy) {
+  vec4 best = vec4(1e5, 0.0, 0.0, 0.0);
+  float strongest = 0.0;
+  for (int i = 0; i < ${MAX_BREACHES}; i++) {
+    vec4 breach = uBreaches[i];
+    if (breach.z <= uBasin) continue;
+    vec2 d = xy - breach.xy;
+    float r = length(d);
+    float near = 1.0 - smoothstep(0.0, breach.w * 1.8, r);
+    float head = clamp((breach.z - uBasin) / 1.5, 0.0, 1.0);
+    if (near * head <= strongest) continue;
+    strongest = near * head;
+    vec2 outward = r > 0.01 ? d / r : vec2(0.0, 1.0);
+    vec2 axis = towardShore(breach.xy);
+    axis = length(axis) > 0.5 ? axis : outward;
+    best = vec4(r, atan(axis.x * outward.y - axis.y * outward.x, dot(axis, outward)), near, head);
+  }
+  return best;
+}
+
 vec4 flowAt(Water key) {
   vec3 flow = frontFlow(key.at);
   vec4 pull = breachPull(key.at);
   vec2 dir = normalize(mix(flow.xy, pull.zw, pull.x) + 1e-4);
-  float fresh = (1.0 - smoothstep(15.0, 90.0, key.since)) * step(0.0, key.since);
+  float fresh = (1.0 - smoothstep(5.0, 45.0, key.since)) * step(0.0, key.since);
   float rising = clamp(uRising / 0.04, 0.0, 1.0) * key.reachable;
-  return vec4(dir, clamp(max(max(fresh, pull.x * pull.y), rising * 0.35), 0.0, 1.0), flow.z);
+  return vec4(dir, clamp(max(max(fresh, pull.x * pull.y), rising * 0.3), 0.0, 1.0), flow.z);
 }
 `;
 
@@ -494,32 +513,42 @@ vec4 flowAt(Water key) {
 `;
 
 const TSUNAMI_FLOW = `
+// Fast where a crest has just passed and where water runs up over the land or drains back off it; the
+// open bay between crests barely moves.
 vec4 flowAt(Water key) {
   float rise = levelAt(key.at, key.standing, uMinutes + 0.25) - levelAt(key.at, key.standing, uMinutes - 0.25);
   vec2 crest = latestCrest(key.at);
-  float churn = (1.0 - smoothstep(0.0, 12.0, crest.x)) * step(0.0, crest.x) * clamp(crest.y / 4.0, 0.3, 1.0);
+  float churn = (1.0 - smoothstep(0.0, 8.0, crest.x)) * step(0.0, crest.x) * clamp(crest.y / 4.0, 0.3, 1.0);
   float flowing = clamp(abs(rise) / 0.6, 0.0, 1.0);
   float nearShore = 1.0 - smoothstep(100.0, 900.0, key.shore);
   vec2 inward = normalize(uTrain.xy + towardShore(key.at) * nearShore * 1.4 + 1e-4);
   vec2 dir = rise >= 0.0 ? inward : -inward;
-  return vec4(dir, max(flowing, churn), 0.0);
+  return vec4(dir, max(max(churn, flowing * (1.0 - key.standing)), flowing * 0.3), 0.0);
 }
 `;
 
 const SURFACE_MARKS = `
-// The plate multiplies the town: paper takes the indigo, the ink stays ink. Deep water hides what is
-// under it; shallow water keeps every street and wall.
+// The plate multiplies the town. Under the water the town keeps its ink and loses its tone: outlines and
+// street edges print through, the screentone of roofs and yards does not, and deep water hides even the ink.
 vec4 printWater(vec4 ink, Water plate, Water key, vec2 uv) {
   float red = buildingRed(uv);
   float tone = mix(plateTone(plate.column), seaTone(plate.shore), plate.standing);
   vec3 wash = mix(uPaper, uIndigo, tone);
   vec3 town = texture(tBase, uv).rgb;
-  float hidden = mix(smoothstep(0.8, 4.0, key.path) * 0.8, 0.7, key.standing);
-  vec3 printed = mix(town, uPaper, hidden) * (wash / uPaper);
+  float hidden = mix(smoothstep(0.8, 4.5, key.path) * 0.85, 1.0, key.standing);
+  vec3 printed = mix(wash, town * 0.9 * (wash / uPaper), strongInk(town) * (1.0 - hidden));
   ink = over(ink, printed, plate.cover * pigment() * mix(1.0, 0.35, red));
-  float coverage = mix(0.02 + 0.14 * smoothstep(1.0, 6.0, plate.column), 0.015 + 0.06 * smoothstep(200.0, 900.0, plate.shore), plate.standing);
-  ink = over(ink, mix(uIndigo, uInk, 0.35), dotTone(coverage) * plate.cover * 0.4 * mix(1.0, 0.3, red));
+  float coverage = (0.02 + 0.12 * smoothstep(1.0, 6.0, plate.column)) * (1.0 - plate.standing);
+  ink = over(ink, mix(uIndigo, uInk, 0.35), dotTone(coverage) * plate.cover * 0.35 * mix(1.0, 0.3, red));
   return ink;
+}
+
+// A building standing in the water is an island: a clean paper roof keeping only its ink outline, so it
+// breaks the surface instead of reading as a dark speck. A roof waiting on a ride keeps its red.
+vec4 printIslands(vec4 ink, Water key, vec2 uv) {
+  vec3 town = texture(tBase, uv).rgb;
+  vec3 clean = mix(uPaper, town * 0.85, strongInk(town));
+  return over(ink, clean, key.island * (1.0 - buildingRed(uv)) * 0.95);
 }
 
 // Ground the water reached and has left keeps a darker, mottled sheen.
@@ -542,10 +571,12 @@ vec4 printBaredBed(vec4 ink, Water key) {
 }
 
 // The key block: one crisp ink line wherever the surface meets a wall, a roof or the ground the water has
-// reached, and along the edge the water is advancing over.
+// reached, and along the edge the water is advancing over. A house's ring shows once a house is big
+// enough on screen to hold one; across a whole town it would only be a speck.
 vec4 printWaterline(vec4 ink, Water key) {
   float reached = max(key.standing, aaStep(key.since) * key.reachable);
-  float line = inkLine(key.gap, 1.15 * uPixelRatio) * reached;
+  float roomy = 1.0 - smoothstep(1.4, 3.0, uViewMpp);
+  float line = inkLine(key.gap, 1.15 * uPixelRatio) * reached * mix(1.0, roomy, key.building);
   float front = inkLine(key.since, 1.15 * uPixelRatio) * aaStep(key.gap) * (1.0 - key.standing) * key.reachable;
   return over(ink, mix(uIndigo, uInk, 0.7), max(line, front) * 0.92);
 }
@@ -558,31 +589,43 @@ vec4 printFoam(vec4 ink, float foam, float strength) {
 }
 
 // Current over pale water in deep indigo; over the darkest water in pale lines, as the woodblock cuts them.
-vec4 printCurrent(vec4 ink, Water key, vec4 flow, float seed, float weight) {
-  float strokes = flowStrokes(key.at, flow.xy, flow.z, seed) * key.cover * weight;
-  vec3 color = mix(mix(uIndigo, uInk, 0.5), uPaper, smoothstep(0.4, 0.5, plateTone(key.column)) * (1.0 - key.standing));
-  return over(ink, color, strokes * (0.45 + 0.4 * flow.z));
+vec4 printCurrent(vec4 ink, Water key, vec4 flow, float density, float reach, float seed) {
+  float strokes = flowStrokes(key.at, flow.xy, flow.z, density, reach, seed) * key.cover;
+  vec3 color = mix(mix(uIndigo, uInk, 0.5), uPaper, smoothstep(0.42, 0.52, plateTone(key.column)) * (1.0 - key.standing));
+  return over(ink, color, strokes * (0.4 + 0.4 * flow.z));
 }
 `;
 
 const FLOOD_MARKS = `
+// The jet through a breach: deep water rushing out of the gap, white water at the gap itself, and foam
+// streaks fanning out along the flow, racing outward and thinning as the jet spreads.
+vec4 printJet(vec4 ink, Water key) {
+  vec4 jet = breachJet(key.at);
+  float pour = jet.z * jet.w;
+  float fan = 1.0 - smoothstep(0.7, 1.4, abs(jet.y));
+  vec2 q = vec2(jet.y * 14.0, jet.x / max(60.0, px(20.0)) - uTime * 0.9);
+  float streaks = valueNoise(q) * 0.65 + valueNoise(q * vec2(2.7, 1.9) + 4.1) * 0.35;
+  float foam = (streaks - 0.8 + 0.42 * pour) * fan * step(0.001, pour);
+  float core = smoothstep(0.86, 0.94, jet.z) * step(0.001, jet.w);
+  float wet = max(key.cover, key.standing);
+  ink = over(ink, mix(uIndigo, uInk, 0.55), pour * fan * wet * 0.35);
+  return over(ink, uPaper * 1.02, max(filled(foam * 40.0), core) * wet * 0.95);
+}
+
 vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   vec4 flow = flowAt(key);
-  vec4 pull = breachPull(key.at);
-  ink = printCurrent(ink, key, flow, 0.0, 1.0 - key.standing * 0.6);
-  float fresh = (1.0 - smoothstep(10.0, 70.0, key.since)) * step(0.0, key.since);
-  ink = over(ink, uInk, debris(key.at, flow.xy, 0.04 + 0.22 * fresh, 6.0) * key.cover * (1.0 - key.standing) * (0.35 + 0.65 * flow.z));
-  ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * 0.5);
+  ink = printCurrent(ink, key, flow, 0.06 + 0.3 * flow.z * flow.z, 1.3 - 0.5 * flow.z, 0.0);
+  float atTheEdge = (1.0 - smoothstep(0.0, 25.0, key.since)) * step(0.0, key.since);
+  ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.12 * atTheEdge, 6.0) * key.cover * (1.0 - key.standing));
+  ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * 0.45);
+  ink = printJet(ink, key);
 
-  float width = max(8.0, px(4.0));
+  float width = max(5.0, px(2.5));
   float behind = key.since * flow.w;
   float moving = (1.0 - smoothstep(uArrivalLast - 2.0, uArrivalLast + 8.0, uMinutes)) * step(1.0, flow.w) * key.reachable;
   Breaker edge = breaker(key.at, behind, dot(key.at, vec2(-flow.y, flow.x)), width, 3.0);
-  float churn = fbm(key.at / 14.0 - pull.zw * uTime * 1.3) + valueNoise(key.at / 5.0 + uTime) * 0.2;
-  float jet = (churn + pull.x * pull.y * 0.75 - 1.0) * width * 2.0 - (1.0 - aaStep(key.since + 1.0)) * width * 4.0;
   float nearWater = step(-0.4, key.level - groundElevation(key.at));
-  float foam = max(mix(-width * 4.0, edge.foam, moving), jet);
-  return printFoam(ink, foam, nearWater * max(key.cover, moving));
+  return printFoam(ink, mix(-width * 4.0, edge.foam, moving), nearWater * max(key.cover, moving));
 }
 `;
 
@@ -591,31 +634,33 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   vec2 toward = uSwellToward;
   vec2 across = vec2(-toward.y, toward.x);
   float wavelength = max(46.0, px(26.0));
+  // Waves break on the shores (the Gulf's and the bay's) and over flooded land. Out on open water the sea
+  // is a calm graded plate with sparse wave marks.
+  float breaking = max(1.0 - smoothstep(60.0, 320.0, key.shore), 1.0 - key.standing);
   float phase = swellPhase(key.at);
   float crestAhead = floor(phase);
   float ahead = fract(phase) * wavelength;
   float behind = (1.0 - fract(phase)) * wavelength;
   float along = dot(key.at, across);
   float shallow = 1.0 - smoothstep(0.6, 3.5, key.column);
-  float rough = smoothstep(0.25, 0.65, valueNoise(key.at / 700.0 + 7.0)) * 0.7 + shallow * 0.5;
-  float present = smoothstep(0.3, 0.45, valueNoise(vec2(along / (wavelength * 2.2), crestAhead * 7.3)) * rough + 0.15);
-  float presentNext = smoothstep(0.3, 0.45, valueNoise(vec2(along / (wavelength * 2.2), (crestAhead + 1.0) * 7.3)) * rough + 0.15);
-  float widthAhead = wavelength * (0.05 + 0.12 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead, 3.0)));
-  float widthBehind = wavelength * (0.05 + 0.12 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead + 1.0, 3.0)));
+  float present = smoothstep(0.35, 0.5, valueNoise(vec2(along / (wavelength * 2.2), crestAhead * 7.3))) * breaking;
+  float presentNext = smoothstep(0.35, 0.5, valueNoise(vec2(along / (wavelength * 2.2), (crestAhead + 1.0) * 7.3))) * breaking;
+  float widthAhead = wavelength * (0.06 + 0.1 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead, 3.0)));
+  float widthBehind = wavelength * (0.06 + 0.1 * shallow) * (0.6 + 0.8 * hash12(vec2(crestAhead + 1.0, 3.0)));
   Breaker lead = breaker(key.at, -ahead, along, widthAhead, crestAhead);
   Breaker trail = breaker(key.at, behind, along, widthBehind, crestAhead + 1.0);
   float foam = max(lead.foam - (1.0 - present) * wavelength, trail.foam - (1.0 - presentNext) * wavelength);
-  vec3 deep = mix(uIndigo, uInk, 0.45);
-  ink = over(ink, deep, lead.face * present * key.cover * 0.35);
-  ink = over(ink, uPaper, spray(key.at, toward, 0.35 * shallow * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.3, ahead)), crestAhead) * key.cover * 0.9);
+  ink = over(ink, mix(uIndigo, uInk, 0.45), lead.face * present * key.cover * 0.3);
+  vec2 blown = normalize(toward + uWind.xy * 0.5 + 1e-4);
+  ink = over(ink, uPaper, spray(key.at, blown, 0.3 * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.35, ahead)), crestAhead) * key.cover * 0.9);
+
+  float open = key.standing * (1.0 - breaking);
+  ink = over(ink, mix(uIndigo, uInk, 0.45), flowStrokes(key.at, across, 0.5, 0.12, 1.1, 41.0) * open * key.cover * 0.55);
 
   vec4 flow = flowAt(key);
-  ink = printCurrent(ink, key, flow, 11.0, mix(1.0, 0.35, key.standing));
-  float fresh = (1.0 - smoothstep(10.0, 60.0, key.since)) * step(0.0, key.since);
-  ink = over(ink, uInk, debris(key.at, flow.xy, 0.04 + 0.2 * fresh, 8.0) * key.cover * (1.0 - key.standing));
-
-  float openSea = smoothstep(80.0, 260.0, key.shore) * key.standing;
-  ink = over(ink, uPaper, seigaiha(key.at - toward * uTime * px(3.0), max(70.0, px(34.0))) * openSea * key.cover * 0.3);
+  ink = printCurrent(ink, key, flow, (0.05 + 0.2 * flow.z) * (1.0 - key.standing), 1.0, 11.0);
+  float fresh = (1.0 - smoothstep(10.0, 45.0, key.since)) * step(0.0, key.since);
+  ink = over(ink, uInk, debris(key.at, flow.xy, 0.01 + 0.1 * fresh, 8.0) * key.cover * (1.0 - key.standing));
   return printFoam(ink, foam, key.cover * smoothstep(0.1, 0.4, key.column + 0.3));
 }
 
@@ -656,21 +701,24 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   Breaker bore = breaker(key.at, behind, dot(key.at, across), width, crest.y * 3.1);
   float arriving = step(-1.5, crest.x);
   float wet = max(key.cover, key.bared);
-  vec3 deep = mix(uIndigo, uInk, 0.5);
-  ink = over(ink, deep, bore.face * arriving * key.cover * 0.55 * height);
+  ink = over(ink, mix(uIndigo, uInk, 0.5), bore.face * arriving * key.cover * 0.55 * height);
 
   vec4 flow = flowAt(key);
-  ink = printCurrent(ink, key, flow, 23.0, 1.0);
+  float fast = smoothstep(0.55, 0.9, flow.z);
+  ink = printCurrent(ink, key, flow, 0.03 + 0.22 * fast, 1.3 - 0.5 * fast, 23.0);
   float churned = (1.0 - smoothstep(0.0, 12.0, crest.x)) * step(0.0, crest.x);
-  ink = over(ink, uInk, debris(key.at, flow.xy, 0.03 + 0.3 * churned * (1.0 - key.standing), 9.0) * key.cover);
+  ink = over(ink, uInk, debris(key.at, flow.xy, 0.02 + 0.25 * churned * (1.0 - key.standing), 9.0) * key.cover);
   ink = over(ink, mix(uIndigo, uInk, 0.5), stillRipples(key.at, 1.0 - flow.z) * key.cover * key.standing * 0.4);
   float thrown = (1.0 - smoothstep(0.0, width * 4.0, -behind)) * step(behind, 0.0) * 0.6;
   float trailing = smoothstep(width, width * 2.5, behind) * (1.0 - smoothstep(width * 4.0, width * 10.0, behind)) * 0.3;
   ink = over(ink, uPaper, spray(key.at, travel, (thrown + trailing) * height, crest.y) * arriving * wet);
 
-  float openSea = smoothstep(150.0, 400.0, key.shore) * key.standing * (1.0 - flow.z);
-  ink = over(ink, uPaper, seigaiha(key.at - travel * uTime * px(2.0), max(70.0, px(34.0))) * openSea * key.cover * 0.25);
-  return printFoam(ink, bore.foam - (1.0 - arriving) * width * 6.0, wet * height);
+  // Water still running over the land tears into foam that streams with it.
+  float scale = max(10.0, px(6.0));
+  float running = fast * (1.0 - key.standing) * key.cover;
+  float torn = (fbm(key.at / scale - flow.xy * uTime * 0.6) - 0.6) * scale * 1.5;
+  float foam = max(bore.foam - (1.0 - arriving) * width * 6.0, mix(-scale * 4.0, torn, running));
+  return printFoam(ink, foam, max(wet * height, running));
 }
 `;
 
@@ -685,6 +733,7 @@ void main() {
   ink = printWetGround(ink, key, vUv);
   ink = printBaredBed(ink, key);
   ink = printWater(ink, plate, key, vUv);
+  ink = printIslands(ink, key, vUv);
   ink = printFlow(ink, key, vUv);
   ink = printWaterline(ink, key);
 #ifdef SURGE

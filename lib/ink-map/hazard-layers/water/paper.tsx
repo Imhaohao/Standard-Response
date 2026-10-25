@@ -1,16 +1,15 @@
 import { useId, useMemo } from "react";
 import type { Point } from "../../data";
-import type { FireField } from "../../fire-field";
 import type { PaperHazardProps } from "../types";
 import { surfaceAt, waterModel, type WaterKind, type WaterModel } from "./model";
 import { depthCells, depthOutlines, drawnBackMeters, standingCells, standingOutline } from "./paper-grid";
 import { shoreFor } from "./shore";
 import { waterField } from "./source";
 
-// The flat map's water, printed like the 3D one: standing water in a pale indigo with the sea's scale
-// pattern, the flood in nested plates that darken with depth, each kind's wave linework cut into it, a
-// thin line where every front has passed, and the live edge in ink with a bead of foam along it. A
-// tsunami's bore is a white line crossing the bay; the seabed it bares is stippled wet sand.
+// The flat map's water, printed like the 3D one: standing water in a pale indigo, the flood in nested
+// plates that darken with depth, each kind's tapered strokes scattered through it, and the live edge in
+// ink with uneven runs of foam inside it. A tsunami's bore is a broken white line crossing the bay; the
+// seabed it bares is stippled wet sand.
 
 const INDIGO = "var(--map-indigo)";
 const PAPER = "var(--map-paper)";
@@ -31,8 +30,6 @@ const ringPath = (project: Project, ring: Point[]) =>
       return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
     })
     .join("")}Z`;
-
-const passedFrontCount = (field: FireField, minutes: number) => field.fronts.filter((front) => front.minutes <= minutes).length;
 
 // The angle on the flat map, in degrees, of a direction on the ground.
 function screenAngle(project: Project, [dx, dy]: Point, at: Point) {
@@ -60,43 +57,57 @@ function boreLines(model: WaterModel, minutes: number, project: Project) {
 
 function usePatternIds() {
   const id = useId().replace(/:/g, "");
-  return { ripple: `${id}-ripple`, swell: `${id}-swell`, scales: `${id}-scales`, churn: `${id}-churn`, sand: `${id}-sand`, clip: `${id}-clip` };
+  return { ripple: `${id}-ripple`, swell: `${id}-swell`, scales: `${id}-scales`, churn: `${id}-churn`, sand: `${id}-sand`, clip: `${id}-clip`, edge: `${id}-edge` };
 }
 
 type Ids = ReturnType<typeof usePatternIds>;
 
+// A deterministic scatter, so a pattern tile holds marks of many sizes in no visible order.
+function scatter(seed: number, count: number) {
+  let state = seed * 9301 + 49297;
+  const next = () => {
+    state = (state * 9301 + 49297) % 233280;
+    return state / 233280;
+  };
+  return Array.from({ length: count }, () => ({ x: next(), y: next(), size: next(), bend: next() - 0.5 }));
+}
+
+const TILE = { width: 180, height: 120 };
+
+// Tapered strokes, each a thin lens of its own length, weight and curve, laid along the tile's x axis.
+const strokeMarks = (seed: number, count: number, longest: number) =>
+  scatter(seed, count)
+    .map(({ x, y, size, bend }) => {
+      const length = longest * (0.35 + 0.65 * size);
+      const weight = 0.5 + 1.3 * size * size;
+      const [x0, y0] = [x * TILE.width, y * TILE.height];
+      const sag = bend * length * 0.25;
+      return `M${x0.toFixed(1)} ${y0.toFixed(1)}q${(length / 2).toFixed(1)} ${(sag - weight).toFixed(1)} ${length.toFixed(1)} 0q${(-length / 2).toFixed(1)} ${(-sag + weight).toFixed(1)} ${(-length).toFixed(1)} 0Z`;
+    })
+    .join("");
+
+const sandMarks = scatter(7, 70).map(({ x, y, size }) => ({ cx: x * 60, cy: y * 60, r: 0.3 + 0.7 * size * size }));
+
 function Patterns({ ids, swellAngle }: { ids: Ids; swellAngle: number }) {
   return (
     <defs>
-      <pattern id={ids.ripple} width={22} height={14} patternUnits="userSpaceOnUse">
-        <path d="M2 9q3.5-3.5 7 0M13 3q3.5-3.5 7 0" fill="none" stroke={INDIGO} strokeWidth={0.8} strokeLinecap="round" />
+      <pattern id={ids.ripple} width={TILE.width} height={TILE.height} patternUnits="userSpaceOnUse">
+        <path d={strokeMarks(3, 9, 26)} fill={INDIGO} fillOpacity={0.7} />
       </pattern>
-      <pattern id={ids.swell} width={28} height={11} patternUnits="userSpaceOnUse" patternTransform={`rotate(${swellAngle + 90})`}>
-        <path d="M0 6q7-5 14 0t14 0" fill="none" stroke={INDIGO} strokeWidth={0.9} />
-        <path d="M11 3.4q2-1.6 3.6 0.3" fill="none" stroke={PAPER} strokeWidth={1.4} strokeLinecap="round" />
+      <pattern id={ids.swell} width={TILE.width} height={TILE.height} patternUnits="userSpaceOnUse" patternTransform={`rotate(${swellAngle + 90})`}>
+        <path d={strokeMarks(5, 22, 46)} fill={INDIGO} fillOpacity={0.75} />
+        <path d={strokeMarks(11, 7, 14)} fill={PAPER} />
       </pattern>
-      <pattern id={ids.scales} width={24} height={12} patternUnits="userSpaceOnUse">
-        {[
-          [0, 0],
-          [24, 0],
-          [12, 6],
-          [0, 12],
-          [24, 12],
-        ].map(([cx, cy]) => (
-          <g key={`${cx}-${cy}`}>
-            <circle cx={cx} cy={cy} r={12} fill={INDIGO} fillOpacity={0.24} />
-            {[11.5, 8.5, 5.5, 2.5].map((r) => (
-              <circle key={r} cx={cx} cy={cy} r={r} fill="none" stroke={PAPER} strokeOpacity={0.75} strokeWidth={0.7} />
-            ))}
-          </g>
+      <pattern id={ids.scales} width={TILE.width} height={TILE.height} patternUnits="userSpaceOnUse" patternTransform={`rotate(${swellAngle + 90})`}>
+        <path d={strokeMarks(17, 6, 30)} fill={INDIGO} fillOpacity={0.5} />
+      </pattern>
+      <pattern id={ids.churn} width={TILE.width} height={TILE.height} patternUnits="userSpaceOnUse" patternTransform={`rotate(${swellAngle})`}>
+        <path d={strokeMarks(13, 26, 40)} fill={INDIGO} fillOpacity={0.75} />
+      </pattern>
+      <pattern id={ids.sand} width={60} height={60} patternUnits="userSpaceOnUse">
+        {sandMarks.map((mark) => (
+          <circle key={`${mark.cx.toFixed(2)}-${mark.cy.toFixed(2)}`} cx={mark.cx} cy={mark.cy} r={mark.r} fill={INK} fillOpacity={0.4} />
         ))}
-      </pattern>
-      <pattern id={ids.churn} width={30} height={7} patternUnits="userSpaceOnUse" patternTransform={`rotate(${swellAngle})`}>
-        <path d="M1 2h13M17 5.5h10" stroke={INDIGO} strokeWidth={0.8} strokeLinecap="round" />
-      </pattern>
-      <pattern id={ids.sand} width={5} height={5} patternUnits="userSpaceOnUse">
-        <circle cx={1.2} cy={1.4} r={0.55} fill={INK} fillOpacity={0.45} />
-        <circle cx={3.8} cy={3.7} r={0.45} fill={INK} fillOpacity={0.35} />
       </pattern>
     </defs>
   );
@@ -117,8 +128,6 @@ function useWaterDrawing({ kind, data, field, scenario, minutes, project, trace 
   const stillSea = useMemo(() => (drawnBack > 0 ? toPath(standingOutline(standing, drawnBack)) : sea), [drawnBack, sea, standing, toPath]);
   const bands = useMemo(() => depthOutlines(cells, model, shown, DEPTH_BANDS).map(toPath), [cells, model, shown, toPath]);
   const reached = useMemo(() => trace(shown), [trace, shown]);
-  const passed = passedFrontCount(field, shown);
-  const fronts = useMemo(() => field.fronts.slice(0, passed).map((front) => ({ minutes: front.minutes, d: trace(front.minutes) })), [field, passed, trace]);
   const centre: Point = [(field.region.x0 + field.region.x1) / 2, (field.region.y0 + field.region.y1) / 2];
   return {
     kind,
@@ -128,7 +137,6 @@ function useWaterDrawing({ kind, data, field, scenario, minutes, project, trace 
     bands,
     water: bands[0],
     reachedDry: model.train ? reached : "",
-    fronts,
     swellAngle: screenAngle(project, model.train?.travel ?? shore.onshore, centre),
     bores: boreLines(model, shown, project),
   };
@@ -147,8 +155,11 @@ function StandingWater({ drawing, ids }: { drawing: Drawing; ids: Ids }) {
   );
 }
 
+// Foam along the inside of the water's edge, broken into runs of uneven length.
+const FOAM_RUNS = "16 3 5 2 27 4 9 2 13 5 4 2 21 3";
+
 function RisenWater({ drawing, ids }: { drawing: Drawing; ids: Ids }) {
-  const { bands, water, reachedDry, fronts, kind } = drawing;
+  const { bands, water, reachedDry, kind } = drawing;
   return (
     <>
       <path d={reachedDry} fill={INK} fillOpacity={0.07} fillRule="evenodd" />
@@ -156,11 +167,11 @@ function RisenWater({ drawing, ids }: { drawing: Drawing; ids: Ids }) {
         <path key={DEPTH_BANDS[i]} d={band} fill={INDIGO} fillOpacity={BAND_OPACITY[i]} fillRule="evenodd" />
       ))}
       <path d={water} fill={`url(#${ids[LINEWORK[kind]]})`} fillRule="evenodd" />
-      {fronts.map((front) => (
-        <path key={front.minutes} d={front.d} fill="none" stroke={INDIGO} strokeOpacity={0.45} strokeWidth={0.8} strokeLinejoin="round" />
-      ))}
-      <path d={water} fill="none" stroke={PAPER} strokeWidth={4} strokeDasharray="0.5 5" strokeLinecap="round" />
-      <path d={water} fill="none" stroke={INDIGO} strokeWidth={1.6} strokeLinejoin="round" />
+      <clipPath id={ids.edge}>
+        <path d={water} clipRule="evenodd" />
+      </clipPath>
+      <path d={water} fill="none" stroke={PAPER} strokeWidth={5} strokeDasharray={FOAM_RUNS} clipPath={`url(#${ids.edge})`} />
+      <path d={water} fill="none" stroke={INDIGO} strokeWidth={1.4} strokeLinejoin="round" />
     </>
   );
 }
@@ -176,7 +187,7 @@ function Bores({ drawing, ids }: { drawing: Drawing; ids: Ids }) {
         {drawing.bores.map((bore) => (
           <g key={bore.d}>
             <path d={bore.d} stroke={INDIGO} strokeWidth={4 + 6 * bore.weight} strokeOpacity={0.55} />
-            <path d={bore.d} stroke={PAPER} strokeWidth={2 + 4 * bore.weight} strokeDasharray="7 2 2 2" />
+            <path d={bore.d} stroke={PAPER} strokeWidth={2 + 4 * bore.weight} strokeDasharray="19 3 6 2 31 4 11 2 15 5" />
           </g>
         ))}
       </g>

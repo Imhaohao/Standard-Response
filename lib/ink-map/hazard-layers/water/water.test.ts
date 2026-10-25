@@ -8,7 +8,7 @@ import type { Scenario } from "../../scenario";
 import { impactAt } from "../arrival";
 import { firstUnderWater, waterIndex } from "./impact";
 import { crestDelay, datumShift, depthAt, groundAt, pourReach, seaSurface, surfaceAt, waterModel, waveShape, type TsunamiWave, type WaveTrain } from "./model";
-import { shoreFor, shoreGrid } from "./shore";
+import { cellCentre, shoreFor, shoreGrid } from "./shore";
 import { waterField } from "./source";
 
 const ORIGIN = { lat: 29.966, lng: -90.009 };
@@ -238,7 +238,8 @@ test("the Lower Ninth's breaches open on the scenario's clock and pour from the 
   assert.equal(south.opensAt, 1230);
   assert.ok(surfaceAt(model, north.at, 1100) > surfaceAt(model, north.at, 1040), "the canal's level reaches the gap once it opens");
   assert.ok(model.span.from < 1080 && model.span.to >= 1600);
-  const reached = field.fronts[0].ring[0];
+  const inside = field.minutes.findIndex((minutes) => minutes <= field.fronts[0].minutes);
+  const reached = cellCentre(field, inside);
   assert.ok(firstUnderWater(model, map, field, reached, 0.5, [1100, 1200]) <= 1100);
 });
 

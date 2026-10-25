@@ -139,6 +139,7 @@ const DRAFTS: Draft[] = [
     terrainCellMeters: 10,
     osmSnapshot: null,
     closeups: [
+      { name: "event", label: "The breach and the ward", center: { lat: 29.974, lng: -90.0165 }, radius: 620 },
       { name: "breach", label: "Industrial Canal breach", center: { lat: 29.969, lng: -90.0225 }, radius: 420 },
       { name: "holy-cross", label: "Holy Cross", center: { lat: 29.9579, lng: -90.0165 }, radius: 450 },
     ],
@@ -156,6 +157,7 @@ const DRAFTS: Draft[] = [
     terrainCellMeters: 10,
     osmSnapshot: "2022-09-27T00:00:00Z",
     closeups: [
+      { name: "event", label: "Estero Island's north end", center: { lat: 26.45, lng: -81.95 }, radius: 600 },
       { name: "pier", label: "Times Square and the pier", center: { lat: 26.4522, lng: -81.9545 }, radius: 420 },
       { name: "estero", label: "Estero Island south", center: { lat: 26.43, lng: -81.92 }, radius: 500 },
     ],
@@ -192,6 +194,7 @@ const DRAFTS: Draft[] = [
     terrainCellMeters: 10,
     osmSnapshot: null,
     closeups: [
+      { name: "event", label: "Downtown Hilo and Waiākea", center: { lat: 19.7215, lng: -155.0795 }, radius: 600 },
       { name: "bayfront", label: "Hilo bayfront", center: { lat: 19.7215, lng: -155.084 }, radius: 500 },
       { name: "waiakea", label: "Waiākea and Banyan Drive", center: { lat: 19.7245, lng: -155.066 }, radius: 480 },
     ],
