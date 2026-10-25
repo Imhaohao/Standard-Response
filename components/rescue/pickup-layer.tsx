@@ -8,6 +8,7 @@ import { Pickup, PickupStatus } from "./use-pickups";
 const PAPER = "var(--map-paper)";
 const INK = "var(--map-ink)";
 const SIGNAL = "var(--signal)";
+const SAFE = "var(--leaving)";
 
 type ArcLook = { stroke: string; width: number; opacity: number; dash?: string; className?: string };
 
@@ -22,6 +23,12 @@ const ARC: Record<PickupStatus, ArcLook> = {
   done: { stroke: INK, width: 1.4, opacity: 0.3 },
   fell_through: { stroke: SIGNAL, width: 2.6, opacity: 1 },
 };
+
+// Both sides said yes: the helper is on the way and the resident will be ready. The drive turns the
+// color of a home that's getting out, wider, with both doors marked, so a short drive still shows.
+const CONFIRMED: ArcLook = { stroke: SAFE, width: 3.4, opacity: 1 };
+
+export const isConfirmed = (pickup: Pick<Pickup, "status" | "residentConfirmedAt">) => pickup.status === "coming" && pickup.residentConfirmedAt !== undefined;
 
 // The broken promise: the drive with its middle missing, measured along the path so the gap always
 // sits in the middle however long the drive is.
@@ -46,7 +53,8 @@ function Ringing({ at }: { at: Point }) {
 }
 
 function Drive({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point; drive: Point[] }; emphasis: number }) {
-  const look = ARC[pickup.status];
+  const confirmed = isConfirmed(pickup);
+  const look = confirmed ? CONFIRMED : ARC[pickup.status];
   const route = pickup.drive;
   const width = look.width + (emphasis > 1 ? 1.5 : 0);
   const broken = pickup.status === "fell_through" ? BROKEN : {};
@@ -57,8 +65,16 @@ function Drive({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point; drive
       <MapLine route={route} {...line} stroke={look.stroke} strokeWidth={width} strokeDasharray={look.dash} className={look.className} {...broken} />
       {pickup.status === "coming" && <MapLine route={route} {...line} stroke={PAPER} strokeWidth={width * 0.5} strokeDasharray="2 10" className="animate-dash-flow" />}
       <Anchor point={route[0]}>
-        <circle r={4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />
+        <circle r={confirmed ? 5 : 4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />
       </Anchor>
+      {confirmed && (
+        <Anchor point={route[route.length - 1]}>
+          <g transform="translate(11 -11)">
+            <circle r={8} fill={SAFE} stroke={PAPER} strokeWidth={2} />
+            <Check x={-5} y={-5} size={10} weight="bold" color="white" />
+          </g>
+        </Anchor>
+      )}
     </g>
   );
 }

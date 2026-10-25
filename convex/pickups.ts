@@ -420,6 +420,8 @@ export const board = query({
       helperName: v.string(),
       relation: v.optional(v.string()),
       helperEtaAt: v.optional(v.number()),
+      // Set once the resident said yes to the helper's ride: the pickup is confirmed by both sides.
+      residentConfirmedAt: v.optional(v.number()),
       updatedAt: v.number(),
       home: v.union(v.null(), v.object({ lat: v.number(), lng: v.number(), address: v.string(), residentName: v.optional(v.string()) })),
       helperHome: v.union(v.null(), v.object({ lat: v.number(), lng: v.number() })),
@@ -440,6 +442,7 @@ export const board = query({
           helperName: plan.helperName,
           relation: plan.relation,
           helperEtaAt: plan.helperEtaAt,
+          residentConfirmedAt: plan.residentConfirmedAt,
           updatedAt: plan.updatedAt,
           home:
             household?.lat !== undefined && household.lng !== undefined

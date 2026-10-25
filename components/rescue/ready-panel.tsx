@@ -152,7 +152,10 @@ const etaWords = (minutes: number | null) => (minutes === null ? "On the way" : 
 function rowStatus(pickup: Pickup, now: number): ReactNode {
   if (pickup.status === "fell_through" && pickup.reason) return REASON[pickup.reason];
   if (pickup.status === "checking") return pickup.ringing ? `Ringing ${pickup.helperName}` : "Calling";
-  if (pickup.status === "coming") return etaWords(minutesUntil(pickup.helperEtaAt, now));
+  if (pickup.status === "coming") {
+    const eta = etaWords(minutesUntil(pickup.helperEtaAt, now));
+    return pickup.residentConfirmedAt === undefined ? eta : `Confirmed, ${eta.charAt(0).toLowerCase()}${eta.slice(1)}`;
+  }
   return STATUS[pickup.status].label;
 }
 
