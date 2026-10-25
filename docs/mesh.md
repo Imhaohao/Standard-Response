@@ -97,7 +97,7 @@ dv = [ (v_des(x, ρ) e(x) − v) / τ  +  F_rep(x) ] dt  +  sqrt(2 T / τ) dW
 - **Departures** follow a drift-diffusion decision, dX = μ(t) dt + σ dW, leaving when X reaches 1. There are two classes, evacuation-keen and evacuation-reluctant, per UC Berkeley's survey of California wildfire evacuees, and the drift rises as the fire nears.
 - **Who stays.** Households that can't leave without help stay put and are shown in red. They are who the core flow is for.
 
-The model also records flow by street: cars through each segment, their sampled speeds, and the driving time lost to crowding (each 30-second sample counts 30 s times the share of free-flow speed the car didn't get). The streets where crowding costs the most driving time come out as Lincoln Avenue, West Howard Street and the I-210 ramps.
+The model also records flow by street: cars through each segment, their sampled speeds, and the driving time lost to crowding (each 30-second sample counts 30 s times the share of free-flow speed the car didn't get). A speed sample is the car's velocity along its route, not |v|: the noise alone gives a stopped car an |v| near 1 m/s, which made jams look faster than they were and under-counted lost time by about 15%. The streets where crowding costs the most driving time come out as Lincoln Avenue, West Howard Street and the I-210 ramps.
 
 ### Traffic forecast for the agency
 

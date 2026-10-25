@@ -141,7 +141,10 @@ export class CrowdSim {
   readonly router: RoadRouter;
   seconds = 0;
   discovered = 0;
-  // Flow by street: cars that entered each segment, and speed samples taken on it every 30 s.
+  // Flow by street: cars that entered each segment, and speed samples taken on it every 30 s. A
+  // speed sample is how fast the car is making way along its route, not |v|: the velocity noise
+  // alone gives a stopped car an |v| of about 1 m/s, and a car turning a corner isn't moving along
+  // the street it is on.
   readonly segmentEntries: Uint32Array;
   readonly segmentSpeedSum: Float64Array;
   readonly segmentSpeedSamples: Uint32Array;
@@ -419,12 +422,18 @@ export class CrowdSim {
       if (this.state[i] !== STATE.moving || edge < 0) continue;
       const segment = this.router.edgeSegment[edge];
       if (segment < 0) continue;
-      const speed = Math.hypot(this.vx[i], this.vy[i]);
+      const speed = this.routeSpeed(i);
       this.segmentSpeedSum[segment] += speed;
       this.segmentSpeedSamples[segment] += 1;
       const freeSpeed = this.ground.segments[segment].kph / 3.6;
-      if (freeSpeed > 0) this.segmentLostSeconds[segment] += DECISION_EVERY_SECONDS * Math.max(0, 1 - speed / freeSpeed);
+      if (freeSpeed > 0) this.segmentLostSeconds[segment] += DECISION_EVERY_SECONDS * Math.min(1, Math.max(0, 1 - speed / freeSpeed));
     }
+  }
+
+  // How fast car i is making way along its route, m/s: its velocity along its heading. Negative
+  // while it is pushed back, so for a stopped car the noise averages out to 0.
+  routeSpeed(i: number) {
+    return this.vx[i] * this.hx[i] + this.vy[i] * this.hy[i];
   }
 
   // Streets where the most driving time was lost to crowding: cars through it times the share of
@@ -436,7 +445,7 @@ export class CrowdSim {
       if (samples < 5) continue;
       const meanSpeed = this.segmentSpeedSum[segment] / samples;
       const freeSpeed = this.ground.segments[segment].kph / 3.6;
-      const slowdown = Math.max(0, 1 - meanSpeed / freeSpeed);
+      const slowdown = Math.min(1, Math.max(0, 1 - meanSpeed / freeSpeed));
       rows.push({ segment, entries: this.segmentEntries[segment], meanSpeed, freeSpeed, slowdown });
     }
     return rows.sort((a, b) => b.entries * b.slowdown - a.entries * a.slowdown).slice(0, limit);
@@ -560,7 +569,7 @@ export class CrowdSim {
       counts[this.state[i]] += 1;
       people[this.state[i]] += this.people[i];
       if (this.state[i] !== STATE.moving) continue;
-      const speed = Math.hypot(this.vx[i], this.vy[i]);
+      const speed = this.routeSpeed(i);
       speedSum += speed;
       if (speed < 1) jammed += 1;
       if (this.stuck[i]) noRoute += 1;

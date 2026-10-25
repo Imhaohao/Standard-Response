@@ -169,6 +169,30 @@ describe("Langevin dynamics", () => {
     assert.ok(along(1) > free * 0.95, "the leader, with open road ahead, is near free speed");
   });
 
+  it("measures a stopped car's speed along its route as 0, though the noise keeps |v| near 1 m/s", () => {
+    // The household the fire reaches last, so it isn't overrun during the test.
+    const fireAt = (h: Household) => ground.fireMinutes[cellIndex(ground, ...toXY(h))];
+    const home = population.filter((h) => h.canLeave === "yes" && h.hasCar).reduce((a, b) => (fireAt(b) > fireAt(a) ? b : a));
+    const sim = new CrowdSim(ground, [home], seededRandom(2), () => new Set(), DEFAULT_CROWD);
+    sim.state[0] = STATE.moving;
+    // No route: the car wants to stand still, and only the noise moves it.
+    sim.stuck[0] = 1;
+    sim.step();
+    let along = 0;
+    let magnitude = 0;
+    const steps = 20_000;
+    for (let s = 0; s < steps; s++) {
+      sim.x[0] = sim.router.nodeX[sim.goal[0]] + 50;
+      sim.y[0] = sim.router.nodeY[sim.goal[0]];
+      sim.step();
+      along += sim.routeSpeed(0);
+      magnitude += Math.hypot(sim.vx[0], sim.vy[0]);
+    }
+    assert.equal(sim.state[0], STATE.moving);
+    assert.ok(Math.abs(along / steps) < 0.05, `along the route ${along / steps} m/s`);
+    assert.ok(magnitude / steps > 0.8, `|v| ${magnitude / steps} m/s`);
+  });
+
   it("leaves keen households earlier than reluctant ones", () => {
     const departure = (keen: boolean, seed: number) => {
       const random = seededRandom(seed);

@@ -107,6 +107,7 @@ function timelineOf(branches: Branch[]): TimelinePoint[] {
 }
 
 // Share of free-flow speed lost, over a set of segments: 1 - mean speed / sample-weighted free speed.
+// Speeds are along each car's route, so a stalled street's mean can dip below 0; the share stops at 1.
 function slowdownOf(counters: Counters, members: number[], segments: Segment[]) {
   let speed = 0;
   let free = 0;
@@ -116,7 +117,7 @@ function slowdownOf(counters: Counters, members: number[], segments: Segment[]) 
     free += (counters.samples[s] * segments[s].kph) / 3.6;
     samples += counters.samples[s];
   }
-  return samples < MIN_SPEED_SAMPLES || free <= 0 ? null : Math.max(0, 1 - speed / free);
+  return samples < MIN_SPEED_SAMPLES || free <= 0 ? null : Math.min(1, Math.max(0, 1 - speed / free));
 }
 
 const lostMinutesOf = (counters: Counters, members: number[]) => members.reduce((sum, s) => sum + counters.lost[s], 0) / 60;
