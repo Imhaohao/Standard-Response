@@ -8,6 +8,7 @@ import { startCallPlanRunner } from "./callPlanRunner";
 import { convex } from "./convex";
 import { startDialer } from "./dialer";
 import { startPickupRunner } from "./pickupRunner";
+import { startHangUpRunner } from "./hangUpRunner";
 import { startReadyDialer } from "./readyDialer";
 import { env } from "./env";
 import { watchHazard } from "./hazard";
@@ -105,6 +106,7 @@ server.listen(env.port, () => {
   startCallPlanRunner();
   startCallbackRunner();
   startPickupRunner();
+  startHangUpRunner();
   startReadyDialer();
   startTextFollowUp();
 });

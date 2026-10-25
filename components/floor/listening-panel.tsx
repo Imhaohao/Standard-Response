@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef } from "react";
-import { Headphones, X, PhoneCall, Robot, User } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { Headphones, X, PhoneCall, PhoneX, Robot, User } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -64,6 +64,35 @@ function OutcomeBadge({ household }: { household: Household }) {
       </svg>
       {label}
     </span>
+  );
+}
+
+// Ends the call from our number's side, after a second click: the first one arms it for a moment.
+function HangUpButton({ callId }: { callId: Id<"calls"> }) {
+  const requestHangUp = useMutation(api.calls.requestHangUp);
+  const [armed, setArmed] = useState(false);
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <Button
+      variant={armed ? "onPanel" : "onPanelQuiet"}
+      size="sm"
+      disabled={sent}
+      className={armed ? "" : "text-signal"}
+      onClick={() => {
+        if (!armed) return setArmed(true);
+        setArmed(false);
+        setSent(true);
+        void requestHangUp({ callId }).catch(() => setSent(false));
+      }}
+    >
+      <PhoneX weight="bold" className="size-4" />
+      {sent ? "Hanging up" : armed ? "Click again to hang up" : "Hang up"}
+    </Button>
   );
 }
 
@@ -149,6 +178,7 @@ export function ListeningPanel({
           <div className="flex shrink-0 items-center gap-1.5">
             {call.language !== "en" && <span className="type-small bg-panel-raised px-2 py-1 font-bold">{languageName(call.language)}</span>}
             <OutcomeBadge household={household} />
+            {(call.phase === "live" || call.phase === "ringing") && <HangUpButton key={call._id} callId={call._id} />}
             <button
               type="button"
               aria-label="Close the call"

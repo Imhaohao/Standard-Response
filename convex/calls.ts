@@ -142,6 +142,34 @@ export const startFlow = mutation({
   },
 });
 
+const ACTIVE_PHASES = ["ringing", "live"] as const;
+
+// Call floor: hang up a call from our side. A simulated call ends here. A real one is hung up by the
+// voice server, which watches `hangUpRequests` and ends it through Twilio, ringing or live.
+export const requestHangUp = mutation({
+  args: { callId: v.id("calls") },
+  returns: v.null(),
+  handler: async (ctx, { callId }) => {
+    const call = await ctx.db.get("calls", callId);
+    if (!call || call.endedAt !== undefined) return null;
+    if (call.simulated) await endCall(ctx, callId, true);
+    else await ctx.db.patch("calls", callId, { hangUpRequestedAt: Date.now() });
+    return null;
+  },
+});
+
+// Voice server: real calls the call floor asked to hang up that haven't ended yet.
+export const hangUpRequests = query({
+  args: {},
+  returns: v.array(v.id("calls")),
+  handler: async (ctx) => {
+    const calls = (
+      await Promise.all(ACTIVE_PHASES.map((phase) => ctx.db.query("calls").withIndex("by_phase", (q) => q.eq("phase", phase)).take(100)))
+    ).flat();
+    return calls.filter((call) => !call.simulated && call.hangUpRequestedAt !== undefined).map((call) => call._id);
+  },
+});
+
 export const setPhase = mutation({
   args: { callId: v.id("calls"), phase: callPhase },
   returns: v.null(),
@@ -225,8 +253,6 @@ export async function resolveFollowUpFor(
     at: await simNow(ctx),
   });
 }
-
-const ACTIVE_PHASES = ["ringing", "live"] as const;
 
 export const active = query({
   args: {},

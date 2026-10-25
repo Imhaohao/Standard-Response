@@ -6,6 +6,8 @@ import type { CallMode } from "./twilio";
 
 export interface LiveCall {
   readonly householdId: string | null;
+  // The call floor asked to end this call: hang up from our side and record it as answered.
+  hangUpNow(): Promise<void>;
   // Plays a status template at the next sentence boundary. Resolves once the resident heard it.
   announce(template: string, language?: Language): Promise<void>;
   onMachine(): void;
@@ -25,6 +27,9 @@ export type CallEnded = {
 };
 
 export const liveByCallSid = new Map<string, LiveCall>();
+// Twilio's call for each `calls` row we placed or answered, so the call floor can hang one up
+// while it's still ringing. Entries go when the call ends.
+export const callSidByCallId = new Map<string, string>();
 export const liveByHousehold = new Map<string, LiveCall>();
 // Calls our media stream joined. Twilio reports "completed" for a call that ended before the stream
 // started (a trial-account notice nobody pressed a key for), so this set, not CallStatus, says

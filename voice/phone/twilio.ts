@@ -1,6 +1,7 @@
 import twilio from "twilio";
 import type { PlanPurpose } from "../agent/planCheck";
 import { env } from "../env";
+import { callSidByCallId } from "./registry";
 
 // Outbound calls connect straight to our media stream. Answering-machine detection runs
 // asynchronously, so the greeting starts on pickup and a machine result cuts over to voicemail.
@@ -59,6 +60,7 @@ export async function placeCall(to: string, parameters: StreamParameters) {
     statusCallbackEvent: ["completed"],
     ...machineDetection,
   });
+  if (parameters.callId) callSidByCallId.set(parameters.callId, call.sid);
   return call.sid;
 }
 

@@ -214,6 +214,10 @@ export class ElevenLabsCall implements LiveCall {
   }
 
   // answered: true or false when we end the call; null when Twilio or the caller ended it.
+  async hangUpNow() {
+    await this.finish(true);
+  }
+
   async finish(answered: boolean | null) {
     if (this.ended) return;
     this.ended = true;

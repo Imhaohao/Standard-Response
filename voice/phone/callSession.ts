@@ -14,7 +14,7 @@ import { householdCallFor, onFileRecord } from "./householdCall";
 import { interrupts, isBackchannel } from "./interruption";
 import { isOutboundFlowMode, outboundFlowFor, PickupQuestion, pickupFlowFor } from "./outboundFlows";
 import { dueOnThisLine } from "../pickupRunner";
-import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
+import { callbackScripts, callEnded, callSidByCallId, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
 import { CallMode, connectTo, hangUp, StreamParameters } from "./twilio";
 import { env } from "../env";
@@ -193,6 +193,7 @@ class CallSession implements LiveCall {
       console.error(`[call ${this.callSid}] could not open its call-floor row`, error);
       return null;
     });
+    if (this.callId) callSidByCallId.set(this.callId, this.callSid);
     this.language = this.conversation.language;
     this.listen();
     this.speakTurn(this.conversation.start(), null);
@@ -201,6 +202,7 @@ class CallSession implements LiveCall {
   private async resolveHousehold(): Promise<Id<"households">> {
     const { householdId, callId } = await householdCallFor(this.params);
     this.callId = callId;
+    callSidByCallId.set(callId, this.callSid);
     return householdId;
   }
 
@@ -564,6 +566,10 @@ class CallSession implements LiveCall {
     if (this.ended || this.reachedMachine) return;
     fireAndForget("callbacks.markPlayed", convex().mutation(api.callbacks.markPlayed, { callbackId }));
     this.residentSpoke = true;
+    await this.finish(true);
+  }
+
+  async hangUpNow() {
     await this.finish(true);
   }
 

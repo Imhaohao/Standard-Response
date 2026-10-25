@@ -92,3 +92,13 @@ npm run apify:drill -- clear
 - **The voice agent:** new interpreter flag `away_from_home`. On it, the warning call sets `away: true`, says `awaySafe` ("Since nobody is at the home, I've marked you as safe. Please stay away from the area and follow the evacuation orders.", in all 8 languages; the six beyond en and es are machine translations) and ends. Someone away but calling about a person who is at the home still gives the household's address.
 - **On the call floor:** the badge says "Safe, not at home".
 - **Python** (`modeling/`, `dispatch/`): nothing to change. `away` homes arrive with `outcome: "leaving"`.
+
+## 2026-10-24 20:49
+
+**A Hang up button on the call floor.**
+- **Where:** the listening panel shows it for a ringing or live call, and it takes two clicks.
+- **Contract:** `calls.hangUpRequestedAt` (optional, wall clock) and the mutation `calls:requestHangUp({ callId })`. A simulated call ends right there, through `endCall`. A real one is listed by `calls:hangUpRequests`.
+- **The voice server** (`voice/hangUpRunner.ts`) watches that list:
+  - A call on the line ends through its session (`LiveCall.hangUpNow`), so it's recorded as answered.
+  - One still ringing is cancelled through Twilio, and it counts as unanswered like any ring nobody picked up.
+  - Twilio's call ID for each `calls` row is kept in `callSidByCallId` (`voice/phone/registry.ts`): `placeCall` adds it, and so does a session once its row exists.

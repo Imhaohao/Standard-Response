@@ -328,6 +328,8 @@ export default defineSchema({
     // being picked up) and shows on the call floor, but it isn't that home's warning call: ending it
     // leaves the home's call status and retries alone.
     flow: v.optional(callFlow),
+    // The call floor asked to hang this call up from our side (wall clock). The voice server does it.
+    hangUpRequestedAt: v.optional(v.number()),
   })
     .index("by_phase", ["phase"])
     .index("by_householdId", ["householdId"]),
