@@ -390,11 +390,15 @@ export class Conversation {
     const plain = !silent && !givesTime && told.length === 0;
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
     const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime, passedOn });
-    const sentences = [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== "");
-    if (ack.text === "" && sentences.length === 0 && this.holding && this.dangerAtHome()) sentences.push(LINES[this.language].holdPrompt);
+    const sentences = this.notSilentInDanger(ack.text, [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== ""));
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
+  }
+
+  private notSilentInDanger(acknowledgment: string, sentences: string[]) {
+    const silent = acknowledgment === "" && sentences.length === 0;
+    return silent && this.holding && this.dangerAtHome() ? [LINES[this.language].holdPrompt] : sentences;
   }
 
   // The answer changed something else ("it's just me") and left the question open: it is asked
