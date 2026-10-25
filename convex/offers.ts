@@ -59,6 +59,15 @@ export async function approveAssignment(ctx: MutationCtx, assignmentId: Id<"assi
   await ctx.scheduler.runAfter(OFFER_TTL_MS, internal.offers.expire, { assignmentId });
 }
 
+// Accepted runs are frozen: an offer joins its van's run after every accepted stop another plan
+// gave it, because its ETA never counted on them. Stops from its own plan keep the order that plan
+// priced, before or after it. The next re-plan prices the ETA again.
+async function acceptedStopOrder(ctx: MutationCtx, offer: Doc<"assignments">) {
+  const run = await liveAssignmentsForVehicle(ctx, offer.vehicleId);
+  const others = run.filter((a) => a.status === "accepted" && a.planVersion !== offer.planVersion);
+  return Math.max(offer.stopOrder, ...others.map((a) => a.stopOrder + 1));
+}
+
 // Succeeds only while this offer is still open. Convex runs the check and the write in one transaction.
 export async function acceptAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
@@ -67,7 +76,8 @@ export async function acceptAssignment(ctx: MutationCtx, assignmentId: Id<"assig
     await audit(ctx, "stale_accept_rejected", `Accept on a ${assignment.status} offer rejected`, refs);
     return "changed" as const;
   }
-  await ctx.db.patch("assignments", assignmentId, { status: "accepted", respondedAt: await simNow(ctx) });
+  const stopOrder = await acceptedStopOrder(ctx, assignment);
+  await ctx.db.patch("assignments", assignmentId, { status: "accepted", respondedAt: await simNow(ctx), stopOrder });
   await transitionRequest(ctx, assignment.requestId, "driver_accepted");
   await audit(ctx, "accepted", "Driver accepted", refs);
   await queueCallback(ctx, { ...assignment, _id: assignmentId }, "driver_accepted");
