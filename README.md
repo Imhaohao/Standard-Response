@@ -1,14 +1,25 @@
 # Standard Response
 
-Standard Response gets people who can't evacuate on their own into a vehicle that can actually carry them. When an evacuation warning goes out, our voice agent calls every home in the zone to find out who can't leave and what help they need. Each answer becomes a ride request on a live map. A routing optimizer matches every request to a van with the right space and crew. Nobody is told help is coming until a driver has accepted the pickup on their own phone.
+**Standard Response is an evacuation coordination system. When a warning goes out, it calls every home in the zone, triages who can't get out, routes accessible vehicles and neighbors to them, and keeps every promise to a resident true while the plan changes.**
 
-It works for any disaster that forces people out of their homes, including wildfires, floods, earthquakes, landslides and hurricanes. Each hazard changes what the agent tells people to do and how fast the deadline moves. The calls, the ride requests and the dispatch work the same way for all of them. Our demo replays a wildfire on a real map of Altadena, California.
+![Every home in the warning zone, sorted by the calls: red needs help, orange can help a neighbor, green has left, grey not reached yet](public/devpost/census.jpg)
+
+*A simulated night over the real map of west Altadena. Standard Response has called every home inside the warning zone (white outline) while the fire (top right) moves in. The 1,003 red homes are the ones dispatch has to reach.*
+
+In a replay of the real Eaton Fire night, Standard Response got **16 times as many at-risk households out on time** as today's process, with 25 vehicles, under 2% of LA County's paratransit fleet.
+
+| Calls start | Vehicles | With Standard Response | Today's process (modeled) |
+| --- | --- | --- | --- |
+| 10:50 p.m., first fire west of Lake Ave | 25 | **641 of 662** (97%) | 39 of 662 (6%) |
+| 3:25 a.m., the real evacuation order | 50 | **356 of 662** (54%), 81% of the 442 still reachable | 43 of 662 (6%) |
+
+It works for any disaster that forces people out of their homes: wildfires, floods, earthquakes, landslides and hurricanes. Each hazard changes what the agent tells people to do and how fast the deadline moves, while the calls, ride requests and dispatch stay the same. Our demo replays a wildfire on a real map of Altadena, California.
 
 ## Why we built it
 
-In January 2025 the Eaton Fire reached west Altadena overnight. A father who used a wheelchair lived there with his son, who has cerebral palsy. The evacuation order for their part of town came at 3:25am, with no warning before it. The county's paratransit service said its vans were ready by 4am, but nobody called it. The father called 911 at 6:03 and again at 6:14. The dispatcher told him "we have a lot of calls in that area." Both men were found dead around 8:30am.
+On the night of the Eaton Fire in January 2025, Anthony Mitchell, 68, was at home in west Altadena with his son Justin, 35. Anthony used a wheelchair. Justin has cerebral palsy and needed two or three people to lift him. The evacuation order for their part of town came at 3:25 a.m., with no warning before it. Anthony called 911 at 6:03 and again at 6:14. The dispatcher told him "They're on their way." Nobody came. Both men died in their home. LA County's paratransit service, AccessLA, said its vans were ready by 4 a.m. Nobody called it. (Sources: LAist's July 2025 investigation of the 911 recordings, NPR and AP.)
 
-Vans existed that night. Nothing connected them to the people who couldn't get out. We found the same gap in every large disaster we looked at:
+The vehicles existed. What failed was coordination, and we found the same gap in every large disaster we looked at:
 
 | Disaster | Deaths | Who died |
 | --- | --- | --- |
@@ -17,33 +28,56 @@ Vans existed that night. Nothing connected them to the people who couldn't get o
 | Camp Fire, Paradise (2018) | 85 | A majority were over 65 |
 | Hurricane Katrina, Louisiana (2005) | 971 | Almost half were 75 or older |
 
-A UN survey of about 6,000 people with disabilities found that only 1 in 5 could evacuate right away without difficulty. Disability registries were supposed to close this gap. During Hurricane Harvey, fewer than 5% of the people on Texas's registry were contacted, because nobody had the staff to call through the list in time. An AI voice agent removes that limit. It can hold thousands of calls at once, in the caller's own language.
+A UN survey of about 6,000 people with disabilities found that only 1 in 5 could evacuate right away without difficulty. Disability registries were supposed to close this gap. During Hurricane Harvey, fewer than 5% of the people on Texas's registry were contacted, because nobody had the staff to call through the list in time. "We have four dispatchers that sit in the room," a firefighter at Palo Alto Fire Station 1 told us. "You can only answer so many calls." An AI voice agent can hold thousands of those calls at once, in the caller's own language.
 
 ## What it does
 
-**Before any disaster, the Ready check.** The agent calls each household in an agency's area, or the household signs up at `/ready` on its own phone. It records who lives there, what help they'd need getting out, and where that person sleeps. A household can also name a helper, such as a relative or neighbor, who has agreed to pick them up.
+**Before any disaster, the Ready check.** The agent calls each household in an agency's area, or the household signs up at `/ready` on its own phone. It records who lives there, what help they'd need getting out, and which room that person sleeps in. A household can also name a helper, such as a relative or neighbor, who has agreed to pick them up.
 
 **When a warning goes out:**
 
-1. A dispatcher draws the warning zone on the rescue map. Our Apify Actor can also start this automatically when a California county moves a zone to warning.
-2. The agent calls every home inside the zone. It confirms where the person is and whether everyone can leave. Then it asks how many people are there and what help they need. Before hanging up, it reads the answers back so the resident can correct them.
-3. If a home has a helper on file, the agent calls the helper first. A helper who says no or doesn't answer turns the home into a ride request at once, with its needs already filled in.
-4. The optimizer, built on Google OR-Tools, assigns each request to a vehicle with enough seats, wheelchair spaces and crew to do the pickup. A dispatcher approves the plan. Each driver then accepts or declines on their phone.
-5. Once a driver accepts, the resident gets a call back with the driver's name, the vehicle and the ETA. If a road closes and the driver can no longer reach them, the resident hears that right away.
-6. Silence never counts as safe. An unanswered home is called again at 2 and 5 minutes, then texted. If nobody replies, it goes on the list of doors for field crews to knock on.
+1. A dispatcher draws the warning zone on the rescue map, or our public Apify Actor starts the calls when a California county moves a zone to warning.
+2. The agent calls every home inside the zone at once. It confirms where the person is and whether everyone can leave, asks how many people are there and what help they need, then reads the answers back so the resident can correct them. Life threats jump to the top of the call floor.
+3. The agent calls a resident's named helper first. It recruits a neighbor only when the fire reaches the neighbor's home no later than the resident's, so helping always means driving away from the fire. A helper who says no or doesn't answer turns the home into a ride request at once.
+4. Our optimizer assigns each request to a vehicle with enough seats, wheelchair spaces and crew. A dispatcher approves the plan with one click, and each driver accepts or declines on their own phone.
+5. The moment a driver accepts, the resident gets a call back with the driver's name, the vehicle and the ETA. If a road closes and the driver can no longer reach them, the resident hears that right away.
+6. Silence never counts as safe. An unanswered home is called again at 2 and 5 minutes, then texted, then put on the list of doors for field crews to knock on.
 
-**The honesty rule.** The agent can't say help is coming unless a driver has accepted. Code enforces this, not the prompt. Every sentence about a ride is a fixed template picked by the request's status. Claude only reads what the resident said and writes a short acknowledgment. A code guard blocks that acknowledgment if it sounds like a promise. A separate Claude grader checked 2,046 of the agent's own lines from test calls against this rule and flagged 9 of them (`data/honesty-results.json`).
+**The honesty rule.** The agent never says help is coming until a driver has accepted. Code enforces this, not the prompt. Every sentence about a ride is a fixed template picked by the request's status. Claude reads what the resident said and writes a short acknowledgment, and a code guard blocks that acknowledgment if it sounds like a promise.
+
+![The call floor mid-call: every home's status on the left, and the agent's live transcript with the record it fills in on the right](public/devpost/call-floor.png)
 
 | Screen | Path | Who it's for |
 | --- | --- | --- |
-| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup and van on one map, with the hazard spreading across it |
+| Judge kiosk | `/` | Judges. Claim a house on the map with your own number, and Standard Response calls your phone |
+| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup and vehicle on one map, with the hazard spreading across it |
 | Call floor | `/dashboard` | Dispatchers. Every live call, what the agent heard, and the queue |
 | Driver page | `/driver` | Drivers. Ride offers to accept, and the run once accepted |
 | Simulated phone | `/phone` | Demos. A resident's side of the call and texts, without dialing a real number |
-| Under the hood | `/system` | Judges. How dispatch decides, with the numbers behind it |
+| Under the hood | `/system` | Judges. How dispatch decides, with every test result behind it |
 | Ready sign-up | `/ready` | Residents. The Ready check profile, filled in on their own phone |
+| Pitch | `/present` | The deck we present from, with the live rescue map inside it |
 
-## Replaying the night in west Altadena
+## How we built it
+
+![How it works: warning zone, call, record, request, plan, dispatcher approval, driver acceptance, then the callback](public/devpost/architecture.png)
+
+- **Voice:** Twilio carries the call. Cartesia Ink hears the caller in ten languages straight from 8 kHz phone audio, and Sonic answers in eight of them with barge-in. Armenian and Persian callers are handed to a person. A full second voice stack on ElevenLabs takes over with one setting if Cartesia goes down.
+- **Understanding:** Claude Haiku 5.5 turns half-corrected speech ("it's just me... no, my son is here, he uses a wheelchair") into structured fields in 0.92 s per turn at the median. Claude Sonnet 5.5 ranks which homes to call first. Moss feeds each turn our call-taking principles and real 911 moments, and a Bitdeer-hosted model answers if Claude is slow.
+- **Coordination:** One Convex database connects everything, and no service calls another directly. Accepts are version-checked in a single transaction, callbacks are idempotent, and retries run as durable Convex Workflows.
+- **Dispatch and simulation:** Our adaptive large neighborhood search (ALNS) runs on DigitalOcean over an OSMnx road graph of Altadena, with OR-Tools and a greedy heuristic as baselines. The night simulator runs on SimPy, and the voice server on Fly.io. Auth0 gates dispatcher login, and Capital One's Nessie sandbox pays volunteer drivers' mileage once per confirmed pickup.
+
+### The dispatch math
+
+Each request $r$ has a deadline $d_r$, 10 minutes before fire is expected at the home. A vehicle arrives at $a_r$ and boarding takes $b_r$, so lateness is $\ell_r = a_r + b_r - d_r$. Expected deaths $E_r$ are zero for a rider who boards by the deadline and climb to the full risk $D_r$ when the fire arrives, $R = 600$ s later. The optimizer minimizes
+
+$$\min \sum_r \left( 10^7 E_r + w_r a_r \right) + \sum_k \tau_k \qquad E_r = D_r \cdot \min\left(1, \max\left(0, \frac{\ell_r}{R}\right)\right)$$
+
+subject to each vehicle's seats, wheelchair spaces and stretcher spaces. One expected death outweighs any amount of driving time $\tau_k$, and need-weighted waiting $w_r a_r$ spreads riders across the fleet. The risk model is an assumption, not a prediction about real people (`dispatch/fatality.py`). The search (`dispatch/alns.py`) starts from the heuristic's plan, tears plans apart and rebuilds them under simulated annealing, and never moves a run a driver has accepted. On our fastest simulated fire it completes a median of 6 more on-time pickups than the heuristic over 100 seeds (5th to 95th percentile: +1.75 to +14.2, `data/sim-results.json`).
+
+## Results
+
+### Replaying the night in west Altadena
 
 We rebuilt the night of January 7 to 8, 2025 from public records and ran our system's rules against it. The UL Fire Safety Research Institute published more than 3,300 timestamped Eaton Fire records, taken from dispatch logs, radio and body-camera transcripts, and the alert archive. LA County's own investigation gives the time of every evacuation order. We placed each record on the map by its block and read every request for help west of Lake Avenue by hand.
 
@@ -58,9 +92,9 @@ Two of the sixteen had no fire reported within two blocks, so the last column co
 
 That replay assumes a van drives at free-flow speed from the Rose Bowl command post. It takes 4 minutes to reach the household by phone and 3 more for a driver to accept, then the boarding times in `PLAN.md`.
 
-Those sixteen are only the people whose calls got through. To see the whole west side, we ran our dispatch simulator on the night itself. All 11,855 households in our synthetic census population are in it, with none sampled. Of the 1,262 that need a ride, the fire reached 662 that the record puts a time on. CAL FIRE's damage inspections say which homes the fire reached. The first fire sighting within 250 meters in the FSRI records says when. The simulator calls every home at one call a second, then retries, texts and sends door teams, while the dispatcher routes the vans from the Rose Bowl.
+Those sixteen are only the people whose calls got through. To see the whole west side, we ran our dispatch simulator on the night itself. All 11,855 households in our synthetic census population are in it, with none sampled. Of the 1,262 that need a ride, the fire reached 662 that the record puts a time on. CAL FIRE's damage inspections say which homes the fire reached. The first fire sighting within 250 meters in the FSRI records says when. The simulator calls every home at one call a second, then retries, texts and sends door teams, while the dispatcher routes the vehicles from the Rose Bowl.
 
-| Calls start | Vans | Out on time with our system | Out on time with today's process |
+| Calls start | Vehicles | Out on time with Standard Response | Out on time with today's process (modeled) |
 | --- | --- | --- | --- |
 | 10:50 p.m., first fire west of Lake | 8 | 195 of 662 | 16 of 662 |
 | 10:50 p.m. | 25 | 641 of 662 | 39 of 662 |
@@ -69,7 +103,7 @@ Those sixteen are only the people whose calls got through. To see the whole west
 | 3:25 a.m. | 50 | 356 of 662 | 43 of 662 |
 | 3:25 a.m. | 100 | 360 of 662 | 48 of 662 |
 
-"On time" means everyone in the household was aboard at least 10 minutes before fire was reported near the home. Each figure is the median of five runs. When calls start at 3:25 a.m., fire had already been reported near 220 of the 662 homes, so no fleet could get more than 442 out. Fifty vans get 356 of those 442. Twenty-five vans is under 2% of AccessLA's fleet of more than 1,800, which LAist reported was ready by 4 a.m. and never called.
+"On time" means everyone in the household was aboard at least 10 minutes before fire was reported near the home. Each figure is the median of five runs. When calls start at 3:25 a.m., fire had already been reported near 220 of the 662 homes, so no fleet could get more than 442 out. Fifty vehicles get 356 of those 442, or 81%. Twenty-five vehicles is under 2% of AccessLA's paratransit fleet of more than 1,800, which LAist reported was ready by 4 a.m. and never called.
 
 The right-hand column is our model of today's process, not the record. In it, 55% of the people who need a ride call 911 about 20 minutes before the fire reaches them, and the nearest free unit takes one household per trip. On the real night AccessLA wasn't called at all.
 
@@ -90,9 +124,17 @@ cd ../dispatch
 uv run python -m sim.eaton_night --seeds 5   # the whole night, data/eaton/night-sim-results.json
 ```
 
+### Promises that hold under load
+
+`npm run stress:convex` fires conflicting writes from many clients at once at the real Convex contract, on a throwaway local backend. In one scenario, 25 ride offers were each accepted by 12 phones at the same instant, and exactly one accept won every time. In another, 8 dispatchers raced to offer the same requests. A chaos run fired 8 rounds of 120 random writes from stale views. The first runs found four bugs, and all nine scenarios pass now (`docs/convex-stress.md`).
+
+### A voice agent that gets it right
+
+Across 200 simulated callers in English and Spanish, the agent got every address right and 198 records fully right (`data/eval-results.json`). A Claude Opus grader read 2,046 of its lines written while no driver had accepted and found implied promises in only 9 (`data/honesty-results.json`). The full evals, including the ones that still fail, are under [Where Claude could go wrong](#where-claude-could-go-wrong).
+
 ## What firefighters changed
 
-On October 24 we visited two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. At Station 1 one of them said: "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." They also pointed out four gaps. We fixed all four that afternoon.
+On October 24 we took Standard Response to two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. At Station 1 one of them said: "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." They pointed out four gaps, and we shipped all four fixes that afternoon.
 
 | What they told us | What we changed |
 | --- | --- |
@@ -103,9 +145,16 @@ On October 24 we visited two Palo Alto fire stations, University Park (Station 1
 
 They also confirmed a choice we'd already made. Station 1 said the most useful thing would be "pre-gathered information about what's going on at an individual residence," down to which rooms people sleep in. The Ready check collects exactly that.
 
+## What we learned
+
+- **The shortage was information, not vehicles.** With the same 25 vehicles, 39 households got out on time when people had to reach 911 themselves. When Standard Response called every home first, 641 did.
+- **Promises belong in code.** Claude reached for the same comfort 911 gave Anthony Mitchell, so every sentence about a ride is a template that code picks. A banned-phrase list caught only 10 of 20 promises it had never seen, while an Opus grader caught all 20.
+- **The hardest bugs weren't in the AI.** Two phones tapping Accept at once can break a promise faster than any model. Single-transaction mutations fixed all four races we found.
+- **Firefighters know what no form asks.** "Wheelchair" can mean a 400-pound power chair, crews need a household's language before they knock, and volunteers must drive away from the fire.
+
 ## Where Claude could go wrong
 
-On an evacuation call, one wrong sentence can cost a life. Suppose the agent says "help is on the way" before any driver has accepted. A resident who could have left on their own might then wait for a van that isn't coming. So the call agent has a written constitution. We built the system so Claude can't break the worst rule even if it tries, and we measure how often it tries.
+On an evacuation call, one wrong sentence can cost a life. Suppose the agent says "help is on the way" before any driver has accepted. A resident who could have left on their own might then wait for a vehicle that isn't coming. So the call agent has a written constitution. We built the system so Claude can't break the worst rule even if it tries, and we measure how often it tries.
 
 ### Our constitution next to Claude's
 
@@ -170,8 +219,8 @@ Still open:
 | Sponsor | What it does for us | Where |
 | --- | --- | --- |
 | Anthropic | Claude reads each thing a resident says on a call. It turns messy, corrected speech in ten languages into record fields, a yes or no, and any emergency. Claude Haiku 5.5 runs live calls; setting `VOICE_MODEL=claude-opus-5-5` switches them to Opus 5.5 in fast mode. Claude Sonnet 5.5 ranks which homes to call first. Claude Opus 5.5 grades whole practice calls in our voice exam and checks the agent's lines for implied promises. | `voice/agent/interpreter.ts`, `voice/exam/judge.ts` |
-| Bitdeer AI Model Studio | A backup brain for the phone calls. If a Claude request fails with a server error, an overload, a rate limit or a connection error, or takes longer than `FALLBACK_AFTER_MS` (default 4000), the same prompt and JSON schema go to a Bitdeer-hosted model (`BITDEER_MODEL`, default `deepseek-ai/DeepSeek-V4.1-Flash`) over its OpenAI-compatible API, and the first good answer is used. The honesty guard and fixed templates run on whatever model answers, so a backup answer cannot promise help. Without `BITDEER_API_KEY` the backup is off. Set `BITDEER_API_KEY`, optionally `BITDEER_MODEL` and `BITDEER_BASE_URL` (default `https://api-inference.bitdeer.ai/v1`). | `voice/agent/fallbackModel.ts` |
-| Gemini (Google) | Gemini is an independent second grader of the honesty eval. It reads the same agent lines and rubric as the Claude grader, so two model families judge every line for implied promises. The results report Claude-Gemini agreement (Cohen's kappa), the share both flag, and the lines they split on. Without `GEMINI_API_KEY` it is skipped. | `modeling/rollcall_d/second_grader.py`, `modeling/scripts/grade_honesty.py --second-grader gemini` |
+| Bitdeer AI Model Studio | A backup brain for the phone calls. If a Claude request fails with a server error, an overload, a rate limit or a connection error, or takes longer than `FALLBACK_AFTER_MS` (default 4000), the same prompt and JSON schema go to a Bitdeer-hosted model (`BITDEER_MODEL`, Qwen3.8-27B with thinking off, which answers in about 0.5 s) over its OpenAI-compatible API, and the first good answer is used. The honesty guard and fixed templates run on whatever model answers, so a backup answer cannot promise help. Without `BITDEER_API_KEY` the backup is off. Set `BITDEER_API_KEY`, optionally `BITDEER_MODEL` and `BITDEER_BASE_URL` (default `https://api-inference.bitdeer.ai/v1`). | `voice/agent/fallbackModel.ts` |
+| Gemini (Google) | Built, not yet run: no Gemini key arrived during the event, so every published grade comes from Claude Opus 5.5. Once run, Gemini is an independent second grader of the honesty eval. It reads the same agent lines and rubric as the Claude grader, so two model families judge every line for implied promises. The results report Claude-Gemini agreement (Cohen's kappa), the share both flag, and the lines they split on. Without `GEMINI_API_KEY` it is skipped. | `modeling/rollcall_d/second_grader.py`, `modeling/scripts/grade_honesty.py --second-grader gemini` |
 | Cartesia | Ink transcribes the caller as they speak, and Sonic speaks the agent's lines. Both stream over WebSockets on the phone call's own audio. The full feature list and limits are below. | `voice/phone/` |
 | ElevenLabs | A second, complete voice stack behind `VOICE_STACK=elevenlabs`. Each call gets its own Conversational AI agent whose prompt carries that household's facts (made in about 1.5 s and deleted when the call ends). ElevenLabs runs listening, turn-taking and the voice on Twilio's audio as is, and client tools write what the resident says to the same Convex record the Cartesia stack writes. If Cartesia is down, one setting moves every call to ElevenLabs. | `voice/phone/elevenlabs.ts`, `voice/phone/elevenLabsCall.ts` |
 | Moss | Before Claude reads each turn, the agent searches two Moss indexes in memory within an 80 ms budget. One holds our call-taking principles and the other holds moments from past 911 calls with their correct readings. The closest matches go into that turn's prompt. When a caller asks a policy question ("Can my dog come?", "¿Cuánto cuesta?"), Claude restates it in English and a third index matches it to the agency's approved answer in 1 to 2 ms. The caller hears that answer word for word in their language, and below a 0.7 match score the agent says it doesn't know. Moss also answers the dangerous questions. "Can I go back in for my cat?", "Should I go get my neighbor?" and "Should I turn my oxygen up?" get the agency's safety answer ("Don't go back inside... Get yourself out now."). Code decides which answers each kind of question may get, and Claude's own words on a dangerous question are never spoken. So without Moss, those callers hear no answer at all. We measured it with `npm run moss:check -- --runs 3`: 22 questions in English and Spanish, each read three times by the live interpreter (`data/moss-answer-check.json`). With Moss, 62 of 66 got the right answer, including 15 of 18 safety answers, and no dangerous question got an ordinary answer. Without Moss, 12 of 66 did, and those 12 were the questions that should get no answer. The median Moss lookup took 5 ms. | `voice/knowledge/moss.ts`, `voice/agent/answerLookup.ts`, `voice/agent/approvedAnswers.ts` |
@@ -184,7 +233,7 @@ Still open:
 | Atlassian | A Forge app turns the door-check queue into Jira work items for field crews. Every 5 minutes it asks Convex (`POST /agent/door-checks`, bearer secret) for the unreached homes, creates one issue per home with rank, need level, language and why it is listed, comments when the system status changes, and closes the issue once the home is reached. The household id on the issue keeps reruns from duplicating, and no phone number or name leaves Convex. A Rovo agent answers "Which door checks are most urgent near Mariposa St?". | `atlassian/door-checks/`, `convex/doorChecks.ts`, `convex/http.ts` |
 | Capital One Nessie | When a resident confirms that the neighbor or named helper who came for them picked them up, the agency pays that volunteer's mileage in the Nessie sandbox. The amount is the road miles of the pickup (the volunteer's home to the resident to the nearest shelter, on the same road graph and closures the vans use) at the IRS charitable rate of $0.14 a mile, capped at $25, rounded up to whole dollars (at least $1) because Nessie's sandbox keeps whole dollars. Each payment is a transfer out of the agency account plus a deposit into the volunteer's, verified live against the sandbox. The first payment makes the volunteer a Nessie customer and checking account; we keep only the Nessie ids. Each ride is paid at most once: its payment row is written in the same transaction that confirms the pickup, one attempt at a time holds it, and a retry after an unknown result looks the transfer up in Nessie before it sends another. The activity list shows "Reimbursed Ana $0.10 for 0.7 miles". Agency vans are never paid. Without `NESSIE_API_KEY` and `NESSIE_AGENCY_ACCOUNT_ID`, a payment is recorded as not configured and nothing is sent. | `convex/reimburse.ts`, `convex/nessie.ts`, `convex/reimburseMiles.ts` |
 | Auth0 | Auth0 handles dispatcher login. Only dispatchers and drivers can see the at-risk list, and the first ride approval of a session asks for a second factor. | `proxy.ts`, `lib/access.ts` |
-| DigitalOcean | App Platform hosts the OR-Tools solver service. | `dispatch/server.py` |
+| DigitalOcean | App Platform hosts the dispatch solver service: our ALNS search, with OR-Tools and a greedy heuristic as baselines. It re-plans every vehicle whenever a request arrives or a road closes. | `dispatch/server.py`, `dispatch/alns.py` |
 | Vercel | Vercel hosts the web app. Drivers open the driver page on their own phones. | |
 
 Twilio carries the phone calls. The voice server runs on Fly.io.
@@ -213,3 +262,36 @@ In the latest voice exam, the agent's own turn took 0.92 s at the median and 1.6
 - Because phone audio is 8 kHz, voices sound like a phone call rather than a studio recording.
 - A status change, such as a driver accepting or a road closing, plays after the turn that's already speaking. That's a few seconds at most, but it never cuts in mid-sentence.
 - The Twilio account is a trial as of Brendan's last note. Every call opens with Twilio's notice. Outbound calls reach verified numbers only.
+
+## Run it
+
+You need Node, a Convex deployment, and keys in `.env.local`, which git ignores. The voice server reads:
+
+| Variable | What it's for |
+| --- | --- |
+| `CONVEX_URL`, `NEXT_PUBLIC_CONVEX_URL` | The shared Convex deployment |
+| `ANTHROPIC_API_KEY`, `VOICE_MODEL` | Claude for every call turn (Haiku 5.5 by default) |
+| `CARTESIA_API_KEY`, `CARTESIA_VOICE_EN`, `CARTESIA_VOICE_ES` | Ink and Sonic, with a voice per language (`CARTESIA_VOICE_<CODE>` for the others) |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `VOICE_PUBLIC_URL` | The phone line and the public URL Twilio streams audio to |
+| `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY` | Principles, 911 moments and approved answers |
+| `ELEVENLABS_API_KEY`, `VOICE_STACK=elevenlabs` | Optional: the backup voice stack |
+| `BITDEER_API_KEY` | Optional: the backup model |
+
+```bash
+npm install
+npx convex dev        # backend, in its own terminal
+npm run dev           # web app on http://localhost:3000
+npm run dev:voice     # call server
+npm run test:voice    # voice agent tests
+npm run stress:convex # the Convex stress test
+```
+
+The dispatch solver and simulators are Python under `dispatch/` and `modeling/`, run with `uv` as shown in [Results](#results).
+
+## What's next
+
+- **Drills:** a tabletop drill with Palo Alto Stations 1 and 6, then a replay of a night like the Eaton Fire with a paratransit agency's own dispatchers.
+- **Shadow mode, then a pilot:** run beside real dispatchers during real warnings, then pilot on an agency's rider list under its authority, deleting rider data 72 hours after each incident closes.
+- **Beyond wildfire:** the calls and dispatch already work the same for floods, earthquakes and hurricanes. Only the hazard model changes.
+
+Every reverse-911 warning today is a one-way broadcast. We want the next one to be a conversation.
