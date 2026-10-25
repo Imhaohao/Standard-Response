@@ -11,6 +11,7 @@ import { reviewPickups } from "./pickups";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
 import { currentPlan, QUEUE_STATUSES } from "./callPlans";
+import { fireArrivalForNewHome, timingForHome } from "./fireArrival";
 
 const recordPatch = v.object({
   canLeave: v.optional(canLeave),
@@ -280,7 +281,6 @@ export const findOrCreateByPhone = mutation({
       .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
       .first();
     if (existing) return existing._id;
-    const now = await simNow(ctx);
     return await ctx.db.insert("households", {
       address: UNCONFIRMED_ADDRESS,
       callbackNumber,
@@ -292,7 +292,7 @@ export const findOrCreateByPhone = mutation({
       attempts: 0,
       needPrior: 0.5,
       needProbability: 0.5,
-      fireArrivalAt: now + 60 * 60_000,
+      fireArrivalAt: await fireArrivalForNewHome(ctx, {}),
       callPriority: 0,
       simulated: false,
     });
@@ -307,7 +307,12 @@ export const setLocation = mutation({
     const household = await ctx.db.get("households", householdId);
     if (!household) throw new Error(`Household ${householdId} not found`);
     const escalation = household.escalation === "address_unconfirmed" ? undefined : household.escalation;
-    await ctx.db.patch("households", householdId, { ...location, escalation });
+    // The placeholder deadline from when they called gives way to when the fire reaches this address.
+    const timing = await timingForHome(ctx, location, household.needProbability);
+    await ctx.db.patch("households", householdId, { ...location, escalation, ...timing });
+    for (const request of await openRequestsFor(ctx, householdId)) {
+      await ctx.db.patch("requests", request._id, { deadlineAt: deadlineFor(timing.fireArrivalAt) });
+    }
     return null;
   },
 });

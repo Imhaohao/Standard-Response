@@ -1,4 +1,4 @@
-import type { LatLng } from "@/lib/geo";
+import type { LatLng } from "../geo";
 
 // The baked map from scripts/map/bake.mjs. Coordinates are decimeters east and north of `origin`.
 type RawMap = {

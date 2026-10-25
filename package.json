@@ -15,6 +15,7 @@
     "deploy:voice": "fly deploy . --config voice/fly.toml --dockerfile voice/Dockerfile",
     "test:mesh": "tsx --test lib/mesh/*.test.ts lib/crowd/*.test.ts",
     "test:prepare": "tsx --test lib/prepare/*.test.ts",
+    "test:hazard": "tsx --test scripts/hazard/*.test.ts",
     "test:voice": "tsx --test voice/*.test.ts voice/agent/*.test.ts voice/phone/*.test.ts voice/knowledge/*.test.ts",
     "test:workflow": "vitest run tests/workflow --environment edge-runtime",
     "stress:convex": "tsx scripts/stress/run.ts",

@@ -1,4 +1,4 @@
-import type { LatLng } from "@/lib/geo";
+import type { LatLng } from "../geo";
 import type { Point } from "./data";
 
 // The hazard scenario: nested fire fronts, each tagged with the minute after the warning it is reached.

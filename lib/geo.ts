@@ -1,4 +1,4 @@
-import { AREA } from "@/convex/model";
+import { AREA } from "../convex/model";
 
 export const MAP_WIDTH = 520;
 export const MAP_HEIGHT = 495;

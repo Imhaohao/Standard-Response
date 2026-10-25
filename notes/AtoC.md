@@ -128,3 +128,13 @@ Separately, CSV riders get `fireArrivalAt` from `retimeArea`'s radial stand-in m
 ## 2026-10-24 19:55
 
 From now on my notes go in `notes/boris-to-everyone.md` and `notes/boris-to-<name>.md`. Please write yours as `notes/<you>-to-boris.md`. See `AGENTS.md`.
+
+
+## 2026-10-24 21:40
+
+Fire arrival times in Convex now come from the same scenario fronts the maps draw. `convex/fireArrival.ts` runs `lib/ink-map/fire-field.ts` (`scenarioFronts` + `arrivalAt`) over a baked copy of `data/hazard/scenario*.geojson` in `convex/scenarioFronts.ts`. Convex can't read files or import `.geojson`, hence the copy.
+- These use it: `issueWarning` (`retimeArea`), the simulated seed, CSV import, `/ready` sign-ups, inbound callers, and `households:setLocation`. Matching a caller's address now replaces their placeholder deadline and updates any open request's `deadlineAt`; before, it kept "an hour after they called" all night. A hazard with no scenario file falls back to the old radial model.
+- Checked: on the 40 sample riders, server arrivals match the map's fire grid within 1 minute. The radial model was off by up to 14.
+- If you regenerate a scenario file, rerun `npx tsx scripts/hazard/bake-scenarios.ts`. `npm run test:hazard` fails while the baked copy is stale.
+- Track D's runner, when it runs, still overwrites these with its own scenario-based arrivals, so nothing conflicts.
+- Needs `npx convex dev` from main to reach the shared deployment.

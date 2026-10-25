@@ -4,7 +4,7 @@ import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, bedroomFloor, bedroomSide, careNeed, exitPlan, medicalNeed, mobility } from "./schema";
-import { callPriorityFor, located } from "./model";
+import { located } from "./model";
 import { fileLanguageOf } from "./languages";
 import { seedSimulatedArea } from "./seed";
 import { Helper, saveProfile } from "./readyProfile";
@@ -15,6 +15,7 @@ import { simNow } from "./clock";
 import { syncRequest } from "./requests";
 import { warningCovers } from "./riders";
 import { startRunIfNone } from "./nightRuns";
+import { timingForHome } from "./fireArrival";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
@@ -26,7 +27,6 @@ const HOMES_PER_TICK = 3;
 const MOST_HOMES_PER_TICK = 30;
 const MAX_MISSES = 2;
 const UNKNOWN_NEED_PRIOR = 0.5;
-const PLACEHOLDER_ARRIVAL_MINUTES = 90;
 
 const helper = v.object({ name: v.string(), phone: v.string(), relation: v.optional(v.string()) });
 const bedroom = v.object({ floor: bedroomFloor, side: v.optional(bedroomSide) });
@@ -69,11 +69,10 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
   const existing = await householdByPhone(ctx, place.phone);
   const inZone = await warningCovers(ctx, place);
   if (existing) {
-    await ctx.db.patch("households", existing._id, { address: place.address, lat: place.lat, lng: place.lng, inZone });
+    const timing = await timingForHome(ctx, place, existing.needProbability);
+    await ctx.db.patch("households", existing._id, { address: place.address, lat: place.lat, lng: place.lng, inZone, ...timing });
     return existing._id;
   }
-  const now = await simNow(ctx);
-  const fireArrivalAt = now + PLACEHOLDER_ARRIVAL_MINUTES * 60_000;
   return await ctx.db.insert("households", {
     address: place.address,
     lat: place.lat,
@@ -86,8 +85,7 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
     attempts: 0,
     needPrior: UNKNOWN_NEED_PRIOR,
     needProbability: UNKNOWN_NEED_PRIOR,
-    fireArrivalAt,
-    callPriority: callPriorityFor(UNKNOWN_NEED_PRIOR, fireArrivalAt, now),
+    ...(await timingForHome(ctx, place, UNKNOWN_NEED_PRIOR)),
     simulated: false,
   });
 }

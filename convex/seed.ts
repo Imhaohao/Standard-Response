@@ -1,15 +1,8 @@
 import { MutationCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
-import {
-  AREA,
-  callPriorityFor,
-  EAST_WEST_STREETS,
-  FIRE_FIRST_ARRIVAL_MINUTES,
-  FIRE_ORIGIN,
-  FIRE_SPREAD_METERS_PER_MINUTE,
-  metersBetween,
-  NORTH_SOUTH_STREETS,
-} from "./model";
+import { AREA, callPriorityFor, EAST_WEST_STREETS, NORTH_SOUTH_STREETS } from "./model";
+import { fireArrivalFor } from "./fireArrival";
+import { DEFAULT_HAZARD } from "./hazards";
 
 // Simulated west Altadena. Every household here is labeled simulated in the UI.
 // Needs are sampled from per-block vulnerability rates, and the need-model prior sees
@@ -95,9 +88,9 @@ function sampleTruth(random: Random, age: number, vulnerability: number): Truth 
 
 const sampleLanguage = (random: Random) => (random() < 0.7 ? "en" : "es");
 
-function fireArrivalFor(point: { lat: number; lng: number }, warningAt: number) {
-  const minutes = FIRE_FIRST_ARRIVAL_MINUTES + metersBetween(point, FIRE_ORIGIN) / FIRE_SPREAD_METERS_PER_MINUTE;
-  return warningAt + minutes * 60_000;
+// The hazard picked on the call floor decides which scenario's fronts set the fire arrival times.
+async function currentHazard(ctx: MutationCtx) {
+  return (await ctx.db.query("control").first())?.hazard ?? DEFAULT_HAZARD;
 }
 
 const HOUSEHOLD_COUNT = 200;
@@ -146,6 +139,7 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, opt
   const random = mulberry32(13 + options.batch);
   const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
   const usedAddresses = new Set<string>();
+  const hazard = await currentHazard(ctx);
   if (options.withFleet) await seedFleet(ctx, random, warningAt);
 
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) {
@@ -157,7 +151,7 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, opt
     const vulnerability = blockVulnerability[blockOf(lat, lng)];
     const age = Math.round(28 + random() * 40 + vulnerability * 50);
     const needPrior = Math.min(0.95, Math.max(0.03, vulnerability + (random() - 0.5) * 0.12));
-    const fireArrivalAt = fireArrivalFor({ lat, lng }, warningAt);
+    const fireArrivalAt = fireArrivalFor({ lat, lng }, warningAt, hazard);
 
     const householdId = await ctx.db.insert("households", {
       address,
@@ -200,12 +194,13 @@ export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number, driv
 // fire arrival and call priority are measured from it instead.
 // The warning starts the fire clock for every home with a location, simulated or real. Placeholder
 // arrival times from sign-up or the rider list would otherwise order neighbors by when they signed
-// up, not by where they live. The hazard runner overwrites these once a scenario is running.
+// up, not by where they live. The times come from the scenario fronts the map draws.
 export async function retimeArea(ctx: MutationCtx, warningAt: number) {
   const households = await ctx.db.query("households").take(1000);
+  const hazard = await currentHazard(ctx);
   for (const household of households) {
     if (household.lat === undefined || household.lng === undefined) continue;
-    const fireArrivalAt = fireArrivalFor({ lat: household.lat, lng: household.lng }, warningAt);
+    const fireArrivalAt = fireArrivalFor({ lat: household.lat, lng: household.lng }, warningAt, hazard);
     await ctx.db.patch("households", household._id, {
       fireArrivalAt,
       callPriority: callPriorityFor(household.needProbability, fireArrivalAt, warningAt),

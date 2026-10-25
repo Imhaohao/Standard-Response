@@ -3,9 +3,10 @@ import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
-import { callPriorityFor, insidePolygon, located, Point } from "./model";
+import { insidePolygon, located, Point } from "./model";
 import { fileLanguageOf } from "./languages";
 import { simNow } from "./clock";
+import { timingForHome } from "./fireArrival";
 
 // The agency's rider list. Columns, in any order:
 // rider_id, name, address, lat, lng, phone, language, mobility, assistance
@@ -18,7 +19,6 @@ const MOBILITY_VALUES = new Set<string>(mobility.members.map((m) => m.value));
 const ASSISTANCE_VALUES = new Set<string>(assistanceRequired.members.map((m) => m.value));
 const KNOWN_NEED_PRIOR = 0.9;
 const UNKNOWN_NEED_PRIOR = 0.5;
-const DEFAULT_ARRIVAL_MINUTES = 90;
 
 function splitCsvLine(line: string) {
   const cells: string[] = [];
@@ -55,13 +55,12 @@ const assistanceOf = (row: Row) => (ASSISTANCE_VALUES.has(row.assistance) ? (row
 const priorFor = (known: Mobility) => (known && known !== "walks" ? KNOWN_NEED_PRIOR : UNKNOWN_NEED_PRIOR);
 const blankToUndefined = (value: string) => (value === "" ? undefined : value);
 
-function householdFromRow(row: Row, now: number) {
+function householdFromRow(row: Row) {
   const lat = Number(row.lat);
   const lng = Number(row.lng);
   if (!isComplete(row, lat, lng)) return null;
   const knownMobility = mobilityOf(row);
   const needPrior = priorFor(knownMobility);
-  const fireArrivalAt = now + DEFAULT_ARRIVAL_MINUTES * 60_000;
   return {
     address: row.address,
     lat,
@@ -77,8 +76,6 @@ function householdFromRow(row: Row, now: number) {
     attempts: 0,
     needPrior,
     needProbability: needPrior,
-    fireArrivalAt,
-    callPriority: callPriorityFor(needPrior, fireArrivalAt, now),
     simulated: false,
   };
 }
@@ -96,16 +93,16 @@ export const importCsv = mutation({
   args: { csv: v.string() },
   returns: v.object({ imported: v.number(), skippedLines: v.array(v.number()) }),
   handler: async (ctx, { csv }) => {
-    const now = await simNow(ctx);
     const skippedLines: number[] = [];
     let imported = 0;
     for (const [index, row] of parseRows(csv).entries()) {
-      const household = householdFromRow(row, now);
+      const household = householdFromRow(row);
       if (!household || (await alreadyImported(ctx, household.callbackNumber))) {
         skippedLines.push(index + 2);
         continue;
       }
-      await ctx.db.insert("households", { ...household, inZone: await warningCovers(ctx, household) });
+      const timing = await timingForHome(ctx, household, household.needProbability);
+      await ctx.db.insert("households", { ...household, ...timing, inZone: await warningCovers(ctx, household) });
       imported += 1;
     }
     return { imported, skippedLines };
