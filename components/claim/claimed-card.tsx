@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export const NEXT_JUDGE_AFTER_MS = 9000;
 
 // Step four: the house is the judge's. The line under the card runs down to the next judge's
-// sign-in; "Next judge" skips the wait.
+// sign-in; "Return to home" skips the wait.
 export function ClaimedCard({ address, residentName, phoneEnding, onNext }: { address: string; residentName: string; phoneEnding: string | null; onNext: () => void }) {
   const reduceMotion = useReducedMotion();
   useEffect(() => {
@@ -26,7 +26,7 @@ export function ClaimedCard({ address, residentName, phoneEnding, onNext }: { ad
           When the warning goes out, our agent calls {phoneEnding ? `the number ending ${phoneEnding}` : "your phone"}. Answer as {residentName}, and tell it what you told us, or change your mind on the call.
         </p>
         <Button size="lg" onClick={onNext} className="mt-2 self-start">
-          Next judge
+          Return to home
         </Button>
       </div>
       <motion.div
