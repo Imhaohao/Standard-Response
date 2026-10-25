@@ -14,6 +14,8 @@ const PHONE_AUDIO = "ulaw_8000";
 // eleven_flash_v2 is the fastest model but English-only; v2_5 covers our other languages.
 const ttsModelFor = (language: Language) => (language === "en" ? "eleven_flash_v2" : "eleven_flash_v2_5");
 
+const QUIET_LINE_ENDS_AFTER_SECS = 90;
+
 // Words a resident says to show they're listening. Said under the agent's voice they don't stop it.
 const LISTENING_NOISES = ["ok", "okay", "uh huh", "mhm", "mm-hm", "yeah", "right", "sure", "gotcha", "sí", "ajá", "claro"];
 
@@ -195,9 +197,11 @@ function agentConfig(brief: HouseholdBrief, tools: string[]) {
       turn: {
         turn_model: "turn_v3",
         turn_eagerness: env.elevenlabs.turnEagerness,
-        turn_timeout: 7,
+        // Never speak up on a quiet line ("Are you still there?"); hang up without a word after a
+        // long silence, the same as the Cartesia stack.
+        turn_timeout: -1,
+        silence_end_call_timeout: QUIET_LINE_ENDS_AFTER_SECS,
         speculative_turn: true,
-        retranscribe_on_turn_timeout: true,
         interruption_ignore_terms: LISTENING_NOISES,
         soft_timeout_config: { timeout_seconds: 4.5, message: "One moment.", use_llm_generated_message: false },
       },

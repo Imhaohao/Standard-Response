@@ -10,6 +10,8 @@ import { VI } from "./lines/vi";
 import { TL } from "./lines/tl";
 import { RU } from "./lines/ru";
 import { JA } from "./lines/ja";
+import { FR } from "./lines/fr";
+import { HI } from "./lines/hi";
 import type { Language } from "../../convex/languages";
 import { currentHazard } from "../hazard";
 
@@ -20,7 +22,7 @@ export type { Language } from "../../convex/languages";
 export { languageOf } from "../../convex/languages";
 export type RequestStatus = Doc<"requests">["status"];
 
-export const LINES: Record<Language, Lines> = { en: EN, es: ES, zh: ZH, ko: KO, vi: VI, tl: TL, ru: RU, ja: JA };
+export const LINES: Record<Language, Lines> = { en: EN, es: ES, zh: ZH, ko: KO, vi: VI, tl: TL, ru: RU, ja: JA, fr: FR, hi: HI };
 
 // Ends a line that leaves the resident waiting with what to do if the hazard reaches them first.
 export function withSafety(line: string, language: Language) {

@@ -247,6 +247,23 @@ describe("answers that don't answer", () => {
   });
 });
 
+describe("a quiet line on a live call", () => {
+  it("ends without a word and counts as lost contact before the readback", () => {
+    const { conversation, escalations } = call(null);
+    conversation.lineWentQuiet();
+    assert.ok(conversation.done);
+    assert.equal(conversation.lostContact, true);
+    assert.deepEqual(escalations, ["address_unconfirmed"]);
+  });
+
+  it("ends as answered when the resident was already on hold for a driver", () => {
+    const { conversation } = atHold();
+    conversation.lineWentQuiet();
+    assert.ok(conversation.done);
+    assert.equal(conversation.lostContact, false);
+  });
+});
+
 describe("a quiet line", () => {
   it("checks in twice with the question in other words, then ends without counting as answered", () => {
     const { conversation } = atCanLeave();

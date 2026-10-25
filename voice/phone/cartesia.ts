@@ -13,8 +13,10 @@ const PHONE_AUDIO = { encoding: "pcm_mulaw", sample_rate: 8000 } as const;
 const END_OF_SPEECH_SILENCE_SECS = 0.5;
 
 // Ink-2 hears far more of a noisy phone line than ink-whisper and doesn't invent "Thank you." out
-// of hiss, but it only covers these of our languages; the rest stay on ink-whisper.
-const INK_2_LANGUAGES = new Set<Language>(["en", "es", "ja"]);
+// of hiss. It takes no language setting and hears all five of these in one stream, so a resident
+// who switches between them is transcribed in the language they spoke. The rest stay on
+// ink-whisper, which only hears the one language it was opened in.
+const INK_2_LANGUAGES = new Set<Language>(["en", "es", "ja", "fr", "hi"]);
 // Rare words residents say that a bad line blurs ("bed bound", "air"). Common words stay out:
 // "wheelchair" here turned "needs assistance" into "needs a wheelchair".
 const KEYTERMS = ["Altadena", "evacuation", "oxygen", "bedbound", "bedridden"];

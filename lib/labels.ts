@@ -48,6 +48,8 @@ const LANGUAGES: Record<string, { native: string; english: string }> = {
   tl: { native: "Tagalog", english: "Tagalog" },
   ru: { native: "Русский", english: "Russian" },
   ja: { native: "日本語", english: "Japanese" },
+  fr: { native: "Français", english: "French" },
+  hi: { native: "हिन्दी", english: "Hindi" },
   hy: { native: "Հայերեն", english: "Armenian" },
   fa: { native: "فارسی", english: "Persian" },
 };

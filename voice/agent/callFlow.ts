@@ -14,8 +14,11 @@ export interface CallFlow {
   // acts on that reading. A call throws the reading away and reads again when the resident turns
   // out to still be talking. After the closing line, the reading is all the flow still listens to.
   read(utterance: string): Promise<() => AgentTurn>;
-  // The line went quiet after a question: check in. Flows without one keep waiting.
+  // The line went quiet after a question: check in. The voice eval still uses it; live calls don't
+  // speak on a quiet line and call lineWentQuiet instead.
   checkIn?(): AgentTurn;
+  // The line stayed quiet so long that the call ends without a word: settle what that means.
+  lineWentQuiet?(): void;
   // The call ended on check-ins nobody answered, so it doesn't count as answered.
   readonly lostContact?: boolean;
   question(): string;

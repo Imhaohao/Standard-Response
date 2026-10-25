@@ -515,10 +515,23 @@ export class Conversation {
   // The line went dead. With no address, nothing else puts this caller in front of a dispatcher,
   // so they are flagged before the reach ladder calls back.
   private loseContact(): AgentTurn {
+    this.markLostContact();
+    return this.say("", [withSafety(LINES[this.language].lostYou, this.language)], false);
+  }
+
+  // A live call that stayed quiet ends without a word. Once the record was read back, the call got
+  // what it needed and only the neighbor question or the hold went unanswered; before that, it lost
+  // contact and the reach ladder calls back.
+  lineWentQuiet() {
+    if (this.done) return;
+    if (this.step === "neighbor" || this.holding) return this.moveTo("done");
+    this.markLostContact();
+  }
+
+  private markLostContact() {
     this.lostContact = true;
     if (!this.record.address && !this.knownAddress) this.escalateOnce("address_unconfirmed");
     this.moveTo("done");
-    return this.say("", [withSafety(LINES[this.language].lostYou, this.language)], false);
   }
 
   // The same rephrasing twice in a row sounds like a recording, so a second miss asks the question

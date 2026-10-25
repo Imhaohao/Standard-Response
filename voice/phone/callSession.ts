@@ -43,15 +43,15 @@ const BACKCHANNEL_AFTER_MS = 300;
 // finished within this long of it: then it was the answer to what the agent was asking.
 const OVERLAP_ANSWER_MS = 1200;
 // Quiet between the old-language agent's "let me transfer you" and the new one coming on.
-const TRANSFER_PAUSE_MS = 1500;
-// How long a quiet line waits, by what the call is waiting for:
-// - answer: the agent asked a question; then it checks in and asks again in other words.
+const TRANSFER_PAUSE_MS = 600;
+// How long a quiet line waits, by what the call is waiting for. The agent never fills a quiet line
+// ("Are you still there?"): it speaks only to answer the resident or to pass on a status change. A
+// line that stays quiet this long ends without a word, and the reach ladder calls back if needed.
+// - answer: the agent asked a question.
 // - moment: the resident asked for a moment ("hold on, let me ask my wife").
-// - hold: a resident on hold who says nothing for this long hears the next thing to do while they
-//   wait, or a check that they're there; after several quiet stretches the flow says goodbye and
-//   status changes reach them by callback instead.
+// - hold: on hold for a driver; status changes reach them by callback after the line closes.
 // - goodbye: the goodbye has played; the line stays open this long in case they have more to say.
-const QUIET_MS = { answer: 7000, moment: 20_000, hold: 30_000, goodbye: 2000 } as const;
+const QUIET_MS = { answer: 90_000, moment: 120_000, hold: 180_000, goodbye: 2000 } as const;
 type Waiting = keyof typeof QUIET_MS;
 
 type TwilioMessage =
@@ -457,9 +457,11 @@ export class CallSession implements LiveCall {
     const conversation = this.conversation;
     // Mid-turn: the reply that follows starts the clock again.
     if (this.ended || this.connecting || !conversation || this.thinking || this.speech.speaking || this.heardSoFar.trim() !== "") return;
-    if (waiting === "goodbye") void this.finish(!conversation.lostContact);
-    else if (waiting === "hold") this.speakTurn(conversation.checkIn?.() ?? conversation.endHold(), null);
-    else if (conversation.checkIn) this.speakTurn(conversation.checkIn(), null);
+    if (waiting === "goodbye") return void this.finish(!conversation.lostContact);
+    // Flows without a quiet-line rule count the call as answered if the resident said anything.
+    if (!conversation.lineWentQuiet) return void this.finish(this.residentSpoke);
+    conversation.lineWentQuiet();
+    void this.finish(!conversation.lostContact);
   }
 
   // The floor for this turn: how near the fire is now on the night clock, for the rescue call only.

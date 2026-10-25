@@ -1,6 +1,6 @@
 // Languages a whole call can run in: Cartesia Ink hears them and Sonic speaks them. The first two
 // are reviewed by fluent speakers; the rest are machine translations awaiting review.
-export const SPOKEN_LANGUAGES = ["en", "es", "zh", "ko", "vi", "tl", "ru", "ja"] as const;
+export const SPOKEN_LANGUAGES = ["en", "es", "zh", "ko", "vi", "tl", "ru", "ja", "fr", "hi"] as const;
 export type Language = (typeof SPOKEN_LANGUAGES)[number];
 
 export const REVIEWED_LANGUAGES: readonly Language[] = ["en", "es"];

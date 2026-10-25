@@ -35,6 +35,10 @@ const BACKCHANNEL_WORDS = new Set(
     "vâng", "dạ", "ừ", "ờ", "à",
     // Tagalog
     "oo", "opo", "sige",
+    // French
+    "ouais", "oui", "bon", "d'accord", "voilà", "euh", "hein",
+    // Hindi
+    "हाँ", "हां", "जी", "अच्छा", "ठीक", "हम्म", "हूँ", "हाँजी",
   ].map(collapseRepeats),
 );
 
@@ -48,6 +52,8 @@ const STOP_PHRASES = [
   "подождите", "подожди", "стоп", "нет",
   "khoan", "chờ", "không",
   "teka", "sandali", "hindi",
+  "attendez", "arrêtez", "pardon", "non",
+  "रुकिए", "रुको", "नहीं", "एक मिनट",
 ];
 const UNSPACED_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
