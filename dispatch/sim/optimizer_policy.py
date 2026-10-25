@@ -4,9 +4,10 @@ commits each idle vehicle to the first trip of its returned route (accepted runs
 from __future__ import annotations
 
 import math
+import time
 from typing import Callable
 
-from . import rng
+from . import rng, trace
 from .constants import DRIVER_CANCEL_PROB, OXYGEN_MAX_RIDE_S, SHELTER, TICK_S, UNLOAD_S
 from .fleetstate import Night, Request, Vehicle, arrival_feeder
 
@@ -97,6 +98,7 @@ def accepted_stops(night: Night, vehicle: Vehicle, trip: list[dict]) -> list[dic
     for stop in trip:
         request = night.requests[stop["request"]]
         if stop["kind"] == "pickup" and driver_cancels(night, request):
+            trace.note(night.env.now, "cancel", request.index, vehicle.spec.index)
             cancelled.add(request.index)
             night.release(request)
     for stop in trip:
@@ -125,12 +127,16 @@ def drive_trip(night: Night, vehicle: Vehicle, stops: list[dict]):
 def visit_pickup(night: Night, vehicle: Vehicle, request: Request, aboard: set):
     seconds = night.travel(vehicle.node, request.household.node)
     if not math.isfinite(seconds):
+        trace.note(night.env.now, "noRoad", request.index, vehicle.spec.index)
         night.release(request)
         return
+    trace.note(night.env.now, "leg", vehicle.spec.index, vehicle.node, request.household.node, seconds)
     yield night.env.timeout(seconds)
     vehicle.node = request.household.node
+    trace.note(night.env.now, "arrive", request.index, vehicle.spec.index)
     yield night.env.timeout(request.need.boarding_s)
     if night.env.now > request.household.fire_arrival_s:
+        trace.note(night.env.now, "expired", request.index, vehicle.spec.index)
         request.status = "expired"
         return
     night.finish_pickup(request, vehicle)
@@ -140,9 +146,12 @@ def visit_pickup(night: Night, vehicle: Vehicle, request: Request, aboard: set):
 def visit_shelter(night: Night, vehicle: Vehicle):
     shelter = night.world.shelter_node
     seconds = night.travel(vehicle.node, shelter)
-    yield night.env.timeout(seconds if math.isfinite(seconds) else night.unreachable_fallback(vehicle.node, shelter))
+    seconds = seconds if math.isfinite(seconds) else night.unreachable_fallback(vehicle.node, shelter)
+    trace.note(night.env.now, "leg", vehicle.spec.index, vehicle.node, shelter, seconds)
+    yield night.env.timeout(seconds)
     vehicle.node = shelter
     yield night.env.timeout(UNLOAD_S)
+    trace.note(night.env.now, "dropoff", vehicle.spec.index)
 
 
 def estimate_run_seconds(night: Night, vehicle: Vehicle, stops: list[dict]) -> float:
@@ -169,6 +178,7 @@ def commit_trip(night: Night, vehicle: Vehicle, trip: list[dict]):
     for stop in stops:
         if stop["kind"] == "pickup":
             night.requests[stop["request"]].status = "committed"
+    trace.note(night.env.now, "accepted", vehicle.spec.index, [s["request"] for s in stops if s["kind"] == "pickup"])
     vehicle.busy = True
     vehicle.free_at = night.env.now + estimate_run_seconds(night, vehicle, stops)
     vehicle.end_node = night.world.shelter_node
@@ -207,8 +217,10 @@ class OptimizerPolicy:
         if not servable or all(v.busy for v in night.vehicles):
             return
         problem = build_problem(night, servable, self.config.solver_time_limit_s)
+        started = time.perf_counter()
         result = self.solve(problem)
         self.solve_count += 1
+        trace.note(night.env.now, "plan", self.solve_count, len(servable), round((time.perf_counter() - started) * 1000))
         self.commit_idle_vehicles(result)
 
     def servable_window(self) -> list[Request]:

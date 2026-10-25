@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 import simpy
 
+from . import trace
 from .population import Household, RideNeed, VehicleSpec, parties_for, vehicle_can_serve
 from .world import World
 
@@ -88,6 +89,7 @@ class Night:
         request.picked_at = self.env.now
         request.picked_by = vehicle.spec.index
         self.pickup_log.append({"request": request.index, "vehicle": vehicle.spec.index, "at": self.env.now})
+        trace.note(self.env.now, "pickup", request.index, vehicle.spec.index)
 
     def release(self, request: Request):
         request.status = "pending"

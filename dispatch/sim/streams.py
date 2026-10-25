@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import numpy as np
 import simpy
 
-from . import rng
+from . import rng, trace
 from .constants import (
     ANSWERED_CALL_S, CALL_911_LEAD_CLIP_S, CALL_911_LEAD_MEDIAN_S, CALL_911_LEAD_SIGMA, CALL_TAKERS,
     CALL_TAKER_SERVICE_S, DIAL_INTERVAL_S, DOOR_TEAMS, DOOR_VISIT_S, PROB_911_CALL, RETRY_DELAYS_S,
@@ -44,7 +44,10 @@ class OutreachDesk:
     door_queue: simpy.PriorityStore
 
     def resolve(self, household: Household):
-        if household.need is not None and self.env.now < household.fire_arrival_s:
+        if household.need is None:
+            trace.note(self.env.now, "clear", household.index)
+        elif self.env.now < household.fire_arrival_s:
+            trace.note(self.env.now, "request", household.index)
             self.arrivals.append((self.env.now, household.index))
 
 
@@ -71,11 +74,14 @@ def text_reply_delay(world: World, household: Household) -> float | None:
 
 def text_stage(env, desk: OutreachDesk, household: Household):
     delay = text_reply_delay(desk.world, household)
+    trace.note(env.now, "text", household.index)
     if delay is not None and delay <= TEXT_WAIT_S:
         yield env.timeout(delay)
+        trace.note(env.now, "textReply", household.index)
         desk.resolve(household)
         return
     yield env.timeout(TEXT_WAIT_S)
+    trace.note(env.now, "doorQueued", household.index)
     yield desk.door_queue.put(simpy.PriorityItem(household.deadline_s, household.index))
 
 
@@ -84,7 +90,9 @@ def household_contact(env, desk: OutreachDesk, household: Household, rank: int):
     delays = (0.0, *RETRY_DELAYS_S)
     for attempt, delay in enumerate(delays):
         yield env.timeout(delay)
+        trace.note(env.now, "call", household.index, attempt)
         reached = yield from call_attempt(env, desk, household, attempt)
+        trace.note(env.now, "answer" if reached else "noAnswer", household.index, attempt)
         if reached:
             desk.resolve(household)
             return
@@ -101,8 +109,10 @@ def door_team(env, desk: OutreachDesk, team: int, start_node: int):
         travel = world.travel.seconds(node, household.node, env.now)
         if not math.isfinite(travel):
             continue
+        trace.note(env.now, "doorLeg", team, node, household.node, travel)
         yield env.timeout(travel + rng.uniform(world.seed, "doorVisit", *DOOR_VISIT_S, household.index))
         node = household.node
+        trace.note(env.now, "door", household.index, team)
         desk.resolve(household)
 
 

@@ -24,12 +24,24 @@ from rollcall_d.hazard import Scenario  # noqa: E402
 
 LNG_SCALE = float(np.cos(np.radians(34.18)))
 KEPT_EPOCHS = 3
+_roads_file = ROADS_FILE
+
+
+def use_roads(path) -> None:
+    """Point network() at another city's road graph (data/cities/<id>/roads.json)."""
+    global _roads_file
+    _roads_file = path
+    network.cache_clear()
+    edge_closure_minutes.cache_clear()
 
 
 class RoadNetwork:
-    def __init__(self):
-        raw = json.loads(ROADS_FILE.read_text())
+    def __init__(self, path=None):
+        path = path or _roads_file
+        raw = json.loads(path.read_text())
         self.coordinates = np.array(raw["nodes"], dtype=float)
+        self.lng_scale = LNG_SCALE if path == ROADS_FILE else float(np.cos(np.radians(self.coordinates[:, 0].mean())))
+        self.edge_highway = [e.get("highway", "") for e in raw["edges"]]
         self.size = len(self.coordinates)
         edges = raw["edges"]
         self.edge_from = np.array([e["u"] for e in edges], dtype=np.int64)
@@ -41,9 +53,8 @@ class RoadNetwork:
         self.main_nodes = self._largest_strong_component()
         self._tree = cKDTree(self._scaled(self.coordinates[self.main_nodes]))
 
-    @staticmethod
-    def _scaled(latlng: np.ndarray) -> np.ndarray:
-        return np.column_stack([latlng[:, 0], latlng[:, 1] * LNG_SCALE])
+    def _scaled(self, latlng: np.ndarray) -> np.ndarray:
+        return np.column_stack([latlng[:, 0], latlng[:, 1] * self.lng_scale])
 
     def _largest_strong_component(self) -> np.ndarray:
         graph = csr_matrix((np.ones(len(self.edge_from)), (self.edge_from, self.edge_to)), shape=(self.size, self.size))
@@ -52,7 +63,7 @@ class RoadNetwork:
         return np.flatnonzero(labels == biggest)
 
     def snap(self, lat: float, lng: float) -> int:
-        _, index = self._tree.query([lat, lng * LNG_SCALE])
+        _, index = self._tree.query([lat, lng * self.lng_scale])
         return int(self.main_nodes[index])
 
     def nodes_in_box(self, box: dict) -> np.ndarray:
