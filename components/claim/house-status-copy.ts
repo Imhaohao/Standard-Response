@@ -1,8 +1,7 @@
 import { HouseFacts, HouseStage, LiveStep, RideState } from "@/lib/claim-stage";
 
 // The words for each stage on the judge's phone. The judge plays the resident, so the home is "your
-// home" and the person is the resident by the name the judge gave them. Titles carry no apostrophes:
-// the display face is a trial cut that draws a "trial font" mark in place of one.
+// home" and the person is the resident by the name the judge gave them.
 
 export type StageCopy = { title: string; body: string };
 
@@ -18,10 +17,10 @@ function rideComingCopy({ ride, minutesAway, resident }: Context): StageCopy {
 }
 
 const LIVE_COPY: Record<LiveStep, (context: Context) => StageCopy> = {
-  outside_zone: () => ({ title: "The warning does not cover your home", body: "Our agent calls homes inside the warning first." }),
+  outside_zone: () => ({ title: "The warning doesn't cover your home", body: "Our agent calls homes inside the warning first." }),
   calling: ({ resident }) => ({ title: "Our agent is calling you", body: `The warning is out. Answer as ${resident}.` }),
-  no_answer: () => ({ title: "We could not reach you", body: "Nobody answered our call. Our agent will try again." }),
-  on_call: ({ resident }) => ({ title: "You are on the call", body: `Tell our agent what ${resident} needs to get out.` }),
+  no_answer: () => ({ title: "We couldn't reach you", body: "Nobody answered our call. Our agent will try again." }),
+  on_call: ({ resident }) => ({ title: "You're on the call", body: `Tell our agent what ${resident} needs to get out.` }),
   door_check: () => ({ title: "A crew is coming to knock", body: "Nobody answered our calls, so a fire crew will check your door." }),
   call_done: () => ({ title: "Our agent spoke with you", body: "No ride has been requested for your home." }),
   ride_requested: () => ({ title: "Ride requested", body: "No driver has accepted yet. You'll get a call when one does." }),
@@ -47,7 +46,7 @@ export function copyFor(stage: HouseStage, facts: HouseFacts | null, minutesAway
   if (stage.kind === "spared") return { title: "The fire passed your home", body: `It never reached the house, so ${resident} is safe.` };
   if (stage.kind === "lost") {
     const body = stage.rideCameLate ? "The fire reached your home before the ride did." : `The fire reached your home before anyone got ${resident} out.`;
-    return { title: `${resident} did not make it`, body };
+    return { title: `${resident} didn't make it`, body };
   }
   return LIVE_COPY[stage.step]({ resident, address, ride: stage.ride, minutesAway });
 }

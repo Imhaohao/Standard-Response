@@ -106,7 +106,7 @@ export function JoinPhone({ code }: { code: string | null }) {
   useFollowClaimedHouse(session?.statusToken ?? null);
   return (
     <PhoneScreen surface="canvas">
-      <div className="flex flex-1 flex-col gap-10 px-5 pt-6 pb-8">
+      <div className="claim-face flex flex-1 flex-col gap-10 px-5 pt-6 pb-8">
         <div className="flex items-center gap-2.5">
           <BrandMark className="size-6" />
           <span className="type-heading font-brand">{PRODUCT_NAME}</span>

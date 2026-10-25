@@ -121,7 +121,7 @@ export function Kiosk() {
   const picking = step === "pick";
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
+    <div className="claim-face relative h-[100dvh] w-full overflow-hidden bg-map-paper">
       <ClaimMap homes={homes} selectedId={picking ? selection.selectedId : null} onSelect={selection.select} flyTo={selection.flyTo} picking={picking} />
       <motion.div
         aria-hidden

@@ -70,6 +70,12 @@
   --big-face: "Nexa Rust Sans", var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
 }
 
+/* The judge's claim surfaces (the kiosk at /, /join and /you) set their big type in Sofia Sans Condensed.
+   Their headlines are sentence case with apostrophes, which the caps-only Nexa trial cannot draw. */
+.claim-face {
+  --big-face: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
+}
+
 @theme inline {
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
