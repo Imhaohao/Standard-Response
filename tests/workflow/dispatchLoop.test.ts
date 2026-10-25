@@ -168,3 +168,24 @@ describe("a closure lifted and another started between two ticks", () => {
     expect(state?.replanStartedAt).toBeDefined();
   });
 });
+
+describe("a driver who can't make it", () => {
+  test("the rider is told, the next plan offers another van, and its driver's accept is announced", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [first] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: first._id });
+    await t.mutation(api.offers.cancelByDriver, { assignmentId: first._id });
+    expect((await requestOf(t, homes[0])).status).toBe("reassigning");
+
+    await replan(t);
+    const [second] = await liveFor(t, request._id);
+    expect(second.status).toBe("offered");
+    expect(second.vehicleId).not.toBe(first.vehicleId);
+    expect(await t.mutation(api.offers.accept, { assignmentId: second._id })).toBe("accepted");
+    expect((await requestOf(t, homes[0])).status).toBe("driver_accepted");
+    expect(await callbacksFor(t, request._id)).toEqual(["driver_accepted", "reassigning", "driver_accepted"]);
+  });
+});
