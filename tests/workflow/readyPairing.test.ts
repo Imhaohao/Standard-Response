@@ -108,6 +108,26 @@ describe("pairing at the Ready check", () => {
     expect(confirmed.helperNotice).toBe("resident_ready");
   });
 
+  test("someone not at home is safe: their pickup is called off, and an away neighbor is let go", async () => {
+    const t = setup();
+    await fresh(t);
+    const resident = await t.mutation(api.ready.submit, needsRide(RESIDENT));
+    const neighbor = await t.mutation(api.ready.submit, drives(EAST));
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { away: true } });
+    expect((await t.run(async (ctx) => ctx.db.get("households", resident)))?.outcome).toBe("leaving");
+    expect((await plansFor(t, resident))[0]).toMatchObject({ status: "fell_through", reason: "not_needed" });
+
+    const t2 = setup();
+    await fresh(t2);
+    const home = await t2.mutation(api.ready.submit, needsRide(RESIDENT));
+    const away = await t2.mutation(api.ready.submit, drives(EAST));
+    await t2.mutation(api.control.issueWarning, {});
+    await t2.mutation(api.households.update, { householdId: away, patch: { away: true } });
+    expect((await plansFor(t2, home))[0]).toMatchObject({ helperHouseholdId: away, status: "fell_through", reason: "helper_declined" });
+    expect(neighbor).toBeDefined();
+  });
+
   test("pairs whichever side signs up first", async () => {
     const t = setup();
     await fresh(t);

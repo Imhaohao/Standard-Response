@@ -55,6 +55,7 @@ export const ES: Lines = {
   ],
   holdPrompt: "Me quedo en la línea con usted. Puede colgar cuando quiera.",
   goodbye: "Gracias. Adiós.",
+  awaySafe: "Como no hay nadie en la casa, le marqué como a salvo. Por favor, manténgase lejos de la zona y siga las órdenes de evacuación.",
   transferOut: "Muy bien, le voy a transferir. Deme dos segundos.",
   transferIn: "Hola, desde aquí le atiendo en español.",
   repeatPrompt: "Perdón, ¿me lo puede repetir?",

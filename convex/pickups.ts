@@ -235,6 +235,8 @@ async function livePlansWithHelper(ctx: MutationCtx, helperHouseholdId: Id<"hous
 // own; a later answer can undo either half. A helper arranged ahead of time is the family's plan,
 // and only the resident's "picked up?" answer ends it.
 function residentChange(plan: Plan, resident: Doc<"households">): Failure | null {
+  // Nobody is home to pick up, whoever arranged the ride.
+  if (resident.away) return "not_needed";
   if (!plan.recruited) return null;
   if (resident.outcome === "leaving") return "not_needed";
   return fitsInACar(resident) ? null : "needs_changed";

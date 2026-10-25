@@ -54,6 +54,7 @@ export const ZH: Lines = {
   ],
   holdPrompt: "我会一直在线陪着您。您可以随时挂断。",
   goodbye: "谢谢。再见。",
+  awaySafe: "既然家里没有人，我已将您标记为安全。请远离该地区，并遵守疏散命令。",
   transferOut: "好的，我帮您转接，请稍等两秒。",
   transferIn: "您好，接下来由我用中文为您服务。",
   repeatPrompt: "抱歉，您能再说一遍吗？",

@@ -76,6 +76,8 @@ export type Lines = {
   // changed, so a second "when are you coming?" isn't answered with the whole template again.
   statusUnchanged: string;
   goodbye: string;
+  // The resident isn't at the home and nobody else is: they're counted as safe and the call ends.
+  awaySafe: string;
   // A language switch plays as a hand-off between two agents: transferOut in the old language and
   // voice, a short pause, then transferIn in the new one before the conversation picks back up.
   transferOut: string;

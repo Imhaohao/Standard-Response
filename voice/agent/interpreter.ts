@@ -40,6 +40,8 @@ export type Interpretation = {
   policyQuestion: string;
   // They said which kind of wheelchair: one that's pushed, or one with a motor.
   saysChairKind?: boolean;
+  // Nobody is at the home: they're somewhere else, and no one else is there.
+  awayFromHome?: boolean;
   neighborAddresses: string[];
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
@@ -83,7 +85,7 @@ const objectOf = (properties: Record<string, object>) => ({
 // as both medical and flames, and the wrong escalation won.
 // Names say what the resident does: a bare "repeat" was read as "the resident is repeating
 // themselves" and held a question for eleven turns, and "ends" hung up on "I won't leave without my son".
-const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind", "says_unsure"] as const;
+const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind", "says_unsure", "away_from_home"] as const;
 type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
@@ -183,6 +185,7 @@ Other outputs:
 - answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise. When the agent read something back and asked "Is that right?" (or confirmed an address), agreement without the word yes is yes: "thank you", "okay", "mm-hm", "that's it", "correct", "감사합니다", "谢谢", "gracias". Only a correction or a no is no.
 - emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none. Fear, panic or hurrying to leave is not an emergency on its own: "We're panicking to evacuate" is none.
 - flags: each of these that holds for this utterance, else an empty list.
+  - away_from_home: nobody is at the home now. The resident says they aren't there (already left, at work, out of town, staying with family) and no one else is there either. Not when they're away but calling about someone who is at the home ("I'm in the car, he's at our house"): then give the household's address instead. Not "I'm not sure", and not a wrong address they then correct.
   - asks_ride: they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also any plea for help ("please, help us", "please hurry", "get them here now", "send someone"), asking whether anyone knows they are there, or whether to wait. Not asking whether the agent will stay on the line: reply answers that ("Yes, I'm staying on the line with you."). Also for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
   - asks_repeat: they ask the agent to say it again because they didn't hear or understand the question, or check the line is there ("Hello? Hello?"). Not when they repeat themselves.
   - not_to_agent: the text is not the resident talking to the agent: background noise, an animal, a TV or radio, a sound transcribed as a word ("meow", "woof", "beep"), filler alone ("um", "uh"), or the resident talking to someone else in the room ("honey, grab the dog"). When listed, list no changes. Never for a short "yes", a request to repeat, or a request to switch language.
@@ -287,6 +290,7 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     asksWhatToDo: flags.has("asks_what_to_do"),
     policyQuestion: textOf(raw.policy_question),
     saysChairKind: flags.has("says_chair_kind"),
+    awayFromHome: flags.has("away_from_home"),
     neighborAddresses: listOf(raw.neighbors) as string[],
     spokenLanguage: languageFrom(raw.language, fallbackLanguage),
     acknowledgment: textOf(raw.ack),

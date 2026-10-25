@@ -264,6 +264,9 @@ export const householdFields = {
   medical: v.optional(v.array(medicalNeed)),
   pets: v.optional(v.boolean()),
   hasCar: v.optional(v.boolean()),
+  // Nobody is at the home: the resident said on a call that they're somewhere else and no one else
+  // is there. Counted as safe: no ride, no neighbor sent, and never asked to drive for someone.
+  away: v.optional(v.boolean()),
   confidence: v.optional(v.record(v.string(), v.number())),
   corrections: v.optional(v.array(correction)),
 };

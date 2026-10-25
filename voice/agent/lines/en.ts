@@ -53,6 +53,7 @@ export const EN: Lines = {
   ],
   holdPrompt: "I'll stay on the line with you. You can hang up any time.",
   goodbye: "Thank you. Goodbye.",
+  awaySafe: "Since nobody is at the home, I've marked you as safe. Please stay away from the area and follow the evacuation orders.",
   transferOut: "Okay, let me transfer you. Give me two seconds.",
   transferIn: "Hi, I'll help you in English from here.",
   repeatPrompt: "Sorry, could you say that again?",

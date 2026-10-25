@@ -54,6 +54,7 @@ export const VI: Lines = {
   ],
   holdPrompt: "Tôi sẽ giữ máy cùng quý vị. Quý vị có thể cúp máy bất cứ lúc nào.",
   goodbye: "Cảm ơn quý vị. Tạm biệt.",
+  awaySafe: "Vì không có ai ở nhà, tôi đã ghi nhận quý vị an toàn. Xin quý vị tránh xa khu vực này và làm theo lệnh sơ tán.",
   transferOut: "Vâng, để tôi chuyển máy cho quý vị. Xin chờ hai giây.",
   transferIn: "Xin chào, từ đây tôi sẽ giúp quý vị bằng tiếng Việt.",
   repeatPrompt: "Xin lỗi, quý vị có thể nói lại được không ạ?",

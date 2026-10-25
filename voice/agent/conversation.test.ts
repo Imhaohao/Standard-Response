@@ -680,3 +680,21 @@ describe("Claude's wording of the next question", () => {
     assert.equal(conversation.step, "needs");
   });
 });
+
+describe("a resident who isn't at the home", () => {
+  it("is marked safe, and the call ends without asking anything else", () => {
+    const updates: object[] = [];
+    const conversation = new Conversation({
+      language: "en",
+      onFile: {},
+      knownAddress: ADDRESS,
+      effects: { updateRecord: (patch) => updates.push(patch), escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    const turn = conversation.respond("no, I already left, I'm at my sister's", heard({ answer: "no", awayFromHome: true }));
+    assert.ok(conversation.done);
+    assert.deepEqual(turn.sentences, [EN.awaySafe, EN.goodbye]);
+    assert.ok(updates.some((patch) => (patch as { away?: boolean }).away === true));
+  });
+});
+

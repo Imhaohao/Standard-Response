@@ -54,6 +54,7 @@ export const TL: Lines = {
   ],
   holdPrompt: "Mananatili po ako sa linya kasama ninyo. Puwede po kayong magbaba anumang oras.",
   goodbye: "Salamat po. Paalam po.",
+  awaySafe: "Dahil walang tao sa bahay, minarkahan ko po kayong ligtas. Pakiusap, lumayo po kayo sa lugar at sundin ang mga utos sa paglikas.",
   transferOut: "Sige po, ililipat ko po kayo. Sandali lang po.",
   transferIn: "Magandang araw po, ako na po ang tutulong sa inyo sa Tagalog.",
   repeatPrompt: "Pasensya na po, puwede po bang ulitin ninyo?",

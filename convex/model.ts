@@ -3,13 +3,15 @@ import type { Doc } from "./_generated/dataModel";
 type Outcome = Doc<"households">["outcome"];
 type RecordFields = Pick<
   Doc<"households">,
-  "canLeave" | "mobility" | "medical" | "hasCar" | "callStatus"
+  "canLeave" | "mobility" | "medical" | "hasCar" | "callStatus" | "away"
 >;
 
 const ACCESSIBLE_MOBILITY = new Set(["manual_wheelchair", "power_wheelchair", "bedbound"]);
 
 export function outcomeFor(record: RecordFields): Outcome {
   if (record.callStatus === "door_check") return "unreachable";
+  // Nobody is at the home, so nobody there needs a ride.
+  if (record.away) return "leaving";
   if (record.mobility && ACCESSIBLE_MOBILITY.has(record.mobility)) return "needs_accessible";
   if (record.medical?.includes("oxygen")) return "needs_accessible";
   if (record.canLeave === "no" || record.canLeave === "unsure") return "needs_ride";

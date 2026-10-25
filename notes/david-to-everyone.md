@@ -83,3 +83,12 @@ npm run apify:drill -- clear
 
 - **Imzihao, Brendan:** this reaches the live agent with the next voice deploy. Until then, a live persona eval against `rollcall-voice.fly.dev` would mismeasure every turn where Claude rewords the question.
 - **Limit:** a resident who answers by step understands every question, so the eval can't catch a Claude question that's confusing to a person. `askLine.ts` checks topic and length; usability tests are where confusing wording shows up.
+
+## 2026-10-24 20:44
+
+**Contract: `households.away`** (optional boolean, in the `households:update` record patch). It means nobody is at the home: the resident said on a call that they're somewhere else and no one else is there.
+- **What it changes:** `outcomeFor` gives `"leaving"` for an away home, so no ride is opened and the counts treat it as safe. `canDrive` is false for it, so an away home is never asked to drive for someone.
+- **Pickups:** a pickup for an away resident falls through as `not_needed`, named helper or neighbor. A live pickup whose helper is now away falls through as `helper_declined`.
+- **The voice agent:** new interpreter flag `away_from_home`. On it, the warning call sets `away: true`, says `awaySafe` ("Since nobody is at the home, I've marked you as safe. Please stay away from the area and follow the evacuation orders.", in all 8 languages; the six beyond en and es are machine translations) and ends. Someone away but calling about a person who is at the home still gives the household's address.
+- **On the call floor:** the badge says "Safe, not at home".
+- **Python** (`modeling/`, `dispatch/`): nothing to change. `away` homes arrive with `outcome: "leaving"`.

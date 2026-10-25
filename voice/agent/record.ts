@@ -14,6 +14,7 @@ export const FIELDS: Field[] = [
   "mobility",
   "medical",
   "assistanceRequired",
+  "away",
 ];
 
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

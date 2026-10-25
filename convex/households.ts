@@ -20,6 +20,7 @@ const recordPatch = v.object({
   medical: v.optional(v.array(medicalNeed)),
   pets: v.optional(v.boolean()),
   hasCar: v.optional(v.boolean()),
+  away: v.optional(v.boolean()),
   address: v.optional(v.string()),
   language: v.optional(v.string()),
 });

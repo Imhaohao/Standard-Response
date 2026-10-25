@@ -291,6 +291,7 @@ export class Conversation {
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     this.noteChairKind(heard);
+    if (heard.awayFromHome && !this.record.away) return this.markAway(heard);
     const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
@@ -544,6 +545,16 @@ export class Conversation {
     const text = [acknowledgment, ...sentences].filter(Boolean).join(" ");
     if (text !== "") this.history.push({ speaker: "agent", text });
     return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked, ignored: false };
+  }
+
+  // Nobody is at the home: they're counted as safe, and there is nothing more to ask. An emergency
+  // they mention is still passed on first.
+  private markAway(heard: Interpretation): AgentTurn {
+    const urgent = this.handleEmergency(heard);
+    this.applyUpdates({ away: true }, { away: 0.9 });
+    this.moveTo("done");
+    const lines = LINES[this.language];
+    return this.say("", [...urgent, lines.awaySafe, lines.goodbye], false);
   }
 
   // Noise doesn't count as a missed turn or use up a try; the question stays where it was.

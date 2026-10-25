@@ -26,6 +26,7 @@ function recordRows(h: Household) {
     { key: "medical", label: "Medical", value: h.medical && (h.medical.length ? h.medical.join(", ") : "None") },
     { key: "hasCar", label: "Has a car", value: yesNo(h.hasCar) },
     { key: "pets", label: "Pets", value: yesNo(h.pets) },
+    { key: "away", label: "At home", value: h.away ? "No, safe elsewhere" : undefined },
   ];
 }
 
@@ -54,7 +55,8 @@ function RecordField({ label, value }: { label: string; value: string | undefine
 
 function OutcomeBadge({ household }: { household: Household }) {
   const kind = homeKind(household);
-  const label = HOME_KINDS.find((entry) => entry.kind === kind)?.label;
+  // Nobody at the home counts as leaving, but the floor says why.
+  const label = household.away ? "Safe, not at home" : HOME_KINDS.find((entry) => entry.kind === kind)?.label;
   return (
     <span className="type-small inline-flex shrink-0 items-center gap-2 bg-panel-raised px-2.5 py-1 font-semibold">
       <svg viewBox="-7 -7 14 14" className="size-3.5" aria-hidden>

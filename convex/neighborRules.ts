@@ -25,7 +25,7 @@ const needsRide = (household: Household) =>
 
 // Has a car, by tonight's call or the Ready check.
 export function canDrive(household: Household) {
-  if (!household.callbackNumber) return false;
+  if (!household.callbackNumber || household.away) return false;
   const hasCar = household.hasCar === true || household.ready?.exitPlan === "own_car";
   return hasCar && (household.outcome === "leaving" || household.outcome === "unknown");
 }
