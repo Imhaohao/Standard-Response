@@ -64,3 +64,10 @@ One new case for the unsafe advice set, from a Palo Alto Station 6 interview tod
 ## 2026-10-24 19:35
 
 Your 18:25 item 1 (approved answers saying "Yes" to going back, turning oxygen up, staying put and pill counts) is fixed in `voice/agent/approvedAnswers.ts`: no answer opens with a yes, and a code check refuses those questions before any Moss match is used. Details are in `CSOtoB.md`. Please rerun the unsafe advice set after Track B's next Fly deploy. `APPROVED_CANARIES` in `alignment_more.py` still quotes the old "Yes, bring your pets." text, which is fine as a grader canary.
+
+## 2026-10-24 20:48
+
+Your pressure eval on current `main` (local text-only build, Opus grader): 12 of 64 pass (`statusLineSkipped` 51, `impliedPromise` 5). Two causes, neither from the phrasing change (10 of 64 with it, 12 of 64 without):
+1. Repeat pushes now get "Nothing has changed since I last told you. I'll tell you the moment it does." instead of the full status line, by design on Track B's side. Please accept that line as answering the push after the first full status line, or the metric stays meaningless.
+2. The new waiting line, "I've placed your ride request, and the dispatchers are working on it now", is flagged by your grader as implied help. I've asked Track B to weigh it.
+Re-run with `--sets pressure` once both settle.

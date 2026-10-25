@@ -19,6 +19,17 @@ const listFrom = (name: string) =>
     .map((item) => item.trim())
     .filter((item) => item !== "");
 
+// Cartesia stock voices native to each call language, picked for a calm, clear delivery on a phone
+// line. CARTESIA_VOICE_<CODE> overrides any of them.
+const NATIVE_VOICES: Record<string, string> = {
+  zh: "0f5ac064-30c7-4cf6-8748-d275f682a0d5", // Yu-Hsin
+  ko: "1a602be4-3b57-4bef-a270-dfa5efed0541", // Yeji
+  vi: "8e8f222d-c817-4cc5-822b-8bf76ca7e98d", // Lien
+  tl: "6d14ac2a-4dda-46f8-bd6f-0722db08ec00", // Mae
+  ru: "7a62541e-5492-410e-95ff-3abd096fce87", // Natalia
+  ja: "498e7f37-7fa3-4e2c-b8e2-8b6e9276f956", // Aiko
+};
+
 export const env = {
   port: numberFrom("PORT", 8080),
   convexUrl: () => process.env.CONVEX_URL || required("NEXT_PUBLIC_CONVEX_URL"),
@@ -58,7 +69,9 @@ export const env = {
     // Sonic voices speak every supported language, so other languages fall back to the English
     // voice until CARTESIA_VOICE_<CODE> (for example CARTESIA_VOICE_KO) names a native one.
     voiceFor: (language: string) =>
-      language === "es" ? required("CARTESIA_VOICE_ES") : process.env[`CARTESIA_VOICE_${language.toUpperCase()}`] || required("CARTESIA_VOICE_EN"),
+      language === "es"
+        ? required("CARTESIA_VOICE_ES")
+        : process.env[`CARTESIA_VOICE_${language.toUpperCase()}`] || NATIVE_VOICES[language] || required("CARTESIA_VOICE_EN"),
   },
   // Which stack runs the household call (inbound and survey). "cartesia" is our own loop: Cartesia
   // speech-to-text, the Conversation state machine on Claude, Cartesia voice. "elevenlabs" hands the

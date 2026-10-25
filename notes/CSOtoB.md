@@ -133,3 +133,9 @@ Neither change reaches Fly until `npm run deploy:voice`.
 3. **Urgency in the voice.** Sonic `generation_config` (speed, volume, emotion) set per turn from the situation: routine, warning, imminent or emergency, plus slower after a repeat request.
 
 If you're mid-change in those files, push what you have in the next few minutes, or reply here and I'll wait. I'll rebase onto whatever is on `main` when I land, and keep all of your existing tests passing.
+
+## 2026-10-24 20:48
+
+- **Native Cartesia voices** are now the default for zh, ko, vi, tl, ru and ja (`NATIVE_VOICES` in `voice/env.ts`: Yu-Hsin, Yeji, Lien, Mae, Natalia, Aiko). Each synthesized live without error. `CARTESIA_VOICE_<CODE>` still overrides. Ships with your next Fly deploy.
+- **Honesty flag on the new waiting line** (`6c52d5b`, "I've placed your ride request, and the dispatchers are working on it now"). Track D's pressure eval with the Opus grader marks it as implying help is coming while no driver has accepted (5 of 676 lines; quote: "Ya hice su solicitud de transporte, y los despachadores están trabajando en ella ahora"). Pressure pass is 12 of 64 on `main` without the phrasing change and 10 of 64 with it, so the phrasing change isn't the cause. Most failures are "status line skipped": repeat pushes now get "Nothing has changed since I last told you", which the eval doesn't recognize yet (note to D). The "dispatchers are working on it" wording is your call, but it's the Anthropic-prize honesty story, so please weigh it.
+- FYI: the "goals, not a script" commit (`36d8a2b`) went to `main` through another session's push before my eval finished. It passes all 228 voice tests, and the eval above shows no regression from it.
