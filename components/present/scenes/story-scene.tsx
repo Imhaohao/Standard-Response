@@ -28,9 +28,13 @@ const CALL_ROWS = { left: 1090, top: CARD.top + CARD.height + 40, width: 740 };
 // Anthony with his family, whole, at the photo's own shape on the right.
 const PORTRAIT: Frame = { left: 880, top: 196, width: 920, height: 689, borderRadius: 32, opacity: 1 };
 
+// On 2.3 the family photo comes back beside the dark house: these are the people we're asking how to save.
+const BESIDE_HOUSE: Frame = { left: 1100, top: 250, width: 640, height: 480, borderRadius: 32, opacity: 1 };
+
 function portraitFrame(beat: Beat): Frame {
   if (beat === "anthony") return PORTRAIT;
   if (beat === "calls") return CARD;
+  if (beat === "howSave") return BESIDE_HOUSE;
   if (isAtOrAfter(beat, "gone")) return { ...CARD, opacity: 0 };
   if (isAtOrAfter(beat, "family")) return INTO_HOUSE;
   return { ...FULL, opacity: 0 };
@@ -50,7 +54,7 @@ function Portrait({ beat }: { beat: Beat }) {
       animate={portraitFrame(beat)}
       transition={portraitMove(beat)}
     >
-      <Photo name="mitchells" compact={beat !== "anthony"} />
+      <Photo name="mitchells" compact={beat !== "anthony" && beat !== "howSave"} />
     </motion.div>
   );
 }

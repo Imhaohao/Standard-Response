@@ -33,7 +33,7 @@ export const SHOTS: Record<Beat, Shot> = {
   // The fire rewinds while the US map is up, so the house comes back dark and alone in a quiet town.
   everywhere: { ...OFF, zoom: 3.2, focus: "house", fire: 0, house: "out" },
   eighty: { ...OFF, zoom: 3.2, focus: "house", fire: 0, house: "out" },
-  howSave: { ...TOWN, zoom: 3.2, focus: "house", fire: 0, house: "out", dark: 0.35 },
+  howSave: { ...TOWN, zoom: 3.2, focus: "house", offsetX: -380, fire: 0, house: "out", dark: 0.35 },
   stations: { ...OFF, zoom: 3.2, focus: "house", fire: 0, house: "out" },
   dispatch: OFF,
   built: OFF,
