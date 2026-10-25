@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Point } from "@/lib/ink-map/data";
 import { ScenarioFront } from "@/lib/ink-map/fire-field";
-import { useMapStage } from "./map-stage";
+import { Project, useMapStage } from "./map-stage";
 
 // Smoke drawn the manga way: round puffs with an ink outline and a halftone shadow, rising in a few
 // plumes spread along the whole burning edge and leaning downwind, thickest where the front runs
@@ -17,6 +17,8 @@ const LIFE_SECONDS = 9;
 const EDGE_SAMPLES = 96;
 const PLUME_EVERY_METERS = 900;
 const MOST_PLUMES = 8;
+// How hard the ground the last two fronts crossed still smokes, against the burning edge's 1.
+const SMOULDER_HEAT = [0.6, 0.35];
 // The scenario's wind carries smoke toward the west-southwest.
 const DOWNWIND: Point = [-0.92, -0.38];
 const DRIFT_METERS = 1000;
@@ -46,23 +48,33 @@ function perimeter(ring: Point[]) {
   return total;
 }
 
-// One plume for every kilometre or so of burning edge, spread around it: the edge is cut into equal
-// stretches and each plume rises where its stretch pushes furthest by the next front. A long push
-// means a hot, fast run, so those plumes come out biggest.
+// Plumes spread around one front: the ring is cut into equal stretches and each plume rises where
+// its stretch pushes furthest by the following front. A long push means a hot, fast run.
+function plumesAlong(ring: Point[], nextRing: Point[] | null, plumes: number, heat: number): Source[] {
+  const edge = sampleRing(ring, EDGE_SAMPLES).map((point) => ({ point, strength: nextRing ? distanceToRing(nextRing, point) : 1 }));
+  const stretch = Math.ceil(edge.length / plumes);
+  return Array.from({ length: plumes }, (_, i) => edge.slice(i * stretch, (i + 1) * stretch))
+    .filter((part) => part.length > 0)
+    .map((part) => part.reduce((best, source) => (source.strength > best.strength ? source : best)))
+    .map((source) => ({ ...source, strength: source.strength * heat }));
+}
+
+// One plume for every kilometre or so of burning edge, and fewer, fainter ones over the ground the
+// fire crossed in the last hour or so, which is still smouldering.
 function smokeSources(fronts: ScenarioFront[], minutes: number): Source[] {
   const index = fronts.findLastIndex((front) => front.minutes <= minutes);
   if (index < 0) return [];
-  const ring = fronts[index].ring;
-  const next = fronts[index + 1];
-  const nextRing = next ? sampleRing(next.ring, EDGE_SAMPLES * 2) : null;
-  const plumes = Math.max(1, Math.min(MOST_PLUMES, Math.round(perimeter(ring) / PLUME_EVERY_METERS)));
-  const edge = sampleRing(ring, EDGE_SAMPLES).map((point) => ({ point, strength: nextRing ? distanceToRing(nextRing, point) : 1 }));
-  const stretch = Math.ceil(edge.length / plumes);
-  const picked = Array.from({ length: plumes }, (_, i) => edge.slice(i * stretch, (i + 1) * stretch))
-    .filter((part) => part.length > 0)
-    .map((part) => part.reduce((best, source) => (source.strength > best.strength ? source : best)));
-  const strongest = Math.max(...picked.map((source) => source.strength)) || 1;
-  return picked.map((source) => ({ ...source, strength: Math.max(0.35, source.strength / strongest) }));
+  const sampled = (i: number) => (fronts[i] ? sampleRing(fronts[i].ring, EDGE_SAMPLES * 2) : null);
+  const plumes = Math.max(1, Math.min(MOST_PLUMES, Math.round(perimeter(fronts[index].ring) / PLUME_EVERY_METERS)));
+  const sources = [
+    ...plumesAlong(fronts[index].ring, sampled(index + 1), plumes, 1),
+    ...SMOULDER_HEAT.flatMap((heat, back) => {
+      const older = fronts[index - back - 1];
+      return older ? plumesAlong(older.ring, sampled(index - back), Math.max(1, Math.round(plumes / 2)), heat) : [];
+    }),
+  ];
+  const strongest = Math.max(...sources.map((source) => source.strength)) || 1;
+  return sources.map((source) => ({ ...source, strength: Math.max(0.3, source.strength / strongest) }));
 }
 
 const hash = (n: number) => {
@@ -71,7 +83,6 @@ const hash = (n: number) => {
 };
 
 type Puff = { x: number; y: number; r: number; dx: number; dy: number; phase: number };
-type Project = (point: Point, lift?: number) => { x: number; y: number; visible: boolean };
 
 const offset = ([x, y]: Point, east: number, north: number): Point => [x + east, y + north];
 
@@ -92,24 +103,6 @@ function puffFrom(project: Project, source: Source, sourceIndex: number, puffInd
     dy: top.y - base.y,
     phase: hash(sourceIndex * 3.1 + puffIndex * 5.7),
   };
-}
-
-function usePuffs(fronts: ScenarioFront[], minutes: number) {
-  const { project, version } = useMapStage();
-  const sources = useMemo(() => smokeSources(fronts, minutes), [fronts, minutes]);
-  return useMemo(() => {
-    const perSource = Math.ceil(PUFFS / Math.max(1, sources.length));
-    const list: Puff[] = [];
-    sources.forEach((source, s) => {
-      for (let i = 0; i < perSource; i++) {
-        const puff = puffFrom(project, source, s, i);
-        if (puff) list.push(puff);
-      }
-    });
-    return list;
-    // `version` changes whenever the camera moves; `project` is stable across those moves.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources, project, version]);
 }
 
 // Where a puff is in its life: it swells as it rises and drifts, fades in quickly and out at the end.
@@ -199,12 +192,29 @@ function setUpCanvas(canvas: HTMLCanvasElement, width: number, height: number): 
   return { ink, smoke: styles.getPropertyValue("--smoke").trim(), pattern: dotPattern(context, ink, scale), shadow };
 }
 
-function useSmokePainter(canvasRef: React.RefObject<HTMLCanvasElement | null>, puffs: Puff[], width: number, height: number) {
-  const latest = useRef(puffs);
+// Every painted frame projects the puffs through the live camera, so the smoke stays on the fire
+// mid-pan without React re-rendering anything.
+function puffsOnScreen(project: Project, sources: Source[]) {
+  const perSource = Math.ceil(PUFFS / Math.max(1, sources.length));
+  const list: Puff[] = [];
+  sources.forEach((source, s) => {
+    for (let i = 0; i < perSource; i++) {
+      const puff = puffFrom(project, source, s, i);
+      if (puff) list.push(puff);
+    }
+  });
+  return list;
+}
+
+// Paints at most every FRAME_MS while the puffs drift, and at once whenever the camera moves, so
+// the smoke stays on the fire mid-pan.
+function useSmokePainter(canvasRef: React.RefObject<HTMLCanvasElement | null>, sources: Source[], width: number, height: number) {
+  const { project, subscribe } = useMapStage();
+  const latest = useRef({ sources, project });
   useEffect(() => {
-    latest.current = puffs;
-  }, [puffs]);
-  const hasSmoke = puffs.length > 0;
+    latest.current = { sources, project };
+  }, [sources, project]);
+  const hasSmoke = sources.length > 0;
   useEffect(() => {
     const canvas = canvasRef.current;
     const paint = canvas && hasSmoke ? setUpCanvas(canvas, width, height) : null;
@@ -213,23 +223,30 @@ function useSmokePainter(canvasRef: React.RefObject<HTMLCanvasElement | null>, p
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let frame = 0;
     let last = -Infinity;
-    const draw = (time: number) => {
-      if (!still) frame = requestAnimationFrame(draw);
-      if (time - last < FRAME_MS) return;
+    const paintNow = (time: number) => {
       last = time;
       context.clearRect(0, 0, width, height);
-      paintSmoke(context, paint, latest.current, still ? LIFE_SECONDS * 0.4 : time / 1000);
+      const puffs = puffsOnScreen(latest.current.project, latest.current.sources);
+      paintSmoke(context, paint, puffs, still ? LIFE_SECONDS * 0.4 : time / 1000);
+    };
+    const draw = (time: number) => {
+      if (!still) frame = requestAnimationFrame(draw);
+      if (time - last >= FRAME_MS) paintNow(time);
     };
     frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
-  }, [canvasRef, hasSmoke, width, height]);
+    const stopFollowing = subscribe(() => paintNow(performance.now()));
+    return () => {
+      cancelAnimationFrame(frame);
+      stopFollowing();
+    };
+  }, [canvasRef, hasSmoke, width, height, subscribe]);
 }
 
 export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minutes: number }) {
   const { size } = useMapStage();
-  const puffs = usePuffs(fronts, minutes);
+  const sources = useMemo(() => smokeSources(fronts, minutes), [fronts, minutes]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useSmokePainter(canvasRef, puffs, size.width, size.height);
-  if (puffs.length === 0) return null;
+  useSmokePainter(canvasRef, sources, size.width, size.height);
+  if (sources.length === 0) return null;
   return <canvas ref={canvasRef} style={{ width: size.width, height: size.height }} className="pointer-events-none absolute inset-0" aria-hidden />;
 }

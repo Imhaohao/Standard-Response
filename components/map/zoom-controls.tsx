@@ -1,14 +1,16 @@
 "use client";
 
 import { ArrowsIn, Minus, Plus } from "@phosphor-icons/react";
-import { useMapStage } from "./map-stage";
+import { useCameraVersion, useMapStage } from "./map-stage";
 
 const BUTTON =
   "grid size-10 place-items-center text-on-panel hover:bg-panel-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink disabled:opacity-40";
 
 // Zoom buttons for people who don't use a wheel or a pinch. Home appears once the view has moved.
 export function ZoomControls({ className = "" }: { className?: string }) {
-  const { zoomBy, resetView, zoomed } = useMapStage();
+  const { zoomBy, resetView, zoomLevel } = useMapStage();
+  useCameraVersion();
+  const zoomed = zoomLevel() > 1.01;
   return (
     <div className={`pointer-events-auto flex flex-col overflow-hidden rounded-xl bg-panel shadow-float ${className}`} onClick={(event) => event.stopPropagation()}>
       <button type="button" aria-label="Zoom in" className={BUTTON} onClick={() => zoomBy(1.6)}>

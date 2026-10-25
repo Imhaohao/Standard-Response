@@ -1,8 +1,7 @@
 "use client";
 
 import { Car, Check, Handshake, LinkBreak, PhoneCall, type Icon } from "@phosphor-icons/react";
-import { Anchor } from "@/components/map/layers";
-import { useMapStage } from "@/components/map/map-stage";
+import { Anchor, MapLine } from "@/components/map/layers";
 import { Point } from "@/lib/ink-map/data";
 import { Pickup, PickupStatus } from "./use-pickups";
 
@@ -36,10 +35,6 @@ const BADGE: Record<PickupStatus, { Icon: Icon; fill: string }> = {
   fell_through: { Icon: LinkBreak, fill: SIGNAL },
 };
 
-function screenPath(points: { x: number; y: number }[]) {
-  return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
-}
-
 function Ringing({ at }: { at: Point }) {
   return (
     <Anchor point={at}>
@@ -51,20 +46,19 @@ function Ringing({ at }: { at: Point }) {
 }
 
 function Drive({ pickup, emphasis }: { pickup: Pickup & { helperAt: Point; drive: Point[] }; emphasis: number }) {
-  const { project } = useMapStage();
-  const points = pickup.drive.map((point) => project(point));
-  const from = points[0];
-  if (!points.some((point) => point.visible)) return null;
   const look = ARC[pickup.status];
-  const d = screenPath(points);
+  const route = pickup.drive;
   const width = look.width + (emphasis > 1 ? 1.5 : 0);
   const broken = pickup.status === "fell_through" ? BROKEN : {};
+  const line = { fill: "none", strokeLinecap: "round", strokeLinejoin: "round" } as const;
   return (
     <g opacity={look.opacity * Math.min(emphasis, 1)} className="transition-opacity duration-200">
-      <path d={d} fill="none" stroke={PAPER} strokeWidth={width + 3} strokeLinecap="round" strokeLinejoin="round" {...broken} />
-      <path d={d} fill="none" stroke={look.stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={look.dash} className={look.className} {...broken} />
-      {pickup.status === "coming" && <path d={d} fill="none" stroke={PAPER} strokeWidth={width * 0.5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 10" className="animate-dash-flow" />}
-      {from.visible && <circle cx={from.x} cy={from.y} r={4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />}
+      <MapLine route={route} {...line} stroke={PAPER} strokeWidth={width + 3} {...broken} />
+      <MapLine route={route} {...line} stroke={look.stroke} strokeWidth={width} strokeDasharray={look.dash} className={look.className} {...broken} />
+      {pickup.status === "coming" && <MapLine route={route} {...line} stroke={PAPER} strokeWidth={width * 0.5} strokeDasharray="2 10" className="animate-dash-flow" />}
+      <Anchor point={route[0]}>
+        <circle r={4} fill={look.stroke} stroke={PAPER} strokeWidth={2} />
+      </Anchor>
     </g>
   );
 }

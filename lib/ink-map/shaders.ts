@@ -197,7 +197,7 @@ float arrivalMinutes(vec2 mapXY) {
 float frontGlow(vec2 mapXY, float minutes) {
   float ragged = (fbm(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04)) - 0.5) * 9.0;
   float behind = uFireNow - (minutes + ragged);
-  float band = smoothstep(-1.0, 0.3, behind) * (1.0 - smoothstep(0.8, 3.5, behind));
+  float band = smoothstep(-0.6, 0.3, behind) * (1.0 - smoothstep(0.6, 2.2, behind));
   float flicker = 0.75 + 0.25 * sin(uTime * 7.0 + hash12(floor(mapXY / 9.0)) * 6.28);
   return band * flicker * uFireOn;
 }
@@ -232,7 +232,7 @@ void main() {
   vec2 mapXY = vec2(w.x, -w.z);
   float minutes = arrivalMinutes(mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
-  float edge = burned * edgeOfBurn(mapXY, max(18.0, uViewMpp * 10.0));
+  float edge = burned * edgeOfBurn(mapXY, max(8.0, uViewMpp * 5.0));
   float smoulder = edge * (0.6 + 0.3 * valueNoise(mapXY * 0.05 + vec2(uTime * 0.7, -uTime * 0.4)));
   float glow = max(frontGlow(mapXY, minutes), smoulder);
   float fresh = burned * (1.0 - smoothstep(0.0, 70.0, uFireNow - minutes));
@@ -295,11 +295,17 @@ uniform float uForecastAhead;
 // uPatternBlend crossfades into the next power as the zoom passes, so dots keep a readable size.
 vec2 gPattern;
 float gPatternWidth;
+// The burn scar's crosshatch lies on the ground instead (see groundHatch).
+vec2 gGround;
+float gGroundWidth;
 
 void placePattern(vec3 world) {
   gPattern = vec2(dot(world, uCamRight), dot(world, uCamUp)) * uPatternScale;
   vec2 width = fwidth(gPattern);
   gPatternWidth = max(width.x, width.y);
+  gGround = vec2(world.x, -world.z) * uPatternScale;
+  vec2 groundWidth = fwidth(gGround);
+  gGroundWidth = max(groundWidth.x, groundWidth.y);
 }
 
 float decodeId(vec2 uv) {
@@ -421,6 +427,16 @@ float hatch(float coverage, float spacing, float angle) {
   vec2 direction = vec2(cos(angle), sin(angle));
   float fine = linesAt(gPattern, coverage, period, direction, gPatternWidth);
   float coarse = linesAt(gPattern * 0.5, coverage, period, direction, gPatternWidth * 0.5);
+  return mix(fine, coarse, uPatternBlend);
+}
+
+// The burn scar's crosshatch is a mark on the ground, not shading: its lines lie on the map in fixed
+// compass directions, so they foreshorten with the view and drape over the hills under them.
+float groundHatch(float coverage, float spacing, float angle) {
+  float period = max(spacing, 3.0 * uPixelRatio) * OCTAVE_MIDDLE;
+  vec2 direction = vec2(cos(angle), sin(angle));
+  float fine = linesAt(gGround, coverage, period, direction, gGroundWidth);
+  float coarse = linesAt(gGround * 0.5, coverage, period, direction, gGroundWidth * 0.5);
   return mix(fine, coarse, uPatternBlend);
 }
 
@@ -572,21 +588,22 @@ void main() {
   color = forecast(color, mapXY, minutes, lines);
   float burned = (1.0 - smoothstep(uFireNow - 6.0, uFireNow, minutes)) * uFireOn;
   if (burned > 0.0) {
-    // Minutes since the fire passed. A crosshatch marks the whole scar as charred, but at full
-    // weight only in the band just behind the front; full strength everywhere turns the town into
-    // wallpaper and hides the street grid. Embers stay in that fresh band alone.
+    // Minutes since the fire passed. A light crosshatch on the ground marks the whole scar as burned,
+    // heaviest just behind the front. It stays off the houses: they go to solid charcoal instead, so
+    // a burned-out home still reads as a home against the ash around it.
     float age = uFireNow - minutes;
     float fresh = 1.0 - smoothstep(2.0, 75.0, age);
-    float crosshatch = max(hatch(0.16, 8.0 * uPixelRatio, -0.75), hatch(0.16, 8.0 * uPixelRatio, 0.8208));
-    float scorch = crosshatch * burned * (0.3 + 0.7 * fresh);
-    // Ash: the ground goes a warm charcoal, darkest just behind the front, and greys out as it cools.
-    vec3 char = mix(vec3(0.78, 0.74, 0.71), vec3(0.5, 0.42, 0.38), fresh);
-    color = mix(color, color * char, burned * (0.55 + 0.35 * fresh));
-    color = mix(color, uInk, scorch * (0.26 + 0.24 * fresh) * (1.0 - lines));
-    // Homes the fire has passed are burned out: their roofs go to charcoal, the one mark that
-    // still reads at town scale once the scar has gone quiet.
-    if (surface == S_ROOF) color = mix(color, uInk * 1.25, burned * 0.7);
+    bool building = surface == S_ROOF || surface == S_WALL;
+    float crosshatch = max(groundHatch(0.07, 12.0 * uPixelRatio, 0.7854), groundHatch(0.07, 12.0 * uPixelRatio, -0.7854));
+    float scorch = building ? 0.0 : crosshatch * burned * (0.35 + 0.65 * fresh);
+    // Ash: the ground goes a warm grey, darkest just behind the front, and pales as it cools.
+    vec3 ash = mix(vec3(0.88, 0.85, 0.82), vec3(0.7, 0.62, 0.57), fresh);
+    color = mix(color, color * ash, burned * (building ? 0.3 : 0.6 + 0.3 * fresh));
+    color = mix(color, uInk, scorch * (0.16 + 0.16 * fresh) * (1.0 - lines));
+    if (surface == S_ROOF) color = mix(color, uInk * 1.2, burned * 0.75);
+    if (surface == S_WALL) color = mix(color, uInk * 1.5, burned * 0.6);
   }
+
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole
   // town in red and drown out the roofs that mean somebody is waiting.
   float future = step(uFireNow, minutes) * step(minutes, uFireNow + 31.0) * uFireOn;
@@ -601,7 +618,8 @@ void main() {
 `;
 
 // Every animated frame, full resolution: the cached map from the composite pass, with the glow,
-// embers, heat haze and flames laid over it. Away from the fire it is one texture read.
+// embers and heat haze laid over it. Away from the fire it is one texture read. The flames are
+// geometry, drawn after this pass (flames.ts).
 export const FIRE_FRAGMENT = `
 precision highp float;
 precision highp sampler2D;
@@ -617,47 +635,7 @@ uniform vec3 uPaper;
 uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
-uniform vec3 uCamRight;
 uniform float uPatternScale;
-
-// Glow of the crisp front at another screen point, for rooting flames on the real fire line.
-float frontAt(vec2 uv) {
-  return texture(tFrontMask, uv).r;
-}
-
-// Flame tongues standing up off every burning edge, in screen space so they always rise up the page.
-// The quarter-resolution glow mask says where the edge is; noise columns give each tongue a height.
-// Each tongue stands in a column fixed to the ground, measured along the camera's right in the same
-// power-of-two metre grid the tone uses, so panning carries the flames with the town.
-float groundAcross(vec2 uv) {
-  float depth = texture(tDepth, uv).r;
-  if (depth >= 1.0) return uv.x * uResolution.x;
-  return dot(worldPosition(uv, depth), uCamRight) * uPatternScale;
-}
-
-float flameTongues(vec2 uv) {
-  if (uFireOn < 0.5 || texture(tBloom, uv).r < 0.02) return 0.0;
-  float tall = 64.0 * uPixelRatio / uResolution.y;
-  float across = groundAcross(uv) / (8.0 * uPixelRatio);
-  float column = floor(across);
-  float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
-  float flame = 0.0;
-  for (int i = 1; i <= 10; i++) {
-    float t = float(i) / 10.0;
-    float base = frontAt(uv - vec2(0.0, t * tall));
-    if (base < 0.25) continue;
-    float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
-    float height = clamp(base, 0.0, 1.0) * (0.12 + 1.6 * flicker);
-    float rise = t / max(height, 1e-3);
-    flame = max(flame, step(rise, 1.0) * step(rise, profile) * (1.0 - rise));
-  }
-  return flame;
-}
-
-vec3 flameColor(float f) {
-  vec3 hot = vec3(1.0, 0.9, 0.62);
-  return f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
-}
 
 // A roof waiting on a ride breathes: the base drew it at full red, and this eases it toward paper.
 vec3 breathe(vec4 base) {
@@ -719,10 +697,8 @@ void main() {
     color = embers(color, mapXY, bloom.g);
     color = burntPaperEdge(color, mapXY, bloom.r, glow);
   }
-  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.45);
-  color += uEmber * min(bloom.r, 1.2) * 0.55 + vec3(1.0, 0.85, 0.6) * smoothstep(0.7, 1.1, glow) * 0.3;
-  float flame = flameTongues(vUv);
-  color = mix(color, flameColor(flame), smoothstep(0.0, 0.08, flame) * 0.95);
+  color = mix(color, uEmber, clamp(glow, 0.0, 1.0) * 0.4);
+  color += uEmber * min(bloom.r, 1.2) * 0.28 + vec3(1.0, 0.85, 0.6) * smoothstep(0.7, 1.1, glow) * 0.25;
   fragColor = vec4(color, 1.0);
 }
 `;

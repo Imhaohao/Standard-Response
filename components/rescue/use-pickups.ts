@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import { LatLng } from "@/lib/geo";
 import { InkMapData, Point } from "@/lib/ink-map/data";
-import { roadRoute } from "@/lib/ink-map/road-route";
+import { streetDrive } from "@/lib/ink-map/road-route";
 
 export type PickupRow = FunctionReturnType<typeof api.pickups.board>[number];
 export type PickupStatus = PickupRow["status"];
@@ -15,7 +15,7 @@ export type Pickup = PickupRow & { home: NonNullable<PickupRow["home"]>; at: Poi
 
 function driveBetween(data: InkMapData | null, from: Point | null, to: Point, closed: Set<string>) {
   if (!from) return null;
-  return (data && roadRoute(data, from, to, closed)) ?? [from, to];
+  return (data && streetDrive(data, from, to, closed)) ?? [from, to];
 }
 
 // Every prearranged pickup with both ends placed on the map, and the streets the helper drives.

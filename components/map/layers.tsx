@@ -1,17 +1,25 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useRef } from "react";
 import { LatLng } from "@/lib/geo";
 import { Point } from "@/lib/ink-map/data";
-import { useMapStage } from "./map-stage";
+import { Project, useMapStage, useProjected } from "./map-stage";
 
-// Anchors a marker to the ground under it. Everything drawn here sits in the overlay SVG, which
-// shares the surface's pixel grid, so a marker and its roof stay together at any window size.
+// Everything drawn here sits in the overlay SVG, which shares the surface's pixel grid, so a marker
+// and its roof stay together at any window size. Each primitive places itself with useProjected,
+// which moves it with the camera without re-rendering it.
+
+// Anchors a marker to the ground under it.
 export function Anchor({ point, children }: { point: Point; children: ReactNode }) {
-  const { project } = useMapStage();
-  const { x, y, visible } = project(point);
-  if (!visible) return null;
-  return <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>{children}</g>;
+  const ref = useRef<SVGGElement>(null);
+  useProjected((project) => {
+    const element = ref.current;
+    if (!element) return;
+    const { x, y, visible } = project(point);
+    element.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    element.style.display = visible ? "" : "none";
+  });
+  return <g ref={ref}>{children}</g>;
 }
 
 export function GeoAnchor({ at, children }: { at: LatLng; children: ReactNode }) {
@@ -19,19 +27,27 @@ export function GeoAnchor({ at, children }: { at: LatLng; children: ReactNode })
   return <Anchor point={toLocal(at)}>{children}</Anchor>;
 }
 
-const pathData = (points: Point[], close: boolean) =>
-  points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join("") + (close ? "Z" : "");
+export function screenPath(project: Project, points: Point[], close = false) {
+  let d = "";
+  for (let i = 0; i < points.length; i++) {
+    const { x, y } = project(points[i]);
+    d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return close && d ? `${d}Z` : d;
+}
+
+// A path whose `d` follows the camera. `shape` turns the current projection into path data.
+function ProjectedPath({ shape, ...rest }: { shape: (project: Project) => string } & React.SVGProps<SVGPathElement>) {
+  const ref = useRef<SVGPathElement>(null);
+  useProjected((project) => ref.current?.setAttribute("d", shape(project)));
+  return <path ref={ref} {...rest} />;
+}
 
 type LineProps = { route: Point[]; close?: boolean } & React.SVGProps<SVGPathElement>;
 
 export function MapLine({ route, close = false, ...rest }: LineProps) {
-  const { project } = useMapStage();
   if (route.length < 2) return null;
-  const onScreen = route.map((point) => {
-    const { x, y } = project(point);
-    return [x, y] as Point;
-  });
-  return <path d={pathData(onScreen, close)} {...rest} />;
+  return <ProjectedPath shape={(project) => screenPath(project, route, close)} {...rest} />;
 }
 
 export function GeoLine({ route, close = false, ...rest }: { route: LatLng[]; close?: boolean } & React.SVGProps<SVGPathElement>) {
@@ -43,11 +59,7 @@ type LegProps = { start: Point; end: Point; stroke: string; strokeWidth: number;
 
 // A straight run between two places, used for the leg a vehicle is driving.
 export function Leg({ start, end, ...rest }: LegProps) {
-  const { project } = useMapStage();
-  const a = project(start);
-  const b = project(end);
-  if (!a.visible || !b.visible) return null;
-  return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} {...rest} />;
+  return <ProjectedPath shape={(project) => screenPath(project, [start, end])} fill="none" {...rest} />;
 }
 
 export function GeoLeg({ start, end, ...rest }: { start: LatLng; end: LatLng } & Omit<LegProps, "start" | "end">) {
@@ -57,15 +69,7 @@ export function GeoLeg({ start, end, ...rest }: { start: LatLng; end: LatLng } &
 
 // Several closed rings as one even-odd path, so a hole inside a ring stays open.
 export function MapShape({ rings, ...rest }: { rings: Point[][] } & React.SVGProps<SVGPathElement>) {
-  const { project } = useMapStage();
-  const toScreen = (point: Point): Point => {
-    const { x, y } = project(point);
-    return [x, y];
-  };
-  const d = rings
-    .filter((ring) => ring.length >= 3)
-    .map((ring) => pathData(ring.map(toScreen), true))
-    .join("");
-  if (!d) return null;
-  return <path d={d} fillRule="evenodd" {...rest} />;
+  const closed = rings.filter((ring) => ring.length >= 3);
+  if (closed.length === 0) return null;
+  return <ProjectedPath shape={(project) => closed.map((ring) => screenPath(project, ring, true)).join("")} fillRule="evenodd" {...rest} />;
 }

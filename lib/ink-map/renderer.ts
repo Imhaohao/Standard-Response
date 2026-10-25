@@ -3,7 +3,8 @@ import { InkMapData, Point, terrainHeight } from "./data";
 import { configureCamera, InkMapView, viewRegion } from "./camera";
 import type { ForecastField } from "./danger";
 import { NEVER_BURNS, type FireField } from "./fire-field";
-import { buildingGeometry, landuseTexture, LanduseTexture, roadGeometry, terrainGeometry, treeMesh } from "./geometry";
+import { FlameField } from "./flames";
+import { buildingGeometry, landuseTexture, LanduseTexture, roadGeometry, terrainChunks, TreeTile, treeTiles } from "./geometry";
 import {
   BLUR_FRAGMENT,
   COMPOSITE_FRAGMENT,
@@ -57,6 +58,10 @@ function emptyTexture() {
   return texture;
 }
 
+const TREE_FAR_METERS_PER_PIXEL = 0.6;
+// Flames stand on the town and the hills the camera can reach around it, not the whole field.
+const FLAME_MARGIN_METERS = 2500;
+
 export class InkMapRenderer {
   readonly camera = new THREE.PerspectiveCamera();
   private renderer: THREE.WebGLRenderer;
@@ -75,6 +80,8 @@ export class InkMapRenderer {
   private gbufferUniforms: Record<string, THREE.IUniform>;
   private composite: ReturnType<typeof fullscreenPass>;
   private fire: ReturnType<typeof fullscreenPass>;
+  private flames: FlameField;
+  private fireField: FireField | null = null;
   private mask: ReturnType<typeof fullscreenPass>;
   private blur: ReturnType<typeof fullscreenPass>;
   private landuse: LanduseTexture;
@@ -86,6 +93,7 @@ export class InkMapRenderer {
   private running = false;
   private startedAt = performance.now();
   private disposables: { dispose: () => void }[] = [];
+  private treeTiles: TreeTile[] = [];
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -122,22 +130,25 @@ export class InkMapRenderer {
       uLanduse: { value: this.landuse.texture },
       uLanduseRegion: { value: new THREE.Vector4(region.buildings.x0, region.buildings.y0, region.buildings.x1, region.buildings.y1) },
     };
-    this.buildScene(region, fine);
+    this.buildScene(region);
     this.composite = fullscreenPass(COMPOSITE_FRAGMENT, this.compositeUniforms());
     this.mask = fullscreenPass(FIRE_MASK_FRAGMENT, this.composite.material.uniforms);
     this.fire = fullscreenPass(FIRE_FRAGMENT, this.composite.material.uniforms);
+    const b = region.buildings;
+    const flameBounds = { x0: b.x0 - FLAME_MARGIN_METERS, y0: b.y0 - FLAME_MARGIN_METERS, x1: b.x1 + FLAME_MARGIN_METERS, y1: b.y1 + FLAME_MARGIN_METERS };
+    this.flames = new FlameField(data, flameBounds, this.composite.material.uniforms);
     this.blur = fullscreenPass(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
     this.disposables.push(this.gbuffer, this.shadow, this.base, this.fireMask, this.blurA, this.bloom, this.landuse.texture, this.buildingStates, this.renderer);
   }
 
-  private buildScene(region: ReturnType<typeof viewRegion>, fine: boolean) {
+  private buildScene(region: ReturnType<typeof viewRegion>) {
     const material = rawMaterial(GBUFFER_VERTEX, GBUFFER_FRAGMENT, this.gbufferUniforms);
     const treeMaterial = rawMaterial(GBUFFER_VERTEX, GBUFFER_FRAGMENT, this.gbufferUniforms, { INSTANCED: "" });
     const depthMaterial = rawMaterial(DEPTH_VERTEX, DEPTH_FRAGMENT, {});
     const treeDepthMaterial = rawMaterial(DEPTH_VERTEX, DEPTH_FRAGMENT, {}, { INSTANCED: "" });
     const terrainRegion = region.terrain ?? { x0: -1e6, y0: -1e6, x1: 1e6, y1: 1e6 };
     const geometries = [
-      terrainGeometry(this.data, terrainRegion, fine ? 1 : 1),
+      ...terrainChunks(this.data, terrainRegion),
       buildingGeometry(this.data, region.buildings),
       roadGeometry(this.data, region.buildings, this.options.detailRoads ? 7 : 5),
     ];
@@ -146,13 +157,14 @@ export class InkMapRenderer {
       this.depthScene.add(new THREE.Mesh(geometry, depthMaterial));
       this.disposables.push(geometry);
     }
-    const trees = treeMesh(this.data, region.buildings, treeMaterial);
-    this.scene.add(trees);
-    const treeShadows = new THREE.InstancedMesh(trees.geometry, treeDepthMaterial, trees.count);
-    treeShadows.instanceMatrix = trees.instanceMatrix;
-    treeShadows.frustumCulled = false;
-    this.depthScene.add(treeShadows);
-    this.disposables.push(trees.geometry, material, treeMaterial, depthMaterial, treeDepthMaterial);
+    const trees = treeTiles(this.data, region.buildings, treeMaterial, treeDepthMaterial);
+    this.treeTiles = trees.tiles;
+    for (const tile of trees.tiles) {
+      this.scene.add(tile.near, tile.far);
+      this.disposables.push(tile.near.geometry, tile.far.geometry);
+    }
+    this.depthScene.add(trees.shadows);
+    this.disposables.push(trees.shadows.geometry, material, treeMaterial, depthMaterial, treeDepthMaterial);
   }
 
   private compositeUniforms(): Record<string, THREE.IUniform> {
@@ -280,6 +292,12 @@ export class InkMapRenderer {
     const octave = Math.log2(metersPerPixel);
     const step = Math.floor(octave);
     u.uViewMpp.value = metersPerPixel;
+    // A tree a few pixels across looks the same as a plain icosahedron and costs a quarter as much.
+    const far = metersPerPixel > TREE_FAR_METERS_PER_PIXEL;
+    for (const tile of this.treeTiles) {
+      tile.near.visible = !far;
+      tile.far.visible = far;
+    }
     u.uPatternScale.value = 2 ** -step;
     u.uPatternBlend.value = THREE.MathUtils.smoothstep(octave - step, 0.4, 0.6);
     u.uCamRight.value.set(1, 0, 0).applyQuaternion(this.camera.quaternion);
@@ -419,6 +437,17 @@ export class InkMapRenderer {
     this.renderBloom();
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.fire.scene, this.quadCamera);
+    this.renderFlames();
+  }
+
+  // The flames stand in the scene over the finished map. They test against the town's depth in
+  // their own shader, and against each other with the canvas's depth buffer.
+  private renderFlames() {
+    if (this.flames.count === 0) return;
+    this.renderer.autoClear = false;
+    this.renderer.clearDepth();
+    this.renderer.render(this.flames.scene, this.camera);
+    this.renderer.autoClear = true;
   }
 
   // Animation runs only while something on the map moves: fire, or a pulsing home.
@@ -448,6 +477,8 @@ export class InkMapRenderer {
     this.fireTexture?.dispose();
     this.fireTexture = null;
     this.baseDirty = true;
+    this.fireField = field;
+    this.flames.place(field, u.uFireNow.value);
     if (!field) {
       u.uFireOn.value = 0;
       return;
@@ -500,6 +531,7 @@ export class InkMapRenderer {
     if (now.value === minutes) return;
     now.value = minutes;
     this.baseDirty = true;
+    this.flames.place(this.fireField, minutes);
   }
 
   setBuildingStates(states: Map<number, BuildingState>) {
@@ -561,6 +593,7 @@ export class InkMapRenderer {
     cancelAnimationFrame(this.flight);
     this.fireTexture?.dispose();
     this.forecastTexture?.dispose();
+    this.flames.dispose();
     for (const item of this.disposables) item.dispose();
   }
 }

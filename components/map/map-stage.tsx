@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { InkMapHandle } from "@/components/ink-map/ink-map-canvas";
 import { LatLng } from "@/lib/geo";
 import { InkMapView } from "@/lib/ink-map/camera";
@@ -17,17 +17,22 @@ import { useMapGestures } from "./use-map-gestures";
 export type SurfaceMode = "ink" | "paper";
 export type ScreenPoint = { x: number; y: number; visible: boolean };
 
+export type Project = (point: Point, lift?: number) => ScreenPoint;
+type Projector = (project: Project) => void;
+
 type StageValue = {
   data: InkMapData;
   size: Size;
   version: number;
-  project: (point: Point, lift?: number) => ScreenPoint;
+  project: Project;
+  // Calls back on every camera move, in the same task that draws the map. See useProjected.
+  subscribe: (projector: Projector) => () => void;
+  zoomLevel: () => number;
   toScreen: (point: LatLng) => ScreenPoint;
   toLocal: (point: LatLng) => Point;
   toLatLng: (point: Point) => LatLng;
   zoomBy: (factor: number) => void;
   resetView: () => void;
-  zoomed: boolean;
 };
 
 const StageContext = createContext<StageValue | null>(null);
@@ -36,6 +41,48 @@ export function useMapStage() {
   const stage = useContext(StageContext);
   if (!stage) throw new Error("useMapStage must be used inside MapStage");
   return stage;
+}
+
+// Keeps something drawn over the map on its spot as the camera moves. `update` places it with the
+// current camera after every render and again on every pan or zoom, by setting attributes on the
+// element directly in the same task that draws the map, so markers never trail the streets and
+// React never re-renders the overlays while the map moves.
+export function useProjected(update: Projector) {
+  const { project, subscribe } = useMapStage();
+  const latest = useRef(update);
+  useLayoutEffect(() => {
+    latest.current = update;
+    update(project);
+  });
+  useEffect(() => subscribe((current) => latest.current(current)), [subscribe]);
+}
+
+// For drawings that are cheap to re-render whole: a number that changes whenever the camera moves.
+export function useCameraVersion() {
+  const { subscribe } = useMapStage();
+  const [version, setVersion] = useState(0);
+  useEffect(() => subscribe(() => setVersion((current) => current + 1)), [subscribe]);
+  return version;
+}
+
+function useCameraSubscribers(renderer: InkMapRenderer | null, project: Project | undefined) {
+  const projectors = useRef(new Set<Projector>());
+  const latestProject = useRef(project);
+  useEffect(() => {
+    latestProject.current = project;
+  }, [project]);
+  useEffect(() => {
+    if (!renderer) return;
+    const stop = renderer.onViewChange(() => {
+      const current = latestProject.current;
+      if (current) for (const projector of projectors.current) projector(current);
+    });
+    return () => void stop();
+  }, [renderer]);
+  return useCallback((projector: Projector) => {
+    projectors.current.add(projector);
+    return () => void projectors.current.delete(projector);
+  }, []);
 }
 
 // The flat map draws a rectangle of ground. The 3D camera fits the whole overview rectangle on
@@ -141,11 +188,12 @@ export function MapStage({
     [onContextPick, groundAt],
   );
 
-  // Markers are projected from the live camera on the 3D surface, and from the flat frame on the
-  // 2D one. Until the canvas has a size there is nothing to project into.
+  // Until the canvas has a size there is nothing to project into.
+  const projector = useMemo(() => (size && frame ? projectorFor(mode, handle, frame, size) : undefined), [mode, handle, frame, size]);
+  const subscribe = useCameraSubscribers(renderer, projector);
   const value = useMemo(
-    () => (size && frame ? stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }) : null),
-    [data, size, handle, mode, frame, toLocal, toLatLng],
+    () => (size && frame && projector ? stageValue({ data, size, handle, mode, project: projector, subscribe, toLocal, toLatLng }) : null),
+    [data, size, handle, mode, projector, subscribe, frame, toLocal, toLatLng],
   );
 
   return (
@@ -276,25 +324,33 @@ type StageInputs = {
   size: Size;
   handle: InkMapHandle | null;
   mode: SurfaceMode;
-  frame: Frame;
+  project: Project;
+  subscribe: StageValue["subscribe"];
   toLocal: (point: LatLng) => Point;
   toLatLng: (point: Point) => LatLng;
 };
 
-function stageValue({ data, size, handle, mode, frame, toLocal, toLatLng }: StageInputs): StageValue {
+// Markers are projected from the live camera on the 3D surface, and from the flat frame on the
+// 2D one.
+function projectorFor(mode: SurfaceMode, handle: InkMapHandle | null, frame: Frame, size: Size): Project {
+  if (mode === "paper") return fitFrame(frame, size);
+  const ink = handle?.renderer;
+  return ink ? (point, lift = 0) => ink.project(point, lift) : () => HIDDEN;
+}
+
+function stageValue({ data, size, handle, mode, project, subscribe, toLocal, toLatLng }: StageInputs): StageValue {
   const ink = mode === "ink" ? handle?.renderer : undefined;
-  const flat = fitFrame(frame, size);
-  const project = mode === "paper" ? flat : ink ? (point: Point, lift = 0) => ink.project(point, lift) : () => HIDDEN;
   return {
     data,
     size,
     version: handle?.version ?? 0,
     project,
+    subscribe,
+    zoomLevel: () => ink?.zoom ?? 1,
     toScreen: (point) => project(toLocal(point)),
     toLocal,
     toLatLng,
     zoomBy: (factor) => ink?.zoomAt(factor, size.width / 2, size.height / 2),
     resetView: () => ink?.resetView(),
-    zoomed: (ink?.zoom ?? 1) > 1.01,
   };
 }

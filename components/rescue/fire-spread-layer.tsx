@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScreenPoint, useMapStage } from "@/components/map/map-stage";
+import { ScreenPoint, useCameraVersion, useMapStage } from "@/components/map/map-stage";
 import { Point } from "@/lib/ink-map/data";
 import { FireField } from "@/lib/ink-map/fire-field";
 import { Hazard } from "@/lib/ink-map/hazard";
@@ -110,16 +110,19 @@ export function FireSpreadLayer({ hazard, minutes }: { hazard: Hazard | null; mi
 }
 
 function SpreadArrows({ field, minutes }: { field: FireField; minutes: number }) {
-  const { project, version } = useMapStage();
+  const { project } = useMapStage();
+  // The arrows show only under a resting pointer, so a re-render after the camera moves is cheap.
+  const camera = useCameraVersion();
   const anchor = useRef<SVGGElement>(null);
   const pointer = usePointerOverMap(anchor);
   const minute = Math.floor(minutes);
   const vectors = useMemo(() => frontSpread(field, minute), [field, minute]);
   const burned = useMemo(() => burnedPoints(field, minute), [field, minute]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- version changes whenever the camera moves
-  const arrows = useMemo(() => vectors.map((vector) => toArrow(project, vector)), [vectors, project, version]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- version changes whenever the camera moves
-  const burnedOnScreen = useMemo(() => burned.map((point) => project(point)), [burned, project, version]);
+  const hovering = pointer !== null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `camera` changes whenever the camera moves
+  const arrows = useMemo(() => (hovering ? vectors.map((vector) => toArrow(project, vector)) : []), [hovering, vectors, project, camera]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `camera` changes whenever the camera moves
+  const burnedOnScreen = useMemo(() => (hovering ? burned.map((point) => project(point)) : []), [hovering, burned, project, camera]);
 
   const overFire = pointer !== null && (nearest(burnedOnScreen, (point) => point, pointer.x, pointer.y)?.distance ?? Infinity) <= HOVER_RADIUS_PX;
   const focused = overFire ? nearest(arrows, (arrow) => arrow.tail, pointer.x, pointer.y)?.item : undefined;

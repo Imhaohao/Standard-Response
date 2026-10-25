@@ -1,0 +1,246 @@
+import * as THREE from "three";
+import { InkMapData, terrainHeight } from "./data";
+import type { FireField } from "./fire-field";
+
+// Flames as objects standing in the town: rows of licking tongues along every burning edge,
+// and a scatter of smaller ones over ground that burned in the last few minutes. They are real
+// geometry, so they stand up from the hills, hide behind houses and look different from every
+// angle. Each one is a pair of crossed cards the tongues are drawn on; the set is re-placed only
+// when the fire's minute changes.
+
+const MOST_FLAMES = 12000;
+const FLAME_SPACING_METERS = 8;
+const MOST_PER_CROSSING = 24;
+const FLANK_SCALE = 0.65;
+const HEAD_MINUTES = 6;
+const STILL_BURNING_MINUTES = 15;
+const INSIDE_SHARE = 0.12;
+
+export const FLAME_VERTEX = `
+precision highp float;
+in vec3 position;
+in vec2 uv;
+in vec3 iOffset;
+in vec2 iSize;
+in float iPhase;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+out vec2 vUv;
+flat out float vPhase;
+void main() {
+  vec3 world = iOffset + vec3(position.x * iSize.x, position.y * iSize.y, position.z * iSize.x);
+  vUv = uv;
+  vPhase = iPhase;
+  gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+}
+`;
+
+// The map's flame tongues, drawn on each card: the card is cut into columns, each a tongue whose
+// height is noise that scrolls upward, so it licks and breaks apart instead of pulsing as one shape.
+// A pixel is fire when it is under its column's height and inside the column's taper, hot at the
+// root and red at the tip. Anything the town puts in front of a flame hides it.
+export const FLAME_FRAGMENT = `
+precision highp float;
+precision highp sampler2D;
+in vec2 vUv;
+flat in float vPhase;
+uniform sampler2D tDepth;
+uniform vec2 uResolution;
+uniform vec3 uRed;
+uniform vec3 uEmber;
+uniform float uTime;
+out vec4 fragColor;
+
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+float valueNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), u.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+const float COLUMNS = 3.0;
+
+void main() {
+  float scene = texture(tDepth, gl_FragCoord.xy / uResolution).r;
+  if (gl_FragCoord.z > scene + 2e-5) discard;
+  float across = vUv.x * COLUMNS;
+  float column = floor(across) + vPhase * 97.0;
+  float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
+  float t = vUv.y;
+  float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
+  float height = 0.12 + 1.6 * flicker;
+  float rise = t / max(height, 1e-3);
+  if (rise > 1.0 || rise > profile) discard;
+  float f = 1.0 - rise;
+  vec3 hot = vec3(1.0, 0.9, 0.62);
+  vec3 color = f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
+  fragColor = vec4(color, 1.0);
+}
+`;
+
+// Two upright cards crossed at right angles, a metre wide and a metre tall, standing on their
+// bottom edge. Seen from any side, one of them faces the camera.
+function crossedCards() {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (const [dx, dz] of [[1, 0], [0, 1]]) {
+    const base = positions.length / 3;
+    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      positions.push((u - 0.5) * dx, v, (u - 0.5) * dz);
+      uvs.push(u, v);
+    }
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.setIndex(indices);
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+const hash = (n: number) => {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+type Flame = { x: number; y: number; width: number; height: number; phase: number };
+
+type Grid = { field: FireField; cellX: number; cellY: number; minutes: number };
+
+const centre = (grid: Grid, col: number, row: number) => [grid.field.region.x0 + (col + 0.5) * grid.cellX, grid.field.region.y0 + (row + 0.5) * grid.cellY];
+
+// A row of tongues standing on the edge where it crosses from a burned cell to an unburned
+// neighbour, at the point the arrival minute passes the clock, spread along the edge so the line
+// of fire is continuous however coarse the field is.
+function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, number], seed: number): Flame[] {
+  const { field, minutes } = grid;
+  const a = field.minutes[from[1] * field.width + from[0]];
+  const b = field.minutes[to[1] * field.width + to[0]];
+  const crossing = (minutes - a) / Math.max(1e-3, b - a);
+  const t = Number.isFinite(crossing) ? Math.min(1, Math.max(0, crossing)) : 0.5;
+  const [ax, ay] = centre(grid, ...from);
+  const [bx, by] = centre(grid, ...to);
+  const [dx, dy] = [bx - ax, by - ay];
+  const length = Math.hypot(dx, dy);
+  const count = Math.min(MOST_PER_CROSSING, Math.ceil(length / FLAME_SPACING_METERS));
+  const head = minutes - a < HEAD_MINUTES;
+  return Array.from({ length: count }, (_, k) => {
+    const s = seed + k * 1.91;
+    const along = (k + hash(s)) / count - 0.5;
+    const scale = head ? 1 : FLANK_SCALE;
+    return {
+      x: ax + dx * t - (dy / length) * along * length,
+      y: ay + dy * t + (dx / length) * along * length,
+      width: (8 + hash(s + 1) * 4) * scale,
+      height: (16 + hash(s + 2) * 14) * scale,
+      phase: hash(s + 3),
+    };
+  });
+}
+
+// A low tongue now and then over ground the fire crossed in the last quarter hour.
+function flameInside(grid: Grid, col: number, row: number, index: number): Flame[] {
+  const since = grid.minutes - grid.field.minutes[index];
+  if (since < 0 || since > STILL_BURNING_MINUTES || hash(index * 3.7) > INSIDE_SHARE) return [];
+  const [x, y] = centre(grid, col, row);
+  const seed = index * 7.13;
+  return [{ x: x + (hash(seed) - 0.5) * grid.cellX, y: y + (hash(seed + 0.5) - 0.5) * grid.cellY, width: 4 + hash(seed + 1) * 2, height: 6 + hash(seed + 2) * 5, phase: hash(seed + 3) }];
+}
+
+const NEIGHBOURS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+function flamesInCell(grid: Grid, col: number, row: number): Flame[] {
+  const { field, minutes } = grid;
+  const index = row * field.width + col;
+  // Written as "not at or before" so a cell with no arrival time (NaN) counts as never reached.
+  if (!(field.minutes[index] <= minutes)) return [];
+  const flames = flameInside(grid, col, row, index);
+  NEIGHBOURS.forEach(([dc, dr], side) => {
+    const c = col + dc;
+    const r = row + dr;
+    if (c < 0 || r < 0 || c >= field.width || r >= field.height || field.minutes[r * field.width + c] <= minutes) return;
+    flames.push(...flamesOnCrossing(grid, [col, row], [c, r], index * 5.3 + side));
+  });
+  return flames;
+}
+
+export type Bounds = { x0: number; y0: number; x1: number; y1: number };
+
+// Every flame over the map's own ground; past the most the GPU should draw, an even thinning.
+function flamesAt(field: FireField, minutes: number, bounds: Bounds): Flame[] {
+  const grid = { field, minutes, cellX: (field.region.x1 - field.region.x0) / field.width, cellY: (field.region.y1 - field.region.y0) / field.height };
+  const flames: Flame[] = [];
+  for (let row = 0; row < field.height; row++) {
+    for (let col = 0; col < field.width; col++) flames.push(...flamesInCell(grid, col, row));
+  }
+  const onMap = flames.filter((flame) => flame.x >= bounds.x0 && flame.x <= bounds.x1 && flame.y >= bounds.y0 && flame.y <= bounds.y1);
+  const step = Math.max(1, onMap.length / MOST_FLAMES);
+  return step === 1 ? onMap : Array.from({ length: Math.floor(onMap.length / step) }, (_, i) => onMap[Math.floor(i * step)]);
+}
+
+export class FlameField {
+  readonly scene = new THREE.Scene();
+  readonly uniforms: Record<string, THREE.IUniform>;
+  private geometry = crossedCards();
+  private offsets = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES * 3), 3);
+  private sizes = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES * 2), 2);
+  private phases = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES), 1);
+  private material: THREE.RawShaderMaterial;
+  private mesh: THREE.Mesh;
+
+  constructor(
+    private data: InkMapData,
+    private bounds: Bounds,
+    shared: Record<string, THREE.IUniform>,
+  ) {
+    this.uniforms = {
+      tDepth: shared.tDepth,
+      uResolution: shared.uResolution,
+      uRed: shared.uRed,
+      uEmber: shared.uEmber,
+      uTime: shared.uTime,
+    };
+    for (const attribute of [this.offsets, this.sizes, this.phases]) attribute.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute("iOffset", this.offsets);
+    this.geometry.setAttribute("iSize", this.sizes);
+    this.geometry.setAttribute("iPhase", this.phases);
+    this.geometry.instanceCount = 0;
+    this.material = new THREE.RawShaderMaterial({
+      vertexShader: FLAME_VERTEX,
+      fragmentShader: FLAME_FRAGMENT,
+      uniforms: this.uniforms,
+      glslVersion: THREE.GLSL3,
+      side: THREE.DoubleSide,
+    });
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.mesh.frustumCulled = false;
+    this.scene.add(this.mesh);
+  }
+
+  get count() {
+    return this.geometry.instanceCount;
+  }
+
+  place(field: FireField | null, minutes: number) {
+    const flames = field ? flamesAt(field, minutes, this.bounds) : [];
+    flames.forEach((flame, i) => {
+      this.offsets.setXYZ(i, flame.x, terrainHeight(this.data.terrain, flame.x, flame.y) - 0.5, -flame.y);
+      this.sizes.setXY(i, flame.width, flame.height);
+      this.phases.setX(i, flame.phase);
+    });
+    for (const attribute of [this.offsets, this.sizes, this.phases]) attribute.needsUpdate = true;
+    this.geometry.instanceCount = flames.length;
+  }
+
+  dispose() {
+    this.geometry.dispose();
+    this.material.dispose();
+  }
+}

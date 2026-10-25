@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { AREA_KIND, Building, InkMapData, MINOR_ROAD_CLASS, Point, ROAD_WIDTH, ROOF, Road, terrainHeight } from "./data";
 
 // Surface codes the composite shader styles. Keep in sync with SURFACE in shaders.ts.
@@ -52,6 +53,44 @@ const v3 = (x: number, height: number, north: number) => new THREE.Vector3(x, he
 
 // ---- Terrain ----
 
+// Normals from the whole height grid, not from one chunk's triangles, so neighbouring chunks agree
+// along their shared edge and no seam shows in the shading.
+function terrainNormals(t: InkMapData["terrain"], c0: number, r0: number, cols: number, rows: number, stride: number) {
+  const height = (c: number, r: number) => t.heights[Math.min(t.rows - 1, Math.max(0, r)) * t.cols + Math.min(t.cols - 1, Math.max(0, c))];
+  const normals = new Float32Array(cols * rows * 3);
+  const span = 2 * stride * t.cell;
+  const normal = new THREE.Vector3();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const tc = c0 + c * stride;
+      const tr = r0 + r * stride;
+      const east = (height(tc + stride, tr) - height(tc - stride, tr)) / span;
+      const north = (height(tc, tr + stride) - height(tc, tr - stride)) / span;
+      // The grid's triangles wind facing down, and the G-buffer flips the normal of any face seen
+      // from behind, so the normal points down with the winding and comes out up on screen.
+      normal.set(east, -1, -north).normalize().toArray(normals, (r * cols + c) * 3);
+    }
+  }
+  return normals;
+}
+
+const TERRAIN_CHUNK_CELLS = 96;
+
+// The terrain in square chunks, so the camera skips every chunk outside the view.
+export function terrainChunks(data: InkMapData, region: Region, stride = 1) {
+  const t = data.terrain;
+  const x0 = Math.max(region.x0, t.x0);
+  const y0 = Math.max(region.y0, t.y0);
+  const x1 = Math.min(region.x1, t.x0 + (t.cols - 1) * t.cell);
+  const y1 = Math.min(region.y1, t.y0 + (t.rows - 1) * t.cell);
+  const size = TERRAIN_CHUNK_CELLS * t.cell;
+  const chunks: THREE.BufferGeometry[] = [];
+  for (let y = y0; y < y1; y += size) {
+    for (let x = x0; x < x1; x += size) chunks.push(terrainGeometry(data, { x0: x, y0: y, x1: Math.min(x1, x + size), y1: Math.min(y1, y + size) }, stride));
+  }
+  return chunks;
+}
+
 export function terrainGeometry(data: InkMapData, region: Region, stride = 1) {
   const t = data.terrain;
   const c0 = Math.max(0, Math.floor((region.x0 - t.x0) / t.cell));
@@ -82,8 +121,9 @@ export function terrainGeometry(data: InkMapData, region: Region, stride = 1) {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.BufferAttribute(terrainNormals(t, c0, r0, cols, rows, stride), 3));
   geometry.setIndex(indices);
-  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
   const count = cols * rows;
   geometry.setAttribute("surface", new THREE.BufferAttribute(new Float32Array(count).fill(SURFACE.terrain), 1));
   geometry.setAttribute("objectId", new THREE.BufferAttribute(new Float32Array(count).fill(OBJECT_ID.terrain), 1));
@@ -231,33 +271,70 @@ export function roadGeometry(data: InkMapData, region: Region, maxClass: number)
 
 // ---- Trees ----
 
-export function treeMesh(data: InkMapData, region: Region, material: THREE.Material) {
-  const indices: number[] = [];
-  for (let i = 0; i < data.trees.length; i += 2) {
-    if (inRegion(region, [data.trees[i], data.trees[i + 1]])) indices.push(i / 2);
-  }
-  const blob = new THREE.IcosahedronGeometry(1, 1);
+// A tree is an ink blob. Shared vertices let the GPU shade each corner once instead of once per
+// triangle; the plain icosahedron stands in where a tree is only a few pixels across.
+function treeBlob(detail: 0 | 1) {
+  const raw = new THREE.IcosahedronGeometry(1, detail);
+  raw.deleteAttribute("normal");
+  raw.deleteAttribute("uv");
+  const blob = mergeVertices(raw);
+  raw.dispose();
+  blob.computeVertexNormals();
   blob.setAttribute("surface", new THREE.BufferAttribute(new Float32Array(blob.attributes.position.count).fill(SURFACE.tree), 1));
-  const mesh = new THREE.InstancedMesh(blob, material, indices.length);
-  const ids = new Float32Array(indices.length);
-  const matrix = new THREE.Matrix4();
-  const scale = new THREE.Vector3();
-  const quaternion = new THREE.Quaternion();
-  indices.forEach((treeIndex, n) => {
-    const x = data.trees[treeIndex * 2];
-    const y = data.trees[treeIndex * 2 + 1];
-    const hash = Math.abs(Math.sin(treeIndex * 12.9898) * 43758.5453) % 1;
-    const radius = 2.1 + hash * 2.6;
-    const ground = terrainHeight(data.terrain, x, y);
-    scale.set(radius, radius * 0.86, radius);
-    quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), hash * 6.28);
-    matrix.compose(new THREE.Vector3(x, ground + radius * 0.8 + 1.2, worldZ(y)), quaternion, scale);
-    mesh.setMatrixAt(n, matrix);
-    ids[n] = OBJECT_ID.tree + treeIndex;
-  });
-  blob.setAttribute("instanceObjectId", new THREE.InstancedBufferAttribute(ids, 1));
-  mesh.frustumCulled = false;
+  return blob;
+}
+
+const TREE_TILE_METERS = 600;
+
+type TreePlacement = { index: number; matrix: THREE.Matrix4 };
+
+function placeTree(data: InkMapData, treeIndex: number): TreePlacement {
+  const x = data.trees[treeIndex * 2];
+  const y = data.trees[treeIndex * 2 + 1];
+  const hash = Math.abs(Math.sin(treeIndex * 12.9898) * 43758.5453) % 1;
+  const radius = 2.1 + hash * 2.6;
+  const ground = terrainHeight(data.terrain, x, y);
+  const quaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), hash * 6.28);
+  const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, ground + radius * 0.8 + 1.2, worldZ(y)), quaternion, new THREE.Vector3(radius, radius * 0.86, radius));
+  return { index: treeIndex, matrix };
+}
+
+function instancedTrees(blob: THREE.BufferGeometry, material: THREE.Material, trees: TreePlacement[]) {
+  const geometry = blob.clone();
+  const mesh = new THREE.InstancedMesh(geometry, material, trees.length);
+  trees.forEach((tree, n) => mesh.setMatrixAt(n, tree.matrix));
+  geometry.setAttribute("instanceObjectId", new THREE.InstancedBufferAttribute(new Float32Array(trees.map((tree) => OBJECT_ID.tree + tree.index)), 1));
+  mesh.computeBoundingSphere();
   return mesh;
+}
+
+export type TreeTile = { near: THREE.InstancedMesh; far: THREE.InstancedMesh };
+
+// Trees in square tiles, so the camera skips every tile outside the view, each tile in a detailed
+// and a plain version (see TreeTile). All the trees in one mesh, plain, cast the shadows.
+export function treeTiles(data: InkMapData, region: Region, material: THREE.Material, shadowMaterial: THREE.Material) {
+  const tiles = new Map<string, TreePlacement[]>();
+  const all: TreePlacement[] = [];
+  for (let i = 0; i < data.trees.length; i += 2) {
+    const point: Point = [data.trees[i], data.trees[i + 1]];
+    if (!inRegion(region, point)) continue;
+    const tree = placeTree(data, i / 2);
+    const key = `${Math.floor(point[0] / TREE_TILE_METERS)},${Math.floor(point[1] / TREE_TILE_METERS)}`;
+    const tile = tiles.get(key) ?? [];
+    if (tile.length === 0) tiles.set(key, tile);
+    tile.push(tree);
+    all.push(tree);
+  }
+  const near = treeBlob(1);
+  const far = treeBlob(0);
+  const result = {
+    tiles: [...tiles.values()].map((trees): TreeTile => ({ near: instancedTrees(near, material, trees), far: instancedTrees(far, material, trees) })),
+    shadows: instancedTrees(far, shadowMaterial, all),
+  };
+  near.dispose();
+  far.dispose();
+  result.shadows.frustumCulled = false;
+  return result;
 }
 
 // ---- Land use, rasterized for the terrain shader ----

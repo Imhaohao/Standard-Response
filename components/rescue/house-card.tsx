@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useRef } from "react";
 import { FunctionReturnType } from "convex/server";
 import { Heartbeat, PawPrint, Translate, Users, UsersThree, X, type Icon } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMapStage } from "@/components/map/map-stage";
+import { useMapStage, useProjected } from "@/components/map/map-stage";
 import { LatLng } from "@/lib/geo";
 import { languageInEnglish } from "@/lib/labels";
 import { Point } from "@/lib/ink-map/data";
@@ -126,21 +127,24 @@ function CardBody({ card, onClose }: { card: Card; onClose: () => void }) {
   );
 }
 
-// Everything a crew should know before going in, pinned beside the home it describes.
+// Everything a crew should know before going in, pinned beside the home it describes. It follows
+// the home as the map moves, placed directly so the card never trails the roof.
 export function HouseCard({ householdId, at, onClose }: { householdId: string; at: Point; onClose: () => void }) {
   const card = useQuery(api.ready.card, { householdId: householdId as Id<"households"> });
-  const { project, size } = useMapStage();
-  const spot = project(at);
-  if (!card || !spot.visible) return null;
-  const fitsRight = spot.x + GAP + CARD_WIDTH < size.width - EDGE;
-  const left = fitsRight ? spot.x + GAP : Math.max(EDGE, spot.x - GAP - CARD_WIDTH);
-  const top = Math.min(Math.max(spot.y, 190), size.height - 190);
+  const { size } = useMapStage();
+  const ref = useRef<HTMLElement>(null);
+  useProjected((project) => {
+    const element = ref.current;
+    if (!element) return;
+    const spot = project(at);
+    const fitsRight = spot.x + GAP + CARD_WIDTH < size.width - EDGE;
+    element.style.left = `${fitsRight ? spot.x + GAP : Math.max(EDGE, spot.x - GAP - CARD_WIDTH)}px`;
+    element.style.top = `${Math.min(Math.max(spot.y, 190), size.height - 190)}px`;
+    element.style.display = spot.visible ? "" : "none";
+  });
+  if (!card) return null;
   return (
-    <section
-      aria-label={`Household at ${card.address}`}
-      style={{ left, top, width: CARD_WIDTH }}
-      className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4"
-    >
+    <section ref={ref} aria-label={`Household at ${card.address}`} style={{ width: CARD_WIDTH }} className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4">
       <CardBody card={card} onClose={onClose} />
     </section>
   );

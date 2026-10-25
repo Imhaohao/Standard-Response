@@ -141,3 +141,112 @@ export function streetsBetweenCorners(network: StreetNetwork, from: number, to: 
   }
   return [a, b];
 }
+
+// ---- Routes along every drawn street ----
+// The drive graph the dispatcher plans on skips many residential streets, so a route drawn on it
+// cuts straight across blocks to reach a door. Routes the map draws use this network instead.
+
+const GRID_METERS = 60;
+const grids = new WeakMap<StreetNetwork, Map<string, number[]>>();
+
+const cellKey = (x: number, y: number) => `${Math.floor(x / GRID_METERS)},${Math.floor(y / GRID_METERS)}`;
+
+function nodeGrid(network: StreetNetwork) {
+  let grid = grids.get(network);
+  if (!grid) {
+    grid = new Map();
+    network.points.forEach(([x, y], index) => {
+      const key = cellKey(x, y);
+      const cell = grid!.get(key);
+      if (cell) cell.push(index);
+      else grid!.set(key, [index]);
+    });
+    grids.set(network, grid);
+  }
+  return grid;
+}
+
+// The street vertex nearest a point, searching outward ring by ring through the grid.
+export function nearestStreetNode(network: StreetNetwork, [x, y]: Point, withinMeters = 600): number | null {
+  const grid = nodeGrid(network);
+  const [cx, cy] = [Math.floor(x / GRID_METERS), Math.floor(y / GRID_METERS)];
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  for (let ring = 0; ring * GRID_METERS <= withinMeters; ring++) {
+    for (let gx = cx - ring; gx <= cx + ring; gx++) {
+      for (let gy = cy - ring; gy <= cy + ring; gy++) {
+        if (Math.max(Math.abs(gx - cx), Math.abs(gy - cy)) !== ring) continue;
+        for (const node of grid.get(`${gx},${gy}`) ?? []) {
+          const distance = Math.hypot(network.points[node][0] - x, network.points[node][1] - y);
+          if (distance < bestDistance) [best, bestDistance] = [node, distance];
+        }
+      }
+    }
+    if (best !== null && bestDistance <= ring * GRID_METERS) break;
+  }
+  return best;
+}
+
+export const linkKey = (a: number, b: number) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+
+// The shortest way by street from one vertex to another, skipping blocked links. A* toward the
+// goal keeps a route between neighbours from searching the whole town.
+function shortestStreets(network: StreetNetwork, from: number, to: number, blocked: Set<string>): Point[] | null {
+  const goal = network.points[to];
+  const toGoal = (node: number) => Math.hypot(network.points[node][0] - goal[0], network.points[node][1] - goal[1]);
+  const cost = new Map<number, number>([[from, 0]]);
+  const via = new Int32Array(network.points.length).fill(-1);
+  const frontier = new MinHeap();
+  frontier.push(from, toGoal(from));
+  const settled = new Set<number>();
+  while (frontier.size > 0) {
+    const { node } = frontier.pop();
+    if (node === to) return tracePath(network, via, from, to);
+    if (settled.has(node)) continue;
+    settled.add(node);
+    const reached = cost.get(node)!;
+    for (const { to: next, meters } of network.links[node]) {
+      if (blocked.has(linkKey(node, next))) continue;
+      const total = reached + meters;
+      if (total >= (cost.get(next) ?? Infinity)) continue;
+      cost.set(next, total);
+      via[next] = node;
+      frontier.push(next, total + toGoal(next));
+    }
+  }
+  return null;
+}
+
+export function streetRoute(network: StreetNetwork, from: Point, to: Point, blocked: Set<string>): Point[] | null {
+  const start = nearestStreetNode(network, from);
+  const end = nearestStreetNode(network, to);
+  if (start === null || end === null) return null;
+  const streets = start === end ? [network.points[start]] : shortestStreets(network, start, end, blocked);
+  return streets ? [from, ...streets, to] : null;
+}
+
+const ON_CLOSED_METERS = 8;
+
+function nearShape(point: Point, shape: Point[]) {
+  for (let i = 1; i < shape.length; i++) if (distanceToChord(point, shape[i - 1], shape[i]) <= ON_CLOSED_METERS) return true;
+  return false;
+}
+
+// Closures name blocks of the drive graph. The street links lying along a closed block, both ends
+// within a few metres of it, are the ones a route must not use.
+export function blockedStreets(network: StreetNetwork, data: InkMapData, closedEdges: Set<string>) {
+  const blocked = new Set<string>();
+  for (const edge of data.graph.edges) {
+    if (!closedEdges.has(edge.key)) continue;
+    const near = new Set<number>();
+    for (const point of edge.shape) {
+      const node = nearestStreetNode(network, point, GRID_METERS);
+      if (node !== null && nearShape(network.points[node], edge.shape)) near.add(node);
+    }
+    const along = [...near];
+    for (const node of along) {
+      for (const { to } of network.links[node]) if (nearShape(network.points[to], edge.shape)) blocked.add(linkKey(node, to));
+    }
+  }
+  return blocked;
+}

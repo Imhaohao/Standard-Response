@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMapStage } from "@/components/map/map-stage";
+import { useCameraVersion, useMapStage } from "@/components/map/map-stage";
 import { toLatLng } from "@/lib/crowd/grid";
 import { STATE } from "@/lib/crowd/langevin";
 import { FlowWorld } from "@/lib/flow/world";
@@ -21,6 +21,7 @@ function dotPath(points: { x: number; y: number; visible: boolean }[]) {
 
 function useAgentPoints(world: FlowWorld) {
   const { toScreen } = useMapStage();
+  useCameraVersion();
   const crowd = world.crowd;
   const groups = { moving: [] as ReturnType<typeof toScreen>[], home: [] as ReturnType<typeof toScreen>[], waiting: [] as ReturnType<typeof toScreen>[] };
   for (let i = 0; i < crowd.count; i++) {
@@ -49,6 +50,7 @@ export function AgentLayer({ world }: { world: FlowWorld }) {
 // Phones that met in the last few seconds of the night, as hairlines between them.
 export function MeetingLayer({ world }: { world: FlowWorld }) {
   const { toScreen } = useMapStage();
+  useCameraVersion();
   const crowd = world.crowd;
   let d = "";
   for (const [i, j] of world.recentMeetings) {
@@ -74,8 +76,11 @@ function streetPath(toScreen: ReturnType<typeof useMapStage>["toScreen"], segmen
 // Both sets change only every few simulated minutes, so their paths are kept between frames.
 export function BlockedStreetLayer({ truth, known }: { truth: ReadonlySet<number>; known: ReadonlySet<number> }) {
   const { toScreen } = useMapStage();
-  const truthPath = useMemo(() => streetPath(toScreen, truth), [toScreen, truth]);
-  const knownPath = useMemo(() => streetPath(toScreen, known), [toScreen, known]);
+  const camera = useCameraVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `camera` changes whenever the camera moves
+  const truthPath = useMemo(() => streetPath(toScreen, truth), [toScreen, truth, camera]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `camera` changes whenever the camera moves
+  const knownPath = useMemo(() => streetPath(toScreen, known), [toScreen, known, camera]);
   return (
     <g fill="none" strokeLinecap="butt">
       <path d={truthPath} stroke={INK} strokeOpacity={0.35} strokeWidth={2} strokeDasharray="3 4" />
