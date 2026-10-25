@@ -20,6 +20,12 @@ export function outcomeFor(record: RecordFields): Outcome {
   return "unknown";
 }
 
+// The household's need is known, not a base rate: a Ready check profile, or a mobility need on file
+// (the rider list, or one said on a call).
+export function needPriorKnown(h: { ready?: unknown; mobility?: string }) {
+  return h.ready !== undefined || (h.mobility !== undefined && h.mobility !== "walks");
+}
+
 const MIN_SLACK_MINUTES = 5;
 
 // Expected value of calling this home now: chance it needs help times how soon the fire arrives.

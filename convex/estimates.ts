@@ -4,6 +4,7 @@ import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { simNow } from "./clock";
 import { hazardOf } from "./hazards";
+import { needPriorKnown } from "./model";
 
 // The model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
 // It never reads `personas`: the models see only what a real agency would know.
@@ -31,12 +32,9 @@ export async function needModelRunnerLive(ctx: QueryCtx) {
   return lastRunWallAt !== undefined && Date.now() - lastRunWallAt < RUNNER_STALE_MS;
 }
 
-// The household's prior is known need, not a base rate: a Ready check profile, or a mobility need
-// on file (the rider list, or one said on a call). Neighbor smoothing leaves these alone, because
-// neighbors who can leave say nothing about a wheelchair we already know about.
-export function needPriorKnown(h: Pick<Doc<"households">, "ready" | "mobility">) {
-  return h.ready !== undefined || (h.mobility !== undefined && h.mobility !== "walks");
-}
+// Neighbor smoothing leaves a known need alone: neighbors who can leave say nothing about a
+// wheelchair we already know about.
+export { needPriorKnown };
 
 export const state = query({
   args: {},

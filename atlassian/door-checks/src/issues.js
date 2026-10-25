@@ -1,7 +1,7 @@
 export const DOOR_CHECK_LABEL = "door-check";
 export const PROPERTY_KEY = "doorCheck";
 
-const LEVEL_WORDS = { high: "High", medium: "Medium", lower: "Lower" };
+const LEVEL_WORDS = { high: "High", medium: "Medium", lower: "Lower", unknown: "Not known (no needs on file)" };
 
 export const summaryFor = (item) => `Door check: ${item.address}`;
 

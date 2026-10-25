@@ -84,6 +84,13 @@ describe("POST /agent/door-checks", () => {
     expect(queue[0].reason).toContain("3 call attempts");
   });
 
+  test("a home with no needs on file gets no need level, only its rank", async () => {
+    const t = setup();
+    await addHome(t, { address: "estimated", needProbability: 0.9 });
+    const { queue } = await (await post(t, {})).json();
+    expect(queue[0]).toMatchObject({ address: "estimated", needLevel: "unknown", rank: 1 });
+  });
+
   test("the order matches doorChecks:queue", async () => {
     const t = setup();
     await addHome(t, { address: "low", needProbability: 0.2 });

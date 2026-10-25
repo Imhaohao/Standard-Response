@@ -1,4 +1,5 @@
 import type { Doc } from "./_generated/dataModel";
+import { needPriorKnown } from "./model";
 
 // What the Atlassian Forge app (atlassian/door-checks/) may learn about a home on the door-check
 // queue. Names and phone numbers are never part of it. Pure functions, so the route and its tests
@@ -12,7 +13,7 @@ export type DoorCheckItem = {
   address: string;
   lat: number | null;
   lng: number | null;
-  needLevel: "high" | "medium" | "lower";
+  needLevel: "high" | "medium" | "lower" | "unknown";
   needSummary: string;
   language: string;
   reason: string;
@@ -50,9 +51,13 @@ const ESCALATION_WORDS: Record<NonNullable<Household["escalation"]>, string> = {
   language_barrier: "the call could not be completed in the household's language",
 };
 
-export function needLevelFor(probability: number): DoorCheckItem["needLevel"] {
-  if (probability >= HIGH_NEED) return "high";
-  return probability >= MEDIUM_NEED ? "medium" : "lower";
+// A level only for a need we know (a Ready check profile, or a mobility need on file or from a call).
+// For anyone else the number is the census-based estimate for one household, and no individual risk
+// score leaves the system (PLAN.md, door-check queue guardrails): the rank still orders the visits.
+export function needLevelFor(home: Household): DoorCheckItem["needLevel"] {
+  if (!needPriorKnown(home)) return "unknown";
+  if (home.needProbability >= HIGH_NEED) return "high";
+  return home.needProbability >= MEDIUM_NEED ? "medium" : "lower";
 }
 
 export function needSummaryFor(home: Household): string {
@@ -82,7 +87,7 @@ export function toDoorCheckItem(home: Household, rank: number): DoorCheckItem {
     address: home.address,
     lat: home.lat ?? null,
     lng: home.lng ?? null,
-    needLevel: needLevelFor(home.needProbability),
+    needLevel: needLevelFor(home),
     needSummary: needSummaryFor(home),
     language: home.language,
     reason: reasonFor(home),
