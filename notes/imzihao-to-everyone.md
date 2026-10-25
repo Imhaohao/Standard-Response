@@ -28,3 +28,28 @@
 ## 2026-10-24 22:24
 
 **The Apify Actor is public in the Apify Store:** https://apify.com/sangria_marzipan/california-evacuation-status (Jerry's account). Publishing needed an output schema (`.actor/output_schema.json`, build 0.1.3), a public profile and the Store terms. The README's Apify row links it. Opt into both Apify prizes on Devpost: best use and best Actor.
+
+## 2026-10-24 22:26
+
+**Devpost: opt into every one of these tracks** (submission closes 9:00am, so aim for 8:50). Each line is backed by code and can be pasted into the track's question box. Numbers come from the README; don't round them up.
+
+| Track | Paste-ready line |
+| --- | --- |
+| Cal Hacks: Overall, People-First, Most Technically Complex, Hacker's Choice | (automatic, plus our main description) |
+| Anthropic | Claude reads every turn of an evacuation call in ten languages and words each question; code owns every promise about a ride, and Claude Opus grades every agent line for implied help before we ship. |
+| Convex ($5K) | One Convex database is the whole system: transactions guard every promise a rider hears, the retry ladder is a durable Workflow, counts come from the Aggregate component, an HTTP action takes Apify zone alerts, and the voice server runs on live subscriptions. |
+| Cartesia | Ink and Sonic carry every call on raw phone audio in ten native voices, with barge-in, an apology after cutting someone off, urgency-based speed and volume, and Cartesia telephony as a second carrier. |
+| Moss | Moss gives the agent the agency's approved answers: 62 of 66 caller questions answered right with Moss, 12 of 66 without. |
+| Apify: best use, and best Actor | Our public Actor "California evacuation status" (apify.com/sangria_marzipan/california-evacuation-status) normalizes CA evacuation zones and Caltrans closures and starts Rider Check when a zone with riders goes to warning. |
+| Microsoft: Built for the Real World, and Customer Impact | Built with firefighters and battalion officers; human-approved dispatch, honest status lines, measured evals, data deleted when the incident closes. |
+| MLH: Auth0 | Dispatcher login with role-gated access to the at-risk list and step-up auth on the first ride approval. |
+| MLH: DigitalOcean | The OR-Tools dispatch solver runs on DigitalOcean App Platform. |
+| MLH: Gen AI | Claude (Anthropic) powers the voice agent. |
+| MLH: Commit Fellowship | Opt in, then fill in MLH's extra form. |
+| MLH: .tech / GoDaddy domain | Only if someone registers a domain before submitting. |
+| Meta: Bringing People Closer Together | The agent asks every caller "Is there anyone else on your street who might not be able to leave?", so neighbors find each other, and a neighbor who can drive is matched as the ride. |
+| Figma | Only if the deck is built in Figma Slides with a design log. Otherwise skip. |
+
+Skip: Hyphenate, Visa, Coinbase, CRS, Capital One (finance or shopping only), SpacetimeDB (it would replace Convex), ElevenLabs (it competes with Cartesia, unless the ElevenLabs stack is demoed), Atlassian (needs Forge), Bright Data, Fetch.ai, CREAO, Mana, Factory.
+
+Also: the README says live calls run "Claude Opus 5.5 in fast mode", but `voice/env.ts` defaults to Haiku 5.5. Whoever knows Fly's `VOICE_MODEL`, make the README match it.
