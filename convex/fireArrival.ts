@@ -37,6 +37,14 @@ export function minutesUntilHazard(point: Point, hazard: Hazard) {
   return arrival >= NEVER_BURNS ? fronts[fronts.length - 1].minutes + PAST_SCENARIO_MINUTES : arrival;
 }
 
+// False for a home the scenario's fire never reaches: its arrival is only a deadline past the last front.
+export function hazardReaches(point: Point, hazard: Hazard) {
+  const fronts = FRONTS.get(hazard);
+  if (!fronts?.length) return true;
+  const [x, y] = projection.toLocal(point);
+  return arrivalAt(fronts, x, y) < NEVER_BURNS;
+}
+
 export const fireArrivalFor = (point: Point, warningAt: number, hazard: Hazard) => warningAt + minutesUntilHazard(point, hazard) * 60_000;
 
 // For a home added now: measured from the warning once it is out, a placeholder before it.

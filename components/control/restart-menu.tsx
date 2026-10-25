@@ -143,7 +143,7 @@ export function EndNightActions() {
   );
 }
 
-const PUBLIC_PREFIXES = ["/join", "/ready"];
+const PUBLIC_PREFIXES = ["/join", "/you", "/ready"];
 const RESTART_ROLE: Role = "dispatcher";
 
 function isPublicPage(pathname: string) {

@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
-import { mutation } from "./functions";
+import { internalMutation, mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, canLeave, medicalNeed, mobility } from "./schema";
 import { located, outcomeFor } from "./model";
@@ -25,6 +25,8 @@ const MAX_PHONE_LENGTH = 32;
 const MAX_NAME_LENGTH = 60;
 const MAX_PEOPLE = 12;
 const CODE_LENGTH = 10;
+// The phone's status link outlives the sign-in, so it gets its own longer key (about 119 bits).
+const STATUS_TOKEN_LENGTH = 24;
 // No 0, 1, i, l or o, so a code read aloud or typed off the screen can't be misread.
 const CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
 const KIOSK_LANGUAGES = new Set(["en", "es"]);
@@ -44,8 +46,8 @@ export const claimRecord = v.object({
 });
 type ClaimRecord = typeof claimRecord.type;
 
-function newCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH));
+function newCode(length = CODE_LENGTH) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join("");
 }
 
@@ -102,6 +104,8 @@ export const session = query({
       expired: v.boolean(),
       phoneEnding: v.union(v.null(), v.string()),
       claimedAddress: v.union(v.null(), v.string()),
+      // Where the phone follows the claimed house once the sign-in is gone (convex/claimStatus.ts).
+      statusToken: v.union(v.null(), v.string()),
     }),
   ),
   handler: async (ctx, { code }) => {
@@ -112,9 +116,18 @@ export const session = query({
       expired: isExpired(found, Date.now()),
       phoneEnding: found.phone ? found.phone.slice(-4) : null,
       claimedAddress: home?.address ?? null,
+      statusToken: home ? await statusTokenFor(ctx, home._id, found.phone) : null,
     };
   },
 });
+
+async function statusTokenFor(ctx: QueryCtx, householdId: Id<"households">, phone: string | undefined) {
+  const claim = await ctx.db
+    .query("claims")
+    .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+    .first();
+  return claim && claim.phone === phone ? (claim.statusToken ?? null) : null;
+}
 
 async function numberAlreadyHasHome(ctx: QueryCtx, phone: string) {
   const owner = await ctx.db
@@ -269,9 +282,10 @@ export const claim = mutation({
     await putRealNumber(ctx, householdId, found.phone, answers.residentName);
     const { residentName, ...fields } = answers;
     const outcome = outcomeFor({ ...fields, callStatus: "not_called", away: undefined });
-    await ctx.db.patch("households", householdId, { residentName, ...fields, outcome });
+    // The judge's resident is home: an earlier "nobody's home" belonged to the demo resident.
+    await ctx.db.patch("households", householdId, { residentName, ...fields, outcome, away: undefined });
     const now = Date.now();
-    await ctx.db.insert("claims", { householdId, phone: found.phone, claimedAt: now, record: editableFields(home) });
+    await ctx.db.insert("claims", { householdId, phone: found.phone, claimedAt: now, statusToken: newCode(STATUS_TOKEN_LENGTH), record: editableFields(home) });
     await ctx.db.patch("kioskSessions", found._id, { householdId, claimedAt: now });
     return { address: home.address };
   },
@@ -304,5 +318,23 @@ export const clearAll = mutation({
     }
     for (const kiosk of await ctx.db.query("kioskSessions").take(500)) await ctx.db.delete("kioskSessions", kiosk._id);
     return { cleared, skippedOnCall };
+  },
+});
+
+// One judge's house back, without touching anyone else's (clearAll gives back every house):
+// `npx convex run claims:releaseHouse '{"householdId": "..."}'`. A house on a live call is skipped.
+export const releaseHouse = internalMutation({
+  args: { householdId: v.id("households") },
+  returns: v.object({ released: v.boolean() }),
+  handler: async (ctx, { householdId }) => {
+    const claim = await ctx.db
+      .query("claims")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .first();
+    if (!claim || !(await releaseClaim(ctx, claim))) return { released: false };
+    for (const kiosk of await ctx.db.query("kioskSessions").take(500)) {
+      if (kiosk.householdId === householdId) await ctx.db.delete("kioskSessions", kiosk._id);
+    }
+    return { released: true };
   },
 });

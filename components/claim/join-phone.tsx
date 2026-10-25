@@ -3,12 +3,15 @@
 import { CheckCircle, HouseLine, QrCode as QrIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { ReactNode, useEffect, useSyncExternalStore } from "react";
 import { api } from "@/convex/_generated/api";
 import { BrandMark } from "@/components/ui/brand-mark";
+import { ButtonLink } from "@/components/ui/button";
 import { PhoneScreen } from "@/components/ui/phone-screen";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { PhoneForm } from "./phone-form";
+import { rememberedStatusToken, rememberStatusToken, statusPath } from "./status-link";
 
 type Session = NonNullable<ReturnType<typeof useQuery<typeof api.claims.session>>>;
 type View = "loading" | "expired" | "ask" | "sent" | "claimed";
@@ -31,15 +34,33 @@ function Message({ icon, title, children }: { icon: ReactNode; title: string; ch
   );
 }
 
-function Body({ view, code, session }: { view: View; code: string | null; session: Session | null | undefined }) {
-  if (view === "loading") return <div className="h-64 animate-pulse rounded-2xl bg-surface-sunk" aria-hidden />;
-  if (view === "expired") {
-    return (
+// A phone that already took a house keeps a way back to it after its sign-in code runs out.
+const noSubscription = () => () => {};
+
+function useRememberedStatus() {
+  return useSyncExternalStore(noSubscription, rememberedStatusToken, () => null);
+}
+
+function Expired() {
+  const remembered = useRememberedStatus();
+  return (
+    <div className="flex flex-col gap-6">
       <Message icon={<QrIcon weight="bold" className="size-10" aria-hidden />} title="This code ran out">
         Scan the new code on the big screen to sign in.
       </Message>
-    );
-  }
+      {remembered && (
+        <ButtonLink href={statusPath(remembered)} size="lg" variant="quiet" className="self-start">
+          <HouseLine weight="fill" className="size-5" aria-hidden />
+          See how your house is doing
+        </ButtonLink>
+      )}
+    </div>
+  );
+}
+
+function Body({ view, code, session }: { view: View; code: string | null; session: Session | null | undefined }) {
+  if (view === "loading") return <div className="h-64 animate-pulse rounded-2xl bg-surface-sunk" aria-hidden />;
+  if (view === "expired") return <Expired />;
   if (view === "claimed") {
     return (
       <Message icon={<HouseLine weight="fill" className="size-10" aria-hidden />} title={`${session?.claimedAddress} is yours`}>
@@ -65,12 +86,24 @@ function Body({ view, code, session }: { view: View; code: string | null; sessio
   );
 }
 
+// Once the house is taken, the phone moves to the house's own status page, which outlives this
+// sign-in code. replace() keeps Back from landing on a code that has already been used.
+function useFollowClaimedHouse(statusToken: string | null) {
+  const router = useRouter();
+  useEffect(() => {
+    if (!statusToken) return;
+    rememberStatusToken(statusToken);
+    router.replace(statusPath(statusToken));
+  }, [router, statusToken]);
+}
+
 // The page the kiosk's QR opens on a judge's phone. One field, one button, then it follows the big
 // screen: it says when to pick a house, and which house they took.
 export function JoinPhone({ code }: { code: string | null }) {
   const session = useQuery(api.claims.session, code ? { code } : "skip");
   const view = viewOf(code, session);
   const reduceMotion = useReducedMotion();
+  useFollowClaimedHouse(session?.statusToken ?? null);
   return (
     <PhoneScreen surface="canvas">
       <div className="flex flex-1 flex-col gap-10 px-5 pt-6 pb-8">

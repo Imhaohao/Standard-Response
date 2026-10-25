@@ -120,7 +120,7 @@ export async function closeAssignmentsFor(ctx: MutationCtx, requestId: Id<"reque
 
 export async function completeAssignment(ctx: MutationCtx, assignmentId: Id<"assignments">) {
   const assignment = await mustGet(ctx, assignmentId);
-  await ctx.db.patch("assignments", assignmentId, { status: "completed" });
+  await ctx.db.patch("assignments", assignmentId, { status: "completed", completedAt: await simNow(ctx) });
   await transitionRequest(ctx, assignment.requestId, "arrived");
 }
 

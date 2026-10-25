@@ -462,6 +462,8 @@ export default defineSchema({
     respondedAt: v.optional(v.number()),
     // When the dispatcher last recomputed etaMinutes from the vehicle's position.
     etaUpdatedAt: v.optional(v.number()),
+    // Night clock when the vehicle reached the home and the rider boarded (status "completed").
+    completedAt: v.optional(v.number()),
   })
     .index("by_requestId", ["requestId"])
     // A request's live offer, however many re-plans and expiries came before it.
@@ -560,6 +562,9 @@ export default defineSchema({
     householdId: v.id("households"),
     phone: v.string(),
     claimedAt: v.number(),
+    // The judge's phone follows the house at /you/<statusToken> (convex/claimStatus.ts). Unguessable,
+    // and gone with the claim when `claims:clearAll` runs.
+    statusToken: v.optional(v.string()),
     record: v.object({
       language: v.string(),
       canLeave: v.optional(canLeave),
@@ -573,7 +578,8 @@ export default defineSchema({
     }),
   })
     .index("by_householdId", ["householdId"])
-    .index("by_phone", ["phone"]),
+    .index("by_phone", ["phone"])
+    .index("by_statusToken", ["statusToken"]),
 
   personas: defineTable({
     householdId: v.id("households"),
