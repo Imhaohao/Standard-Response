@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { CAN_LEAVE_LABELS, flowLabel, languageName, MOBILITY_LABELS } from "@/lib/labels";
+import { formatClock } from "@/lib/time";
 import { Button } from "../ui/button";
 import { StageTrack } from "../ui/stage-track";
 import { HOME_KINDS, homeKind, HomeMark, PANEL_TONE } from "./household-mark";
@@ -137,6 +138,11 @@ export function ListeningPanel({
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col">
             <h2 className="type-title truncate">{household.address}</h2>
+            {call.endedAt !== undefined && (
+              <span className="type-small text-on-panel-muted">
+                {call.phase === "no_answer" ? "No answer" : "Ended"} at <span className="tabular-nums">{formatClock(call.endedAt)}</span>
+              </span>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {call.language !== "en" && <span className="type-small bg-panel-raised px-2 py-1 font-bold">{languageName(call.language)}</span>}
@@ -154,7 +160,7 @@ export function ListeningPanel({
         {call.flow ? (
           <span className="type-small self-start bg-panel-raised px-2 py-1 font-semibold">{flowLabel(call.flow)}</span>
         ) : (
-          <StageTrack stage={call.stage} live={call.phase === "live"} showLabel />
+          call.endedAt === undefined && <StageTrack stage={call.stage} live={call.phase === "live"} showLabel />
         )}
         {follow && <div className="self-start">{follow}</div>}
       </header>

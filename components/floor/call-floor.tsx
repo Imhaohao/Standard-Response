@@ -97,12 +97,29 @@ function useFollowedCall() {
   const pinned = sorted.find((call) => call._id === pinnedId);
   const oldestLive = sorted.find((call) => call.phase === "live");
   const followed = pinned ?? oldestLive ?? null;
+  // A call opened from the activity list, which may have ended: it stays open until the operator follows a line again.
+  const [reviewId, setReviewId] = useState<Id<"calls"> | null>(null);
   const [listening, setListening] = useState(true);
   const pin = (id: Id<"calls"> | null) => {
     setPinnedId(id);
+    setReviewId(null);
     setListening(true);
   };
-  return { calls: sorted, followed, pinned: Boolean(pinned), pin, listening, close: () => setListening(false) };
+  const review = (id: Id<"calls">) => {
+    setReviewId(id);
+    setListening(true);
+  };
+  return {
+    calls: sorted,
+    followed,
+    shownId: reviewId ?? followed?._id ?? null,
+    reviewing: reviewId !== null,
+    pinned: Boolean(pinned) || reviewId !== null,
+    pin,
+    review,
+    listening,
+    close: () => setListening(false),
+  };
 }
 
 function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
@@ -133,9 +150,9 @@ function WorkColumn({ floor }: { floor: ReturnType<typeof useFollowedCall> }) {
           </button>
         </div>
         <div role="tabpanel" hidden={!open} className="min-h-0 flex-1 overflow-y-auto">
-          {tab === "lines" && <LineList calls={floor.calls} selectedId={floor.followed?._id ?? null} onSelect={floor.pin} />}
+          {tab === "lines" && <LineList calls={floor.calls} selectedId={floor.reviewing ? null : floor.shownId} onSelect={floor.pin} />}
           {tab === "queue" && <QueueList />}
-          {tab === "activity" && <ActivityList />}
+          {tab === "activity" && <ActivityList selectedCallId={floor.reviewing ? floor.shownId : null} onOpenCall={floor.review} />}
         </div>
       </section>
     </div>
@@ -167,7 +184,7 @@ export function CallFloor() {
             <div className="min-w-0 flex-1" />
             <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col">
               {floor.listening && (
-                <ListeningPanel callId={floor.followed?._id ?? null} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />
+                <ListeningPanel callId={floor.shownId} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />
               )}
             </div>
           </div>
