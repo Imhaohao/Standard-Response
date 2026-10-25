@@ -224,3 +224,12 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 
 - A mailbox transcript no longer goes to Claude. At "at the tone" / "record your message" the agent speaks the call's voicemail line and hangs up. If the mailbox says it heard nothing, the line is spoken once more. A person who says "I couldn't hear you" is unchanged. Twilio's machine detection uses the same path. `voice/phone/voicemail.ts`.
 - This does not make AT&T ring the handset. That divert happens before we speak. Turning off AT&T ActiveArmor "unknown calls to voicemail" (and adding +1 850 641 7117 to contacts) is what lets the phone ring. Until then, the mailbox recording is the warning, and the call still counts as unanswered so the ladder retries.
+
+## 2026-10-25 05:06
+
+**House cards can edit a home's phone, language and name, on the rescue map and now on the call floor** (`8901e0a`). Click a home on `/dashboard` and the same house card opens as on `/map`.
+- **New, `convex/homeEdits.ts`:** `homeEdits:save({ householdId, language?, residentName?, phone?: string | null })` (send only what changed; `phone: null` takes the real number off) and `homeEdits:numberState({ householdId })` (`keeper`: `null`, `{ kind: "judge" }` or `{ kind: "team", name }`, plus `canTakeOff`). One transaction: a refused number leaves the language and name unsaved too.
+- **Not a correction:** a dispatcher's edit never goes in `households.corrections`, so the voice evals' correction numbers stay caller-only. A language change logs a `record` event ("Dispatcher set <address> to Spanish"). The next call reads `households.language` as before.
+- **Numbers keep one writer:** changes go through `putRealNumber` / `takeRealNumberOff`. A judge's house (any `claims` row) and a house holding a Real phones number refuse number changes, and a Real phones number can't be typed onto another house; the kiosk and Real phones stay their owners. Language still edits on those houses.
+- **Languages:** `convex/languages.ts` now exports `FILE_LANGUAGES` (the 10 spoken plus Armenian and Persian, which go to a person), `isFileLanguage`, `isHeardOnlyLanguage`, and the language names. `lib/labels.ts` re-exports `languageName` / `languageInEnglish` from there, so call sites are unchanged.
+- **Map UI:** `HouseCard` renders in a portal above the side panels and takes an optional `sideRoom` (from `besidePanels`) to sit between them when there's room. `PhoneOnFile` became `components/rescue/home-contact.tsx`. The call floor's empty listening column no longer swallows map clicks.
