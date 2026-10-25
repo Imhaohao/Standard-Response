@@ -49,7 +49,11 @@ export function homeMarks(homes: Home[], withOpenRequest: Set<string>, toLocal: 
   return homes.map((home) => ({ point: toLocal(home), level: 0, occupancy: homeOccupancy(home, withOpenRequest.has(home._id)) }));
 }
 
-// The order the dispatcher works through: escalations first, then whoever the fire reaches soonest.
+// The order the dispatcher works through: escalations first, then riders whose driver can no longer
+// reach them (they were told they're still at the top of the list, and the dispatcher places them
+// first), then whoever the fire reaches soonest.
+const reassigning = (request: OpenRequest) => Number(request.status === "reassigning");
+
 export function byUrgency(a: OpenRequest, b: OpenRequest) {
-  return Number(Boolean(b.escalation)) - Number(Boolean(a.escalation)) || a.deadlineAt - b.deadlineAt;
+  return Number(Boolean(b.escalation)) - Number(Boolean(a.escalation)) || reassigning(b) - reassigning(a) || a.deadlineAt - b.deadlineAt;
 }
