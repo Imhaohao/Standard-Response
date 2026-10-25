@@ -1,0 +1,1749 @@
+{
+ "datum": "NAVD88",
+ "timezone": "America/New_York",
+ "note": "Wave-filtered storm tide (USGS 6-minute Butterworth low-pass), sampled every 10 minutes. Values at the sensor orifice height mean the sensor was dry, not that the water was there.",
+ "sensors": [
+  {
+   "site": "FLLEE03382",
+   "name": "Fort Myers Beach pier",
+   "fileId": 130763,
+   "lat": 26.452394,
+   "lng": -81.956657,
+   "peak": {
+    "local": "2022-09-28T14:39-04:00",
+    "meters": 4.033
+   },
+   "samples": [
+    {
+     "local": "2022-09-28T05:52-04:00",
+     "meters": 0.434
+    },
+    {
+     "local": "2022-09-28T06:02-04:00",
+     "meters": 0.434
+    },
+    {
+     "local": "2022-09-28T06:12-04:00",
+     "meters": 0.433
+    },
+    {
+     "local": "2022-09-28T06:22-04:00",
+     "meters": 0.433
+    },
+    {
+     "local": "2022-09-28T06:32-04:00",
+     "meters": 0.432
+    },
+    {
+     "local": "2022-09-28T06:42-04:00",
+     "meters": 0.433
+    },
+    {
+     "local": "2022-09-28T06:52-04:00",
+     "meters": 0.432
+    },
+    {
+     "local": "2022-09-28T07:02-04:00",
+     "meters": 0.434
+    },
+    {
+     "local": "2022-09-28T07:12-04:00",
+     "meters": 0.432
+    },
+    {
+     "local": "2022-09-28T07:22-04:00",
+     "meters": 0.438
+    },
+    {
+     "local": "2022-09-28T07:32-04:00",
+     "meters": 0.442
+    },
+    {
+     "local": "2022-09-28T07:42-04:00",
+     "meters": 0.438
+    },
+    {
+     "local": "2022-09-28T07:52-04:00",
+     "meters": 0.443
+    },
+    {
+     "local": "2022-09-28T08:02-04:00",
+     "meters": 0.472
+    },
+    {
+     "local": "2022-09-28T08:12-04:00",
+     "meters": 0.533
+    },
+    {
+     "local": "2022-09-28T08:22-04:00",
+     "meters": 0.502
+    },
+    {
+     "local": "2022-09-28T08:32-04:00",
+     "meters": 0.485
+    },
+    {
+     "local": "2022-09-28T08:42-04:00",
+     "meters": 0.5
+    },
+    {
+     "local": "2022-09-28T08:52-04:00",
+     "meters": 0.704
+    },
+    {
+     "local": "2022-09-28T09:02-04:00",
+     "meters": 0.696
+    },
+    {
+     "local": "2022-09-28T09:12-04:00",
+     "meters": 0.616
+    },
+    {
+     "local": "2022-09-28T09:22-04:00",
+     "meters": 0.666
+    },
+    {
+     "local": "2022-09-28T09:32-04:00",
+     "meters": 0.965
+    },
+    {
+     "local": "2022-09-28T09:42-04:00",
+     "meters": 1.104
+    },
+    {
+     "local": "2022-09-28T09:52-04:00",
+     "meters": 1.094
+    },
+    {
+     "local": "2022-09-28T10:02-04:00",
+     "meters": 1.127
+    },
+    {
+     "local": "2022-09-28T10:12-04:00",
+     "meters": 1.244
+    },
+    {
+     "local": "2022-09-28T10:22-04:00",
+     "meters": 1.359
+    },
+    {
+     "local": "2022-09-28T10:32-04:00",
+     "meters": 1.568
+    },
+    {
+     "local": "2022-09-28T10:42-04:00",
+     "meters": 1.412
+    },
+    {
+     "local": "2022-09-28T10:52-04:00",
+     "meters": 1.629
+    },
+    {
+     "local": "2022-09-28T11:02-04:00",
+     "meters": 1.414
+    },
+    {
+     "local": "2022-09-28T11:12-04:00",
+     "meters": 1.586
+    },
+    {
+     "local": "2022-09-28T11:22-04:00",
+     "meters": 1.905
+    },
+    {
+     "local": "2022-09-28T11:32-04:00",
+     "meters": 1.963
+    },
+    {
+     "local": "2022-09-28T11:42-04:00",
+     "meters": 2.019
+    },
+    {
+     "local": "2022-09-28T11:52-04:00",
+     "meters": 2.32
+    },
+    {
+     "local": "2022-09-28T12:02-04:00",
+     "meters": 2.374
+    },
+    {
+     "local": "2022-09-28T12:12-04:00",
+     "meters": 2.734
+    },
+    {
+     "local": "2022-09-28T12:22-04:00",
+     "meters": 2.426
+    },
+    {
+     "local": "2022-09-28T12:32-04:00",
+     "meters": 2.429
+    },
+    {
+     "local": "2022-09-28T12:42-04:00",
+     "meters": 2.775
+    },
+    {
+     "local": "2022-09-28T12:52-04:00",
+     "meters": 2.986
+    },
+    {
+     "local": "2022-09-28T13:02-04:00",
+     "meters": 2.816
+    },
+    {
+     "local": "2022-09-28T13:12-04:00",
+     "meters": 2.671
+    },
+    {
+     "local": "2022-09-28T13:22-04:00",
+     "meters": 2.941
+    },
+    {
+     "local": "2022-09-28T13:32-04:00",
+     "meters": 3.38
+    },
+    {
+     "local": "2022-09-28T13:42-04:00",
+     "meters": 3.274
+    },
+    {
+     "local": "2022-09-28T13:52-04:00",
+     "meters": 3.48
+    },
+    {
+     "local": "2022-09-28T14:02-04:00",
+     "meters": 3.553
+    },
+    {
+     "local": "2022-09-28T14:12-04:00",
+     "meters": 3.735
+    },
+    {
+     "local": "2022-09-28T14:22-04:00",
+     "meters": 3.522
+    },
+    {
+     "local": "2022-09-28T14:32-04:00",
+     "meters": 3.662
+    },
+    {
+     "local": "2022-09-28T14:42-04:00",
+     "meters": 3.508
+    },
+    {
+     "local": "2022-09-28T14:52-04:00",
+     "meters": 3.514
+    },
+    {
+     "local": "2022-09-28T15:02-04:00",
+     "meters": 3.788
+    },
+    {
+     "local": "2022-09-28T15:12-04:00",
+     "meters": 3.849
+    },
+    {
+     "local": "2022-09-28T15:22-04:00",
+     "meters": 3.413
+    },
+    {
+     "local": "2022-09-28T15:32-04:00",
+     "meters": 3.571
+    },
+    {
+     "local": "2022-09-28T15:42-04:00",
+     "meters": 3.624
+    },
+    {
+     "local": "2022-09-28T15:52-04:00",
+     "meters": 3.19
+    },
+    {
+     "local": "2022-09-28T16:02-04:00",
+     "meters": 3.07
+    },
+    {
+     "local": "2022-09-28T16:12-04:00",
+     "meters": 2.729
+    },
+    {
+     "local": "2022-09-28T16:22-04:00",
+     "meters": 2.641
+    },
+    {
+     "local": "2022-09-28T16:32-04:00",
+     "meters": 2.454
+    },
+    {
+     "local": "2022-09-28T16:42-04:00",
+     "meters": 2.31
+    },
+    {
+     "local": "2022-09-28T16:52-04:00",
+     "meters": 1.864
+    },
+    {
+     "local": "2022-09-28T17:02-04:00",
+     "meters": 1.805
+    },
+    {
+     "local": "2022-09-28T17:12-04:00",
+     "meters": 1.667
+    },
+    {
+     "local": "2022-09-28T17:22-04:00",
+     "meters": 1.269
+    },
+    {
+     "local": "2022-09-28T17:32-04:00",
+     "meters": 1.086
+    },
+    {
+     "local": "2022-09-28T17:42-04:00",
+     "meters": 0.963
+    },
+    {
+     "local": "2022-09-28T17:52-04:00",
+     "meters": 0.633
+    },
+    {
+     "local": "2022-09-28T18:02-04:00",
+     "meters": 0.541
+    },
+    {
+     "local": "2022-09-28T18:12-04:00",
+     "meters": 0.51
+    },
+    {
+     "local": "2022-09-28T18:22-04:00",
+     "meters": 0.437
+    },
+    {
+     "local": "2022-09-28T18:32-04:00",
+     "meters": 0.443
+    },
+    {
+     "local": "2022-09-28T18:42-04:00",
+     "meters": 0.443
+    },
+    {
+     "local": "2022-09-28T18:52-04:00",
+     "meters": 0.442
+    },
+    {
+     "local": "2022-09-28T19:02-04:00",
+     "meters": 0.438
+    },
+    {
+     "local": "2022-09-28T19:12-04:00",
+     "meters": 0.44
+    },
+    {
+     "local": "2022-09-28T19:22-04:00",
+     "meters": 0.437
+    },
+    {
+     "local": "2022-09-28T19:32-04:00",
+     "meters": 0.438
+    },
+    {
+     "local": "2022-09-28T19:42-04:00",
+     "meters": 0.439
+    },
+    {
+     "local": "2022-09-28T19:52-04:00",
+     "meters": 0.439
+    },
+    {
+     "local": "2022-09-28T20:02-04:00",
+     "meters": 0.438
+    },
+    {
+     "local": "2022-09-28T20:12-04:00",
+     "meters": 0.435
+    },
+    {
+     "local": "2022-09-28T20:22-04:00",
+     "meters": 0.436
+    },
+    {
+     "local": "2022-09-28T20:32-04:00",
+     "meters": 0.446
+    },
+    {
+     "local": "2022-09-28T20:42-04:00",
+     "meters": 0.452
+    },
+    {
+     "local": "2022-09-28T20:52-04:00",
+     "meters": 0.448
+    },
+    {
+     "local": "2022-09-28T21:02-04:00",
+     "meters": 0.445
+    },
+    {
+     "local": "2022-09-28T21:12-04:00",
+     "meters": 0.443
+    },
+    {
+     "local": "2022-09-28T21:22-04:00",
+     "meters": 0.446
+    },
+    {
+     "local": "2022-09-28T21:32-04:00",
+     "meters": 0.451
+    },
+    {
+     "local": "2022-09-28T21:42-04:00",
+     "meters": 0.45
+    },
+    {
+     "local": "2022-09-28T21:52-04:00",
+     "meters": 0.451
+    },
+    {
+     "local": "2022-09-28T22:02-04:00",
+     "meters": 0.45
+    },
+    {
+     "local": "2022-09-28T22:12-04:00",
+     "meters": 0.448
+    },
+    {
+     "local": "2022-09-28T22:22-04:00",
+     "meters": 0.444
+    },
+    {
+     "local": "2022-09-28T22:32-04:00",
+     "meters": 0.446
+    },
+    {
+     "local": "2022-09-28T22:42-04:00",
+     "meters": 0.451
+    },
+    {
+     "local": "2022-09-28T22:52-04:00",
+     "meters": 0.452
+    },
+    {
+     "local": "2022-09-28T23:02-04:00",
+     "meters": 0.458
+    },
+    {
+     "local": "2022-09-28T23:12-04:00",
+     "meters": 0.461
+    },
+    {
+     "local": "2022-09-28T23:22-04:00",
+     "meters": 0.461
+    },
+    {
+     "local": "2022-09-28T23:32-04:00",
+     "meters": 0.457
+    },
+    {
+     "local": "2022-09-28T23:42-04:00",
+     "meters": 0.458
+    },
+    {
+     "local": "2022-09-28T23:52-04:00",
+     "meters": 0.463
+    },
+    {
+     "local": "2022-09-29T00:02-04:00",
+     "meters": 0.461
+    },
+    {
+     "local": "2022-09-29T00:12-04:00",
+     "meters": 0.485
+    },
+    {
+     "local": "2022-09-29T00:22-04:00",
+     "meters": 0.491
+    },
+    {
+     "local": "2022-09-29T00:32-04:00",
+     "meters": 0.532
+    },
+    {
+     "local": "2022-09-29T00:42-04:00",
+     "meters": 0.507
+    },
+    {
+     "local": "2022-09-29T00:52-04:00",
+     "meters": 0.558
+    },
+    {
+     "local": "2022-09-29T01:02-04:00",
+     "meters": 0.582
+    },
+    {
+     "local": "2022-09-29T01:12-04:00",
+     "meters": 0.579
+    },
+    {
+     "local": "2022-09-29T01:22-04:00",
+     "meters": 0.552
+    },
+    {
+     "local": "2022-09-29T01:32-04:00",
+     "meters": 0.58
+    },
+    {
+     "local": "2022-09-29T01:42-04:00",
+     "meters": 0.546
+    },
+    {
+     "local": "2022-09-29T01:52-04:00",
+     "meters": 0.543
+    },
+    {
+     "local": "2022-09-29T02:02-04:00",
+     "meters": 0.554
+    },
+    {
+     "local": "2022-09-29T02:12-04:00",
+     "meters": 0.579
+    },
+    {
+     "local": "2022-09-29T02:22-04:00",
+     "meters": 0.556
+    },
+    {
+     "local": "2022-09-29T02:32-04:00",
+     "meters": 0.54
+    },
+    {
+     "local": "2022-09-29T02:42-04:00",
+     "meters": 0.578
+    },
+    {
+     "local": "2022-09-29T02:52-04:00",
+     "meters": 0.535
+    },
+    {
+     "local": "2022-09-29T03:02-04:00",
+     "meters": 0.483
+    },
+    {
+     "local": "2022-09-29T03:12-04:00",
+     "meters": 0.486
+    },
+    {
+     "local": "2022-09-29T03:22-04:00",
+     "meters": 0.493
+    },
+    {
+     "local": "2022-09-29T03:32-04:00",
+     "meters": 0.479
+    },
+    {
+     "local": "2022-09-29T03:42-04:00",
+     "meters": 0.48
+    },
+    {
+     "local": "2022-09-29T03:52-04:00",
+     "meters": 0.485
+    },
+    {
+     "local": "2022-09-29T04:02-04:00",
+     "meters": 0.475
+    },
+    {
+     "local": "2022-09-29T04:12-04:00",
+     "meters": 0.465
+    },
+    {
+     "local": "2022-09-29T04:22-04:00",
+     "meters": 0.46
+    },
+    {
+     "local": "2022-09-29T04:32-04:00",
+     "meters": 0.461
+    },
+    {
+     "local": "2022-09-29T04:42-04:00",
+     "meters": 0.457
+    },
+    {
+     "local": "2022-09-29T04:52-04:00",
+     "meters": 0.454
+    },
+    {
+     "local": "2022-09-29T05:02-04:00",
+     "meters": 0.451
+    },
+    {
+     "local": "2022-09-29T05:12-04:00",
+     "meters": 0.452
+    },
+    {
+     "local": "2022-09-29T05:22-04:00",
+     "meters": 0.452
+    },
+    {
+     "local": "2022-09-29T05:32-04:00",
+     "meters": 0.452
+    }
+   ]
+  },
+  {
+   "site": "FLLEE03284",
+   "name": "Matanzas Pass (San Carlos Island side)",
+   "fileId": 130798,
+   "lat": 26.458361,
+   "lng": -81.953308,
+   "peak": {
+    "local": "2022-09-28T15:06-04:00",
+    "meters": 3.675
+   },
+   "samples": [
+    {
+     "local": "2022-09-28T07:48-04:00",
+     "meters": 0.853
+    },
+    {
+     "local": "2022-09-28T07:58-04:00",
+     "meters": 0.855
+    },
+    {
+     "local": "2022-09-28T08:08-04:00",
+     "meters": 0.853
+    },
+    {
+     "local": "2022-09-28T08:18-04:00",
+     "meters": 0.852
+    },
+    {
+     "local": "2022-09-28T08:28-04:00",
+     "meters": 0.851
+    },
+    {
+     "local": "2022-09-28T08:38-04:00",
+     "meters": 0.85
+    },
+    {
+     "local": "2022-09-28T08:48-04:00",
+     "meters": 0.847
+    },
+    {
+     "local": "2022-09-28T08:58-04:00",
+     "meters": 0.848
+    },
+    {
+     "local": "2022-09-28T09:08-04:00",
+     "meters": 0.85
+    },
+    {
+     "local": "2022-09-28T09:18-04:00",
+     "meters": 0.853
+    },
+    {
+     "local": "2022-09-28T09:28-04:00",
+     "meters": 0.848
+    },
+    {
+     "local": "2022-09-28T09:38-04:00",
+     "meters": 0.845
+    },
+    {
+     "local": "2022-09-28T09:48-04:00",
+     "meters": 0.85
+    },
+    {
+     "local": "2022-09-28T09:58-04:00",
+     "meters": 0.862
+    },
+    {
+     "local": "2022-09-28T10:08-04:00",
+     "meters": 0.854
+    },
+    {
+     "local": "2022-09-28T10:18-04:00",
+     "meters": 0.924
+    },
+    {
+     "local": "2022-09-28T10:28-04:00",
+     "meters": 1.053
+    },
+    {
+     "local": "2022-09-28T10:38-04:00",
+     "meters": 1.116
+    },
+    {
+     "local": "2022-09-28T10:48-04:00",
+     "meters": 1.144
+    },
+    {
+     "local": "2022-09-28T10:58-04:00",
+     "meters": 1.172
+    },
+    {
+     "local": "2022-09-28T11:08-04:00",
+     "meters": 1.279
+    },
+    {
+     "local": "2022-09-28T11:18-04:00",
+     "meters": 1.328
+    },
+    {
+     "local": "2022-09-28T11:28-04:00",
+     "meters": 1.415
+    },
+    {
+     "local": "2022-09-28T11:38-04:00",
+     "meters": 1.525
+    },
+    {
+     "local": "2022-09-28T11:48-04:00",
+     "meters": 1.665
+    },
+    {
+     "local": "2022-09-28T11:58-04:00",
+     "meters": 1.78
+    },
+    {
+     "local": "2022-09-28T12:08-04:00",
+     "meters": 1.928
+    },
+    {
+     "local": "2022-09-28T12:18-04:00",
+     "meters": 2.067
+    },
+    {
+     "local": "2022-09-28T12:28-04:00",
+     "meters": 2.151
+    },
+    {
+     "local": "2022-09-28T12:38-04:00",
+     "meters": 2.266
+    },
+    {
+     "local": "2022-09-28T12:48-04:00",
+     "meters": 2.407
+    },
+    {
+     "local": "2022-09-28T12:58-04:00",
+     "meters": 2.534
+    },
+    {
+     "local": "2022-09-28T13:08-04:00",
+     "meters": 2.608
+    },
+    {
+     "local": "2022-09-28T13:18-04:00",
+     "meters": 2.644
+    },
+    {
+     "local": "2022-09-28T13:28-04:00",
+     "meters": 2.83
+    },
+    {
+     "local": "2022-09-28T13:38-04:00",
+     "meters": 3.061
+    },
+    {
+     "local": "2022-09-28T13:48-04:00",
+     "meters": 3.151
+    },
+    {
+     "local": "2022-09-28T13:58-04:00",
+     "meters": 3.155
+    },
+    {
+     "local": "2022-09-28T14:08-04:00",
+     "meters": 3.249
+    },
+    {
+     "local": "2022-09-28T14:18-04:00",
+     "meters": 3.434
+    },
+    {
+     "local": "2022-09-28T14:28-04:00",
+     "meters": 3.486
+    },
+    {
+     "local": "2022-09-28T14:38-04:00",
+     "meters": 3.48
+    },
+    {
+     "local": "2022-09-28T14:48-04:00",
+     "meters": 3.595
+    },
+    {
+     "local": "2022-09-28T14:58-04:00",
+     "meters": 3.651
+    },
+    {
+     "local": "2022-09-28T15:08-04:00",
+     "meters": 3.67
+    },
+    {
+     "local": "2022-09-28T15:18-04:00",
+     "meters": 3.617
+    },
+    {
+     "local": "2022-09-28T15:28-04:00",
+     "meters": 3.574
+    },
+    {
+     "local": "2022-09-28T15:38-04:00",
+     "meters": 3.561
+    },
+    {
+     "local": "2022-09-28T15:48-04:00",
+     "meters": 3.498
+    },
+    {
+     "local": "2022-09-28T15:58-04:00",
+     "meters": 3.365
+    },
+    {
+     "local": "2022-09-28T16:08-04:00",
+     "meters": 3.181
+    },
+    {
+     "local": "2022-09-28T16:18-04:00",
+     "meters": 2.979
+    },
+    {
+     "local": "2022-09-28T16:28-04:00",
+     "meters": 2.842
+    },
+    {
+     "local": "2022-09-28T16:38-04:00",
+     "meters": 2.662
+    },
+    {
+     "local": "2022-09-28T16:48-04:00",
+     "meters": 2.536
+    },
+    {
+     "local": "2022-09-28T16:58-04:00",
+     "meters": 2.279
+    },
+    {
+     "local": "2022-09-28T17:08-04:00",
+     "meters": 2.123
+    },
+    {
+     "local": "2022-09-28T17:18-04:00",
+     "meters": 2.209
+    },
+    {
+     "local": "2022-09-28T17:28-04:00",
+     "meters": 2.111
+    },
+    {
+     "local": "2022-09-28T17:38-04:00",
+     "meters": 1.883
+    },
+    {
+     "local": "2022-09-28T17:48-04:00",
+     "meters": 1.74
+    },
+    {
+     "local": "2022-09-28T17:58-04:00",
+     "meters": 1.624
+    },
+    {
+     "local": "2022-09-28T18:08-04:00",
+     "meters": 1.487
+    },
+    {
+     "local": "2022-09-28T18:18-04:00",
+     "meters": 1.396
+    },
+    {
+     "local": "2022-09-28T18:28-04:00",
+     "meters": 1.326
+    },
+    {
+     "local": "2022-09-28T18:38-04:00",
+     "meters": 1.193
+    },
+    {
+     "local": "2022-09-28T18:48-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T18:58-04:00",
+     "meters": 0.99
+    },
+    {
+     "local": "2022-09-28T19:08-04:00",
+     "meters": 0.91
+    },
+    {
+     "local": "2022-09-28T19:18-04:00",
+     "meters": 0.878
+    },
+    {
+     "local": "2022-09-28T19:28-04:00",
+     "meters": 0.856
+    },
+    {
+     "local": "2022-09-28T19:38-04:00",
+     "meters": 0.857
+    },
+    {
+     "local": "2022-09-28T19:48-04:00",
+     "meters": 0.858
+    },
+    {
+     "local": "2022-09-28T19:58-04:00",
+     "meters": 0.858
+    },
+    {
+     "local": "2022-09-28T20:08-04:00",
+     "meters": 0.853
+    },
+    {
+     "local": "2022-09-28T20:18-04:00",
+     "meters": 0.853
+    },
+    {
+     "local": "2022-09-28T20:28-04:00",
+     "meters": 0.861
+    },
+    {
+     "local": "2022-09-28T20:38-04:00",
+     "meters": 0.867
+    },
+    {
+     "local": "2022-09-28T20:48-04:00",
+     "meters": 0.867
+    },
+    {
+     "local": "2022-09-28T20:58-04:00",
+     "meters": 0.865
+    }
+   ]
+  },
+  {
+   "site": "FLLEE03288",
+   "name": "Big Carlos Pass bridge",
+   "fileId": 130439,
+   "lat": 26.40377,
+   "lng": -81.877998,
+   "peak": {
+    "local": "2022-09-28T15:34-04:00",
+    "meters": 3.506
+   },
+   "samples": [
+    {
+     "local": "2022-09-28T07:48-04:00",
+     "meters": 1.054
+    },
+    {
+     "local": "2022-09-28T07:58-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T08:08-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T08:18-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T08:28-04:00",
+     "meters": 1.053
+    },
+    {
+     "local": "2022-09-28T08:38-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T08:48-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T08:58-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T09:08-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T09:18-04:00",
+     "meters": 1.053
+    },
+    {
+     "local": "2022-09-28T09:28-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T09:38-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T09:48-04:00",
+     "meters": 1.052
+    },
+    {
+     "local": "2022-09-28T09:58-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T10:08-04:00",
+     "meters": 1.051
+    },
+    {
+     "local": "2022-09-28T10:18-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T10:28-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T10:38-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T10:48-04:00",
+     "meters": 1.049
+    },
+    {
+     "local": "2022-09-28T10:58-04:00",
+     "meters": 1.05
+    },
+    {
+     "local": "2022-09-28T11:08-04:00",
+     "meters": 1.056
+    },
+    {
+     "local": "2022-09-28T11:18-04:00",
+     "meters": 1.07
+    },
+    {
+     "local": "2022-09-28T11:28-04:00",
+     "meters": 1.112
+    },
+    {
+     "local": "2022-09-28T11:38-04:00",
+     "meters": 1.137
+    },
+    {
+     "local": "2022-09-28T11:48-04:00",
+     "meters": 1.243
+    },
+    {
+     "local": "2022-09-28T11:58-04:00",
+     "meters": 1.367
+    },
+    {
+     "local": "2022-09-28T12:08-04:00",
+     "meters": 1.441
+    },
+    {
+     "local": "2022-09-28T12:18-04:00",
+     "meters": 1.499
+    },
+    {
+     "local": "2022-09-28T12:28-04:00",
+     "meters": 1.692
+    },
+    {
+     "local": "2022-09-28T12:38-04:00",
+     "meters": 1.779
+    },
+    {
+     "local": "2022-09-28T12:48-04:00",
+     "meters": 1.861
+    },
+    {
+     "local": "2022-09-28T12:58-04:00",
+     "meters": 1.954
+    },
+    {
+     "local": "2022-09-28T13:08-04:00",
+     "meters": 2.053
+    },
+    {
+     "local": "2022-09-28T13:18-04:00",
+     "meters": 2.197
+    },
+    {
+     "local": "2022-09-28T13:28-04:00",
+     "meters": 2.264
+    },
+    {
+     "local": "2022-09-28T13:38-04:00",
+     "meters": 2.466
+    },
+    {
+     "local": "2022-09-28T13:48-04:00",
+     "meters": 2.614
+    },
+    {
+     "local": "2022-09-28T13:58-04:00",
+     "meters": 2.666
+    },
+    {
+     "local": "2022-09-28T14:08-04:00",
+     "meters": 2.847
+    },
+    {
+     "local": "2022-09-28T14:18-04:00",
+     "meters": 2.938
+    },
+    {
+     "local": "2022-09-28T14:28-04:00",
+     "meters": 3.118
+    },
+    {
+     "local": "2022-09-28T14:38-04:00",
+     "meters": 3.141
+    },
+    {
+     "local": "2022-09-28T14:48-04:00",
+     "meters": 3.174
+    },
+    {
+     "local": "2022-09-28T14:58-04:00",
+     "meters": 3.271
+    },
+    {
+     "local": "2022-09-28T15:08-04:00",
+     "meters": 3.449
+    },
+    {
+     "local": "2022-09-28T15:18-04:00",
+     "meters": 3.458
+    },
+    {
+     "local": "2022-09-28T15:28-04:00",
+     "meters": 3.38
+    },
+    {
+     "local": "2022-09-28T15:38-04:00",
+     "meters": 3.427
+    },
+    {
+     "local": "2022-09-28T15:48-04:00",
+     "meters": 3.386
+    },
+    {
+     "local": "2022-09-28T15:58-04:00",
+     "meters": 3.358
+    },
+    {
+     "local": "2022-09-28T16:08-04:00",
+     "meters": 3.192
+    },
+    {
+     "local": "2022-09-28T16:18-04:00",
+     "meters": 3.122
+    },
+    {
+     "local": "2022-09-28T16:28-04:00",
+     "meters": 2.974
+    },
+    {
+     "local": "2022-09-28T16:38-04:00",
+     "meters": 2.872
+    },
+    {
+     "local": "2022-09-28T16:48-04:00",
+     "meters": 2.718
+    },
+    {
+     "local": "2022-09-28T16:58-04:00",
+     "meters": 2.569
+    },
+    {
+     "local": "2022-09-28T17:08-04:00",
+     "meters": 2.45
+    },
+    {
+     "local": "2022-09-28T17:18-04:00",
+     "meters": 2.348
+    },
+    {
+     "local": "2022-09-28T17:28-04:00",
+     "meters": 2.254
+    },
+    {
+     "local": "2022-09-28T17:38-04:00",
+     "meters": 2.168
+    },
+    {
+     "local": "2022-09-28T17:48-04:00",
+     "meters": 2.046
+    },
+    {
+     "local": "2022-09-28T17:58-04:00",
+     "meters": 1.965
+    },
+    {
+     "local": "2022-09-28T18:08-04:00",
+     "meters": 1.917
+    },
+    {
+     "local": "2022-09-28T18:18-04:00",
+     "meters": 1.804
+    },
+    {
+     "local": "2022-09-28T18:28-04:00",
+     "meters": 1.767
+    },
+    {
+     "local": "2022-09-28T18:38-04:00",
+     "meters": 1.644
+    },
+    {
+     "local": "2022-09-28T18:48-04:00",
+     "meters": 1.582
+    },
+    {
+     "local": "2022-09-28T18:58-04:00",
+     "meters": 1.505
+    },
+    {
+     "local": "2022-09-28T19:08-04:00",
+     "meters": 1.471
+    },
+    {
+     "local": "2022-09-28T19:18-04:00",
+     "meters": 1.389
+    },
+    {
+     "local": "2022-09-28T19:28-04:00",
+     "meters": 1.352
+    },
+    {
+     "local": "2022-09-28T19:38-04:00",
+     "meters": 1.303
+    },
+    {
+     "local": "2022-09-28T19:48-04:00",
+     "meters": 1.268
+    },
+    {
+     "local": "2022-09-28T19:58-04:00",
+     "meters": 1.177
+    },
+    {
+     "local": "2022-09-28T20:08-04:00",
+     "meters": 1.188
+    },
+    {
+     "local": "2022-09-28T20:18-04:00",
+     "meters": 1.102
+    },
+    {
+     "local": "2022-09-28T20:28-04:00",
+     "meters": 1.106
+    },
+    {
+     "local": "2022-09-28T20:38-04:00",
+     "meters": 1.085
+    },
+    {
+     "local": "2022-09-28T20:48-04:00",
+     "meters": 1.067
+    },
+    {
+     "local": "2022-09-28T20:58-04:00",
+     "meters": 1.064
+    },
+    {
+     "local": "2022-09-28T21:08-04:00",
+     "meters": 1.064
+    },
+    {
+     "local": "2022-09-28T21:18-04:00",
+     "meters": 1.066
+    },
+    {
+     "local": "2022-09-28T21:28-04:00",
+     "meters": 1.063
+    },
+    {
+     "local": "2022-09-28T21:38-04:00",
+     "meters": 1.059
+    },
+    {
+     "local": "2022-09-28T21:48-04:00",
+     "meters": 1.055
+    },
+    {
+     "local": "2022-09-28T21:58-04:00",
+     "meters": 1.057
+    },
+    {
+     "local": "2022-09-28T22:08-04:00",
+     "meters": 1.056
+    },
+    {
+     "local": "2022-09-28T22:18-04:00",
+     "meters": 1.056
+    },
+    {
+     "local": "2022-09-28T22:28-04:00",
+     "meters": 1.054
+    },
+    {
+     "local": "2022-09-28T22:38-04:00",
+     "meters": 1.054
+    },
+    {
+     "local": "2022-09-28T22:48-04:00",
+     "meters": 1.054
+    },
+    {
+     "local": "2022-09-28T22:58-04:00",
+     "meters": 1.054
+    },
+    {
+     "local": "2022-09-28T23:08-04:00",
+     "meters": 1.054
+    }
+   ]
+  }
+ ],
+ "wind": {
+  "station": "NOAA CO-OPS 8725520 Fort Myers",
+  "lat": 26.6478,
+  "lng": -81.8711,
+  "samples": [
+   {
+    "local": "2022-09-27T00:00-04:00",
+    "fromDegrees": 72.0,
+    "metersPerSecond": 2.7,
+    "gustMetersPerSecond": 4.4
+   },
+   {
+    "local": "2022-09-27T01:00-04:00",
+    "fromDegrees": 127.0,
+    "metersPerSecond": 3.7,
+    "gustMetersPerSecond": 5.8
+   },
+   {
+    "local": "2022-09-27T02:00-04:00",
+    "fromDegrees": 121.0,
+    "metersPerSecond": 2.7,
+    "gustMetersPerSecond": 6.3
+   },
+   {
+    "local": "2022-09-27T03:00-04:00",
+    "fromDegrees": 118.0,
+    "metersPerSecond": 2.5,
+    "gustMetersPerSecond": 3.9
+   },
+   {
+    "local": "2022-09-27T04:00-04:00",
+    "fromDegrees": 85.0,
+    "metersPerSecond": 1.5,
+    "gustMetersPerSecond": 2.9
+   },
+   {
+    "local": "2022-09-27T05:00-04:00",
+    "fromDegrees": 72.0,
+    "metersPerSecond": 1.9,
+    "gustMetersPerSecond": 2.9
+   },
+   {
+    "local": "2022-09-27T06:00-04:00",
+    "fromDegrees": 51.0,
+    "metersPerSecond": 2.4,
+    "gustMetersPerSecond": 3.8
+   },
+   {
+    "local": "2022-09-27T07:00-04:00",
+    "fromDegrees": 54.0,
+    "metersPerSecond": 2.2,
+    "gustMetersPerSecond": 4.1
+   },
+   {
+    "local": "2022-09-27T08:00-04:00",
+    "fromDegrees": 59.0,
+    "metersPerSecond": 3.1,
+    "gustMetersPerSecond": 5.3
+   },
+   {
+    "local": "2022-09-27T09:00-04:00",
+    "fromDegrees": 59.0,
+    "metersPerSecond": 3.6,
+    "gustMetersPerSecond": 5.2
+   },
+   {
+    "local": "2022-09-27T10:00-04:00",
+    "fromDegrees": 73.0,
+    "metersPerSecond": 3.6,
+    "gustMetersPerSecond": 5.2
+   },
+   {
+    "local": "2022-09-27T11:00-04:00",
+    "fromDegrees": 76.0,
+    "metersPerSecond": 3.0,
+    "gustMetersPerSecond": 5.2
+   },
+   {
+    "local": "2022-09-27T12:00-04:00",
+    "fromDegrees": 71.0,
+    "metersPerSecond": 2.6,
+    "gustMetersPerSecond": 4.0
+   },
+   {
+    "local": "2022-09-27T13:00-04:00",
+    "fromDegrees": 71.0,
+    "metersPerSecond": 4.3,
+    "gustMetersPerSecond": 6.4
+   },
+   {
+    "local": "2022-09-27T14:00-04:00",
+    "fromDegrees": 73.0,
+    "metersPerSecond": 4.5,
+    "gustMetersPerSecond": 7.4
+   },
+   {
+    "local": "2022-09-27T15:00-04:00",
+    "fromDegrees": 78.0,
+    "metersPerSecond": 3.9,
+    "gustMetersPerSecond": 7.0
+   },
+   {
+    "local": "2022-09-27T16:00-04:00",
+    "fromDegrees": 61.0,
+    "metersPerSecond": 4.2,
+    "gustMetersPerSecond": 7.0
+   },
+   {
+    "local": "2022-09-27T17:00-04:00",
+    "fromDegrees": 70.0,
+    "metersPerSecond": 3.9,
+    "gustMetersPerSecond": 7.1
+   },
+   {
+    "local": "2022-09-27T18:00-04:00",
+    "fromDegrees": 64.0,
+    "metersPerSecond": 2.6,
+    "gustMetersPerSecond": 6.1
+   },
+   {
+    "local": "2022-09-27T19:00-04:00",
+    "fromDegrees": 65.0,
+    "metersPerSecond": 4.1,
+    "gustMetersPerSecond": 7.9
+   },
+   {
+    "local": "2022-09-27T20:00-04:00",
+    "fromDegrees": 71.0,
+    "metersPerSecond": 6.0,
+    "gustMetersPerSecond": 9.0
+   },
+   {
+    "local": "2022-09-27T21:00-04:00",
+    "fromDegrees": 50.0,
+    "metersPerSecond": 6.5,
+    "gustMetersPerSecond": 11.4
+   },
+   {
+    "local": "2022-09-27T22:00-04:00",
+    "fromDegrees": 21.0,
+    "metersPerSecond": 6.1,
+    "gustMetersPerSecond": 10.3
+   },
+   {
+    "local": "2022-09-27T23:00-04:00",
+    "fromDegrees": 60.0,
+    "metersPerSecond": 5.3,
+    "gustMetersPerSecond": 10.4
+   },
+   {
+    "local": "2022-09-28T00:00-04:00",
+    "fromDegrees": 55.0,
+    "metersPerSecond": 5.0,
+    "gustMetersPerSecond": 10.9
+   },
+   {
+    "local": "2022-09-28T01:00-04:00",
+    "fromDegrees": 55.0,
+    "metersPerSecond": 5.9,
+    "gustMetersPerSecond": 9.8
+   },
+   {
+    "local": "2022-09-28T02:00-04:00",
+    "fromDegrees": 64.0,
+    "metersPerSecond": 7.5,
+    "gustMetersPerSecond": 11.6
+   },
+   {
+    "local": "2022-09-28T03:00-04:00",
+    "fromDegrees": 67.0,
+    "metersPerSecond": 5.2,
+    "gustMetersPerSecond": 9.3
+   },
+   {
+    "local": "2022-09-28T04:00-04:00",
+    "fromDegrees": 68.0,
+    "metersPerSecond": 6.1,
+    "gustMetersPerSecond": 13.1
+   },
+   {
+    "local": "2022-09-28T05:00-04:00",
+    "fromDegrees": 53.0,
+    "metersPerSecond": 8.9,
+    "gustMetersPerSecond": 14.6
+   },
+   {
+    "local": "2022-09-28T06:00-04:00",
+    "fromDegrees": 75.0,
+    "metersPerSecond": 7.3,
+    "gustMetersPerSecond": 13.7
+   },
+   {
+    "local": "2022-09-28T07:00-04:00",
+    "fromDegrees": 130.0,
+    "metersPerSecond": 4.4,
+    "gustMetersPerSecond": 8.2
+   },
+   {
+    "local": "2022-09-28T08:00-04:00",
+    "fromDegrees": 71.0,
+    "metersPerSecond": 9.3,
+    "gustMetersPerSecond": 15.5
+   },
+   {
+    "local": "2022-09-28T09:00-04:00",
+    "fromDegrees": 72.0,
+    "metersPerSecond": 10.6,
+    "gustMetersPerSecond": 16.6
+   },
+   {
+    "local": "2022-09-28T10:00-04:00",
+    "fromDegrees": 92.0,
+    "metersPerSecond": 7.1,
+    "gustMetersPerSecond": 13.1
+   },
+   {
+    "local": "2022-09-28T11:00-04:00",
+    "fromDegrees": 100.0,
+    "metersPerSecond": 7.4,
+    "gustMetersPerSecond": 14.0
+   },
+   {
+    "local": "2022-09-28T12:00-04:00",
+    "fromDegrees": 110.0,
+    "metersPerSecond": 9.1,
+    "gustMetersPerSecond": 14.8
+   },
+   {
+    "local": "2022-09-28T13:00-04:00",
+    "fromDegrees": 118.0,
+    "metersPerSecond": 11.5,
+    "gustMetersPerSecond": 30.8
+   },
+   {
+    "local": "2022-09-28T14:00-04:00",
+    "fromDegrees": 128.0,
+    "metersPerSecond": 17.7,
+    "gustMetersPerSecond": 24.6
+   },
+   {
+    "local": "2022-09-28T15:00-04:00",
+    "fromDegrees": 131.0,
+    "metersPerSecond": 21.9,
+    "gustMetersPerSecond": 29.5
+   },
+   {
+    "local": "2022-09-28T16:00-04:00",
+    "fromDegrees": 159.0,
+    "metersPerSecond": 17.1,
+    "gustMetersPerSecond": 29.3
+   },
+   {
+    "local": "2022-09-28T17:00-04:00",
+    "fromDegrees": 214.0,
+    "metersPerSecond": 12.9,
+    "gustMetersPerSecond": 24.0
+   },
+   {
+    "local": "2022-09-28T18:00-04:00",
+    "fromDegrees": 256.0,
+    "metersPerSecond": 22.9,
+    "gustMetersPerSecond": 29.1
+   },
+   {
+    "local": "2022-09-28T19:00-04:00",
+    "fromDegrees": 272.0,
+    "metersPerSecond": 23.6,
+    "gustMetersPerSecond": 31.6
+   },
+   {
+    "local": "2022-09-28T20:00-04:00",
+    "fromDegrees": 284.0,
+    "metersPerSecond": 21.0,
+    "gustMetersPerSecond": 28.0
+   },
+   {
+    "local": "2022-09-28T21:00-04:00",
+    "fromDegrees": 284.0,
+    "metersPerSecond": 17.0,
+    "gustMetersPerSecond": 24.1
+   },
+   {
+    "local": "2022-09-28T22:00-04:00",
+    "fromDegrees": 293.0,
+    "metersPerSecond": 13.9,
+    "gustMetersPerSecond": 18.1
+   },
+   {
+    "local": "2022-09-28T23:00-04:00",
+    "fromDegrees": 299.0,
+    "metersPerSecond": 14.1,
+    "gustMetersPerSecond": 19.6
+   },
+   {
+    "local": "2022-09-29T00:00-04:00",
+    "fromDegrees": 288.0,
+    "metersPerSecond": 11.5,
+    "gustMetersPerSecond": 16.5
+   },
+   {
+    "local": "2022-09-29T01:00-04:00",
+    "fromDegrees": 274.0,
+    "metersPerSecond": 10.6,
+    "gustMetersPerSecond": 13.9
+   },
+   {
+    "local": "2022-09-29T02:00-04:00",
+    "fromDegrees": 272.0,
+    "metersPerSecond": 12.8,
+    "gustMetersPerSecond": 16.6
+   },
+   {
+    "local": "2022-09-29T03:00-04:00",
+    "fromDegrees": 274.0,
+    "metersPerSecond": 10.8,
+    "gustMetersPerSecond": 13.2
+   },
+   {
+    "local": "2022-09-29T04:00-04:00",
+    "fromDegrees": 281.0,
+    "metersPerSecond": 9.4,
+    "gustMetersPerSecond": 13.7
+   },
+   {
+    "local": "2022-09-29T05:00-04:00",
+    "fromDegrees": 275.0,
+    "metersPerSecond": 9.1,
+    "gustMetersPerSecond": 12.8
+   },
+   {
+    "local": "2022-09-29T06:00-04:00",
+    "fromDegrees": 283.0,
+    "metersPerSecond": 9.4,
+    "gustMetersPerSecond": 12.5
+   },
+   {
+    "local": "2022-09-29T07:00-04:00",
+    "fromDegrees": 290.0,
+    "metersPerSecond": 8.1,
+    "gustMetersPerSecond": 13.4
+   },
+   {
+    "local": "2022-09-29T08:00-04:00",
+    "fromDegrees": 285.0,
+    "metersPerSecond": 8.7,
+    "gustMetersPerSecond": 11.1
+   },
+   {
+    "local": "2022-09-29T09:00-04:00",
+    "fromDegrees": 293.0,
+    "metersPerSecond": 9.9,
+    "gustMetersPerSecond": 12.3
+   },
+   {
+    "local": "2022-09-29T10:00-04:00",
+    "fromDegrees": 293.0,
+    "metersPerSecond": 9.1,
+    "gustMetersPerSecond": 11.3
+   },
+   {
+    "local": "2022-09-29T11:00-04:00",
+    "fromDegrees": 296.0,
+    "metersPerSecond": 7.3,
+    "gustMetersPerSecond": 10.2
+   },
+   {
+    "local": "2022-09-29T12:00-04:00",
+    "fromDegrees": 289.0,
+    "metersPerSecond": 8.1,
+    "gustMetersPerSecond": 10.6
+   },
+   {
+    "local": "2022-09-29T13:00-04:00",
+    "fromDegrees": 308.0,
+    "metersPerSecond": 6.6,
+    "gustMetersPerSecond": 9.7
+   },
+   {
+    "local": "2022-09-29T14:00-04:00",
+    "fromDegrees": 304.0,
+    "metersPerSecond": 8.0,
+    "gustMetersPerSecond": 9.9
+   },
+   {
+    "local": "2022-09-29T15:00-04:00",
+    "fromDegrees": 320.0,
+    "metersPerSecond": 6.7,
+    "gustMetersPerSecond": 8.6
+   },
+   {
+    "local": "2022-09-29T16:00-04:00",
+    "fromDegrees": 306.0,
+    "metersPerSecond": 5.5,
+    "gustMetersPerSecond": 7.7
+   },
+   {
+    "local": "2022-09-29T17:00-04:00",
+    "fromDegrees": 319.0,
+    "metersPerSecond": 5.8,
+    "gustMetersPerSecond": 6.7
+   },
+   {
+    "local": "2022-09-29T18:00-04:00",
+    "fromDegrees": 353.0,
+    "metersPerSecond": 4.7,
+    "gustMetersPerSecond": 5.5
+   },
+   {
+    "local": "2022-09-29T19:00-04:00",
+    "fromDegrees": 333.0,
+    "metersPerSecond": 5.6,
+    "gustMetersPerSecond": 7.2
+   },
+   {
+    "local": "2022-09-29T20:00-04:00",
+    "fromDegrees": 331.0,
+    "metersPerSecond": 4.9,
+    "gustMetersPerSecond": 6.0
+   },
+   {
+    "local": "2022-09-29T21:00-04:00",
+    "fromDegrees": 339.0,
+    "metersPerSecond": 5.1,
+    "gustMetersPerSecond": 6.4
+   },
+   {
+    "local": "2022-09-29T22:00-04:00",
+    "fromDegrees": 356.0,
+    "metersPerSecond": 4.1,
+    "gustMetersPerSecond": 7.6
+   },
+   {
+    "local": "2022-09-29T23:00-04:00",
+    "fromDegrees": 348.0,
+    "metersPerSecond": 4.4,
+    "gustMetersPerSecond": 6.1
+   }
+  ]
+ }
+}
