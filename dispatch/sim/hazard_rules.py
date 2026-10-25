@@ -221,7 +221,6 @@ class HazardRule:
     closure_why: str
     vans_from_s: float = 0.0
     vans_why: str = "the warning is the trigger for both calls and vans"
-    after_last_front_s: float = 3600.0
     closures: Callable = front_closures
     adjust_arrival: Callable = keep_arrival
     ride_need: Callable = evacuation_need
@@ -276,7 +275,6 @@ RULES: dict[str, HazardRule] = {
         margin_s=0.0,
         closure_rule="expressways closed before the travel ban; every other street closes at 15:00 on 23 Dec",
         closure_why="NYU Wagner review timeline, by OSM highway class (data/cities/buffalo/scenario.json streetClasses)",
-        after_last_front_s=30 * MINUTE,
         closures=street_class_closures,
         adjust_arrival=blizzard_deadline,
         ride_need=blizzard_need,

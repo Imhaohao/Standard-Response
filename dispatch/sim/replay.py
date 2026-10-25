@@ -171,12 +171,25 @@ def event_row(at: float, kind: str, fields: list) -> list:
     return [int(round(at)), EVENT_KINDS.index(kind), home, extra]
 
 
+def homes_shown(world, log: list) -> list:
+    """Homes the night touched: any called before it ended, any that need a ride, any in the hazard's path. A city of
+    100,000 homes dials far past the end of a short night, and the homes it never reached carry nothing to show."""
+    touched = {row[2] for row in log if row[2] >= 0}
+    return [h for h in world.households if h.index in touched or h.need is not None or h.at_risk]
+
+
+def reindexed(log: list, homes: list) -> list:
+    position = {h.index: i for i, h in enumerate(homes)}
+    return [[t, kind, position[home] if home >= 0 else -1, extra] for t, kind, home, extra in log if home < 0 or home in position]
+
+
 def build_replay(night, events: list[tuple], roads_raw: dict, meta: dict) -> dict:
     world = night.world
     writer = ReplayWriter(night, PathFinder(world.travel, roads_raw))
-    log, plans, legs = split_events(writer, events)
+    log, plans, legs = split_events(writer, [event for event in events if event[0] <= world.horizon_s])
     boarded = boarded_at(night)
-    homes = world.households
+    homes = homes_shown(world, log)
+    log = reindexed(log, homes)
     return {
         "version": 1, **meta,
         "clock": "whole seconds after the warning",

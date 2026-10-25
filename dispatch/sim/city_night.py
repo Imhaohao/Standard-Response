@@ -166,7 +166,9 @@ def city_inputs(city_id: str) -> CityInputs:
     margin = rule.margins(len(records))
     staging = net.snap(city["staging"]["lat"], city["staging"]["lng"])
     shelter = net.snap(city["shelter"]["lat"], city["shelter"]["lng"])
-    window_end = max(m for m, _ in fronts) * MINUTE + rule.after_last_front_s
+    # The night ends with the last household the hazard reaches; homes it never reaches can wait until then.
+    reached = arrival[np.isfinite(arrival)]
+    window_end = float(reached.max()) if reached.size else max(m for m, _ in fronts) * MINUTE
     return CityInputs(city, rule, records, nodes, arrival, margin, closures, window_end, warning_epoch(scenario), staging, shelter)
 
 
