@@ -113,4 +113,5 @@ export const EN: Lines = {
   },
   enRoute: (driverName, eta) => `${driverName} is driving to you now, about ${eta} away. I'll call again if anything changes.`,
   arrived: (shelterName) => `Your driver is at your home now.${shelterName ? ` You're going to ${shelterName}.` : ""}`,
+  apologyAfterCutOff: "Sorry about that.",
 };

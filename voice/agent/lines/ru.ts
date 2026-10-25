@@ -123,4 +123,5 @@ export const RU: Lines = {
     `${capitalized(`ваш транспорт: ${vehicle}${crew}.`)} До вас ${eta} пути. Водителя зовут ${driverName}. Я позвоню ещё раз, если что-то изменится.`,
   enRoute: (driverName, eta) => `${driverName} уже едет к вам. До вас примерно ${eta} пути. Я позвоню ещё раз, если что-то изменится.`,
   arrived: (shelterName) => `Ваш водитель уже у вашего дома.${shelterName ? ` Вы едете в ${shelterName}.` : ""}`,
+  apologyAfterCutOff: "Извините.",
 };

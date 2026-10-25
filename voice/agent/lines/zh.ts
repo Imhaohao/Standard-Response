@@ -114,4 +114,5 @@ export const ZH: Lines = {
     `一辆${vehicle}${crew}距您还有${eta}的路程。司机的名字是${driverName}。如果有变化，我会再打电话给您。`,
   enRoute: (driverName, eta) => `${driverName}正在开车去接您，大约还有${eta}的路程。如果有变化，我会再打电话给您。`,
   arrived: (shelterName) => `您的司机现在已到您家。${shelterName ? `您要去${shelterName}。` : ""}`,
+  apologyAfterCutOff: "不好意思。",
 };

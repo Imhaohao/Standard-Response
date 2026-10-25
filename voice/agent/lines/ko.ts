@@ -112,4 +112,5 @@ export const KO: Lines = {
     `${vehicle} 한 대가${crew} ${eta} 거리에 있습니다. 운전자 이름은 ${driverName}입니다. 변동이 있으면 다시 전화드리겠습니다.`,
   enRoute: (driverName, eta) => `${driverName} 운전자가 지금 고객님께 가고 있습니다. 약 ${eta} 거리입니다. 변동이 있으면 다시 전화드리겠습니다.`,
   arrived: (shelterName) => `운전자가 지금 고객님 집에 도착했습니다.${shelterName ? ` ${shelterName}(으)로 가시게 됩니다.` : ""}`,
+  apologyAfterCutOff: "죄송합니다.",
 };

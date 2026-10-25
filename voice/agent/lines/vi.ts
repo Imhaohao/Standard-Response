@@ -112,4 +112,5 @@ export const VI: Lines = {
     `Một ${vehicle}${crew} đang cách quý vị ${eta}. Tên tài xế là ${driverName}. Tôi sẽ gọi lại nếu có gì thay đổi.`,
   enRoute: (driverName, eta) => `${driverName} đang lái xe đến chỗ quý vị, còn khoảng ${eta}. Tôi sẽ gọi lại nếu có gì thay đổi.`,
   arrived: (shelterName) => `Tài xế của quý vị hiện đã đến nhà quý vị.${shelterName ? ` Quý vị sẽ đến ${shelterName}.` : ""}`,
+  apologyAfterCutOff: "Xin lỗi quý vị.",
 };

@@ -6,7 +6,9 @@ import type { CallFlow } from "../agent/callFlow";
 import { AgentTurn, Conversation, ConversationEffects } from "../agent/conversation";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
+import { CutOffApology } from "./apology";
 import { Transcriber } from "./cartesia";
+import { callUrgency, Delivery, describeDelivery, generationConfig, ROUTINE, turnDelivery, Urgency } from "./delivery";
 import { ElevenLabsCall } from "./elevenLabsCall";
 import { householdCallFor, onFileRecord } from "./householdCall";
 import { interrupts, isBackchannel } from "./interruption";
@@ -16,6 +18,7 @@ import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold, r
 import { CallSpeech } from "./speech";
 import { CallMode, hangUp, StreamParameters } from "./twilio";
 import { env } from "../env";
+import { SimClock, simTime } from "../../lib/sim-clock";
 
 // One live phone call: Twilio audio in, Cartesia speech-to-text, the conversation, Cartesia voice out.
 
@@ -59,6 +62,9 @@ type TwilioMessage =
   | { event: "connected" };
 
 type TurnTiming = { spokeAt: number; heardAt: () => number | null };
+
+// What a rescue call knows about the fire at this home, read once when the call starts.
+type FireSituation = { warningActive: boolean; fireArrivalAt: number; clock: SimClock | undefined };
 
 function turnGap(text: string) {
   const trimmed = text.trim();
@@ -126,6 +132,14 @@ class CallSession implements LiveCall {
   private lastBackchannel = "";
   private reachedMachine = false;
   private ended = false;
+  private readonly apology = new CutOffApology();
+  // Whether the audio playing now is a thinking filler; talking over a filler isn't cutting off a turn.
+  private fillerPlaying = false;
+  // Null on calls that aren't the rescue call (Ready check, pickup check, callback): they stay routine.
+  private fire: FireSituation | null = null;
+  private hardOfHearing = false;
+  // A medical emergency or flames were reported earlier on this call.
+  private threatEarlier = false;
 
   constructor(socket: WebSocket, start: TwilioStart) {
     this.params = start.customParameters;
@@ -140,9 +154,15 @@ class CallSession implements LiveCall {
     const householdId = await this.resolveHousehold();
     this.householdId = householdId;
     liveByHousehold.set(householdId, this);
-    const household = await convex().query(api.voice.household, { householdId });
+    const [household, control] = await Promise.all([
+      convex().query(api.voice.household, { householdId }),
+      convex().query(api.control.get, {}),
+    ]);
     if (!household) throw new Error(`Household ${householdId} not found`);
     this.language = languageOf(household.language);
+    const warningActive = control.warningIssuedAt !== undefined && household.inZone;
+    this.fire = { warningActive, fireArrivalAt: household.fireArrivalAt, clock: control.clock };
+    this.hardOfHearing = household.ready?.care.includes("hearing") ?? false;
     this.unsubscribe = convex().onUpdate(api.voice.statusFor, { householdId }, (ride) => {
       this.ride = ride;
     }, logSubscriptionError("statusFor"));
@@ -216,6 +236,7 @@ class CallSession implements LiveCall {
     this.restartQuietTimer();
     if (this.speech.speaking) {
       if (interrupts(text, voicedMs, this.language)) {
+        if (!this.fillerPlaying) this.apology.cutOff();
         this.speech.bargeIn();
         this.cutOff = true;
       } else if (isFinal) return void this.heardUnderVoice(text);
@@ -264,6 +285,7 @@ class CallSession implements LiveCall {
       // it may have been a cough, and a short "yeah" reads fast enough not to need cover.
       if (this.lastSpeechAt !== spokeAt || isBackchannel(utterance, this.language)) return;
       backchanneled = true;
+      this.fillerPlaying = true;
       this.speech.say([this.pickBackchannel()], this.language, () => {
         heardAt = Date.now();
         this.logLatency(spokeAt, "backchannel");
@@ -297,6 +319,7 @@ class CallSession implements LiveCall {
     this.syncLanguage();
     const cutOff = this.cutOff;
     this.cutOff = false;
+    if (turn.ignored || turn.transfer) this.apology.dismiss();
     if (turn.ignored) this.afterNoise(cutOff);
     else if (turn.transfer) void this.speakTransfer(turn, timing, turn.transfer);
     else this.speakTurn(turn, timing, backchanneled);
@@ -306,7 +329,7 @@ class CallSession implements LiveCall {
   private async speakTransfer(turn: AgentTurn, timing: TurnTiming, transfer: NonNullable<AgentTurn["transfer"]>) {
     this.waiting = null;
     this.restartQuietTimer();
-    this.speech.say([transfer.line], transfer.language, () => this.logLine("agent", transfer.line, Date.now() - timing.spokeAt));
+    this.sayOther([transfer.line], transfer.language, () => this.logLine("agent", transfer.line, Date.now() - timing.spokeAt));
     await this.speech.whenSilent();
     await new Promise((resolve) => setTimeout(resolve, TRANSFER_PAUSE_MS));
     if (!this.ended) this.speakTurn(turn, null);
@@ -319,12 +342,17 @@ class CallSession implements LiveCall {
     const question = turn.done ? this.duePickup() : null;
     if (question) return void this.askInsteadOfGoodbye(turn, question, timing, backchanneled);
     const dropAcknowledgment = backchanneled && !turn.acknowledgmentIsEcho;
-    const sentences = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
+    const delivery = this.deliveryFor(turn.sentences, turn.deliveryCue);
+    const said = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
+    const sentences = this.apology.open(said, this.language, delivery.urgency === "emergency");
     const text = sentences.join(" ");
+    this.fillerPlaying = false;
     this.speech.say(sentences, this.language, () => {
       const firstAudio = timing?.heardAt() ?? Date.now();
-      this.logLine("agent", text, timing ? firstAudio - timing.spokeAt : undefined);
-    });
+      const latencyMs = timing ? firstAudio - timing.spokeAt : undefined;
+      this.logDelivery(delivery, latencyMs);
+      this.logLine("agent", text, latencyMs);
+    }, delivery);
     if (this.callId) fireAndForget("setStage", convex().mutation(api.calls.setStage, { callId: this.callId, stage: turn.stage }));
     void this.waitAfter(turn);
   }
@@ -403,6 +431,40 @@ class CallSession implements LiveCall {
     else if (conversation.checkIn) this.speakTurn(conversation.checkIn(), null);
   }
 
+  // The floor for this turn: how near the fire is now on the night clock, for the rescue call only.
+  private callUrgencyNow(): Urgency {
+    const fire = this.fire;
+    if (!fire) return "routine";
+    const now = simTime(fire.clock, Date.now());
+    return callUrgency({ rescue: true, warningActive: fire.warningActive, fireArrivalAt: fire.fireArrivalAt, now });
+  }
+
+  private deliveryFor(sentences: string[], cue?: AgentTurn["deliveryCue"]): Delivery {
+    const reassigning = LINES[this.language].reassigning;
+    const delivery = turnDelivery(this.callUrgencyNow(), {
+      emergency: cue?.emergency ?? false,
+      reassigning: sentences.some((sentence) => sentence.includes(reassigning)),
+      threatEarlier: this.threatEarlier,
+      slower: cue?.slower ?? false,
+      hardOfHearing: this.hardOfHearing,
+    });
+    if (cue?.emergency) this.threatEarlier = true;
+    return delivery;
+  }
+
+  private logDelivery(delivery: Delivery, latencyMs?: number) {
+    const config = generationConfig(delivery, this.language);
+    const latency = latencyMs === undefined ? "" : `, first audio ${latencyMs}ms after the resident stopped`;
+    console.log(`[call ${this.callSid}] agent turn, delivery ${describeDelivery(delivery)} ${JSON.stringify(config)}${latency}`);
+  }
+
+  // Anything the agent says that isn't a conversation turn: it carries no apology and separates two.
+  private sayOther(sentences: string[], language: Language, onFirstAudio?: () => void, delivery: Delivery = ROUTINE) {
+    this.apology.spokeOther();
+    this.fillerPlaying = false;
+    this.speech.say(sentences, language, onFirstAudio, delivery);
+  }
+
   private logLatency(spokeAt: number, label: string) {
     console.log(`[call ${this.callSid}] first audio (${label}) ${Date.now() - spokeAt}ms after the resident stopped`);
   }
@@ -414,7 +476,7 @@ class CallSession implements LiveCall {
     const conversation = this.conversation;
     if (cutOff && conversation && !conversation.done && !this.speech.speaking) {
       const question = conversation.question();
-      this.speech.say([question], this.language, () => this.logLine("agent", question));
+      this.sayOther([question], this.language, () => this.logLine("agent", question), this.deliveryFor([question]));
     }
     void this.speech.whenSilent().then(() => this.restartQuietTimer());
   }
@@ -441,7 +503,11 @@ class CallSession implements LiveCall {
   async announce(template: string, language?: Language) {
     if (!this.conversation) return;
     const turn = this.conversation.announce(template);
-    this.speech.cutIn(turn.sentences, language ?? this.language);
+    const delivery = this.deliveryFor(turn.sentences);
+    this.apology.spokeOther();
+    this.fillerPlaying = false;
+    this.speech.cutIn(turn.sentences, language ?? this.language, delivery);
+    this.logDelivery(delivery);
     this.logLine("agent", turn.sentences.join(" "));
     await this.waitAfter(turn);
   }
@@ -455,7 +521,7 @@ class CallSession implements LiveCall {
     const voicemail = this.params.mode === "callback"
       ? this.callbackSentences()
       : (this.conversation?.voicemail?.() ?? [LINES[this.language].voicemail]);
-    this.speech.say(voicemail, this.language);
+    this.sayOther(voicemail, this.language);
     void this.speech.whenSilent().then(() => this.finish(false));
   }
 
@@ -470,7 +536,7 @@ class CallSession implements LiveCall {
     this.householdId = this.params.householdId ?? null;
     if (!script) throw new Error(`No script for callback ${callbackId}`);
     this.language = script.language;
-    this.speech.say(script.sentences, script.language);
+    this.sayOther(script.sentences, script.language, undefined, this.deliveryFor(script.sentences));
     await this.speech.whenSilent();
     if (this.ended || this.reachedMachine) return;
     fireAndForget("callbacks.markPlayed", convex().mutation(api.callbacks.markPlayed, { callbackId }));

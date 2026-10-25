@@ -1,22 +1,23 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Delivery, ROUTINE } from "./delivery";
 import { CallSpeech, SpeechEngine, TwilioSink } from "./speech";
 
 // CallSpeech against a fake text-to-speech engine whose requests and sentences finish on cue.
 
-type Request = { text: string; onAudio: (audio: string) => void; send: () => void; finish: () => void };
+type Request = { text: string; delivery?: Delivery; onAudio: (audio: string) => void; send: () => void; finish: () => void };
 
 function fakeEngine() {
   const requests: Request[] = [];
   const cancelled: string[] = [];
   let counter = 0;
   const engine: SpeechEngine = {
-    speak: (text, _language, onAudio) =>
+    speak: (text, _language, onAudio, delivery) =>
       new Promise((resolveRequest) => {
         const contextId = `c${(counter += 1)}`;
         let finish = () => {};
         const done = new Promise<void>((resolve) => (finish = resolve));
-        requests.push({ text, onAudio, send: () => resolveRequest({ contextId, done }), finish });
+        requests.push({ text, delivery, onAudio, send: () => resolveRequest({ contextId, done }), finish });
       }),
     cancel: (contextId) => void cancelled.push(contextId),
     close: () => {},
@@ -66,5 +67,20 @@ describe("call speech", () => {
     assert.deepEqual(cancelled, ["c1"]);
     assert.ok(!sent.some((message) => message.event === "media"));
     assert.equal(speech.speaking, false);
+  });
+
+  it("hands each turn's delivery to the engine, routine when none is given", async () => {
+    const { engine, requests } = fakeEngine();
+    const { sink } = fakeTwilio();
+    const speech = new CallSpeech(sink, "MZ", engine);
+    const urgent: Delivery = { urgency: "emergency", slower: false };
+    speech.say(["Mm-hm."], "en");
+    await settle();
+    requests[0].send();
+    requests[0].finish();
+    await settle();
+    speech.cutIn(["Leave now."], "en", urgent);
+    await settle();
+    assert.deepEqual(requests.map((request) => request.delivery), [ROUTINE, urgent]);
   });
 });

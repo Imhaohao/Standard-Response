@@ -1,12 +1,13 @@
 import type WebSocket from "ws";
 import type { Language } from "../agent/script";
 import { Speaker } from "./cartesia";
+import { Delivery, ROUTINE } from "./delivery";
 
 // The agent's mouth on one Twilio call. Turns play in order; each is sent to Cartesia only after the
 // previous one finished generating, so a status change can cut in between turns and a barge-in can
 // drop everything not yet heard.
 
-type Queued = { text: string; language: Language; onStart?: () => void };
+type Queued = { text: string; language: Language; delivery: Delivery; onStart?: () => void };
 
 const NO_SPACE_BETWEEN_SENTENCES = new Set<Language>(["zh", "ja"]);
 
@@ -38,16 +39,17 @@ export class CallSpeech {
 
   // One turn is one Cartesia request, so intonation carries across its sentences instead of
   // resetting at every full stop. A barge-in still cancels it at once; a status cut-in waits for it.
-  say(sentences: string[], language: Language, onFirstAudio?: () => void) {
+  // delivery: how urgently Sonic says it (delivery.ts); routine-calm unless the caller says otherwise.
+  say(sentences: string[], language: Language, onFirstAudio?: () => void, delivery: Delivery = ROUTINE) {
     const text = sentences.filter((sentence) => sentence !== "").join(NO_SPACE_BETWEEN_SENTENCES.has(language) ? "" : " ");
-    if (text !== "") this.queue.push({ text, language, onStart: onFirstAudio });
+    if (text !== "") this.queue.push({ text, language, delivery, onStart: onFirstAudio });
     void this.drain();
   }
 
   // A status update: finish the turn that's playing, drop the rest, then say this.
-  cutIn(sentences: string[], language: Language) {
+  cutIn(sentences: string[], language: Language, delivery: Delivery = ROUTINE) {
     this.queue = [];
-    this.say(sentences, language);
+    this.say(sentences, language, undefined, delivery);
   }
 
   // The resident started talking: stop audio now and forget anything unsaid.
@@ -102,7 +104,7 @@ export class CallSpeech {
           item.onStart?.();
         }
         this.send({ event: "media", streamSid: this.streamSid, media: { payload: audio } });
-      });
+      }, item.delivery);
       // A barge-in while the request was on its way: this sentence must not play.
       if (this.current !== current) return this.speaker.cancel(contextId);
       current.contextId = contextId;

@@ -117,4 +117,5 @@ export const JA: Lines = {
   },
   enRoute: (driverName, eta) => `${driverName}さんが、今そちらに向かっています。約${eta}の距離です。状況が変わったら、またお電話します。`,
   arrived: (shelterName) => `運転手がご自宅に着きました。${shelterName ? `行き先は${shelterName}です。` : ""}`,
+  apologyAfterCutOff: "失礼しました。",
 };

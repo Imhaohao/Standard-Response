@@ -122,4 +122,7 @@ export type Lines = {
   accepted: (vehicle: string, crew: string, eta: string, driverName: string) => string;
   enRoute: (driverName: string, eta: string) => string;
   arrived: (shelterName?: string) => string;
+  // Opens the agent's next turn after the resident really talked over it, never in front of an
+  // emergency or safety line. Short, since it rides in the same request as the answer.
+  apologyAfterCutOff: string;
 };

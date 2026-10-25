@@ -113,4 +113,5 @@ export const ES: Lines = {
     `${capitalized(`${vehicle}${crew} está a ${eta}.`)} El conductor se llama ${driverName}. Le llamaré otra vez si algo cambia.`,
   enRoute: (driverName, eta) => `${driverName} va manejando hacia usted, a unos ${eta}. Le llamaré otra vez si algo cambia.`,
   arrived: (shelterName) => `Su conductor ya está en su casa.${shelterName ? ` Van a ${shelterName}.` : ""}`,
+  apologyAfterCutOff: "Perdón.",
 };

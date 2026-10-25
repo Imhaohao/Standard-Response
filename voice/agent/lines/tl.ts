@@ -113,4 +113,5 @@ export const TL: Lines = {
   enRoute: (driverName, eta) =>
     `Papunta na po sa inyo si ${driverName}, mga ${eta} ang layo. Tatawag po akong muli kung may magbago.`,
   arrived: (shelterName) => `Nasa bahay na po ninyo ang driver ninyo.${shelterName ? ` Pupunta po kayo sa ${shelterName}.` : ""}`,
+  apologyAfterCutOff: "Pasensya na po.",
 };

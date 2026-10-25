@@ -103,6 +103,9 @@ export type AgentTurn = {
   transfer?: { line: string; language: Language };
   // The resident asked for a moment, so the phone call waits longer before checking in.
   givesTime?: boolean;
+  // How the phone voice should say this turn: urgently when a medical emergency or flames were
+  // raised this turn, slower when the resident asked to hear it again.
+  deliveryCue?: { emergency: boolean; slower: boolean };
 };
 
 export type ConversationOptions = {
@@ -338,7 +341,8 @@ export class Conversation {
     const lines = [...greeting, ...feeling, ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
-    return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime };
+    const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
+    return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
   }
 
   private freshReply(text: string) {
