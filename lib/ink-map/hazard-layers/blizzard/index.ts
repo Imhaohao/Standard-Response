@@ -116,7 +116,7 @@ class BlizzardLayer implements HazardLayer {
     this.blur = context.fullscreen(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
     this.storm.tGlow.value = this.glowTargets[2].texture;
     this.atmosphere = context.fullscreen(ATMOSPHERE_FRAGMENT, {
-      ...this.pick("tBase", "tId", "tBuildingState", "uResolution", "uPixelRatio", "uPaper", "uInk", "uRed", "uEmber", "uPulse"),
+      ...this.pick("tBase", "tId", "tBuildingState", "uResolution", "uPixelRatio", "uViewMpp", "uPaper", "uInk", "uRed", "uEmber", "uPulse"),
       ...this.ownUniforms("uSnow", "uWhiteout", "uSnowfall", "uDaylight", "uSlant", "uWindScreen", "uVeilTravel", "uStreakTravel", "tGlow"),
     });
   }

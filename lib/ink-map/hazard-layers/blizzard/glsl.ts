@@ -277,6 +277,7 @@ uniform vec2 uWindScreen;
 // How far the gusts and the driving snow have travelled, summed frame by frame on the CPU, so a
 // change in the wind turns them instead of throwing them across the screen.
 uniform vec2 uVeilTravel;
+uniform float uViewMpp;
 uniform float uStreakTravel;
 
 const float NIGHT_SKY = 0.18;
@@ -298,7 +299,13 @@ float gustVeil() {
   vec2 p = vec2(dot(screen, uWindScreen) * 0.75, dot(screen, across) * 0.35);
   float broad = valueNoise(p * 1.3 + vec2(0.0, 3.0)) * 0.7 + valueNoise(p * 2.7 + 11.0) * 0.3;
   float gust = smoothstep(0.38, 0.62, broad);
-  return mix(0.08, 0.35, gust) * storm();
+  return mix(0.04, 0.45, gust) * storm();
+}
+
+// 0 close up, 1 at town scale: a still of the whole town is seen small (on a phone, half size), so
+// there the driving snow is drawn wider and its shadow stronger to read at all.
+float townScale() {
+  return smoothstep(1.5, 4.0, uViewMpp);
 }
 
 vec2 fallDirection() {
@@ -313,7 +320,7 @@ vec2 streakLayer(vec2 frag, vec4 shape, float density, float seed) {
   float frame = uResolution.y;
   float lane = shape.x * frame;
   float streakLength = shape.y * frame;
-  float width = max(shape.z * frame, 0.8 * uPixelRatio);
+  float width = max(shape.z * frame * mix(1.0, 2.4, townScale()), 0.8 * uPixelRatio);
   vec2 dir = fallDirection();
   vec2 across = vec2(-dir.y, dir.x);
   float a = dot(frag, across) / lane;
@@ -353,8 +360,8 @@ vec3 drivingSnow(vec3 color) {
   vec2 far = streakLayer(frag, vec4(0.005, 0.035, 0.0009, 0.55), 0.4 * blowing, 1.0);
   vec2 middle = streakLayer(frag, vec4(0.011, 0.075, 0.0014, 0.9), 0.36 * blowing, 7.0);
   vec2 near = streakLayer(frag, vec4(0.024, 0.15, 0.002, 1.4), 0.3 * blowing, 13.0);
-  vec2 streak = max(max(far * 0.45, middle * 0.55), near * 0.65);
-  color = mix(color, mix(uSnow, uInk, 0.4), streak.y * 0.08);
+  vec2 streak = max(max(far * 0.5, middle * 0.7), near * 0.85);
+  color = mix(color, mix(uSnow, uInk, 0.4), streak.y * mix(0.1, 0.32, townScale()));
   color = mix(color, uSnow, streak.x);
   return mix(color, uSnow, grain(frag, 0.12 * blowing) * 0.55);
 }
