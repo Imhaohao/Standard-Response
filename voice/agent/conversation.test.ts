@@ -511,6 +511,46 @@ describe("speech the agent can't read", () => {
     assert.ok(escalations.includes("language_barrier"));
   });
 
+  it("hands a caller who can't hear us to a person after three repeat requests in a row", () => {
+    const { conversation, escalations } = call();
+    conversation.respond("What? I can't hear you.", heard({ wantsRepeat: true }));
+    conversation.respond("What?", heard({ wantsRepeat: true }));
+    const third = conversation.respond("Sorry, what was that?", heard({ wantsRepeat: true }));
+    assert.ok(third.done);
+    assert.ok(escalations.includes("language_barrier"));
+  });
+
+  it("starts the repeat count over after an answer, and never counts repeats on hold", () => {
+    const { conversation, escalations } = call();
+    conversation.respond("What?", heard({ wantsRepeat: true }));
+    conversation.respond("What?", heard({ wantsRepeat: true }));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("What?", heard({ wantsRepeat: true }));
+    assert.ok(!conversation.done);
+    const holding = atHold().conversation;
+    for (let i = 0; i < 3; i++) holding.respond("What?", heard({ wantsRepeat: true }));
+    assert.ok(!holding.done);
+    assert.deepEqual(escalations, []);
+  });
+
+  it("counts a language guessed from garbled words as a try, so the call still reaches a person in three turns", () => {
+    const { conversation, escalations } = call();
+    conversation.respond("Well ting boo dung.", heard({ mistranscribed: true }));
+    const switched = conversation.respond("Knee shoe Sher ma?", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    assert.equal(switched.transfer?.language, "en");
+    const third = conversation.respond("Ching jow run bang wall.", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    assert.ok(third.done);
+    assert.ok(escalations.includes("language_barrier"));
+  });
+
+  it("starts over when a rehearing confirms the language", () => {
+    const { conversation } = call();
+    conversation.respond("Well ting boo dung.", heard({ mistranscribed: true }));
+    conversation.respond("What she would shout, Jonguen.", heard({ mistranscribed: true, spokenLanguage: "zh", heardAs: "我只会说中文" }));
+    conversation.respond("嗯？", heard({ mistranscribed: true, spokenLanguage: "zh" }));
+    assert.ok(!conversation.done);
+  });
+
   it("still ignores talk in the call language that wasn't meant for the agent", () => {
     const { conversation } = call();
     assert.ok(conversation.respond("Turn the TV down!", heard({ addressedToAgent: false })).ignored);

@@ -141,6 +141,8 @@ const MAX_READBACKS = 3;
 // Turns in a row where nothing usable was heard before the call goes to a person.
 const MAX_MISSED_TURNS = 3;
 const MAX_UNKNOWN_LANGUAGE_TURNS = 2;
+// "Say that again?" this many times in a row before hold, and the call goes to a person.
+const MAX_REPEATS_IN_A_ROW = 3;
 // Quiet check-ins in a row before the call ends and the reach ladder calls back.
 const MAX_QUIET_CHECK_INS = 2;
 // Quiet stretches in a row on hold before the goodbye. Status changes still reach them by callback.
@@ -186,6 +188,7 @@ export class Conversation {
   private readbacks = 0;
   private missedTurns = 0;
   private unknownLanguageTurns = 0;
+  private repeatsInARow = 0;
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
   private changesThisTurn: AgentRecord = {};
@@ -317,9 +320,9 @@ export class Conversation {
 
   private answer(heard: Interpretation): AgentTurn {
     const previousLanguage = this.language;
-    const switched = this.switchLanguageIfNeeded(heard.spokenLanguage);
+    const switched = this.switchLanguageIfNeeded(heard.spokenLanguage, guessedLanguage(heard));
     const transfer = switched ? { line: LINES[previousLanguage].transferOut, language: previousLanguage } : undefined;
-    if (!switched && this.shouldHandOff(heard)) return this.handOffToPerson();
+    if (switched ? this.missedTurns >= MAX_MISSED_TURNS : this.shouldHandOff(heard)) return this.handOffToPerson();
     if (heard.spokenLanguage === "other") return this.say("", [LINES[this.language].repeatPrompt], false);
     this.changedThisTurn = false;
     this.changesThisTurn = {};
@@ -730,14 +733,19 @@ export class Conversation {
     // Neither is "say that again?", which shows they're following along in a language we speak.
     const missed = spoken === "other" || (heardNothing(heard) && !this.holding && !heard.wantsRepeat);
     this.missedTurns = missed ? this.missedTurns + 1 : 0;
-    return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS;
+    // "What? I can't hear you." over and over: each one shows they're trying, but the line isn't
+    // working, and a caller who can't hear us was asked the same question forever.
+    this.repeatsInARow = heard.wantsRepeat && !this.holding ? this.repeatsInARow + 1 : 0;
+    return this.unknownLanguageTurns >= MAX_UNKNOWN_LANGUAGE_TURNS || this.missedTurns >= MAX_MISSED_TURNS || this.repeatsInARow >= MAX_REPEATS_IN_A_ROW;
   }
 
   // Switching to a language we speak is progress, not a missed turn, so the hand-off counters reset.
-  private switchLanguageIfNeeded(spoken: Interpretation["spokenLanguage"]) {
+  // A language Claude guessed from words that made no sense is a try, not progress: garbled callers
+  // were switched to Chinese, then Korean, and each switch started the count again.
+  private switchLanguageIfNeeded(spoken: Interpretation["spokenLanguage"], guessed = false) {
     if (!canSpeak(spoken) || spoken === this.language) return false;
     this.language = spoken;
-    this.missedTurns = 0;
+    this.missedTurns = guessed ? this.missedTurns + 1 : 0;
     this.unknownLanguageTurns = 0;
     this.effects.updateRecord({ language: spoken }, {});
     return true;
@@ -1259,6 +1267,9 @@ export type Rehear = () => Promise<Rehearing[]>;
 
 // Speech-to-text only writes the languages it listens for, so a resident speaking any other comes
 // through as nonsense in the call language's words or script.
+// The language was read off a transcript that made no sense, with no rehearing to confirm it.
+const guessedLanguage = (heard: Interpretation) => heard.mistranscribed === true && heard.heardAs === undefined;
+
 const mayBeAnotherLanguage = (heard: Interpretation) => heard.mistranscribed === true || heard.spokenLanguage === "other";
 
 // The turn read as nonsense: its audio is transcribed again in the languages the live speech-to-text
