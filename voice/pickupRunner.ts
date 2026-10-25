@@ -7,6 +7,7 @@ import { convex, logSubscriptionError } from "./convex";
 import { mayDial } from "./env";
 import { CallEnded, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/twilio";
+import { simTime } from "../lib/sim-clock";
 
 // Places the pickup check's real calls, so both sides confirm a pickup and hear when it changes:
 //   1. a plan in `checking`: the helper is asked whether they can go, and roughly when;
@@ -108,7 +109,8 @@ export function startPickupRunner() {
 
   function tick() {
     if (!control?.dialerRunning) return;
-    const now = Date.now();
+    // Attempts and ETAs are stored on the night's clock, which can run ahead of the wall clock.
+    const now = simTime(control.clock, Date.now());
     for (const plan of queue) {
       if (active.has(plan._id)) continue;
       const due = dueCall(plan, now, (householdId) => liveByHousehold.has(householdId));

@@ -110,3 +110,12 @@ The Ready call now confirms a helper who's already on file instead of asking fro
 - `readyCall.ts`: when the resident's exit plan is `helper` and they give no number, and they name nobody or the same first name, the call reads the helper back with the new line `confirmHelperOnFile` ("We have David at 4 2 5, ... down to pick you up. Is that still right?"). It's in English and Spanish, like the rest of the Ready lines. A "no" asks for the number again, the same as `rejectPhone`. A new name asks for that person's number, and `needs_ride` or `own_car` still drops the helper.
 - Tests are in `planCheck.test.ts` ("with a helper already on file") and `tests/workflow/realPickupFlow.test.ts`. `npm run test:voice` passes (191).
 - I'm deploying Convex and then Fly from a clean copy of `main`.
+
+## 2026-10-24 19:25
+
+Two night-clock bugs in the pickup calls, both in your voice code:
+
+- `outboundFlows.ts` worked out the helper's ETA with `minutesUntil(plan.helperEtaAt)` against `Date.now()`. `helperEtaAt` is on the night's clock, which tonight ran about 13 hours ahead of the wall clock, so Jerry heard that David would arrive in about 800 minutes. The ETA now uses `simTime(control.clock, Date.now())`, and `minutesUntil` takes `now` with no default.
+- `pickupRunner.ts` `tick` compared `lastAttemptAt` and `helperEtaAt` (both night-clock) with `Date.now()`. A missed pickup call was never retried, and the "were you picked up?" call never came due. `now` is now the night's time from the `control.clock` it already subscribes to.
+- `voice/Dockerfile` copies `lib/sim-clock.ts`, the one helper both use.
+- `npm run test:voice` passes (191).

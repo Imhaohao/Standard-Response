@@ -207,7 +207,7 @@ describe("pickup check, resident call", () => {
   it("gives the same notice in Spanish, and without minutes when the helper gave none", () => {
     assert.match(helperOnTheWayLine("es", "Ana", 1), /Ana dice que puede pasar por usted en 1 minuto\./);
     assert.match(helperOnTheWayLine("en", "the neighbor at 1190 Mariposa St", undefined), /^The neighbor at 1190 Mariposa St says they can pick you up soon\./);
-    assert.equal(minutesUntil(undefined), undefined);
+    assert.equal(minutesUntil(undefined, 0), undefined);
     assert.equal(minutesUntil(10_000, 0), 1);
     assert.equal(minutesUntil(600_000, 0), 10);
   });

@@ -7,6 +7,7 @@ import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
 import { convex, fireAndForget } from "../convex";
 import type { CallMode, StreamParameters } from "./twilio";
+import { simTime } from "../../lib/sim-clock";
 
 // The two short outbound calls that aren't the evening survey: the pickup check (plan_check) and the
 // Ready check census (ready). Neither creates a `calls` row; the Convex mutations log to `events`.
@@ -42,7 +43,7 @@ function planEffects(planId: Id<"pickupPlans">, role: PlanRole, purpose: PlanPur
 
 async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
   const role = params.role ?? "helper";
-  const plan = await planRow(params.planId ?? "");
+  const [plan, control] = await Promise.all([planRow(params.planId ?? ""), convex().query(api.control.get, {})]);
   const purpose = purposeOf(params.purpose);
   const notice = role === "helper" ? plan.helperNotice : plan.residentNotice;
   if (purpose === "notice" && !notice) throw new Error(`Pickup plan ${plan._id} owes the ${role} no update now`);
@@ -57,7 +58,7 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     recruited: plan.recruited,
     needs: { mobility: plan.mobility, assistance: plan.assistanceRequired, oxygen: plan.oxygen },
     purpose,
-    minutes: minutesUntil(plan.helperEtaAt),
+    minutes: minutesUntil(plan.helperEtaAt, simTime(control.clock, Date.now())),
     notice,
     effects: planEffects(plan._id, role, purpose, plan.householdId),
   });

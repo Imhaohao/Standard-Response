@@ -172,7 +172,8 @@ const possessive = (name: string) => `${name}${name.endsWith("s") ? "'" : "'s"}`
 export const planCheckLanguage = (language: Language): Language => (PLAN_CHECK_LINES[language] ? language : "en");
 
 // Whole minutes until the helper's ETA, at least 1, for the resident's notice.
-export const minutesUntil = (at: number | undefined, now = Date.now()) => (at === undefined ? undefined : Math.max(1, Math.round((at - now) / 60_000)));
+// `now` is on the night's clock (lib/sim-clock.ts), the clock `at` was stored on.
+export const minutesUntil = (at: number | undefined, now: number) => (at === undefined ? undefined : Math.max(1, Math.round((at - now) / 60_000)));
 
 // The same notice, said into a call the resident is already on.
 export function helperOnTheWayLine(language: Language, helperName: string, minutes: number | undefined, helperPhone?: string) {
