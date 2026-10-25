@@ -99,15 +99,22 @@ export type Guidance = {
   moments: { text: string; reading: string }[];
 };
 
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
 // Rendered into the interpreter's per-turn prompt, after the cached system prompt.
 export function guidanceText(guidance: Guidance | null): string {
   if (!guidance) return "";
   const principles = guidance.principles.map((card) =>
-    card.situation === card.guidance ? `- ${card.principle}: ${card.guidance}` : `- ${card.principle}: ${card.situation} ${card.guidance}`,
+    card.situation === card.guidance ? `- ${card.principle}: ${card.guidance}` : `- ${card.principle}: When ${lowerFirst(card.situation)} ${card.guidance}`,
   );
   const moments = guidance.moments.map((moment) => `${moment.text}\nReading: ${moment.reading}`);
   return [
-    principles.length ? `Principles that fit this moment:\n${principles.join("\n")}` : "",
+    // "We need to know where that fire is" retrieved the card for fire in the yard next to the house,
+    // headed "Principles that fit this moment", and Haiku raised flames on 6 of 8 readings. Retrieval
+    // matches words, not situations, so each card says when it applies.
+    principles.length
+      ? `Principles for moments like this one, found by similar words. Each is for the situation it names; follow one only when this resident's own words describe that situation:\n${principles.join("\n")}`
+      : "",
     moments.length
       ? `Similar moments from the 911 dialog bank, with the reading a careful call-taker gave. They are other callers: read only what this resident said. They show how to read answers to the agent's questions, and none of those callers asked one of their own, so a field a reading leaves out says nothing about this resident: set policy_question from this resident's words alone.\n${moments.join("\n\n")}`
       : "",
