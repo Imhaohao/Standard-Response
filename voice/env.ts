@@ -58,7 +58,7 @@ export const env = {
   // BITDEER_API_KEY the backup is off and a Claude outage behaves as it always did.
   bitdeer: {
     apiKey: () => process.env.BITDEER_API_KEY ?? "",
-    model: () => optional("BITDEER_MODEL", "deepseek-ai/DeepSeek-V4.1-Flash"),
+    model: () => optional("BITDEER_MODEL", "Qwen/Qwen3.8-27B"),
     baseUrl: () => optional("BITDEER_BASE_URL", "https://api-inference.bitdeer.ai/v1").replace(/\/$/, ""),
     // A Claude request slower than this also goes to Bitdeer; whichever answers first is used.
     fallbackAfterMs: () => numberFrom("FALLBACK_AFTER_MS", 4000),

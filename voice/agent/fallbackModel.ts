@@ -38,6 +38,9 @@ function bodyFor(request: FallbackRequest) {
     max_tokens: request.maxTokens,
     temperature: 0,
     response_format: { type: "json_object" },
+    // Bitdeer's models think before answering by default, which costs a phone turn about a second
+    // (and can spend the whole token budget); switched off, Qwen3.8-27B answers in about 0.5 s.
+    chat_template_kwargs: { enable_thinking: false, thinking: false },
     messages: [
       { role: "system", content: `${request.system}\n\n${schemaRule}` },
       { role: "user", content: request.user },
@@ -48,7 +51,8 @@ function bodyFor(request: FallbackRequest) {
 export async function askBitdeer(request: FallbackRequest, fetchImpl: FetchLike = fetch): Promise<string> {
   const response = await fetchImpl(`${env.bitdeer.baseUrl()}/chat/completions`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${env.bitdeer.apiKey()}` },
+    // Bitdeer's firewall refuses some default client user agents with a 403.
+    headers: { "content-type": "application/json", authorization: `Bearer ${env.bitdeer.apiKey()}`, "user-agent": "standard-response-voice/1.0" },
     body: JSON.stringify(bodyFor(request)),
     signal: AbortSignal.timeout(BITDEER_TIMEOUT_MS),
   });
