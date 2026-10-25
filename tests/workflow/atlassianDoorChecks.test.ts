@@ -110,6 +110,16 @@ describe("POST /agent/door-checks", () => {
     ]);
   });
 
+  test("a closed incident sends no homes and tells the app to delete its issues", async () => {
+    const t = setup();
+    await addHome(t, {});
+    await t.run(async (ctx) => {
+      await ctx.db.insert("control", { dialerRunning: false, maxConcurrentCalls: 6, simulateVoice: true, simulateNeedModel: true, simulateDispatch: true, simulateDrivers: true, autoApprove: false, tickGeneration: 0, incidentClosedAt: 1 } as never);
+    });
+    const answer = await (await post(t, {})).json();
+    expect(answer).toEqual({ queue: [], resolved: [], incidentClosed: true });
+  });
+
   test("a malformed body gets 400", async () => {
     const t = setup();
     expect((await post(t, { limit: "ten" })).status).toBe(400);

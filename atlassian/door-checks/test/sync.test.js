@@ -40,6 +40,7 @@ function fakeJira(seed = []) {
     transition: async (key, category) => {
       issues.get(key).statusCategory = category;
     },
+    deleteIssue: async (key) => issues.delete(key),
   };
 }
 
@@ -142,4 +143,12 @@ test("the Rovo answer lists matching homes in rank order, at most five", () => {
   assert.equal(lines.length, 5);
   assert.match(lines[0], /^#1 h0 Mariposa St/);
   assert.match(urgentAnswer(queue, "Nowhere"), /No unreached homes match/);
+});
+
+test("a closed incident deletes every door-check issue, open or done, and creates none", async () => {
+  const jira = fakeJira([existingIssue(1), existingIssue(2, { statusCategory: "done" })]);
+  const result = await runSync({ jira, config, fetchQueue: async () => ({ queue: [item("h3")], resolved: [], incidentClosed: true }) });
+  assert.equal(jira.issues.size, 0);
+  assert.equal(result.deleted, 2);
+  assert.deepEqual(result.failures, []);
 });

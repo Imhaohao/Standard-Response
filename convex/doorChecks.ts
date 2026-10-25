@@ -38,6 +38,9 @@ export const queue = query({
 export const forFieldCrews = internalQuery({
   args: { limit: v.number(), reportOn: v.array(v.string()) },
   handler: async (ctx, { limit, reportOn }) => {
+    // Once the incident closes, crews get nothing more, and the app deletes every issue it made.
+    const control = await ctx.db.query("control").first();
+    if (control?.incidentClosedAt) return { queue: [], resolved: [], incidentClosed: true };
     const ranked = await rankedDoorChecks(ctx, limit);
     const queue = ranked.map(({ home }, index) => toDoorCheckItem(home, index + 1));
     const queued = new Set(queue.map((item) => item.householdId));
@@ -47,6 +50,6 @@ export const forFieldCrews = internalQuery({
       const home = householdId ? await ctx.db.get("households", householdId) : null;
       resolved.push({ householdId: id, status: resolvedStatusFor(home) });
     }
-    return { queue, resolved };
+    return { queue, resolved, incidentClosed: false };
   },
 });

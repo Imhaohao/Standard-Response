@@ -63,4 +63,6 @@ async function transition(key, targetCategory) {
   await call(send(route`/rest/api/3/issue/${key}/transitions`, "POST", { transition: { id: match.id } }), [204]);
 }
 
-export const jira = { findDoorCheckIssues, createIssue, updateIssue, addComment, transition };
+const deleteIssue = (key) => call(send(route`/rest/api/3/issue/${key}`, "DELETE"), [204]);
+
+export const jira = { findDoorCheckIssues, createIssue, updateIssue, addComment, transition, deleteIssue };
