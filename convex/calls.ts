@@ -221,6 +221,25 @@ export const end = mutation({
   },
 });
 
+// Voice server boot: the process before it held every real call and died without ending them, so a
+// call still live from before the boot was dropped. Ringing calls are left to the carrier's status
+// webhook, which still reports them; simulated calls never ran on the server.
+export const endDropped = mutation({
+  args: { bootedAt: v.number() },
+  returns: v.number(),
+  handler: async (ctx, { bootedAt }) => {
+    const live = await ctx.db.query("calls").withIndex("by_phase", (q) => q.eq("phase", "live")).take(50);
+    const dropped = live.filter((call) => !call.simulated && call._creationTime < bootedAt);
+    for (const call of dropped) await endCall(ctx, call._id, await residentSpoke(ctx, call._id));
+    return dropped.length;
+  },
+});
+
+async function residentSpoke(ctx: MutationCtx, callId: Id<"calls">) {
+  const lines = await ctx.db.query("transcriptLines").withIndex("by_callId", (q) => q.eq("callId", callId)).take(500);
+  return lines.some((line) => line.speaker === "resident");
+}
+
 // Text handler: a resident replied, or nobody did and the home goes on the door-check list.
 export const resolveFollowUp = mutation({
   args: { householdId: v.id("households"), result: v.union(v.literal("replied"), v.literal("door_check")) },

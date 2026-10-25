@@ -7,10 +7,11 @@ import { startDialer } from "./dialer";
 import { startPickupRunner } from "./pickupRunner";
 import { startHangUpRunner } from "./hangUpRunner";
 import { startReadyDialer } from "./readyDialer";
+import { fireAndForget } from "./convex";
 import { env } from "./env";
 import { watchHazard } from "./hazard";
 import { handleMediaStream } from "./phone/callSession";
-import { reportUnreached } from "./phone/callStatus";
+import { endDroppedCalls, reportUnreached } from "./phone/callStatus";
 import { chatSession, handleCartesiaSocket } from "./phone/cartesiaCalls";
 import { liveByCallSid, startDraining, streamedCallSids } from "./phone/registry";
 import { signatureIsValid, streamTwiml } from "./phone/twilio";
@@ -121,11 +122,14 @@ async function drainThenExit(signal: string) {
 process.once("SIGINT", () => void drainThenExit("SIGINT"));
 process.once("SIGTERM", () => void drainThenExit("SIGTERM"));
 
+const bootedAt = Date.now();
+
 server.listen(env.port, () => {
   console.log(`[voice] listening on :${env.port}, calls on ${env.carrier}`);
   watchHazard();
   void loadApprovedAnswers();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
+  fireAndForget("calls.endDropped", endDroppedCalls(bootedAt));
   startDialer();
   startCallPlanRunner();
   startCallbackRunner();

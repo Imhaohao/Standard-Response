@@ -36,6 +36,14 @@ export function unreachedCall(query: URLSearchParams, streamed: boolean): CallEn
   };
 }
 
+// A restart drops every call this process held without ending it, which left Jerry's call "live" on
+// the call floor after a deploy. Only the deployed server sweeps: a laptop's server would end Fly's calls.
+export async function endDroppedCalls(bootedAt: number) {
+  if (!process.env.FLY_APP_NAME) return;
+  const ended = await convex().mutation(api.calls.endDropped, { bootedAt });
+  if (ended > 0) console.log(`[voice] ended ${ended} call(s) the last restart dropped`);
+}
+
 // A call that never reached anyone: the dialer, the runners and the Ready dialer count the miss.
 export function reportUnreached(query: URLSearchParams, streamed: boolean) {
   const ended = unreachedCall(query, streamed);
