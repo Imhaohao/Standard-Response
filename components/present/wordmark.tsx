@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { PRODUCT_NAME, WORDMARK, WORDMARK_LAST_WORD } from "@/lib/brand";
 
-// The product mark at slide size: the ringing flame, then the name in Nexa Rust. Sized by the type class it
+// The product mark at slide size: the flame with a handset cut out, then the name in Nexa Rust. Sized by the type class it
 // carries. At display sizes the words stack and the mark grows to their height. `shared` gives the mark
 // and the last word layout ids, so the close can fly them in from where they first appeared.
 type WordmarkProps = { className: string; stacked?: boolean; shared?: boolean };
