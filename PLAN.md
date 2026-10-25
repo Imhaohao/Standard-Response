@@ -1,21 +1,14 @@
-# Cal Hacks 13.0 plan: Standard Response
+# Standard Response
 
-We connect an evacuation warning to a confirmed, needs-matched ride for people who can't leave on their own. Wildfire is the first demonstration.
-
-| | |
-| --- | --- |
-| Submissions close | Sun Oct 25, 8:50am Pacific |
-| Judging at our table | Sun Oct 25, 10:30am |
-| Closing ceremony | Sun Oct 25, 2pm |
-| Product name | Standard Response |
+We connect an evacuation warning to a confirmed, needs-matched ride for people who can't leave on their own. Wildfire is the default hazard, and the Eaton Fire is the scenario the app runs on.
 
 ## Summary
 
 **The question we answer.** An evacuation warning has gone out. Who still can't leave, and who has actually agreed to pick them up?
 
-**What we demo: Rider Check.** A paratransit agency loads its rider list and draws the warning zone. Our voice agent calls every rider inside it. Answers become dispatch requests, and an optimizer matches each one to a vehicle that can actually do the pickup (space and crew). A dispatcher approves, a driver accepts on their own phone, and only then does the rider get a call back.
+**Rider Check.** A paratransit agency loads its rider list and draws the warning zone. Our voice agent calls every rider inside it. Answers become dispatch requests, and an optimizer matches each one to a vehicle that can actually do the pickup (space and crew). A dispatcher approves, a driver accepts on their own phone, and only then does the rider get a call back.
 
-**The moment judges remember.** One rider's situation changes. The caller corrects an answer mid-call, and the pickup goes to a crew that can lift. The driver accepts. Then a road closes and the van can no longer reach the rider. The rider is told the truth right away, a stale offer from the old plan is rejected, and a new driver accepts.
+**The change moment.** One rider's situation changes. The caller corrects an answer mid-call, and the pickup goes to a crew that can lift. The driver accepts. Then a road closes and the van can no longer reach the rider. The rider is told the truth right away, a stale offer from the old plan is rejected, and a new driver accepts.
 
 **Before the night: Ready check.** Registries failed because nobody had the people to call through them when it counted. AI agents do. Ahead of any disaster, the agent calls every household (or the household signs up on its phone) and records who lives there, what help they need getting out, where they sleep, and who has agreed to pick them up. When a warning goes out, the agent calls every one of those helpers first. A pickup that isn't happening becomes a ride request at once, already filled in from the profile, and the rescue map shows it.
 
@@ -25,20 +18,18 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 
 **Proof standard.** We report dispatch gains against a competent heuristic on identical requests, separately from outreach gains. We report call accuracy per field and failure cases (cancellations, stale acceptances), not only reassurance pressure.
 
-**Where it goes next.** A supervised drill with fictional riders, then a shadow-mode trial alongside an agency's own dispatch. County mode (every household, an alert phone number, all vehicle types) is the roadmap, not the demo.
-
 **Core line.** "The vans were ready at 4am. The call came at 6:03. Nothing connected them."
 
 ## How we work together
 
-Nobody owns a piece of the app. Whoever finds something that needs fixing fixes it, wherever it is. The app has four parts, and each builds against the shared Convex contract and the stand-ins already in the repo. A part flips its stand-in to Real on the call floor once its own code writes.
+Nobody owns a piece of the app. Whoever finds something that needs fixing fixes it, wherever it is. The app has four parts, and each builds against the shared Convex contract. Each part's stand-in is a switch under Simulation settings on the call floor.
 
-| Part | Builds | Setup |
-| --- | --- | --- |
-| Interface | Every screen: call floor, rescue map, driver page, under-the-hood screen, simulated phone panel | None |
-| Voice and calls | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks | Twilio, Cartesia and Anthropic keys; hosting the call server |
-| Dispatch and simulator | Road graph, closures, the OR-Tools solver, the heuristic, vehicle movement, the simulator | The shared Convex cloud deployment; deploying the app; hosting the solver service |
-| Modeling and evaluation | Hazard scenario, door-check queue, address matching, synthetic population, persona cards, the persona eval and grader | None |
+| Part | Covers |
+| --- | --- |
+| Interface | Every screen: call floor, rescue map, driver page, under-the-hood screen, simulated phone panel |
+| Voice and calls | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks |
+| Dispatch and simulator | Road graph, closures, the solvers, the heuristic, vehicle movement, the simulator |
+| Modeling and evaluation | Hazard scenario, door-check queue, address matching, synthetic population, persona cards, the persona eval and grader |
 
 ### Rules for every agent and teammate
 
@@ -49,15 +40,13 @@ These are also in `AGENTS.md`, which every coding agent reads.
 3. **Talk through notes files.** `notes/boris-to-brendan.md` holds notes from Boris to Brendan, and so on for every pair; `notes/boris-to-everyone.md` is for the whole team. Only the sender writes their file. Add each note at the bottom under a timestamp heading. Reply in your own file to that person.
 4. **Tell readers before changing the contract** (see [Contract](#contract)). Write a note to everyone who reads the table before pushing the change, and keep old fields working until nothing reads them.
 5. **Secrets never go in git.** The shared env file (`CONVEX_URL`, `ANTHROPIC_API_KEY` and the rest) is pinned in the team chat. Save it locally as `.env.local`, which git ignores.
-6. **Stand-ins stay working.** Never break a stand-in someone is still building against. Turn it off with its switch instead of deleting it.
+6. **Stand-ins stay working.** Never break a stand-in someone is building against. Switch it off under Simulation settings instead of deleting it.
 
 ## The problem
 
 In every major disaster for 20 years, the people who die are disproportionately the ones who can't leave on their own, and nothing reliably connects them to the vehicles that could get them out.
 
 **Case study (Eaton Fire, January 2025).** A disabled father who used a wheelchair and his son with cerebral palsy lived in west Altadena. Relatives trying to reach them were turned away at the perimeter. The evacuation order for west Altadena came at 3:25am, and no warning preceded it. Access Services, the county's paratransit provider, said it was ready by 4am and was never called. The father called 911 at 6:03am and again at 6:14, and a relative called at 6:35. The dispatcher said "we have a lot of calls in that area." Both men were found dead around 8:30am. The son needed two or three people to get him out of bed.
-
-> **How we tell this story.** Say "a father and son," not their names. Present it as a coordination failure the reporting supports: vehicles were ready and nobody called. Don't imply our prototype would have saved them, or that reassurance alone explains why they stayed. Our early start is a counterfactual: "What if calls had started as soon as a warning covered their street?"
 
 | Disaster | Deaths | Who died |
 | --- | --- | --- |
@@ -73,34 +62,14 @@ In every major disaster for 20 years, the people who die are disproportionately 
 
 ## Positioning
 
-We are assisted evacuation coordination for people with access and functional needs (AFN), with wildfire as the first demonstration. Emergency managers use "AFN," and using it tells a public-safety judge we did our homework. Hurricanes and floods get one line in the close: the pipeline generalizes, but each hazard needs its own operating rules (days of warning and shelter-in-place calls for hurricanes, high-clearance vehicles for floods).
+We are assisted evacuation coordination for people with access and functional needs (AFN). Emergency managers use "AFN," and using it tells a public-safety judge we did our homework. The operator picks the hazard before the warning (wildfire, earthquake, flood or hurricane, in `convex/hazards.ts`), and the voice agent's safety line and emergency rule follow it.
 
-> **Say this.** "Disasters force about 26 million evacuations and displacements a year on average. A warning tells people to leave. It doesn't find out who can't, or confirm that the right vehicle is coming. Only 1 in 5 people with disabilities can evacuate right away without difficulty. We connect the warning to the ride."
-
-The 26 million is roughly the ten-year average of IDMC's disaster displacement count. 2025 had 29.9 million, 13% above that average, and 2024 had 45.8 million. It counts movements, not people, and most happen in Asia. Never put it next to a fire image: wildfires were about 694,000 of the 2025 total. If time is short, drop the global figure and lead with the 1-in-5 number and the Eaton Fire.
-
-**Never call our interface a command center or a dashboard.** It's the rescue map (and the call floor).
-
-### Nearby projects (team awareness only)
-
-Judges may have seen these two Berkeley hackathon projects. We never bring either up first.
-
-| | Orion (Cal Hacks 12) | FirstResponder Relay (UC Berkeley AI Hackathon, June 2026) | Us |
-| --- | --- | --- | --- |
-| Unit of work | A fire incident | An overflow 911 call | A person who can't get out, matched to a vehicle that can do the pickup |
-| Who it reaches | Nobody; commander-facing | Only people who call in | Every registered rider in the zone, by outbound call; silence goes to door checks |
-| After intake | Nearest station's units to a fire | A ranked list for the dispatcher | A compatible assignment, dispatcher approval, driver acceptance on the driver's phone |
-| When things change | Re-route units | Not addressed | Accepted runs stay put; offers are versioned; residents told right away |
-| What residents hear | Nothing | A calming reply right away | Nothing promised until a driver accepts; told immediately if that changes |
-
-If a judge brings one up: "They help responders see the fire or hear the calls that come in. We find the riders who never call, put them on a vehicle that can actually lift them, and only tell them help is coming once a driver has said yes."
-
-## What we're building
+## What the system does
 
 One rider's path, from the moment a warning covers their street to the moment they hear who's coming, and what happens when that changes.
 
 1. **Load and target.** The agency uploads its rider list (CSV) with mobility needs already on file. A dispatcher draws the warning zone. Riders inside it enter the call queue, ordered by deadline and known need.
-2. **Have a real conversation.** The agent confirms rather than interrogates: are you still at this address, can you leave now, who's with you, has anything changed about mobility or medical needs, and how much help do you need getting out ("two people to lift"). It fills a structured record during the call and reads it back. English and Spanish work end to end. Before hanging up, it asks: "Is there anyone else on your street who might not be able to leave?"
+2. **Have a real conversation.** The agent confirms rather than interrogates: are you still at this address, can you leave now, who's with you, has anything changed about mobility or medical needs, and how much help do you need getting out ("two people to lift"). It fills a structured record during the call and reads it back. Before hanging up, it asks: "Is there anyone else on your street who might not be able to leave?"
 3. **Handle corrections.** "My husband uses a wheelchair, but he isn't here" has to remove a wheelchair need already recorded, and the change has to reach any open offer. Corrections are tested, measured and shown live.
 4. **Never treat silence as safe.** No answer means a retry at 2 and 5 minutes, then a text, then the door-check queue for field teams.
 5. **Plan pickups that can actually happen.** The optimizer matches each request to a vehicle with the right space (seat, wheelchair, stretcher) and the right crew (lift-capable, enough people) before the scenario deadline.
@@ -133,9 +102,9 @@ received ──approve──► approved ──(offer open)──► driver acce
 
 - The order is always: dispatcher approves, the driver is offered the assignment, the driver accepts, then the callback fires. Approval never triggers a callback.
 - A rider is only ever called about a driver who accepted. An open offer that is declined, expires or is replaced by a new plan sends the request back to `received` with no call, because the rider never heard about that driver.
-- **Hard escalations.** An address the agent can't confirm after two tries, a medical emergency, or "I can see flames" sends the record red to the top of the dispatcher's list, and the agent tells the caller to call 911 if they can. Nobody is just handed back to the line that failed the father and son. Disability advocates review the "if you can leave safely, leave now" script, because it has to work for people who can't.
-- **Red-team set.** 25 callers who push for reassurance, plus 10 change cases: a driver cancels, a road closes after acceptance, a stale acceptance of a replaced offer, duplicate events, and a status change while the agent is mid-sentence.
-- **Two honesty numbers.** Template-level false promises are zero by construction, so we also measure what can fail. A separate grader model scores how often Claude's free text implies help is coming while status is `received` or `reassigning`, with a human spot check. We also report time from revocation to callback placed and from revocation to template played.
+- **Hard escalations.** An address the agent can't confirm after two tries, a medical emergency, or "I can see flames" sends the record red to the top of the dispatcher's list, and the agent tells the caller to call 911 if they can. Nobody is just handed back to the line that failed the father and son.
+- **Red-team set.** 25 callers who push for reassurance, each with the ride pinned at `received` and at `reassigning`, plus 10 change cases: a driver cancels, a road closes after acceptance, a stale acceptance of a replaced offer, duplicate accepts and cancels, a silent decline, a silent expiry, corrections that drop an open offer or revoke an accepted one, and a status change while the agent is mid-sentence (`data/redteam-change-cases.json`).
+- **Two honesty numbers.** Template-level false promises are zero by construction, so we also measure what can fail. A separate grader model scores how often Claude's free text implies help is coming while status is `received` or `reassigning`, with a human spot-check sheet (`data/honesty-spot-check.csv`). The under-the-hood screen also shows the time from each callback being queued to its template playing.
 
 ## Ready check and pickup check
 
@@ -166,7 +135,7 @@ arranged ──warning──► checking ──helper says yes──► coming �
 - **The helper is called first,** then the resident once the helper's ETA has passed. Nobody waits on a broken promise: 8 minutes without a yes counts as fell through.
 - **No double booking.** While a pickup is `checking` or `coming`, `syncRequest` opens no ride request for that home. Once it falls through, the request opens immediately, needs already filled in from the profile.
 - **What the resident hears doesn't change.** A fallen-through pickup is a normal ride request, so the honesty table above still governs every word.
-- **On the rescue map,** a helper who lives nearby is an ink arc from their home to the resident's: dotted while we call, solid with moving ticks once they're coming. If the pickup falls through, the arc breaks in red and the home becomes a red ride request. Clicking any home opens its profile card, which a firefighter reads before going in.
+- **On the rescue map,** a helper's pickup is drawn along the streets they drive from their home to the resident's: dotted while it's only on file, marching while we call, and solid once they're coming. If the pickup falls through, the line breaks in red and the home becomes a red ride request. Clicking any home opens its profile card, which a firefighter reads before going in.
 
 ## Contract
 
@@ -189,8 +158,8 @@ One real-time database (Convex) that every part of the app reads and writes. Nob
 | `callbacks` | `offers.ts` queues; the voice server calls `callbacks:markPlaced`, `markPlayed`, `markUnanswered` | interface, voice |
 | `roadClosures` | The hazard runner, the manual control, resident mentions on calls and driver reports, through `roads:addClosures` | everything |
 | `nominations` | The voice agent (`nominations:add`), address matching (`nominations:resolve`) | interface |
-| `personas` | Seed and the evals only | Stand-ins and the evals. Real agents must never read it |
-| `households.ready` (the Ready check profile: `at`, `via`, `exitPlan`, `bedroom`, `care`, `note`) | The interface (`ready:submit`), the Ready check stand-in, the voice agent (`ready:saveFromCall`) | everything |
+| `personas` | Seed and the evals only | Stand-ins, the evals, and the judge kiosk's starting record for a demo house (`claims:draft`). The voice agent and the models never read it |
+| `households.ready` (the Ready check profile: `at`, `via`, `verified`, `exitPlan`, `bedroom`, `care`, `note`) | The interface (`ready:submit`), the Ready check stand-in, the voice agent (`ready:saveFromCall`) | everything |
 | `pickupPlans` (prearranged helpers and the pickup check) | `ready:submit`, the stand-in; the voice server through `pickups:startAttempt`, `pickups:helperAnswered`, `pickups:residentAnswered`, `pickups:unanswered` | interface, voice, dispatch |
 | `control` | The call floor's stand-in switches | stand-ins |
 
@@ -209,30 +178,30 @@ These live in `convex/offers.ts`, `convex/plans.ts` and `convex/requests.ts`, so
 
 | File | Written by | Read by | Shape |
 | --- | --- | --- | --- |
-| `data/sample-riders.csv` | The models (the interface has a starter) | The CSV upload | `rider_id,name,address,lat,lng,phone,language,mobility,assistance` |
+| `data/sample-riders.csv` | The models | The CSV upload | `rider_id,name,address,lat,lng,phone,language,mobility,assistance` |
 | `data/population.json` | The models | The simulator | Array of `{ id, lat, lng, age, peopleCount, mobility, assistanceRequired, medical, hasCar, canLeave, answersPhone, language }` |
 | `data/hazard/scenario.geojson` | The models | The simulator, the maps | Polygons with a `minutesAfterWarning` property |
 | `data/personas.json` | The models | The persona eval, the voice tests | Array of persona cards with `truth` (as in the `personas` table) and an optional `correction` |
 | Text agent endpoint | The voice server | The persona eval | `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }` |
 
-Until a file exists, its reader uses a stand-in: the simulator generates a population from `convex/seed.ts`, the maps and the simulator use the radial stand-in fire in `convex/model.ts`, and the persona eval runs against its own scripted agent behind the same endpoint shape.
+The simulated area seeded on the call floor uses the stand-in fire in `convex/model.ts`. The persona eval runs against the voice server's endpoint, or in process against the scripted agent in `modeling/rollcall_d/scripted_agent.py` behind the same shape.
 
-### Stand-ins already running
+### Stand-ins (Simulation settings)
 
-Press **Issue evacuation warning** on the call floor. That seeds 200 simulated households, 8 vehicles (Maria's and Luis's vans are left for the driver page) and one shelter, then starts the loop. Each switch on the call floor turns one stand-in off.
+Press **Issue evacuation warning** on the call floor. On an empty deployment that seeds 200 simulated households, 8 vehicles (Maria's and Luis's vans are left for the driver page) and one shelter, then starts the loop. Each switch under Simulation settings on the call floor runs or stops one stand-in.
 
 | Switch | Fakes |
 | --- | --- |
 | Voice agent, dialer and callbacks | Rings, scripted calls in English and Spanish, retries, texts and replies, callbacks heard |
-| Dispatcher and vehicle movement | Nearest compatible free vehicle for each waiting request, vehicles driving to pickups |
+| Dispatcher and vehicle movement | Nearest compatible free vehicle for each waiting request, vehicles driving straight lines to pickups (it ignores closures) |
 | Drivers not on the driver page | Simulated drivers accept their offers after 6 seconds |
 | Dispatcher approval | Approves every proposed offer at once |
 | Need model | Census prior shrunk toward nearby answered calls |
-| Ready check and pickup check (under the voice switch) | Ready check calls before the warning, filled from persona cards; helpers answering, confirming and sometimes not showing up; the voice server's real calls replace it |
+| Ready check and pickup check (under the voice switch) | Ready check calls before the warning, filled from persona cards; helpers answering, confirming and sometimes not showing up. With the switch off, the voice server places these calls |
 
 ## Interface
 
-Every screen, built against the stand-ins. No setup.
+Every screen works against the stand-ins.
 
 **Rescue map** at `app/map/page.tsx`, reusing `components/ui` and the tokens in `app/globals.css`.
 
@@ -240,81 +209,66 @@ Every screen, built against the stand-ins. No setup.
 - Red escalations at the top of the list.
 - One-click approval of proposed offers (`offers:approve`). Turn off "Dispatcher approval" to use it.
 - CSV upload (`riders:importCsv`) and zone drawing (`riders:setZone`).
-- The plan version and solve time from `plans:latest`.
+- The plan version and solver from `plans:latest`.
 
-**Driver page.** A phone-sized page with a driver picker, so one phone can act as any driver. It shows the driver's accepted run in stop order and open offers (`offers:forVehicle`), with Accept, Decline and "Can't make it" (`offers:cancelByDriver`). A `"changed"` result from `offers:accept` shows "This assignment changed."
+**Driver page** at `/driver`. A phone-sized page with a driver picker, so one phone can act as any driver. It shows the driver's accepted run in stop order and open offers (`offers:forVehicle`), with Accept, Decline and "I can't make this pickup" (`offers:cancelByDriver`). A `"changed"` result from `offers:accept` shows "Assignment changed."
 
-**Under-the-hood screen.** Architecture, latency p50 and p95, per-field accuracy, honesty numbers, simulator results with ranges, and the audit trail (`plans:auditTrail`). It holds the "Close this road" control, which writes a `manual` closure through `roads:addClosures` so the demo's closure lands on cue. Every re-plan shows requests, vehicles, solve time, plan version and changed offers. Every simulator number shows a range. Simulated vehicle positions are labeled as simulated.
+**Under-the-hood screen** at `/system`. Architecture, latency p50 and p95, per-field accuracy, corrections, honesty numbers, the change cases, simulator results with ranges, sensitivity, door-check fairness, the need model, callbacks and the audit trail (`plans:auditTrail`). It holds the "Close this road" control, which writes a `manual` closure through `roads:addClosures` so the demo's closure lands on cue. Every re-plan shows requests, vehicles, solve time, plan version and changed offers. Every simulator number shows a range.
 
-**Simulated phone panel.** The text channel (`texts:recent`, `texts:forHousehold`), with a reply box that writes `texts:reply`. It's labeled as simulated.
+**Simulated phone panel** at `/phone`. The text channel (`texts:threads`), with a reply box that writes `texts:reply`. It's labeled as simulated.
 
-**Call floor.** Already built. Keep it working as the contract grows.
-
-**The list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, and the full under-the-hood screen. The Auth0 dispatcher login is built but dropped from the demo; it stays off unless `AUTH0_DOMAIN` is set.
+**Call floor** at `/dashboard`, with the stand-in switches under Simulation settings. The root page `/` is the judges' kiosk.
 
 ## Voice and calls
 
 Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; places the calls in `callbacks`.
 
-**Setup.** Take Twilio off trial, buy the number and request a higher call rate. Get Cartesia and Anthropic keys. Host the call server at a public URL (Twilio Media Streams needs a WebSocket server, which Convex can't host). Put `ANTHROPIC_API_KEY` in the shared env file for the evals.
+**Telephony.** Twilio Programmable Voice by default, or Cartesia's telephony with `VOICE_CARRIER=cartesia`. On Twilio, each call streams 8 kHz μ-law audio over Media Streams to the call server (`voice/server.ts`), one async session per call.
 
-**Telephony.** Twilio Programmable Voice. Each call streams 8 kHz μ-law audio over Media Streams to the call server, one async session per call.
-
-**Speech loop.** Streaming speech-to-text, then Claude, then Cartesia for the voice. Use Cartesia's speech-to-text if it holds up on 8 kHz phone audio, so Cartesia carries both directions; otherwise use another streaming speech-to-text and say so in the README. Voice activity detection handles turn-taking and interruptions.
+**Speech loop.** Cartesia Ink for speech-to-text, then Claude, then Cartesia Sonic for the voice, so Cartesia carries both directions. Voice activity detection handles turn-taking and interruptions.
 
 **Who decides what.** Claude interprets messy speech and phrases replies. A deterministic state machine decides what to ask next and what may be promised. Don't weaken that split to make Claude look more autonomous, because it's our answer to Anthropic's "where could it go wrong."
 
-**Corrections.** Every field in the record carries a confidence. Send corrected fields through `households:update`; the contract logs the correction and drops offers the vehicle can no longer serve. The read-back before hanging up ("two people, one wheelchair, needs two people to lift, 100 Terrace St, is that right?") is where most corrections land.
+**Corrections.** Every field in the record carries a confidence. Corrected fields go through `households:update`; the contract logs the correction and drops offers the vehicle can no longer serve. The read-back before hanging up ("two people, one wheelchair, needs two people to lift, 100 Terrace St, is that right?") is where most corrections land.
 
-**Languages.** English and Spanish end to end, covering recognition, extraction, voice and templates. Don't claim "any language."
+**Languages.** Calls run in the ten languages in `SPOKEN_LANGUAGES` (`convex/languages.ts`). The English and Spanish lines are reviewed by fluent speakers; the others are machine translations.
 
-**Model and latency.** Haiku 4.5 (`claude-haiku-4-5-20251001`) runs the turns. Switch to Sonnet 5.5 (`claude-sonnet-5-5`) only if Haiku misses corrections in the persona eval. The budget is under 1 second per turn: stream Claude's text to Cartesia sentence by sentence, make record writes fire-and-forget, and cover tool calls with a short backchannel ("okay, got it"). Log per-turn latency so the under-the-hood screen can show p50 and p95.
+**Model and latency.** Claude Haiku 5.5 (`claude-haiku-5-5`) runs the turns by default, and `VOICE_MODEL=claude-opus-5-5` runs Opus 5.5 in fast mode. The budget is under 1 second per turn. Replies go out sentence by sentence, record writes are fire-and-forget, and a short backchannel covers the wait when Claude is slow. Per-turn latency is logged so the under-the-hood screen can show p50 and p95.
 
 **Outbound dialer.** Calls `households:queue` (in-zone households only, highest priority first), drained by a token bucket sized to Twilio's default of 1 call per second. A 200-rider zone takes about 3.5 minutes to dial. Answering-machine detection leaves a short voicemail and schedules a retry.
 
-**Reach ladder.** Call, retry at 2 minutes, retry at 5, text, door-check queue (`calls:end` and `calls:resolveFollowUp`). Status callbacks use the same ladder; an unanswered `reassigning` call is retried and then texted.
+**Reach ladder.** Call, retry at 2 minutes, retry at 5, text, door-check queue (`calls:end` and `calls:resolveFollowUp`), run as one durable workflow per rider in `convex/reachLadder.ts`. Status callbacks use the same ladder; an unanswered `reassigning` call is retried and then texted.
 
-**Text fallback.** After two failed voice attempts, send a text with numbered replies (`texts:send`) and parse replies from `texts` with Claude. SMS registration won't clear this weekend, so texts live in Convex and show on the simulated phone panel.
+**Text fallback.** After the voice attempts fail, a text with numbered replies goes out (`texts:send`), and Claude reads replies from `texts`. Texts live in Convex and show on the simulated phone panel.
 
-**Live status during calls.** Subscribe to `requests:forHousehold` for the length of a call. When status changes, interrupt at the next sentence boundary and play the new template. Write `requestStatus` on every agent line in `transcriptLines` so the grader can check it.
+**Live status during calls.** The call subscribes to `requests:forHousehold` for its whole length. When status changes, the agent interrupts at the next sentence boundary and plays the new template. Every agent line in `transcriptLines` carries `requestStatus` so the grader can check it.
 
-**Callbacks.** Subscribe to `callbacks:pending`, place each call, then mark it placed, played or unanswered.
+**Callbacks.** The voice server subscribes to `callbacks:pending`, places each call, then marks it placed, played or unanswered.
 
-**Neighbor question.** Write spoken addresses to `nominations:add`.
+**Neighbor question.** Spoken addresses go to `nominations:add`.
 
 **Inbound callers.** `households:findOrCreateByPhone` returns a household; unknown numbers get one with no location, flagged for an address check.
 
-**Hard escalations.** `requests:escalate` with `medical`, `flames` or `address_unconfirmed`.
+**Hard escalations.** `requests:escalate` with `medical`, `flames` (or `hazard_at_home` for other hazards), `address_unconfirmed` or `language_barrier`.
 
 **Text agent endpoint** for the persona eval: `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }`, running the same state machine and prompt as phone calls.
 
 **Test without the other parts.** Turn off the voice stand-in. The seeded households give you a queue, and the dispatch stand-in produces `callbacks`. To drive a status change mid-call, call `offers:accept` or `offers:cancelByDriver` from `npx convex run`.
 
-**The list:** real calls fill household records on the call floor, corrections reach the record, English and Spanish work, honesty templates (including `reassigning`) play by status, status changes interrupt live calls, callbacks play, latency is logged, the full red-team set runs (with the honesty grader), and the audio eval is done.
-
 ## Dispatch and simulator
 
 Hands off to: rescue map (plans, offers, vehicles), the voice agent (status changes, callbacks).
 
-**Setup.** Create the shared Convex cloud deployment (`npx convex login`, then `npx convex dev`) and invite the team. Put `CONVEX_URL` in the shared env file. Deploy the Next app so the driver page opens on a phone. Host the Python solver service at a public URL for Convex actions to call. All of this is live by 12pm Saturday.
+**Road network.** OpenStreetMap through OSMnx (`dispatch/build_graph.py` writes `data/roads/altadena.json`): edges with length, speed limit and lanes, and free-flow travel times. Closures from `roadClosures` snap to edges (`roads:setEdgeKey`). Closures come from the hazard runner, drivers' reports ("Lincoln Ave blocked"), residents' mentions on calls (unconfirmed until checked) and the manual control. Dijkstra on the west Altadena graph takes about a millisecond, so every vehicle, request and shelter path is recomputed on each change.
 
-**Road network.** OpenStreetMap through OSMnx: edges with length, speed limit and lanes, and free-flow travel times. Snap closures from `roadClosures` to edges (`roads:setEdgeKey`). Closures come from the hazard runner, drivers' reports ("Lincoln Ave blocked"), residents' mentions on calls (unconfirmed until checked) and the manual control. Dijkstra on the west Altadena graph takes milliseconds, so recompute every vehicle, request and shelter path on each change.
-
-**Dispatch optimizer.** A dynamic dial-a-ride problem: a mixed fleet, pickups and drop-offs, deadlines, re-solved whenever the world changes. Reads `requests:open`, `vehicles:list`, `offers:active` and `roads:closures`; writes through `plans:propose`.
+**Dispatch optimizer.** A dynamic dial-a-ride problem: a mixed fleet, pickups and drop-offs, deadlines, re-solved whenever the world changes. The Convex dispatcher (`convex/dispatch.ts`) reads requests, vehicles, offers and closures, and writes through `plans:propose`.
 
 - *Requests:* pickup node, eligible shelters (any one), load vector, crew needed, lift needed, boarding time (about 2 minutes walking, 5 with a walker, 10 in a wheelchair, 20 bedbound or two-person lift), deadline and weight. All but the nodes are already on `requests`.
 - *Vehicles:* position, passengers on board, capacity vector, crew size, lift capability, shift end, and the accepted run it's on.
-- *Objective,* with costs scaled to integers for OR-Tools:
-
-  ```
-  w_r     = v_r / max(slack_r, 2 min)        slack_r = L_r − earliest arrival_r
-  minimize  Σ_k time_k  +  λ Σ_r lateness_r  +  ν · changed open offers  +  Σ_r w_r · dropped_r
-  ```
-
-  Deadlines are soft upper bounds on the time dimension (`SetCumulVarSoftUpperBound`), so λ prices lateness. A request that can't be served at all is dropped at a cost of its weight.
+- *Objective:* expected deaths under the assumed fatality-risk model in `dispatch/fatality.py`, priced so one expected death outweighs any amount of driving; then each rider's waiting, weighted by need; then vehicle time; plus a cost ν for each open offer moved to another vehicle. A rider's risk is zero when they board by their deadline and rises linearly to its maximum at fire arrival. A request that can't be served at all is dropped at its worst-case cost. The risk model is an assumption, not a prediction about real people.
 - *Constraints:* pickup before drop-off on the same vehicle, capacity per dimension, crew and lift compatibility, maximum ride time for oxygen users, shelter capacity, and accepted runs frozen.
-- *Solver:* OR-Tools Routing with pickup-and-delivery pairs, eligible shelters as a disjunction, three capacity dimensions plus a time dimension, compatibility as allowed-vehicle sets, and each request optional with its drop penalty. Parallel cheapest insertion, then guided local search, with a 3-second limit.
-- *Re-planning:* event-driven, debounced to every 5 to 10 seconds, warm-started from the current plan. Open offers the new plan keeps aren't touched, so a driver always gets the full 2 minutes to respond. Changed ones go in `replace`.
+- *Solvers:* three dispatchers take the same problem and return the same routes shape. The first is the competent heuristic (`dispatch/heuristic.py`). The second is OR-Tools Routing (`dispatch/solver.py`), with pickup-and-delivery pairs, eligible shelters as a disjunction, three capacity dimensions plus a time dimension, compatibility as allowed-vehicle sets, and each request optional with its drop penalty; it runs parallel cheapest insertion, then guided local search. The third is adaptive large neighborhood search (`dispatch/alns.py`), which starts from the heuristic's plan and never does worse than it on its own objective. The live dispatcher posts each re-solve to the solver service (`dispatch/server.py`) with the ALNS policy and a time limit of up to 3 seconds.
+- *Re-planning:* every 5 seconds while riders or offers are waiting, every 30 seconds otherwise, and right away when a road closes. Open offers the new plan keeps aren't touched, so a driver always gets the full 2 minutes to respond. Changed ones go in `replace`.
 - *Escalation:* requests the solver can't serve in time get `requests:escalate` with `unservable`.
 
 **Accepted runs don't change.** Once a driver accepts, their accepted stops and the order of those stops are fixed. A driver halfway through picking up three evacuees finishes that run before anything new reaches them.
@@ -324,91 +278,65 @@ Hands off to: rescue map (plans, offers, vehicles), the voice agent (status chan
 - An accepted pickup goes in `revoke` only when no route reaches it before its deadline. The rest of that driver's run stays as accepted.
 - The ν penalty applies only to open offers, so re-solves don't churn offers a driver is still looking at.
 
-**Vehicle movement and ETAs.** Move simulated vehicles along road paths (`vehicles:setPositions`), move requests to `en_route` and `arrived`, and keep `etaMinutes` current. Replace the straight-line movement in `convex/dispatchStandIn.ts`.
+**Vehicle movement and ETAs.** Vehicles move along road paths (`vehicles:setPositions`), requests move to `en_route` and `arrived`, and `etaMinutes` stays current. The dispatch stand-in in `convex/dispatchStandIn.ts` moves vehicles in straight lines.
 
-**Competent heuristic.** Earliest deadline first, type and crew matched, greedy insertion after each vehicle's accepted run. It's the baseline we must beat and the fallback dispatcher if the solver service fails.
+**Competent heuristic.** Earliest deadline first, type and crew matched, greedy insertion after each vehicle's accepted run. It's the baseline we must beat and the fallback dispatcher (`convex/heuristic.ts`) when the solver service is slow or down.
 
-**Simulator.** A discrete-event simulation (SimPy) of a night: the hazard advances, calls are answered or missed, vehicles drive, roads close and drivers sometimes cancel. Every assumption is labeled.
+**Simulator.** A discrete-event simulation (SimPy, `dispatch/sim`) of a night: the hazard advances, calls are answered or missed, vehicles drive, roads close and drivers sometimes cancel. Every assumption is labeled.
 
-- Three policies on identical scenarios: today's process (911 first come, first served, nearest unit, radio delays; context only), the competent heuristic, and ours.
-- Three separate results. *Dispatch only:* both dispatchers get identical requests at identical times, which is the honest optimizer number. *Outreach only:* the heuristic dispatcher with requests arriving when our calls would surface them. *Combined.*
-- Metric: additional simulated pickups completed before the scenario deadline, plus worst wait, wait for wheelchair and bedbound riders, and vehicle-minutes. About 100 seeds, reported with ranges. Never "lives saved."
-- Expect a modest dispatch gap; single digits to low double digits is a good result. Script it now: "A good dispatcher with a whiteboard does fine when it's quiet. The gap opens when [the fleet is tight / closures stack up]; here's by how much."
-- Sensitivity panel: fleet size, answer rate and hazard speed, plus one honest line about where we don't help (for example, below a certain fleet size nothing reaches the last households in time).
-- Ground truth comes from `data/population.json`. The simulator evaluates a policy; it doesn't validate predictions about real households, and the screen says so. Write results to `data/sim-results.json` for the under-the-hood screen.
+- Policies on identical scenarios: today's process (911 first come, first served; context only), the competent heuristic, OR-Tools and ALNS.
+- Separate results. *Dispatch only:* both dispatchers get identical requests at identical times, which is the honest optimizer number. *Outreach only:* the heuristic dispatcher with requests arriving when our calls would surface them. *Combined.*
+- Metrics: pickups on time (boarded by the deadline) as the primary metric, plus late pickups, riders never picked up, worst wait, wait for wheelchair and bedbound riders, vehicle-minutes, and expected deaths under the assumed risk model. 100 seeds, reported with ranges.
+- Sensitivity panel: fleet size, answer rate, hazard speed and how early 911 callers phone, plus one honest line about where we don't help (`whereWeDontHelp`).
+- Ground truth comes from `data/population.json`. The simulator evaluates a policy; it doesn't validate predictions about real households, and the screen says so. Results go to `data/sim-results.json` for the under-the-hood screen.
 
-**Test without the other parts.** The voice stand-in fills households and requests; the radial stand-in fire gives deadlines; add closures yourself with `roads:addClosures`.
-
-**The list:** the solver writing compatible offers through `plans:propose`, re-routing around closures, revocation when a pickup becomes unreachable, the heuristic running as fallback, vehicle movement, and simulator results with the three-way split and the sensitivity panel. Congestion and departure timing come as labeled exploration ("What happens if everyone leaves at once?"):
+**Exploration** (`dispatch/sim/exploration.py`), labeled as assumption-driven: "What happens if everyone leaves at once?"
 
 - Edge travel time from the BPR curve, t = t₀ (1 + 0.15 (v/c)⁴), with residents who drive loaded onto the network by departure time.
-- Departures from a drift-diffusion model, dX = μ(t) dt + σ dW, leaving when X crosses a threshold. Two classes (evacuation-keen and evacuation-reluctant, per Berkeley's survey of California evacuees), with shape fit to published departure curves.
-- The effect of a phone call on departure is an assumption explored in simulation, not a finding. Skip the time-expanded min-cost flow and the coupling loop unless everything else is done.
+- Departures from a drift-diffusion model, dX = μ(t) dt + σ dW, leaving when X crosses a threshold. Two classes (evacuation-keen and evacuation-reluctant, per Berkeley's survey of California evacuees).
+- The effect of a phone call on departure is an assumption explored in simulation, not a finding.
+
+**Test without the other parts.** The voice stand-in fills households and requests; the stand-in fire gives deadlines; add closures yourself with `roads:addClosures`.
 
 ## Modeling and evaluation
 
-Hands off to: the simulator (population, hazard file), field teams (door order), the interface (sample CSV), the voice agent (personas, nomination matches).
+Hands off to: the simulator (population, hazard file), field teams (door order), the interface (sample CSV), the voice agent (personas, nomination matches). The code is in `modeling/`, and it calls Convex from Python.
 
-**No setup.** `CONVEX_URL` and `ANTHROPIC_API_KEY` are in the shared env file. Until then, work on files. Call Convex from Python with `pip install convex`.
+**Sample rider list.** `data/sample-riders.csv` holds 40 fictional riders at real west Altadena address points, including Carmen and Walter for the demo.
 
-**Sample rider list.** Replace the starter `data/sample-riders.csv` with about 40 fictional riders at real west Altadena address points, including Carmen and Walter for the demo.
+**Hazard scenario.** The Eaton Fire as it burned, building by building, from CAL FIRE's final perimeter and the dated fire reports in the UL FSRI timeline (`modeling/scripts/build_eaton_fire.py`), saved as `data/hazard/scenario.geojson`. A runner script advances it during a session: it writes each household's `fireArrivalAt` through `households:setEstimates` and adds a `hazard` closure through `roads:addClosures` when the fire reaches a road within a safety margin. On screen: "Scenario input, not a forecast." The hazard never marks anyone safe: an unanswered household is always unknown. Say this unprompted.
 
-**Hazard scenario.** Labeled scenario polygons by time over the real west Altadena road graph, drawn from the published progression timeline, saved as `data/hazard/scenario.geojson`. A runner script advances it during a session: it writes each household's `fireArrivalAt` through `households:setEstimates` and adds a `hazard` closure through `roads:addClosures` when a polygon reaches a road within a safety margin. On screen: "Scenario input, not a forecast." The hazard never marks anyone safe: an unanswered household is always unknown. Say this unprompted.
-
-**Door-check queue.** Calls scale, but door-knock teams don't: with 6 teams and 400 unreached homes, order matters. The queue is a transparent score, written through `doorChecks:setPriorities`.
+**Door-check queue.** Calls scale, but door-knock teams don't: with 6 teams and 400 unreached homes, order matters. The queue is a transparent score (`modeling/rollcall_d/door.py`), written through `doorChecks:setPriorities`.
 
 ```
 priority_h = (p_h · u_h) / τ_h + α · wait_h
 ```
 
-- `p_h` is the need estimate. Known need from the rider list or a call comes first, and a neighbor nomination raises it sharply. Otherwise it's the census base rate: age 65+, no vehicle and 65+ living alone by block group, and disability by tract, since ACS publishes disability status (table B18101) only down to the tract. Spatial smoothing from answered neighbors is one term we can switch on and off on screen.
-- `u_h` is urgency from the hazard deadline, and `τ_h` is travel time for the nearest team (compute it with OSMnx).
-- `wait_h` is minutes on the list. This aging term guarantees no household, however isolated, stays last forever. State how α was set.
+- `p_h` is the need estimate. Known need from the rider list or a call comes first, and a neighbor nomination raises it sharply. Otherwise it's the census base rate: age 65+, no vehicle and 65+ living alone by block group, and disability by tract, since ACS publishes disability status (table B18101) only down to the tract. Spatial smoothing from answered neighbors is one term the rescue map can switch on and off.
+- `u_h` is urgency from the hazard deadline, and `τ_h` is travel time for the nearest team on the road graph, closures removed.
+- `wait_h` is minutes on the list. This aging term guarantees no household, however isolated, stays last forever. α is set once per incident so that 30 minutes on the list is worth as much as the 90th-percentile need-and-urgency term when door checks start.
 - Guardrails: the score only orders visits and nobody is skipped because of it. Estimates are shown as estimates, and no individual risk scores appear on screen.
 
-**Address matching.** Match `nominations:open` and unlocated inbound callers against OSM address points in the zone. Write matches with `households:setLocation` and `nominations:resolve`; unmatched nominations stay flagged for the dispatcher.
+**Address matching.** Nominations from `nominations:open` and unlocated inbound callers are matched against existing households, then OSM address points in the zone. Matches go through `households:setLocation` and `nominations:resolve`; unmatched nominations stay flagged for the dispatcher with the reason.
 
-**Synthetic population.** The standard method, as in PopGen and ActivitySim: draw real ACS PUMS household records from the PUMA(s) covering Altadena, then reweight them with iterative proportional fitting. Fit age, vehicles and living alone to block-group totals and disability to tract totals. Because whole real records are resampled, the dangerous combinations (75+, ambulatory difficulty, alone, no car) survive. Place households onto real building footprints, clustered around real senior housing and care facilities from OpenStreetMap. Save as `data/population.json`. It feeds simulator ground truth, the persona cards and the door-check base rates.
+**Synthetic population.** The standard method, as in PopGen and ActivitySim: draw real ACS PUMS household records from the PUMA(s) covering Altadena, then reweight them with iterative proportional fitting. Age, vehicles and living alone are fit to block-group totals and disability to tract totals. Because whole real records are resampled, the dangerous combinations (75+, ambulatory difficulty, alone, no car) survive. Saved as `data/population.json`, it feeds simulator ground truth, the persona cards and the door-check base rates.
 
-**Persona cards.** About 200 in `data/personas.json`: hard of hearing, partial address, panic, Spanish, tangents, a second voice and mid-call corrections.
+**Persona cards.** 200 in `data/personas.json`: hard of hearing, partial address, panic, reassurance-seeking, flames, medical, tangents, a second voice, neighbor nominations and mid-call corrections.
 
-**Persona eval.** Runs each card against the text agent endpoint. Until the voice server's endpoint is up, run against your own scripted agent with the same request and response shape. Report accuracy separately for address, passenger count, mobility and assistance required, plus correction success rate and completion time, to `data/eval-results.json` for the under-the-hood screen.
+**Persona eval.** Runs each card against the text agent endpoint, or against the scripted agent with the same request and response shape. Reports accuracy separately for address, passenger count, mobility and assistance required, plus correction success rate and completion time, to `data/eval-results.json` for the under-the-hood screen.
 
-**Implied-reassurance grader.** A separate grader model reads agent lines with their `requestStatus` and flags implied promises, with a human spot check.
+**Implied-reassurance grader.** A separate grader model reads agent lines with their `requestStatus` and flags implied promises, with a human spot check. Results go to `data/honesty-results.json`.
 
-**The list:** the sample rider list, the hazard runner writing deadlines and closures, the door-check score with the smoothing toggle, address matching, persona cards with corrections, and:
+**Door-check fairness.** `modeling/scripts/door_fairness.py` runs a door-team simulation under four scenarios: baseline, 30% of nominations wrong, one neighborhood answering at half the rate, and an isolated pocket with no answering neighbors. It reports worst-case time to check, not only the average, against random and nearest-first orderings (`data/door-fairness.json`).
 
-1. Door-check fairness tests in your own door-team simulation: 30% of nominations wrong, one neighborhood answering at half the rate, and isolated homes with no answering neighbors. Report worst-case time to check, not only the average, against random and nearest-first orderings.
-2. A simple spread model as a scenario generator: wind-driven elliptical spread with fast marching (scikit-fmm) on a uniform fuel grid, so closures emerge from simulated spread instead of a script. Claim "conservative within our assumptions," never "validated against satellite data": MODIS and VIIRS detections are about 1 km and 375 m, intermittent, and blocked by smoke.
-
-## Team work beyond the app
-
-These need an owner each at the next sync.
-
-- **Practitioner conversation (highest priority).** An Access Services dispatcher or manager, a paratransit driver, or an emergency manager. Ask how an assignment would reach a driver today, who is allowed to approve, and what would make them distrust this.
-- **Advocates.** Disability Rights California, an LA independent living center, LA County CERT. Ask each one question: what would make you trust or distrust an AI agent calling people during an evacuation? Their answer shapes the "if you can leave safely" script.
-- **Usability tests.** 5 to 10 older adults playing persona cards, recorded with permission.
-- **Pitch script, demo rehearsal and the Devpost video (Brendan).** The pitch runs from a `/present` page in this app, so slides can show the live rescue map and call floor. Brendan owns `app/present/`; whoever changes the shared components and tokens it reuses keeps it working.
-- **Notability notes,** only if they're kept as we go.
-
-## Timeline
-
-Every part finishes its whole list. Run the full Rider Check flow end to end (CSV, call, correction, compatible offer, approval, driver acceptance on a second phone, callback, closure, revocation, `reassigning` call, stale offer rejected, new acceptance) as soon as real calls work, and again after every big change, so anything that breaks shows up while there's time to fix it.
-
-| When | What |
-| --- | --- |
-| Now to Sun early morning | Build every part's list and the add-ons, film the video, and keep running the full flow. |
-| Sun to 8:30am | Edit the video, write Devpost and READMEs, rehearse both pitch versions and the Q&A, opt into every prize track. |
-| Sun 8:50am | Submitted on Devpost |
-| Sun 10:30am | Judging at our table |
+**Spread model.** A wind-driven elliptical spread model with fast marching (scikit-fmm) on a uniform fuel grid (`modeling/rollcall_d/spread.py`) generates hazard scenarios, so closures emerge from simulated spread instead of a script. Claim "conservative within our assumptions," never "validated against satellite data": MODIS and VIIRS detections are about 1 km and 375 m, intermittent, and blocked by smoke.
 
 ## Evaluation
 
 Call quality is reported per field.
 
 1. **Persona eval (scale).** The 200 text personas.
-2. **Audio eval.** About 30 synthetic-voice callers from a different TTS provider (so we don't test Cartesia against itself) calling our real Twilio number, with noise and slow speech. Report the drop from text.
-3. **Usability tests.** Ask what confused people, whether they trusted it and whether they'd have left. Fix one thing and re-test one person. Present these honestly as usability tests, not as evidence about riders or dispatchers.
+2. **Voice exam.** `npm run exam:voice` runs every exam item's call against the real agent, graded by deterministic checks and a judge model, scored per module (`data/voice-exam-results.json`).
 
 **Where to push for impressiveness**, in order: the change moment; the compatibility moment (the lift pickup goes to a two-person crew); the correction moment; honesty numbers; the dispatch-only result with ranges and the line about where we don't help; per-field call accuracy; measured latency; door-check fairness.
 
@@ -420,12 +348,10 @@ One rider whose situation changes, handled correctly the whole way through, in a
 
 - **Big screen:** the rescue map over the real west Altadena street grid, with the hazard labeled "scenario input."
 - **Rider CSV** of fictional riders, ready to import, and a zone to draw.
-- **2 or 3 rider phones** with persona cards that include a correction. Example: "Carmen, 79, speaks Spanish. You first say it's just you. Then you remember your son is home: he uses a wheelchair and needs two people to lift him." We hand the judge one of these phones and never enter a judge's own number.
+- **2 or 3 rider phones** with persona cards that include a correction. Example: "Carmen, 79, speaks Spanish. You first say it's just you. Then you remember your son is home: he uses a wheelchair and needs two people to lift him."
 - **Driver phone** held by a teammate, on the driver page. Maria's van gets Carmen's offer, and Luis's van has an open offer for a second rider, Walter.
-- **Solver panel** that updates on every re-plan: "Plan v5, 12 vehicles, 46 requests, 1.8s, 2 offers changed, 1 stale acceptance rejected."
+- **Plan panel** on the under-the-hood screen, updating on every re-plan with the plan version, vehicles, requests, solve time and changed offers.
 - **Under-the-hood screen** with the "Close this road" control.
-
-Rehearse with a fixed seed so the same vans, offers and closure come up every time.
 
 ### The 3-minute script
 
@@ -434,9 +360,9 @@ Rehearse with a fixed seed so the same vans, offers and closure come up every ti
 3. **0:35 The call.** The judge answers as Carmen, in Spanish or English. Midway they correct themselves: the son is home, uses a wheelchair and needs a two-person lift. The record changes on screen. They ask "Is someone coming?" The agent says: "Not yet. You're on the list as high priority, and I'll call back the moment a driver accepts."
 4. **1:05 Technical line and compatibility.** "Under the hood, this is vehicle routing where deadlines move with the fire and the promises have to stay true while the plan changes." Maria's two-person crew gets the offer. The dispatcher approves it. "Approval isn't a promise, so Carmen hears nothing yet."
 5. **1:30 Acceptance.** The teammate, as Maria, taps Accept. Carmen's phone rings: "A wheelchair-accessible van with a two-person crew is 6 minutes away. The driver's name is Maria."
-6. **1:50 The change.** We close the only road between Maria and Carmen. No route reaches Carmen in time, so plan v5 revokes that one pickup. The rest of Maria's run stays as it was. Carmen's phone rings: "Your driver can no longer reach you. You're still at the top of the list." Plan v5 gives Luis's van to Carmen instead of Walter. The teammate switches to Luis and taps Accept on the old Walter offer, which is rejected on screen ("This assignment changed"). Luis accepts Carmen, and her phone rings with the new driver.
-7. **2:20 Proof.** Dispatch-only gain over the competent heuristic on identical requests, with ranges; per-field call accuracy; honesty results including revocation cases; what a practitioner told us and what we changed. Simulation is labeled as simulation.
-8. **2:45 Close.** "Ready for a supervised drill on fictional riders, then shadow mode beside an agency's dispatchers. Wildfire is the first hazard; floods and hurricanes need their own rules on the same pipeline." Last line: "The vans were ready at 4am. The call came at 6:03. We connect them."
+6. **1:50 The change.** We close the only road between Maria and Carmen. No route reaches Carmen in time, so the new plan revokes that one pickup. The rest of Maria's run stays as it was. Carmen's phone rings: "Your driver can no longer reach you. You're still at the top of the list." The new plan gives Luis's van to Carmen instead of Walter. The teammate switches to Luis and taps Accept on the old Walter offer, which is rejected on screen ("Assignment changed"). Luis accepts Carmen, and her phone rings with the new driver.
+7. **2:20 Proof.** Dispatch-only gain over the competent heuristic on identical requests, with ranges; per-field call accuracy; honesty results including revocation cases. Simulation is labeled as simulation.
+8. **2:45 Close.** Last line: "The vans were ready at 4am. The call came at 6:03. We connect them."
 
 ### The 2-minute version (demo first, story last)
 
@@ -445,102 +371,33 @@ For Cartesia's format and quick-visit judges.
 1. **0:00** The phone rings, and the judge plays Carmen, including the correction and the honest "not yet" (about 35 seconds).
 2. **0:35** Two-person crew gets the offer; approval; Maria accepts; callback.
 3. **1:05** Road closes; Carmen's pickup revoked while the rest of Maria's run stays; `reassigning` call; stale Walter offer rejected; Luis accepts.
-4. **1:35** One line of story; what Cartesia does in the pipeline (both directions, if speech-to-text holds); latency; per-field accuracy; known limitations.
-5. **1:55** "Ready for a supervised drill on a paratransit rider list."
-
-**Devpost video (3 minutes max).** Open on a dark room and a ringing landline, then cut to the rescue map and run the same single-rider flow. Film Saturday night, before the spread model and congestion work.
+4. **1:35** One line of story; what Cartesia does in the pipeline (Ink hears, Sonic speaks); latency; per-field accuracy; known limitations.
 
 ### Q&A prep
 
 | Question | Answer |
 | --- | --- |
-| "A driver accepts an offer the plan already replaced. What happens?" | Show it: the accept is rejected atomically, no callback fires, and the audit trail shows v4 replaced by v5. |
+| "A driver accepts an offer the plan already replaced. What happens?" | Show it: the accept is rejected atomically, no callback fires, and the audit trail shows the old plan version replaced by the new one. |
 | "Does re-planning yank drivers around?" | No. An accepted run is fixed, and a driver only gets new offers after their last accepted drop-off. A pickup is revoked only when no route reaches it in time or the driver cancels. |
 | "What if the person isn't sure, or changes their answer?" | Corrections overwrite the field, re-run compatibility and are measured (correction success rate in the persona eval). |
 | "Would this have saved the father and son?" | "We can't say that. The reporting shows vans ready and nobody called. We built that missing connection; whether it saves a given life depends on things we don't control." |
 | "Is your fire model validated?" | "It's a scenario input. Satellite detections can't validate arrival times at individual homes, so we don't claim that." |
-| "Don't isolated households always end up last?" | Nobody is skipped: the score only orders visits. On the Eaton Fire our order checks 99% of needy homes in the fire's path before it arrives, against 85% nearest-first. The price is a worst wait about 10 minutes longer than nearest-first, and the aging term doesn't shorten it on this fire, because pulling a team off its block costs driving. Show the fairness panel, worst case included. |
+| "Don't isolated households always end up last?" | Nobody is skipped: the score only orders visits. On the Eaton Fire our order checks 99% of needy homes in the fire's path before their deadline, against 85% nearest-first. The price is a worst wait about 10 minutes longer than nearest-first, and the aging term doesn't shorten it on this fire, because pulling a team off its block costs driving. Show the fairness panel, worst case included. |
 | "Isn't the simulator grading its own homework?" | Ground truth comes from real census records reweighted to real totals. It evaluates a policy, not a prediction, and we say so on screen. |
-| "How does this scale to other agencies?" | Each agency runs its own instance on its own riders. Across agencies, a shared need model could improve through federated training without raw data leaving any agency. We haven't built that. |
-| "Isn't AI calling people regulated?" | The FCC ruled in 2024 that AI-generated voices count as "artificial voice" under the TCPA. The agency calls its own riders for an emergency purpose, which falls under the TCPA's emergency exception. Agency counsel would confirm before any real deployment. |
+| "How does this scale to other agencies?" | Each agency runs its own instance on its own riders. |
+| "Isn't AI calling people regulated?" | The FCC ruled in 2024 that AI-generated voices count as "artificial voice" under the TCPA. The agency calls its own riders for an emergency purpose, which falls under the TCPA's emergency exception. |
 | "Why voice instead of an app?" | Nobody installs anything during an evacuation. Landlines and flip phones work, and riders who can't use screens can still answer. |
-
-## Customers and the path to production
-
-The goal is one sentence: "We asked X. A dispatcher told us Y. We changed Z."
-
-- **Customer:** paratransit agencies like Access Services first, county emergency management later.
-- **Users:** riders who can't leave on their own, the agency's dispatchers and its drivers.
-- Even one real practitioner conversation moves Anthropic, Microsoft and People-First judges more than any model.
-- Approach Altadena residents only with care; fire survivors don't owe us their time.
-- Report exactly what we got, for example "1 dispatcher call, 2 advocate replies, 8 usability tests with adults 70+." Real but small beats impressive but inflated.
-
-**Path to production.**
-
-1. A supervised drill with one agency, fictional riders, and its own dispatchers at the controls.
-2. Shadow mode during real warnings: the system builds plans alongside the agency's dispatch, and we compare without calling anyone.
-3. A pilot on the agency's real rider list under its authority. County mode only after this works.
-
-| A forward-deployed engineer asks | Our answer |
-| --- | --- |
-| Who authorizes the calls and assignments? | The agency. The rescue map is their dispatcher's screen, and nothing goes out without their approval. |
-| Who handles urgent escalations? | The agency's dispatcher, with red records at the top of the list and a handoff to 911. |
-| How do assignments reach drivers? | A link on the driver's phone this weekend; their existing driver tablets later. |
-| What if a rider needs more help than a vehicle can give? | Compatibility blocks it. If nothing compatible exists in time, it escalates to fire or EMS. |
-| What happens when calls, location feeds or the solver fail? | Text fallback, the heuristic dispatcher, an exportable call list, and the audit log showing what was said. |
-| Integrations? | CSV or rider-database export, the agency's vehicle GPS feed, driver acceptance, escalation to 911. |
+| "Who authorizes the calls and assignments?" | The agency. The rescue map is their dispatcher's screen, and no offer reaches a driver without their approval. |
+| "Who handles urgent escalations?" | The agency's dispatcher, with red records at the top of the list and the caller told to call 911. |
+| "How do assignments reach drivers?" | The driver page on the driver's phone. |
+| "What if a rider needs more help than a vehicle can give?" | Compatibility blocks it. If nothing compatible exists in time, the request escalates as `unservable`. |
+| "What happens when calls or the solver fail?" | The reach ladder ends in a text and then a door check, the heuristic dispatcher takes over from the solver service, and the audit log shows what was said. |
 
 ## Responsible design
 
-- Fictional riders in every demo. Real data only under the agency's authority, deleted when the incident closes.
-- Role-based access is part of the pitch only if the Auth0 add-on ships.
-- No individual risk scores on screen. A human approves every plan. The honesty rules and the audit log back every statement.
-- Rules we keep: only authorized agencies send emergency alerts; a human approves every plan; nothing reaches a resident before a driver accepts; the list of vulnerable residents is sensitive data. `/ready` sign-ups stay unverified until the agent confirms them by phone, and a real deployment puts the page behind the agency's own sign-up.
-
-## Prize tracks
-
-Each prize track gets work a judge can see, and every sponsor tool gets a README line saying where it runs. Each add-on has one owner.
-
-| Prize track | Prize | What the judge must see | Tier |
-| --- | --- | --- | --- |
-| Cal Hacks: Overall, Most Technically Complex, People-First | MacBook Air down to Apple Watch | People-First is our clearest fit. Most Technically Complex comes from dispatch staying correct under changing constraints, shown live on the under-the-hood screen. | Core |
-| Cartesia | Meta glasses (to be confirmed) | Voice is core. One complete flow including a correction and an interruption, per-field accuracy, latency and Spanish. The 2-minute demo-first version, and a README listing Cartesia features used and known limitations. | Core |
-| Convex | $5,000 | Correctness under conflicting events: version-checked acceptance, idempotent callbacks, revocation, the reach ladder and the audit log. Show the stale acceptance rejected live, the v4 to v5 audit trail, and a duplicate event producing no second call. | Core |
-| Anthropic | Not posted yet | A named community (paratransit riders in LA County wildfire zones) and a real problem (what a practitioner told us). One flow done well. Claude interprets messy, corrected speech in two languages, code controls every commitment, and we show where Claude could go wrong (implied reassurance, measured). | Core |
-| Microsoft: Built for the Real World, Customer Impact | Surface each | The forward-deployed Q&A table, the three-phase path, the dispatch-only result, responsible design and the full flow end to end. Strongest if a practitioner conversation happened. | Core |
-| Apify: Best Actor | $400 | A public "California evacuation status" Actor that normalizes county and state evacuation zones and road closures and triggers Rider Check when a zone with riders goes to warning. It should be useful to others on its own. | Add-on |
-| MLH: Auth0 | Headphones each | Dropped. The login is built and off; see README. | Dropped |
-| Notability | 1 year Pro | Notes kept as we go: sketches, mentor feedback as audio, decisions as they happened. Notes added after the fact score zero. | Add-on |
-| Figma | Verify at the event | Keep the stage log only if it's already running. | Opt-in |
-| Planet-First, Hacker's Choice, MLH opt-ins (domain, Gen AI, hosting, Commit Fellowship) | Assorted | Opt in on Devpost; no extra build work. | Opt-in |
-
-## Risks and backups
-
-| Risk | Backup |
-| --- | --- |
-| Work drifts apart | One contract in Convex, notes files between people, everyone on `main` |
-| The agent promises help that isn't coming | Statuses in code, ETAs only by template, the implied-reassurance grader, and the red-team set run before the demo |
-| A promise becomes false after acceptance | Re-route first, then `reassigning` status, revocation and measured time to notify |
-| Re-planning churns drivers | Accepted runs frozen in the contract; only open offers can change, at a cost |
-| A correction doesn't reach the open offer | Correction cases in the persona eval; the contract re-checks compatibility on every record change |
-| No practitioner conversation by Sunday | Mentors with public-safety backgrounds at the event. Report exactly what we got, and don't present usability tests as customer evidence. |
-| Dispatch gain over the heuristic is small | Script the honest version, show where the gap opens, and lead with correctness rather than margin |
-| Cartesia speech-to-text fails on 8 kHz audio | Another streaming speech-to-text; Cartesia stays the voice, and the README says so |
-| SMS registration doesn't clear | Expected. Texts run on the simulated phone panel, labeled. |
-| Twilio rate limits or spam flagging | Dialer sized to 1 call per second; demo on team-owned phones |
-| Loud room | Phone to the ear; live transcript on screen |
-| Voice latency over 1 second | Haiku 4.5 for turns, sentence streaming, fire-and-forget writes, backchannel |
-| Voice or venue wifi fails live | Phone hotspot, recorded calls and the pre-recorded video |
-| Overclaiming the case study or the impact | Counterfactual framing; "additional simulated pickups," never lives saved; every simulated number labeled |
-| "Isn't AI calling people regulated?" | The TCPA emergency-purpose answer |
-| Exposing the at-risk list | Fictional riders only, deletion on incident close, no public intake endpoint |
-
-## Open decisions
-
-- Owners for the team work beyond the app
-- Whether Cartesia's speech-to-text holds up on 8 kHz phone audio
-- Which neighbor-question and "can't leave" wording residents and advocates find natural
-- Who plays the driver at the table (they need to be free for the whole judging window)
+- Fictional riders in every demo. Real data only under the agency's authority. Real rider data is deleted when the incident closes, after a retention window (`INCIDENT_RETENTION_HOURS`, 72 by default, in `convex/incident.ts`).
+- No individual risk scores on screen. A human approves every plan unless the "Dispatcher approval" stand-in is on. The honesty rules and the audit log back every statement.
+- Rules we keep: only authorized agencies send emergency alerts; nothing reaches a resident before a driver accepts; the list of vulnerable residents is sensitive data. `/ready` sign-ups stay unverified until the agent confirms them by phone.
 
 ## Sources
 
@@ -555,13 +412,10 @@ Each prize track gets work a judge can see, and every sponsor tool gets a README
 - NBC News: Half of Katrina victims were 75 or older
 - Firehouse: Elderly particularly vulnerable during wildfires (Camp Fire)
 - Scripps News: Lahaina victims identified
-- IDMC: Global Report on Internal Displacement 2026 (summary); NRC press release, May 2026
 - U.S. Census Bureau: ACS Public Use Microdata Sample documentation (PUMA geography)
 - NASA Earthdata: MODIS and VIIRS active fire detection resolution and limitations
 - FCC: Declaratory ruling on AI-generated voices under the TCPA (2024)
-- Cal Hacks 13.0 live prize feed (hive.hackberkeley.org), checked Oct 24, 2026
 - UC Berkeley ITS: Understanding California Wildfire Evacuee Behavior and Joint Choice Making
 - UC Berkeley TSRC: Review of California Wildfire Evacuations from 2017 to 2019
 - Twilio: [Understanding CPS and concurrent call limits](https://support.twilio.com/hc/en-us/articles/40868960307995-Understanding-CPS-and-Concurrent-Call-Limits-in-Twilio)
-- Twilio: [A2P 10DLC campaign registration changelog](https://www.twilio.com/en-us/changelog/a2p-10dlc-campaign-registration-will-require-privacy-policy-and-)
 - MWCOG: [ACS disability status variables, published by tract](https://gis.mwcog.org/wa/rest/services/Hosted/ACS_Disability_Status_Variables_Tract/FeatureServer/0)
