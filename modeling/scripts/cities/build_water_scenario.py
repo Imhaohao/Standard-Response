@@ -41,11 +41,16 @@ def build_fronts(city, terrain) -> tuple[list[dict], list[np.ndarray]]:
     for step in city.front_steps(terrain):
         step_setup = replace(setup, source_water=setup.source_water | step["sources"]) if "sources" in step else setup
         reached = flooded_by(step_setup, step["level"], reached, step.get("gate"))
-        shown = tidy(reached, city.MIN_PART_CELLS, getattr(city, "SMOOTHING_CELLS", 1))
-        geometry = polygonize(terrain, shown, getattr(city, "MAX_VERTICES_PER_FRONT", MAX_VERTICES_PER_FRONT))
+        wet = reached | (setup.source_water & setup.domain) if getattr(city, "FRONTS_INCLUDE_OPEN_WATER", False) else reached
+        shown = tidy(wet, city.MIN_PART_CELLS, getattr(city, "SMOOTHING_CELLS", 1))
+        geometry, tolerance = polygonize(terrain, shown, getattr(city, "MAX_VERTICES_PER_FRONT", MAX_VERTICES_PER_FRONT))
         if geometry is None:
             continue
+        drawn = rasterize_front(terrain, geometry)
+        missed = int((shown & ~drawn & ~setup.source_water).sum())
         fronts.append({
+            "missedCells": missed,
+            "edgeMeters": round(tolerance * 2 * 111_000),
             "minutesAfterWarning": step["minute"],
             "areaKm2": round(float(reached.sum() * terrain.cell_area_m2 / 1e6), 3),
             "note": step["note"],
@@ -54,6 +59,14 @@ def build_fronts(city, terrain) -> tuple[list[dict], list[np.ndarray]]:
         })
         masks.append(shown)
     return fronts, masks
+
+
+def rasterize_front(terrain, geometry) -> np.ndarray:
+    from rasterio import features
+
+    from water_flood import transform_of
+
+    return features.rasterize([(geometry, 1)], out_shape=terrain.shape, transform=transform_of(terrain), dtype="uint8").astype(bool)
 
 
 def as_v2(city_id: str, city, fronts: list[dict], terrain) -> dict:
@@ -104,7 +117,7 @@ def main() -> None:
     out.write_text(json.dumps(as_v2(args.city, city, fronts, terrain), separators=(",", ":")) + "\n")
     print(f"{out.relative_to(REPO)}: {len(fronts)} fronts, at most {max(f['vertices'] for f in fronts)} vertices, {out.stat().st_size // 1024} KB")
     for front in fronts:
-        print(f"  minute {front['minutesAfterWarning']:>5}  {front['areaKm2']:>7} km2  {front['note']}")
+        print(f"  minute {front['minutesAfterWarning']:>5}  {front['areaKm2']:>7} km2  {front['vertices']:>4} vertices  {front['missedCells']:>5} flooded cells outside  edge <={front['edgeMeters']} m  {front['note']}")
     if args.preview:
         write_preview(terrain, masks, args.preview)
 

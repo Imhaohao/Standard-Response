@@ -47,6 +47,7 @@ All times are Central Daylight Time (UTC-5). Elevations are feet or metres NAVD8
 2. A cell floods once that surface is above its ground and an unbroken path of lower cells joins it to an open breach.
 3. The water front from each breach must also have had time to travel to the cell.
 4. Water that has reached a cell stays.
+5. Each outline is grown by its simplification tolerance before simplifying, so it covers every flooded cell. A front can claim up to 7–20 m of dry ground at its edge.
 
 ## Assumptions
 

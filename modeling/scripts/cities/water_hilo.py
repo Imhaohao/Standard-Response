@@ -19,6 +19,8 @@ KIND = "tsunami"
 BOX = Box(south=19.695, west=-155.115, north=19.745, east=-155.05)
 CELL_METERS = 5.0
 MIN_PART_CELLS = 60
+# Each front is Hilo Bay plus the land the water has reached, so the shoreline itself is never left out.
+FRONTS_INCLUDE_OPEN_WATER = True
 FEET = 0.3048
 BAY_POINTS = [(19.74, -155.075), (19.735, -155.08), (19.733, -155.06)]
 BORE_STEP_MINUTES = [1, 2, 3]

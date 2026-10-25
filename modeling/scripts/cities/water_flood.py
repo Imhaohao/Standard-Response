@@ -122,9 +122,15 @@ def as_multipolygon(geometry) -> MultiPolygon:
     return MultiPolygon(parts)
 
 
-def polygonize(terrain: Terrain, mask: np.ndarray, max_vertices: int) -> MultiPolygon | None:
+def covering_simplification(merged, tolerance: float):
+    """Grow the outline by the tolerance before simplifying it, so the simplified front still covers every
+    flooded cell: a front may claim up to twice the tolerance of dry ground at its edge, never leave out water."""
+    return merged.buffer(tolerance, join_style="mitre").simplify(tolerance, preserve_topology=True)
+
+
+def polygonize(terrain: Terrain, mask: np.ndarray, max_vertices: int) -> tuple[MultiPolygon | None, float]:
     if not mask.any():
-        return None
+        return None, 0.0
     pieces = [
         shape(geometry)
         for geometry, value in features.shapes(mask.astype("uint8"), mask=mask, transform=transform_of(terrain))
@@ -132,12 +138,12 @@ def polygonize(terrain: Terrain, mask: np.ndarray, max_vertices: int) -> MultiPo
     ]
     merged = unary_union(pieces)
     tolerance = 0.00003
-    simplified = merged.simplify(tolerance, preserve_topology=True)
+    simplified = covering_simplification(merged, tolerance)
     while vertex_count(simplified) > max_vertices and tolerance < 0.002:
-        tolerance *= 1.4
-        simplified = merged.simplify(tolerance, preserve_topology=True)
+        tolerance *= 1.25
+        simplified = covering_simplification(merged, tolerance)
     parts = sorted(as_multipolygon(simplified.buffer(0)).geoms, key=lambda part: part.area, reverse=True)
-    return MultiPolygon(parts)
+    return MultiPolygon(parts), tolerance
 
 
 def rounded_geojson(geometry: MultiPolygon) -> dict:

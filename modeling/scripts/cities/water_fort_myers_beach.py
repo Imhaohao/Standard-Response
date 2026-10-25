@@ -19,10 +19,11 @@ ID = "fort-myers-beach"
 KIND = "surge"
 BOX = Box(south=26.39, west=-82.01, north=26.505, east=-81.865)
 CELL_METERS = 6.0
-MIN_PART_CELLS = 400
-SMOOTHING_CELLS = 3
-# The mainland mangrove shore is fractal; this many vertices keeps it within about 30 m.
-MAX_VERTICES_PER_FRONT = 700
+MIN_PART_CELLS = 20
+# Each front is the Gulf and the bays plus the land they have reached, so the beach and the keys sit inside one
+# body of water instead of along a simplified shoreline that could shave them off.
+FRONTS_INCLUDE_OPEN_WATER = True
+MAX_VERTICES_PER_FRONT = 1500
 OPEN_WATER_POINTS = [(26.42, -81.97), (26.44, -81.99), (26.45, -81.92), (26.457, -81.952), (26.41, -81.89)]
 FRONT_CLOCK_TIMES = [
     "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:20",

@@ -55,7 +55,10 @@ All times are Eastern Daylight Time (UTC-4). Elevations are metres NAVD88. Built
   - The blend ignores the island in between. Behind the island the real water may have lagged the blended level.
 - **Front times** *(assumption)*. Fronts are every 30 minutes from 09:00, and every 20 minutes from 14:00 to the last peak at 15:40.
 - **Sampling** *(derived)*. Each record is sampled every 10 minutes, so short peaks are clipped. The pier's highest 10-minute sample is 3.85 m, 0.18 m under its 4.03 m filtered peak.
-- **Smoothing** *(assumption)*. Front outlines are smoothed by three cells (18 m), and patches under 400 cells (about 1.4 ha) are dropped, so the fractal mangrove shore stays under 700 vertices a front.
+- **Fronts include the water** *(method)*. Each front is the Gulf and the bays plus the land the surge has reached at that minute. The beach and the small mangrove keys therefore sit inside one body of water, not along a shoreline that simplification could shave off.
+  - An earlier build left the strip of Gulf beach (ground 1.0–1.6 m) outside every front, because simplification cut it off.
+  - The rebuild checks this. Every cell within 120 m of open water with ground under 3.5 m is inside the peak front, and so is every cell between -1.3 and 1.5 m.
+- **Outlines lean toward water** *(method)*. Each outline is grown by its simplification tolerance before it is simplified, so no flooded cell falls outside its front; the build reports zero for every front. The cost is that a front can claim a little dry ground at its edge: up to 40–50 m before noon, when the fractal mangrove shore needs the most simplification, and under 10 m from 14:40 on. Fronts carry up to 1,500 vertices.
 - **Before deployment** *(no data)*. The sensors went in between 05:52 and 07:48 on 28 Sep. The series starts at its last dry reading (0.43–0.45 m, the sensor's orifice height) and holds that level before it.
 - **No waves** *(assumption)*. The fronts use still water and leave out the waves riding on top. The unfiltered peak was 15.03 ft MHHW.
 - **Today's ground** *(assumption)*. The DEM is today's ground, not September 2022's.

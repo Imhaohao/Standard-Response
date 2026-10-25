@@ -63,6 +63,8 @@ The abstract adds that the bore rose 35 ft above sea level.
 2. The rise from each published trough (or start of rise) to its crest is assumed linear.
 3. The bore floods every joined cell below the local 1960 runup height. That height is interpolated between Loomis's points by inverse distance.
 4. The bore runs inland from the bay at 536 m a minute.
+5. Each front includes Hilo Bay itself, so the shoreline is never left out.
+6. Each outline is grown by its simplification tolerance before simplifying, so it covers every flooded cell. A front can claim up to 13–20 m of dry ground at its edge.
 
 **Check:** the final front covers 2.47 km². Lander & Lockridge report about 2.43 km² (600 acres). Only 0.08 km² of the flooded area lies outside today's county evacuation zone.
 
