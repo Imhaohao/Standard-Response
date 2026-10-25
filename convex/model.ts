@@ -72,7 +72,7 @@ type NeedFields = Pick<Doc<"households">, "outcome" | "peopleCount" | "mobility"
 
 const WHEELCHAIRS = new Set(["manual_wheelchair", "power_wheelchair"]);
 
-function boardingMinutesFor(record: NeedFields) {
+export function boardingMinutesFor(record: NeedFields) {
   if (record.mobility === "bedbound" || record.assistanceRequired === "two_person_lift") return 20;
   if (record.mobility && WHEELCHAIRS.has(record.mobility)) return 10;
   if (record.mobility === "walker") return 5;
