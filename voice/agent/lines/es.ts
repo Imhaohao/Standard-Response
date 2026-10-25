@@ -22,6 +22,7 @@ export const ES: Lines = {
   askAssistance: "¿Cuánta ayuda necesita para salir: ninguna, una persona que le ayude, o dos personas para levantarle?",
   askChairKind: "¿Es una silla de ruedas eléctrica, de las que tienen motor?",
   readbackIntro: "Le confirmo lo que tengo.",
+  readbackOnFileIntro: "Esto es lo que nos dijo en su chequeo de preparación.",
   readbackQuestion: "¿Es correcto?",
   readbackFixed: "Gracias, ya lo corregí.",
   whatToFix: "¿Qué debo corregir?",

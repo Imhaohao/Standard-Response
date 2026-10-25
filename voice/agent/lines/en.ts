@@ -20,6 +20,7 @@ export const EN: Lines = {
   askAssistance: "How much help do they need getting out: none, one person helping, or two people to lift?",
   askChairKind: "Is it a power wheelchair, the kind with a motor?",
   readbackIntro: "Let me read that back.",
+  readbackOnFileIntro: "Here's what you told us in your Ready check.",
   readbackQuestion: "Is that right?",
   readbackFixed: "Thanks, I've fixed that.",
   whatToFix: "What should I change?",

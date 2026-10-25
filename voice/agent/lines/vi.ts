@@ -21,6 +21,7 @@ export const VI: Lines = {
   askAssistance: "Họ cần được giúp bao nhiêu để ra ngoài: không cần giúp, cần một người giúp, hay cần hai người nhấc lên ạ?",
   askChairKind: "Đó có phải là xe lăn điện, loại có động cơ không ạ?",
   readbackIntro: "Tôi xin đọc lại những gì tôi ghi.",
+  readbackOnFileIntro: "Đây là thông tin quý vị đã cho chúng tôi biết trong lần kiểm tra trước.",
   readbackQuestion: "Có đúng không ạ?",
   readbackFixed: "Cảm ơn quý vị, tôi đã sửa rồi.",
   whatToFix: "Tôi cần sửa chỗ nào ạ?",

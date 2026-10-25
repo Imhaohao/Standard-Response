@@ -74,10 +74,12 @@ export function echo(changed: AgentRecord, language: Language) {
   return sentences.map((text) => sentence(text, lines)).join(lines.sentenceGap ?? " ");
 }
 
-export function readback(record: AgentRecord, language: Language) {
+// `fromFile`: everything it says came from the Ready check, so it opens by saying so.
+export function readback(record: AgentRecord, language: Language, fromFile = false) {
   const lines = LINES[language];
   const summary = readbackParts(record, lines).join(lines.listSeparator);
-  return `${lines.readbackIntro} ${summary.charAt(0).toUpperCase()}${summary.slice(1)}${lines.sentenceEnd ?? "."} ${lines.readbackQuestion}`;
+  const intro = fromFile ? lines.readbackOnFileIntro : lines.readbackIntro;
+  return `${intro} ${summary.charAt(0).toUpperCase()}${summary.slice(1)}${lines.sentenceEnd ?? "."} ${lines.readbackQuestion}`;
 }
 
 // What the resident is told about their ride, by request status. The table in PLAN.md

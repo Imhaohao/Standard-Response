@@ -21,6 +21,7 @@ export const ZH: Lines = {
   askAssistance: "他们出门需要多少帮助：不需要帮助，需要一个人帮忙，还是需要两个人抬？",
   askChairKind: "是电动轮椅吗？就是带电机的那种。",
   readbackIntro: "我再跟您确认一下。",
+  readbackOnFileIntro: "这是您在事先登记时告诉我们的信息。",
   readbackQuestion: "对吗？",
   readbackFixed: "谢谢，我已经改好了。",
   whatToFix: "需要改哪里？",

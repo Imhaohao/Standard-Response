@@ -21,6 +21,7 @@ export const KO: Lines = {
   askAssistance: "나가는 데 도움이 얼마나 필요합니까? 도움 필요 없음, 한 사람의 도움, 아니면 두 사람이 들어 올려야 합니까?",
   askChairKind: "전동 휠체어입니까? 모터가 달린 휠체어 말입니다.",
   readbackIntro: "제가 확인한 내용을 다시 말씀드리겠습니다.",
+  readbackOnFileIntro: "사전 점검 때 알려주신 내용입니다.",
   readbackQuestion: "맞습니까?",
   readbackFixed: "감사합니다, 고쳤습니다.",
   whatToFix: "무엇을 바꿀까요?",

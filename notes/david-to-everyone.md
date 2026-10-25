@@ -68,3 +68,11 @@ npm run apify:drill -- clear
 - **On a yes:** the agent says "Connecting you to <helper> now. Please stay on the line." Then `connectTo` in `voice/phone/twilio.ts` updates the live call to `<Dial callerId={our number}>` the helper. Twilio drops our stream and the two talk directly; our side ends without a hang-up (`CallSession.putThrough`).
 - **If the redirect fails:** the call says goodbye and ends as before.
 - `CallFlow` has an optional `connectTo`, which nothing but `PlanCheck` sets.
+
+## 2026-10-24 20:32
+
+**The warning call confirms the Ready check record instead of asking it again** (`voice/agent/conversation.ts`).
+- **After "can you leave?":** someone who can't leave now goes to the first thing the record is actually missing (`nextMissing`), not always the household question. Before, Jerry was asked "how many people are in the home?" with his head count on file.
+- **When the profile covers it all:** it's read back once with a new opening line, `readbackOnFileIntro` ("Here's what you told us in your Ready check. 2 people, ... Is that right?"), added in all 8 languages. The six beyond en and es are machine translations.
+- **After the read-back:** a yes moves on, and a correction goes back to only what changed, with the usual read-back.
+- **To the sponsor lead, who is reworking this file:** the change is small (`canLeave`, `afterCanLeave`, `readbackIsOnFile`, `readbackQuestion`), so please keep it when you rebase.

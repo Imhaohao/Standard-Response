@@ -633,7 +633,8 @@ export class Conversation {
       this.applyUpdates({ canLeave: "unsure" }, { canLeave: 0.7 });
     }
     if (this.record.canLeave === "yes") return { step: this.record.hasCar === undefined ? "has_car" : this.afterCanLeave() };
-    if (this.record.canLeave) return { step: "household" };
+    // What the Ready check already told us isn't asked again: the read-back confirms it all at once.
+    if (this.record.canLeave) return { step: this.nextMissing() };
     return this.retryOr("household");
   }
 
@@ -648,7 +649,13 @@ export class Conversation {
   // People leaving on their own skip the needs questions, but still hear a short read-back so a
   // mistaken "yes, we can get out" can be corrected.
   private afterCanLeave(): Step {
-    return needsRide(this.record) ? "household" : "readback";
+    return needsRide(this.record) ? this.nextMissing() : "readback";
+  }
+
+  // Everything the read-back would say about the home is still as the Ready check recorded it.
+  private readbackIsOnFile() {
+    if (this.onFile.peopleCount === undefined) return false;
+    return ON_FILE_FIELDS.every((field) => JSON.stringify(this.record[field]) === JSON.stringify(this.onFile[field]));
   }
 
   // After a correction, go back to the first thing the record is now missing.
@@ -876,7 +883,7 @@ export class Conversation {
 
   readbackQuestion() {
     if (this.shortReadback) return LINES[this.language].readbackQuestion;
-    return readback(this.record, this.language);
+    return readback(this.record, this.language, this.readbackIsOnFile());
   }
 
   // Anyone who needs a ride hears exactly the status template, never improvised reassurance.
@@ -896,6 +903,9 @@ export class Conversation {
     return this.reachedHold ? [goodbye] : [this.rideLine(), goodbye];
   }
 }
+
+// The fields a Ready check profile fills, which the read-back says back.
+const ON_FILE_FIELDS = ["peopleCount", "mobility", "medical", "assistanceRequired", "pets"] as const;
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
 const FEELING_WORDS = /(frighten|scar(y|ed)|terrif|afraid|worried|fear|asustad|miedo|aterr|preocupad)/i;

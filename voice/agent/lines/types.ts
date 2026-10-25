@@ -32,6 +32,8 @@ export type Lines = {
   // battery chair can weigh 400 pounds and won't fit in a neighbor's car.
   askChairKind: string;
   readbackIntro: string;
+  // Opens the read-back when everything in it came from the Ready check, before anything is asked again.
+  readbackOnFileIntro: string;
   readbackQuestion: string;
   readbackFixed: string;
   whatToFix: string;

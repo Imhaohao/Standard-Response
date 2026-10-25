@@ -21,6 +21,7 @@ export const JA: Lines = {
   askAssistance: "外に出るのに、どれくらい手助けが必要ですか。必要なし、1人の手助け、2人で持ち上げる、のどれですか。",
   askChairKind: "それは電動車椅子ですか。モーターが付いているものです。",
   readbackIntro: "確認のため、繰り返します。",
+  readbackOnFileIntro: "事前確認でお伺いした内容です。",
   readbackQuestion: "合っていますか。",
   readbackFixed: "ありがとうございます。修正しました。",
   whatToFix: "どこを直しますか。",

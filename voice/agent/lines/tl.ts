@@ -21,6 +21,7 @@ export const TL: Lines = {
   askAssistance: "Gaano po karaming tulong ang kailangan nila para makalabas: wala, isang taong aalalay, o dalawang tao para magbuhat?",
   askChairKind: "Power wheelchair po ba iyon, iyong may motor?",
   readbackIntro: "Uulitin ko po ang nakuha ko.",
+  readbackOnFileIntro: "Ito po ang sinabi ninyo sa amin sa Ready check.",
   readbackQuestion: "Tama po ba?",
   readbackFixed: "Salamat po, naituwid ko na.",
   whatToFix: "Ano po ang dapat kong baguhin?",

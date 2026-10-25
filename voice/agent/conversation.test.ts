@@ -549,3 +549,52 @@ describe("lines the caller just heard", () => {
     assert.equal(unchanged, 0);
   });
 });
+
+describe("a home with a Ready check profile on file", () => {
+  // Jerry's Ready check: two people, one needs a person to help them out to the car.
+  const ON_FILE = { peopleCount: 2, mobility: "walks", assistanceRequired: "one_person_assist" } as const;
+
+  function readyHome() {
+    const conversation = new Conversation({
+      language: "en",
+      onFile: { ...ON_FILE },
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    return conversation;
+  }
+
+  const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
+
+  it("confirms the profile in one read-back instead of asking each question again", () => {
+    const conversation = readyHome();
+    const turn = conversation.respond("no, I can't", heard({ answer: "no", updates: { canLeave: "no" } }));
+    assert.equal(conversation.step, "readback");
+    assert.match(spoken(turn), /Here's what you told us in your Ready check\. 2 people/);
+    conversation.respond("yes, that's right", heard({ answer: "yes" }));
+    assert.equal(conversation.step, "neighbor");
+  });
+
+  it("reads back with the usual opening once something on file has changed", () => {
+    const conversation = readyHome();
+    conversation.respond("no, I can't", heard({ answer: "no", updates: { canLeave: "no" } }));
+    const turn = conversation.respond("there are three of us now", heard({ updates: { peopleCount: 3 } }));
+    assert.doesNotMatch(spoken(turn), /Ready check/);
+    assert.match(spoken(turn), /3 people/);
+  });
+
+  it("still asks what the profile doesn't say", () => {
+    const conversation = new Conversation({
+      language: "en",
+      onFile: { peopleCount: 2 },
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    assert.equal(conversation.step, "needs");
+  });
+});
