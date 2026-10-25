@@ -1,6 +1,6 @@
 {
  "label": "Door-team simulation on the real west Altadena road graph with synthetic households. Simulated; a policy test, not a forecast.",
- "generatedAt": "2026-10-25T02:22:02-0700",
+ "generatedAt": "2026-10-25T02:27:27-0700",
  "hazard": "Eaton Fire, January 7 and 8, 2025",
  "setup": {
   "teams": 6,
@@ -15,6 +15,7 @@
   "p95Wait": "95th percentile wait",
   "meanWait": "average wait",
   "needyInTime": "% of homes that truly need help and that the fire reaches, checked before their hazard deadline",
+  "drivePerCheck": "minutes a team drives per home checked",
   "isolatedWorst": "longest wait among homes with no answered neighbor within 500 m",
   "slowAreaWorst": "longest wait in the north fifth (answers at half the rate in that scenario)"
  },
@@ -41,6 +42,11 @@
      "mean": 98.8,
      "p5": 93.1,
      "p95": 100.0
+    },
+    "drivePerCheck": {
+     "mean": 3.1,
+     "p5": 2.8,
+     "p95": 3.5
     },
     "slowAreaWorst": {
      "mean": 301.0,
@@ -69,6 +75,11 @@
      "p5": 93.1,
      "p95": 100.0
     },
+    "drivePerCheck": {
+     "mean": 2.7,
+     "p5": 2.3,
+     "p95": 2.9
+    },
     "slowAreaWorst": {
      "mean": 293.0,
      "p5": 267.5,
@@ -96,6 +107,11 @@
      "p5": 63.0,
      "p95": 100.0
     },
+    "drivePerCheck": {
+     "mean": 2.4,
+     "p5": 2.1,
+     "p95": 2.6
+    },
     "slowAreaWorst": {
      "mean": 285.7,
      "p5": 258.2,
@@ -122,6 +138,11 @@
      "mean": 53.6,
      "p5": 31.5,
      "p95": 80.0
+    },
+    "drivePerCheck": {
+     "mean": 4.7,
+     "p5": 4.4,
+     "p95": 5.1
     },
     "slowAreaWorst": {
      "mean": 381.4,
@@ -152,6 +173,11 @@
      "p5": 92.2,
      "p95": 100.0
     },
+    "drivePerCheck": {
+     "mean": 3.1,
+     "p5": 2.7,
+     "p95": 3.4
+    },
     "slowAreaWorst": {
      "mean": 299.5,
      "p5": 266.4,
@@ -178,6 +204,11 @@
      "mean": 98.2,
      "p5": 92.2,
      "p95": 100.0
+    },
+    "drivePerCheck": {
+     "mean": 2.7,
+     "p5": 2.3,
+     "p95": 2.9
     },
     "slowAreaWorst": {
      "mean": 290.4,
@@ -206,6 +237,11 @@
      "p5": 60.0,
      "p95": 97.6
     },
+    "drivePerCheck": {
+     "mean": 2.4,
+     "p5": 2.1,
+     "p95": 2.6
+    },
     "slowAreaWorst": {
      "mean": 286.6,
      "p5": 258.5,
@@ -232,6 +268,11 @@
      "mean": 53.4,
      "p5": 34.4,
      "p95": 77.8
+    },
+    "drivePerCheck": {
+     "mean": 4.7,
+     "p5": 4.4,
+     "p95": 5.0
     },
     "slowAreaWorst": {
      "mean": 379.0,
@@ -262,6 +303,11 @@
      "p5": 95.0,
      "p95": 100.0
     },
+    "drivePerCheck": {
+     "mean": 3.8,
+     "p5": 3.5,
+     "p95": 4.3
+    },
     "slowAreaWorst": {
      "mean": 495.5,
      "p5": 459.3,
@@ -288,6 +334,11 @@
      "mean": 98.7,
      "p5": 95.0,
      "p95": 100.0
+    },
+    "drivePerCheck": {
+     "mean": 3.4,
+     "p5": 3.1,
+     "p95": 3.7
     },
     "slowAreaWorst": {
      "mean": 478.3,
@@ -316,6 +367,11 @@
      "p5": 56.0,
      "p95": 94.7
     },
+    "drivePerCheck": {
+     "mean": 3.1,
+     "p5": 2.8,
+     "p95": 3.5
+    },
     "slowAreaWorst": {
      "mean": 467.6,
      "p5": 437.6,
@@ -342,6 +398,11 @@
      "mean": 36.1,
      "p5": 25.0,
      "p95": 50.0
+    },
+    "drivePerCheck": {
+     "mean": 5.9,
+     "p5": 5.6,
+     "p95": 6.3
     },
     "slowAreaWorst": {
      "mean": 649.7,
@@ -371,6 +432,11 @@
      "mean": 98.1,
      "p5": 91.2,
      "p95": 100.0
+    },
+    "drivePerCheck": {
+     "mean": 4.9,
+     "p5": 4.6,
+     "p95": 5.3
     },
     "isolatedWorst": {
      "mean": 431.6,
@@ -404,6 +470,11 @@
      "p5": 90.9,
      "p95": 100.0
     },
+    "drivePerCheck": {
+     "mean": 4.2,
+     "p5": 3.8,
+     "p95": 4.5
+    },
     "isolatedWorst": {
      "mean": 355.6,
      "p5": 292.3,
@@ -435,6 +506,11 @@
      "mean": 80.5,
      "p5": 60.7,
      "p95": 98.1
+    },
+    "drivePerCheck": {
+     "mean": 3.9,
+     "p5": 3.6,
+     "p95": 4.2
     },
     "isolatedWorst": {
      "mean": 394.9,
@@ -468,6 +544,11 @@
      "p5": 16.1,
      "p95": 68.5
     },
+    "drivePerCheck": {
+     "mean": 6.7,
+     "p5": 6.3,
+     "p95": 7.1
+    },
     "isolatedWorst": {
      "mean": 527.7,
      "p5": 458.3,
@@ -499,6 +580,11 @@
     "p5": 92.9,
     "p95": 100.0
    },
+   "drivePerCheck": {
+    "mean": 3.4,
+    "p5": 3.0,
+    "p95": 3.6
+   },
    "chosen": false
   },
   "30 min": {
@@ -511,6 +597,11 @@
     "mean": 98.8,
     "p5": 93.1,
     "p95": 100.0
+   },
+   "drivePerCheck": {
+    "mean": 3.1,
+    "p5": 2.8,
+    "p95": 3.5
    },
    "chosen": true
   },
@@ -525,6 +616,11 @@
     "p5": 93.1,
     "p95": 100.0
    },
+   "drivePerCheck": {
+    "mean": 3.0,
+    "p5": 2.7,
+    "p95": 3.2
+   },
    "chosen": false
   },
   "120 min": {
@@ -538,8 +634,13 @@
     "p5": 93.1,
     "p95": 100.0
    },
+   "drivePerCheck": {
+    "mean": 2.8,
+    "p5": 2.5,
+    "p95": 3.1
+   },
    "chosen": false
   },
-  "reading": "Across 15 to 120 minutes the worst wait moves only 288 to 310 min: with 6 teams for 400 homes, team capacity sets the worst case and the aging weight barely matters. 30 minutes is safe, not decisive."
+  "reading": "From the strongest aging weight (15 min) to the weakest (120 min), the worst wait goes 310 to 288 min and driving per check 3.4 to 2.8 min: weakening the aging shortens the worst wait. With 6 teams for 400 homes the last check comes when the teams get through the list, and aging that pulls a team off its block to an older entry costs driving."
  }
 }

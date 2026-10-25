@@ -46,18 +46,30 @@ def alpha_sensitivity(population, base_rates, hazard, travel, seeds: int) -> dic
     rows = {}
     for minutes in WAIT_EQUIVALENCES:
         config = DoorConfig(wait_equivalence_minutes=minutes)
-        worst, in_time = [], []
+        worst, in_time, drive = [], [], []
         for seed in range(seeds):
             world = build_world(random.Random(seed), population, SCENARIOS[0], hazard, travel, base_rates)
             alpha = alpha_at_start(world, travel, list(DEFAULT_TEAMS), config)
             result = simulate(world, "score", travel, list(DEFAULT_TEAMS), random.Random(1000 + seed), alpha)
             worst.append(float(result.wait.max()))
             in_time.append(result.checked_in_time * 100)
-        rows[f"{minutes:.0f} min"] = {"worstWait": spread(worst), "needyInTime": spread(in_time), "chosen": minutes == DoorConfig().wait_equivalence_minutes}
-    worsts = [row["worstWait"]["mean"] for row in rows.values()]
-    rows["reading"] = (f"Across 15 to 120 minutes the worst wait moves only {min(worsts):.0f} to {max(worsts):.0f} min: with 6 teams for 400 homes, "
-                       "team capacity sets the worst case and the aging weight barely matters. 30 minutes is safe, not decisive.")
+            drive.append(result.extra["drivePerCheck"])
+        rows[f"{minutes:.0f} min"] = {"worstWait": spread(worst), "needyInTime": spread(in_time), "drivePerCheck": spread(drive),
+                                      "chosen": minutes == DoorConfig().wait_equivalence_minutes}
+    rows["reading"] = sensitivity_reading(rows)
     return rows
+
+
+def sensitivity_reading(rows: dict) -> str:
+    """One sentence from the numbers: which way the worst wait moves as the aging weight weakens, and the driving behind it."""
+    strong, weak = rows[f"{WAIT_EQUIVALENCES[0]:.0f} min"], rows[f"{WAIT_EQUIVALENCES[-1]:.0f} min"]
+    worst = (strong["worstWait"]["mean"], weak["worstWait"]["mean"])
+    drive = (strong["drivePerCheck"]["mean"], weak["drivePerCheck"]["mean"])
+    direction = "shortens" if worst[1] < worst[0] else "lengthens"
+    return (f"From the strongest aging weight (15 min) to the weakest (120 min), the worst wait goes {worst[0]:.0f} to {worst[1]:.0f} min "
+            f"and driving per check {drive[0]:.1f} to {drive[1]:.1f} min: weakening the aging {direction} the worst wait. With 6 teams for "
+            "400 homes the last check comes when the teams get through the list, and aging that pulls a team off its block to an older "
+            "entry costs driving.")
 
 
 def headlines(results: dict) -> list[str]:
@@ -85,7 +97,8 @@ def main() -> None:
     config = DoorConfig()
     results = {}
     for scenario in SCENARIOS:
-        cells = {policy: {"worstWait": [], "p95Wait": [], "meanWait": [], "needyInTime": [], "isolatedWorst": [], "slowAreaWorst": []} for policy in POLICIES}
+        cells = {policy: {"worstWait": [], "p95Wait": [], "meanWait": [], "needyInTime": [], "drivePerCheck": [], "isolatedWorst": [], "slowAreaWorst": []}
+                 for policy in POLICIES}
         for seed in range(args.seeds):
             world = build_world(random.Random(seed), population, scenario, hazard, travel, base_rates)
             alpha = alpha_at_start(world, travel, list(DEFAULT_TEAMS), config)
@@ -96,6 +109,7 @@ def main() -> None:
                 cell["p95Wait"].append(float(np.percentile(result.wait, 95)))
                 cell["meanWait"].append(float(result.wait.mean()))
                 cell["needyInTime"].append(result.checked_in_time * 100)
+                cell["drivePerCheck"].append(result.extra["drivePerCheck"])
                 if world.isolated.any():
                     cell["isolatedWorst"].append(float(result.wait[world.isolated].max()))
                 if world.slow_area.any():
@@ -112,6 +126,7 @@ def main() -> None:
                   "alpha": "set once, as in the live runner: 30 minutes on the list equals the 90th-percentile need-and-urgency term at the start"},
         "metrics": {"worstWait": "longest any home waited, minutes", "p95Wait": "95th percentile wait", "meanWait": "average wait",
                     "needyInTime": "% of homes that truly need help and that the fire reaches, checked before their hazard deadline",
+                    "drivePerCheck": "minutes a team drives per home checked",
                     "isolatedWorst": "longest wait among homes with no answered neighbor within 500 m",
                     "slowAreaWorst": "longest wait in the north fifth (answers at half the rate in that scenario)"},
         "ranges": "mean, and 5th to 95th percentile across seeds",

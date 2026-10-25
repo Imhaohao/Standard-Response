@@ -137,6 +137,7 @@ def simulate(world: World, policy: str, travel: TravelMatrix, teams: list[tuple[
     remaining = np.ones(n, dtype=bool)
     team_node = [travel.nearest(lat, lng)[0] for lat, lng in teams]
     team_free = [LIST_OPENS_MINUTES[0]] * len(teams)
+    driven = 0.0
     while remaining.any():
         t_index = int(np.argmin(team_free))
         now = team_free[t_index]
@@ -149,6 +150,7 @@ def simulate(world: World, policy: str, travel: TravelMatrix, teams: list[tuple[
         choice = candidates[_pick(policy, world, candidates, tau, now, alpha, rng)]
         drive = travel.minutes[team_node[t_index], world.node[choice]] + world.offset[choice]
         drive = drive if math.isfinite(drive) else 30.0
+        driven += drive
         checked_at[choice] = now + drive + KNOCK_MINUTES
         team_node[t_index] = world.node[choice]
         team_free[t_index] = checked_at[choice]
@@ -156,7 +158,7 @@ def simulate(world: World, policy: str, travel: TravelMatrix, teams: list[tuple[
     wait = checked_at - world.entry
     needy = (world.truth > 0) & world.reached  # a home the fire never reaches can't be checked late
     in_time = float((checked_at[needy] <= world.deadline[needy]).mean()) if needy.any() else 1.0
-    return Result(wait, in_time)
+    return Result(wait, in_time, {"drivePerCheck": driven / n if n else 0.0})
 
 
 def _pick(policy: str, world: World, candidates: np.ndarray, tau: np.ndarray, now: float, alpha: float | None, rng: random.Random) -> int:
