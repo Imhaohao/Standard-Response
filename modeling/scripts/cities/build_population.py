@@ -149,8 +149,8 @@ def census_inputs(city_id: str) -> dict:
     return inputs
 
 
-OVERPASS_MIRRORS = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
-OVERPASS_TRIES = 6
+OVERPASS_MIRRORS = ["https://overpass-api.de/api/interpreter", "https://lz4.overpass-api.de/api/interpreter", "https://z.overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
+OVERPASS_TRIES = 12
 
 
 def overpass(query: str) -> list[dict]:

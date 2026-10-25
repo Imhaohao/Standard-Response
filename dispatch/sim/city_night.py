@@ -213,6 +213,14 @@ def assumptions(inputs: CityInputs) -> list[dict]:
     return [{"name": n, "value": v, "why": w} for n, v, w in rows]
 
 
+def per_seed(outputs: list) -> dict:
+    """At-risk homes out on time in each seed, so a replay can be drawn from a seed that sits at the median."""
+    table: dict = {}
+    for fleet, seed, policy, result in sorted(outputs, key=lambda o: (o[0], o[2], o[1])):
+        table.setdefault(str(fleet), {}).setdefault(policy, []).append(result["atRiskOnTime"])
+    return table
+
+
 def results_payload(city_id: str, inputs: CityInputs, seeds: int, fleets: list[int], outputs: list, started: float) -> dict:
     grouped = collect([("night", fleet, seed, policy, result) for fleet, seed, policy, result in outputs])["night"]
     return {
@@ -231,6 +239,7 @@ def results_payload(city_id: str, inputs: CityInputs, seeds: int, fleets: list[i
             "everyoneBoarded": "Households that need a ride, at risk or not, whose whole party boarded",
         },
         "results": grouped,
+        "onTimeBySeed": per_seed(outputs),
         "headline": {fleet: {policy: grouped[fleet][policy]["atRiskOnTime"]["median"] for policy in POLICIES} for fleet in grouped},
     }
 

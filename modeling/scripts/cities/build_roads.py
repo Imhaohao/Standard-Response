@@ -34,16 +34,16 @@ SITE_RADIUS_DEG = 0.006
 ARTERIALS = '["highway"~"motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link"]'
 
 
-MIRRORS = ["https://overpass-api.de/api", "https://maps.mail.ru/osm/tools/overpass/api"]
+MIRRORS = ["https://overpass-api.de/api", "https://lz4.overpass-api.de/api", "https://z.overpass-api.de/api", "https://maps.mail.ru/osm/tools/overpass/api"]
 
 
 ox.settings.overpass_rate_limit = False
-ox.settings.requests_timeout = 120
+ox.settings.requests_timeout = 400
 ox.settings.log_console = True
 
 
 def fetch_graph(bbox, **options):
-    for attempt in range(6):
+    for attempt in range(12):
         ox.settings.overpass_url = MIRRORS[attempt % len(MIRRORS)]
         try:
             return ox.graph_from_bbox(bbox, simplify=True, **options)
