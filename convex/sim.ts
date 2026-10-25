@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { MutationCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { internal } from "./_generated/api";
+import { insertTranscriptLine } from "./elasticHooks";
 import { Doc } from "./_generated/dataModel";
 import { applyRecordPatch, nextToCall } from "./households";
 import { endCall, resolveFollowUpFor, startCall } from "./calls";
@@ -66,7 +67,7 @@ async function advanceLive(ctx: MutationCtx, call: Doc<"calls">, household: Doc<
     .take(50);
   const script = scriptFor(household.address, household.language, persona.truth);
   for (const step of script.slice(spoken.length, spoken.length + lines)) {
-    await ctx.db.insert("transcriptLines", { callId: call._id, speaker: step.speaker, text: step.text, at: now });
+    await insertTranscriptLine(ctx, { callId: call._id, speaker: step.speaker, text: step.text, at: now });
     await ctx.db.patch("calls", call._id, { stage: step.stage });
     if (step.patch) await applyRecordPatch(ctx, household._id, step.patch, fieldConfidence(step.patch));
   }

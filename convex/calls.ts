@@ -1,6 +1,7 @@
 import { Infer, v } from "convex/values";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
+import { insertTranscriptLine } from "./elasticHooks";
 import { Doc, Id } from "./_generated/dataModel";
 import { callFlow, callPhase, callStage, requestStatus } from "./schema";
 import { attemptsOf } from "./pickups";
@@ -204,7 +205,7 @@ export const say = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert("transcriptLines", { ...args, at: await simNow(ctx) });
+    await insertTranscriptLine(ctx, { ...args, at: await simNow(ctx) });
     return null;
   },
 });

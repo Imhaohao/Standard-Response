@@ -19,6 +19,7 @@ import { LineList } from "./line-list";
 import { ListeningPanel } from "./listening-panel";
 import { QueueList } from "./queue-list";
 import { ReachPanel } from "./reach-panel";
+import { PickedMatch, TranscriptSearch } from "./transcript-search";
 
 type Tab = "lines" | "queue" | "ladder" | "activity";
 
@@ -113,17 +114,26 @@ function useFollowedCall() {
   // A call opened from the activity list, which may have ended: it stays open until the operator follows a line again.
   const [reviewId, setReviewId] = useState<Id<"calls"> | null>(null);
   const [listening, setListening] = useState(true);
+  // A home picked from the search box rings on the map until the operator follows a line again.
+  const [searchPick, setSearchPick] = useState<{ householdId: Id<"households">; address: string } | null>(null);
   const pin = (id: Id<"calls"> | null) => {
     setPinnedId(id);
     setReviewId(null);
+    setSearchPick(null);
     setListening(true);
   };
   const review = (id: Id<"calls">) => {
     setReviewId(id);
     setListening(true);
   };
+  const pickFromSearch = (match: PickedMatch) => {
+    setSearchPick({ householdId: match.householdId, address: match.address });
+    if (match.callId) review(match.callId);
+  };
   return {
     calls: sorted,
+    searchPick,
+    pickFromSearch,
     followed,
     shownId: reviewId ?? followed?._id ?? null,
     reviewing: reviewId !== null,
@@ -189,6 +199,7 @@ function WorkColumn({ floor, warned }: { floor: ReturnType<typeof useFollowedCal
   };
   return (
     <div className="pointer-events-auto flex min-h-0 w-full max-w-[23rem] shrink-0 flex-col gap-3 sm:w-[23rem] sm:max-w-[40vw]">
+      <TranscriptSearch onPick={floor.pickFromSearch} />
       {warned && <ReachPanel onOpenLadder={openLadder} />}
       <section className={`flex min-h-0 flex-col overflow-hidden card ${open ? "flex-1" : ""}`}>
         <ListTabs
@@ -214,7 +225,7 @@ export function CallFloor() {
   const control = useQuery(api.control.get);
   const floor = useFollowedCall();
   const issuedAt = control?.warningIssuedAt;
-  const followed = floor.followed ? { householdId: floor.followed.householdId, address: floor.followed.address } : null;
+  const followed = floor.searchPick ?? (floor.followed ? { householdId: floor.followed.householdId, address: floor.followed.address } : null);
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">

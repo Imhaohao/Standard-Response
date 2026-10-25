@@ -2,6 +2,7 @@ import { ConvexError, ObjectType, v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { internal } from "./_generated/api";
+import { insertTranscriptLine } from "./elasticHooks";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, bedroomFloor, bedroomSide, careNeed, exitPlan, medicalNeed, mobility } from "./schema";
 import { located } from "./model";
@@ -326,7 +327,7 @@ async function advanceReadyCall(ctx: MutationCtx, call: Doc<"calls">, household:
     .take(50);
   const lines = READY_LINES_PER_TICK * speed;
   for (const step of script.slice(spoken.length, spoken.length + lines)) {
-    await ctx.db.insert("transcriptLines", { callId: call._id, speaker: step.speaker, text: step.text, at: now });
+    await insertTranscriptLine(ctx, { callId: call._id, speaker: step.speaker, text: step.text, at: now });
     await ctx.db.patch("calls", call._id, { stage: step.stage });
     if (step.fields) await ctx.db.patch("households", household._id, step.fields);
   }
