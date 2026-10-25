@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { FlameField } from "../../flames";
 import { BLUR_FRAGMENT, FIRE_MASK_FRAGMENT } from "../../shaders";
-import { arrivalIndex, arrivalTexture, ArrivalIndex, impactAt, NO_IMPACT } from "../arrival";
+import { arrivalIndex, arrivalTexture, ArrivalIndex, buildingArrivalTexture, impactAt, NO_IMPACT } from "../arrival";
 import type { FullscreenPass, HazardLayer, HazardLayerContext, HazardLayerFactory } from "../types";
 
 // Flames stand on the town and the hills the camera can reach around it, not the whole field.
@@ -21,6 +21,7 @@ class FireLayer implements HazardLayer {
   private blurPass: FullscreenPass;
   private flames: FlameField;
   private arrival: ReturnType<typeof arrivalTexture> | null = null;
+  private buildingArrival: THREE.DataTexture | null = null;
   private index: ArrivalIndex | null = null;
 
   constructor(
@@ -42,6 +43,9 @@ class FireLayer implements HazardLayer {
     shared.uFireRegion.value.copy(this.arrival.region);
     shared.uFireLast.value = this.arrival.last;
     shared.uFireOn.value = 1;
+    this.buildingArrival = buildingArrivalTexture(data, field);
+    shared.tBuildingFire.value = this.buildingArrival;
+    shared.uBuildingFireOn.value = 1;
   }
 
   private burningField() {
@@ -92,7 +96,9 @@ class FireLayer implements HazardLayer {
   dispose() {
     const { shared } = this.context;
     shared.uFireOn.value = 0;
+    shared.uBuildingFireOn.value = 0;
     this.arrival?.texture.dispose();
+    this.buildingArrival?.dispose();
     this.flames.dispose();
     this.maskPass.dispose();
     this.blurPass.dispose();

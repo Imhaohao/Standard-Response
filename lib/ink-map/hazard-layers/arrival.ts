@@ -61,6 +61,20 @@ export function arrivalTexture(field: FireField) {
 
 const NEVER = Infinity;
 
+// The minute the hazard reaches each building, one half-float texel per building in the 256-wide
+// layout of the building state texture, for the shaders' arrivalAt(uv, mapXY): a building burns as one
+// piece. Set tBuildingFire to it and uBuildingFireOn to 1.
+export function buildingArrivalTexture(data: InkMapData, field: FireField) {
+  const rows = Math.ceil(data.buildings.length / 256);
+  const half = new Uint16Array(256 * rows).fill(THREE.DataUtils.toHalfFloat(NEVER_BURNS));
+  data.buildings.forEach((building, i) => {
+    half[i] = THREE.DataUtils.toHalfFloat(arrivalMinutesAt(field, building.center) ?? NEVER_BURNS);
+  });
+  const texture = new THREE.DataTexture(half, 256, rows, THREE.RedFormat, THREE.HalfFloatType);
+  texture.needsUpdate = true;
+  return texture;
+}
+
 const firstReached = (field: FireField, points: Point[]) =>
   points.reduce((first, point) => Math.min(first, arrivalMinutesAt(field, point) ?? NEVER), NEVER);
 

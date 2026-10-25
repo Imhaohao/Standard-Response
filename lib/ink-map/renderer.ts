@@ -239,6 +239,8 @@ export class InkMapRenderer {
       tFrontMask: { value: this.blank },
       tBloom: { value: this.blank },
       tFire: { value: this.blank },
+      tBuildingFire: { value: this.blank },
+      uBuildingFireOn: { value: 0 },
       tBuildingState: { value: this.buildingStates },
       uInvProjection: { value: new THREE.Matrix4() },
       uCameraWorld: { value: new THREE.Matrix4() },

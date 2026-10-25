@@ -157,6 +157,9 @@ uniform float uFireOn;
 uniform float uNextFrontOn;
 uniform float uFireLast;
 uniform float uTime;
+uniform sampler2D tId;
+uniform sampler2D tBuildingFire;
+uniform float uBuildingFireOn;
 
 vec3 viewPosition(vec2 uv, float depth) {
   vec4 v = uInvProjection * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -199,6 +202,22 @@ float arrivalMinutes(vec2 mapXY) {
   return m > uFireLast + 1.0 ? 1e4 : m;
 }
 
+float decodeId(vec2 uv) {
+  vec3 c = texture(tId, uv).rgb * 255.0;
+  return floor(c.r + 0.5) * 65536.0 + floor(c.g + 0.5) * 256.0 + floor(c.b + 0.5);
+}
+
+// A building burns as one piece: every pixel of it takes the minute the fire reaches the building,
+// so a front crossing the grid between two fronts never cuts a house in half. Ground and anything
+// else read the arrival field.
+float arrivalAt(vec2 uv, vec2 mapXY) {
+  float id = decodeId(uv);
+  if (uBuildingFireOn < 0.5 || id < 999.5 || id > 99999.5) return arrivalMinutes(mapXY);
+  float index = id - 1000.0;
+  float m = texelFetch(tBuildingFire, ivec2(int(mod(index, 256.0)), int(floor(index / 256.0))), 0).r;
+  return m > uFireLast + 1.0 ? 1e4 : m;
+}
+
 // How strongly the burning front glows here, with a ragged, flickering edge.
 float frontGlow(vec2 mapXY, float minutes) {
   float ragged = (fbm(mapXY * 0.012 + vec2(uTime * 0.05, -uTime * 0.04)) - 0.5) * 9.0;
@@ -236,7 +255,7 @@ void main() {
   if (depth >= 1.0) { color = vec4(0.0); return; }
   vec3 w = worldPosition(vUv, depth);
   vec2 mapXY = vec2(w.x, -w.z);
-  float minutes = arrivalMinutes(mapXY);
+  float minutes = arrivalAt(vUv, mapXY);
   float burned = (1.0 - smoothstep(uFireNow - 4.0, uFireNow, minutes)) * uFireOn;
   // A flank or an unburned island smoulders for a while after the fire passes, then cools like the
   // rest of the burn, so an island the fire went round reads as unburned ground, not as a hot spot.
@@ -275,7 +294,6 @@ ${SURFACE_GLSL}
 ${FIRE_COMMON}
 uniform sampler2D tShade;
 uniform sampler2D tNormal;
-uniform sampler2D tId;
 uniform sampler2D tBuildingState;
 uniform vec2 uResolution;
 uniform float uPixelRatio;
@@ -318,11 +336,6 @@ void placePattern(vec3 world) {
   gGround = vec2(world.x, -world.z) * uPatternScale;
   vec2 groundWidth = fwidth(gGround);
   gGroundWidth = max(groundWidth.x, groundWidth.y);
-}
-
-float decodeId(vec2 uv) {
-  vec3 c = texture(tId, uv).rgb * 255.0;
-  return floor(c.r + 0.5) * 65536.0 + floor(c.g + 0.5) * 256.0 + floor(c.b + 0.5);
 }
 
 // The terrain mesh is a metre across, so its per-pixel normal carries every wrinkle of the source
@@ -677,7 +690,7 @@ void main() {
   float lines = inkLines(uv, idC, depthC, normalC, metersPerPixel);
   float ink = max(tone * 0.85, lines) * (1.0 - edgeFade(mapXY, surface));
   vec3 color = mix(paper, uInk, ink * uInkStrength);
-  float minutes = arrivalMinutes(mapXY);
+  float minutes = arrivalAt(uv, mapXY);
   if (uBurning > 0.5) color = fireZone(color, ink * uInkStrength, surface, mapXY, minutes);
   else color = ashen(color, surface, minutes, lines);
 
@@ -807,7 +820,7 @@ void main() {
   float depth = texture(tDepth, uv).r;
   if (near && depth < 1.0) {
     vec2 mapXY = groundAt(uv);
-    float minutes = arrivalMinutes(mapXY);
+    float minutes = arrivalAt(uv, mapXY);
     float since = uFireNow - minutes;
     color = smoulder(color, mapXY, since, floor(texture(tShade, uv).g * 255.0 + 0.5));
     color = sparks(color, mapXY, step(0.0, since) * (1.0 - 0.6 * smoothstep(10.0, 40.0, since)));
