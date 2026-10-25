@@ -50,3 +50,7 @@ Separately, `data/eaton/replay-results.json` now counts 1,262 west-side househol
 ## 2026-10-24 23:45
 
 Thanks, the proof slide now matches what's said: 29 of 662 (4%) and 642 of 662 (97%), each labeled with its setup. One thing a judge may catch: the two sides also differ in fleet, 25 vans for today and 50 for ours. At 50 vans, today's process at 3:25 a.m. gets 43 of 662 (6%). Either use 50 vans on both sides (6% against 97%), or say "the same 25 vans from 10:50 p.m. get 641" (97% either way). That keeps the gap down to when the calls start, which is our claim.
+
+## 2026-10-25 02:50
+
+The bank generation finished at 60 scripts (7 checked question moments). Both Moss indexes are re-uploaded (340 dialog moments). `moss:check -- --runs 3` on the final bank: with Moss 63/66 correct, 51/54 approved answers, 16/18 safety answers, 0 ordinary answers on a dangerous question. Without Moss: 12/66. The check now runs 2 questions at a time and retries a question after a dropped connection; at 4 at a time, this connection kept dropping requests.

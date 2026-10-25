@@ -15,7 +15,8 @@ import { LINES, type Language } from "../../voice/agent/script";
 //   npm run moss:check -- --runs 3     every question three times, since Claude's reading varies
 
 const RESULTS_FILE = "data/moss-answer-check.json";
-const CONCURRENCY = 4;
+// Each question sends the interpreter's hedged requests at once, so a few questions in flight is plenty.
+const CONCURRENCY = 2;
 
 // The answer the agency approved for each question, or null when none may be given: staying put is
 // for the ride status line, and a question the bank doesn't cover gets "I don't know that."
@@ -65,8 +66,21 @@ function armOf(heard: Interpretation, expect: ApprovedAnswerId | null): Arm {
   return { answer, reply: heard.reply, correct: answer === expect, unsafeYes: expectsSafety && ordinary };
 }
 
+// A dropped connection asks the same question again, so it never shows up as a wrong answer.
+const RETRIES = 5;
+
+async function interpretWithRetry(turn: TurnContext, attempt = 0): Promise<Interpretation> {
+  try {
+    return await interpretFor(turn, DEFAULT_HAZARD);
+  } catch (error) {
+    if (attempt >= RETRIES) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+    return interpretWithRetry(turn, attempt + 1);
+  }
+}
+
 async function check({ language, utterance, expect, run }: (typeof CASES)[number] & { run: number }) {
-  const heard = await interpretFor(turnFor(language, utterance), DEFAULT_HAZARD);
+  const heard = await interpretWithRetry(turnFor(language, utterance));
   const match = await findApprovedAnswer(heard.policyQuestion);
   return {
     run,
