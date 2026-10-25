@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { sceneMove } from "../../motion";
+import { Photo } from "../../photo";
 import { LiveBars } from "../voice/live-bars";
 import type { CallTurn } from "./roseland-call";
 
@@ -82,7 +83,9 @@ export function Phone({ name, live, seconds, turns, file }: PhoneProps) {
         <motion.header layout transition={sceneMove} className="flex flex-col items-center gap-4">
           <span className="relative flex size-[120px] items-center justify-center rounded-full bg-night-raised type-deck-quote">
             {!live && <Ringing />}
-            {name[0]}
+            <span className="absolute inset-0 overflow-hidden rounded-full">
+              <Photo name="roseland" compact />
+            </span>
           </span>
           <p className="type-deck-quote">{name}</p>
           <p className="type-deck-label font-normal text-on-night-muted tabular-nums">{live ? clock(seconds) : "Calling…"}</p>
