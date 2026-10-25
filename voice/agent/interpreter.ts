@@ -199,6 +199,7 @@ Rules for changes:
 - Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure when the record has no canLeave yet; it never replaces a recorded no. Respect it and don't argue.
 - "Nobody", "no one", "I don't have anyone" or "you'd have to come get me" to the car question means hasCar=false.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure, and so is "I don't know" to the can-leave question, even with more said after it. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
+- walks means everyone gets out on their own feet with no aid. Someone who can't walk or can barely walk is never walks: when they name no aid ("my mom can't walk"), leave mobility out so the agent asks, and list canLeave no. Not being able to walk is how they live, not an emergency: emergency stays none unless something is happening to them now.
 - mobility is the most limited of anyone in the home now. Mentioning someone less limited never lowers it: after "my son can't get out of bed", "I'm in the wheelchair" keeps bedbound.
 - An emergency in the same answer doesn't replace the answer: set the fields it gives as well.
 - assistanceRequired is about physical help getting out of the home. Set it only when they describe needing a person to help them move or lift them. "I can't get out on my own" or "I have no car" alone says nothing about it.
