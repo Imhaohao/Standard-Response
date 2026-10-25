@@ -187,6 +187,21 @@ export const queue = query({
   },
 });
 
+// Voice server: who already agreed to pick this home up, so its Ready call confirms them instead of
+// asking from scratch. Only an arrangement for a future night; one being checked tonight is left alone.
+export const helperOnFile = query({
+  args: { householdId: v.id("households") },
+  returns: v.union(v.null(), helper),
+  handler: async (ctx, { householdId }) => {
+    const plans = await ctx.db
+      .query("pickupPlans")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .take(10);
+    const arranged = plans.find((plan) => plan.status === "arranged");
+    return arranged ? { name: arranged.helperName, phone: arranged.helperPhone, relation: arranged.relation } : null;
+  },
+});
+
 // Rescue map: everything a crew should know before going in, for one home.
 export const card = query({
   args: { householdId: v.id("households") },

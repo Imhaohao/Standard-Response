@@ -49,6 +49,17 @@ describe("real households on the night", () => {
     expect(queued.map((home) => home.address).sort()).toEqual([RESIDENT.address, NEIGHBOR.address]);
   });
 
+  test("the Ready call is given the helper on file until the night's check starts", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    const helper = { name: NEIGHBOR.residentName, phone: NEIGHBOR.phone, relation: "neighbor" };
+    await t.mutation(api.ready.submit, { ...RESIDENT, language: "en", care: [], exitPlan: "helper", helper });
+    expect(await t.query(api.ready.helperOnFile, { householdId: resident })).toEqual(helper);
+    await t.mutation(api.control.issueWarning, {});
+    expect(await t.query(api.ready.helperOnFile, { householdId: resident })).toBeNull();
+    expect((await plansFor(t, resident))[0].status).toBe("checking");
+  });
+
   test("a home that signs up inside a zone already drawn is called, and one outside it isn't", async () => {
     const t = setup();
     await t.mutation(api.control.reset, {});

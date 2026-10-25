@@ -34,6 +34,8 @@ type ReadyLines = {
   askHelper: string;
   askHelperPhone: (name: string) => string;
   confirmPhone: (spokenDigits: string) => string;
+  // A helper already on file, confirmed rather than asked for again.
+  confirmHelperOnFile: (name: string, spokenDigits: string) => string;
   askNote: string;
   readbackIntro: string;
   readbackQuestion: string;
@@ -67,6 +69,7 @@ const EN_READY: ReadyLines = {
   askHelper: "Who would pick you up, and what's their phone number?",
   askHelperPhone: (name) => `What's ${name}'s phone number?`,
   confirmPhone: (spokenDigits) => `I have ${spokenDigits}. Is that right?`,
+  confirmHelperOnFile: (name, spokenDigits) => `We have ${name} at ${spokenDigits} down to pick you up. Is that still right?`,
   askNote: "Is there anything a crew should know, like a gate code or where a key is?",
   readbackIntro: "Let me read that back.",
   readbackQuestion: "Is that right?",
@@ -107,6 +110,7 @@ const ES_READY: ReadyLines = {
   askHelper: "¿Quién pasaría por usted, y cuál es su número de teléfono?",
   askHelperPhone: (name) => `¿Cuál es el número de teléfono de ${name}?`,
   confirmPhone: (spokenDigits) => `Tengo ${spokenDigits}. ¿Es correcto?`,
+  confirmHelperOnFile: (name, spokenDigits) => `Tenemos a ${name}, al ${spokenDigits}, para pasar por usted. ¿Sigue siendo así?`,
   askNote: "¿Hay algo que un equipo debería saber, como el código de una reja o dónde hay una llave?",
   readbackIntro: "Le leo lo que tengo.",
   readbackQuestion: "¿Es correcto?",
@@ -140,10 +144,15 @@ export interface ReadyCallEffects {
   save(profile: ReadyProfileArgs): void;
 }
 
+export type HelperOnFile = { name: string; phone: string; relation?: string };
+
 export type ReadyCallOptions = {
   language: Language;
   addressOnFile?: string;
   residentName?: string;
+  // Who already agreed to pick this home up. Without it, a call that didn't hear the number again
+  // would save a profile with no helper and drop the arrangement.
+  helperOnFile?: HelperOnFile;
   effects: ReadyCallEffects;
   interpret?: ReadyInterpret;
 };
@@ -182,6 +191,10 @@ export function spokenDigits(phone: string) {
   return groups.map((group) => group.split("").join(" ")).join(", ");
 }
 
+// "David" and "David Wu" are the same helper; a different first name is someone new.
+const firstName = (name: string) => name.trim().split(/\s+/)[0].toLowerCase();
+const sameName = (a: string, b: string) => firstName(a) === firstName(b);
+
 export class ReadyCall implements CallFlow {
   readonly language: Language;
   readonly holding = false;
@@ -198,6 +211,8 @@ export class ReadyCall implements CallFlow {
   // Whether we've asked if a wheelchair has a motor: "wheelchair" alone doesn't tell a crew or a
   // neighbor whether it's a 400-pound battery chair.
   chairKindAsked = false;
+  // Whether the helper being confirmed came from the file rather than from this call.
+  private helperFromFile = false;
   private saved = false;
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
 
@@ -344,12 +359,24 @@ export class ReadyCall implements CallFlow {
 
   afterExitPlan(): Step {
     if (this.answers.exitPlan !== "helper") return "note";
+    this.useHelperOnFile();
     return this.answers.helperPhone ? "confirm_phone" : "helper";
+  }
+
+  // The helper on file, when the resident names nobody new and gives no number: we read them back
+  // to confirm rather than ask for them from scratch.
+  private useHelperOnFile() {
+    const onFile = this.options.helperOnFile;
+    const named = this.answers.helperName;
+    if (!onFile || this.answers.helperPhone || (named && !sameName(named, onFile.name))) return;
+    this.answers = { ...this.answers, helperName: named ?? onFile.name, helperPhone: onFile.phone, helperRelation: this.answers.helperRelation ?? onFile.relation };
+    this.helperFromFile = true;
   }
 
   // A number read back wrong is asked for again, twice at most.
   rejectPhone(): Step {
     this.phoneRejections += 1;
+    this.helperFromFile = false;
     this.answers = { ...this.answers, helperPhone: undefined };
     return this.phoneRejections >= MAX_PHONE_REJECTIONS ? "note" : "helper";
   }
@@ -373,7 +400,9 @@ export class ReadyCall implements CallFlow {
   }
 
   phoneQuestion() {
-    return this.lines.confirmPhone(spokenDigits(this.answers.helperPhone ?? ""));
+    const digits = spokenDigits(this.answers.helperPhone ?? "");
+    const name = this.answers.helperName;
+    return this.helperFromFile && name ? this.lines.confirmHelperOnFile(name, digits) : this.lines.confirmPhone(digits);
   }
 
   get readyLines() {

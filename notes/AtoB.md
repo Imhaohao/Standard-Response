@@ -100,3 +100,13 @@ Changes from our two Palo Alto Fire station visits, in your voice code. `npm run
 ## 2026-10-24 19:05
 
 Small prompt change in your `voice/agent/interpreter.ts` (and the matching line in `readyInterpreter.ts`). On tonight's live run, "they need a person to reel them out of the building" came back as `two_person_lift`. That took the home off a neighbor's car (`fitsInACar`), so no neighbor was asked and the pickup calls never started. The prompt only had examples for two people. It now also says that one person pushing a chair or helping them to the car is `one_person_assist`, and that it's `two_person_lift` only when they say two people or that the person must be lifted or carried. I checked three sentences against the live model: Jerry's sentence and "my daughter has to push my wheelchair out to the car" now read `one_person_assist`, and "it takes two of us to lift him out of bed" still reads `two_person_lift`. `npm run test:voice` passes (185). Worth a re-run of `npm run exam:voice` when you next certify.
+
+## 2026-10-24 19:00
+
+The Ready call now confirms a helper who's already on file instead of asking from scratch. Tonight Jerry's form named David as his helper. His Ready call then saved a profile with no confirmed helper, `arrangePickup` replaced the arrangement, and the warning had nobody to call.
+
+- New query `ready:helperOnFile({ householdId })` (Track A) returns `{ name, phone, relation? }` from the home's `arranged` pickup plan, or `null`. It returns nothing once the night's check has started.
+- `outboundFlows.ts` `readyCallFor` passes it as `ReadyCallOptions.helperOnFile`.
+- `readyCall.ts`: when the resident's exit plan is `helper` and they give no number, and they name nobody or the same first name, the call reads the helper back with the new line `confirmHelperOnFile` ("We have David at 4 2 5, ... down to pick you up. Is that still right?"). It's in English and Spanish, like the rest of the Ready lines. A "no" asks for the number again, the same as `rejectPhone`. A new name asks for that person's number, and `needs_ride` or `own_car` still drops the helper.
+- Tests are in `planCheck.test.ts` ("with a helper already on file") and `tests/workflow/realPickupFlow.test.ts`. `npm run test:voice` passes (191).
+- I'm deploying Convex and then Fly from a clean copy of `main`.

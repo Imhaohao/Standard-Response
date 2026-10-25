@@ -65,12 +65,16 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
 
 async function readyCallFor(params: StreamParameters): Promise<CallFlow> {
   const householdId = params.householdId as Id<"households">;
-  const household = await convex().query(api.voice.household, { householdId });
+  const [household, helperOnFile] = await Promise.all([
+    convex().query(api.voice.household, { householdId }),
+    convex().query(api.ready.helperOnFile, { householdId }),
+  ]);
   if (!household) throw new Error(`Household ${householdId} not found`);
   return new ReadyCall({
     language: languageOf(household.language),
     addressOnFile: hasHouseNumber(household.address) ? household.address : undefined,
     residentName: household.residentName,
+    helperOnFile: helperOnFile ?? undefined,
     effects: {
       save: (profile) => fireAndForget("ready.saveFromCall", convex().mutation(api.ready.saveFromCall, { householdId, ...profile })),
     },

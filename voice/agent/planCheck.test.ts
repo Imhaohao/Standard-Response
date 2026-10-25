@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { helperOnTheWayLine, minutesUntil, PickupNeeds, PlanCheck, PlanCheckEffects, PlanCheckOptions } from "./planCheck";
 import type { PlanHeard, PlanRole } from "./planInterpreter";
-import { ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
+import { HelperOnFile, ReadyCall, ReadyProfileArgs, spokenDigits } from "./readyCall";
 import type { ReadyHeard } from "./readyInterpreter";
 
 type Recorded = { helper: [boolean, number | undefined][]; resident: boolean[]; confirmed: boolean[]; notices: number; escalations: string[]; unreached: number };
@@ -259,12 +259,13 @@ const readyHeard = (partial: Partial<ReadyHeard>): ReadyHeard => ({
   ...partial,
 });
 
-function readyCall(answers: Partial<ReadyHeard>[]) {
+function readyCall(answers: Partial<ReadyHeard>[], helperOnFile?: HelperOnFile) {
   const saved: ReadyProfileArgs[] = [];
   const queue = [...answers];
   const call = new ReadyCall({
     language: "en",
     addressOnFile: "1182 Mariposa St",
+    helperOnFile,
     effects: { save: (profile) => saved.push(profile) },
     interpret: async () => readyHeard(queue.shift() ?? {}),
   });
@@ -296,6 +297,54 @@ describe("Ready check call", () => {
     assert.deepEqual(saved[0].helper, { name: "Ana", phone: "+16265550123", relation: undefined });
     assert.deepEqual(saved[0].bedroom, { floor: "upstairs", side: "back" });
     assert.equal(saved[0].exitPlan, "helper");
+  });
+
+  describe("with a helper already on file", () => {
+    const DAVID: HelperOnFile = { name: "David", phone: "+14252468208", relation: "neighbor" };
+    // Address, people, needs (none), care, then the exit plan: the next turn is the helper's.
+    const upToExitPlan: Partial<ReadyHeard>[] = [
+      { answer: "yes" },
+      { answer: "yes" },
+      { updates: { peopleCount: 1, pets: false } },
+      { answer: "no" },
+      { answer: "no" },
+    ];
+    async function throughExitPlan(exitPlan: Partial<ReadyHeard>, rest: Partial<ReadyHeard>[] = []) {
+      const { call, saved } = readyCall([...upToExitPlan, exitPlan, ...rest], DAVID);
+      call.start();
+      for (let turn = 0; turn < upToExitPlan.length; turn++) await call.hear("…");
+      return { call, saved, asked: spoken(await call.hear("…")) };
+    }
+
+    it("confirms them by name and number instead of asking again, and keeps them", async () => {
+      const { call, saved, asked } = await throughExitPlan({ updates: { exitPlan: "helper" } }, [{ answer: "yes" }, { answer: "no" }, { answer: "yes" }]);
+      assert.match(asked, /We have David at 4 2 5, 2 4 6, 8 2 0 8 down to pick you up\. Is that still right\?/);
+      while (!call.done) await call.hear("…");
+      assert.deepEqual(saved[0].helper, DAVID);
+    });
+
+    it("keeps them when the resident names them again without the number", async () => {
+      const { asked } = await throughExitPlan({ updates: { exitPlan: "helper", helperName: "David Wu" } });
+      assert.match(asked, /We have David Wu at 4 2 5/);
+    });
+
+    it("asks for the number of someone new instead of reading the old helper's", async () => {
+      const { asked } = await throughExitPlan({ updates: { exitPlan: "helper", helperName: "Rosa" } });
+      assert.match(asked, /What's Rosa's phone number\?/);
+    });
+
+    it("asks for the number again when the resident says the one on file is wrong", async () => {
+      const { call, asked } = await throughExitPlan({ updates: { exitPlan: "helper" } }, [{ answer: "no" }]);
+      assert.match(asked, /We have David/);
+      assert.match(spoken(await call.hear("no, that's wrong")), /What's David's phone number\?/);
+    });
+
+    it("drops them when the resident now needs a ride from us", async () => {
+      const { call, saved } = await throughExitPlan({ updates: { exitPlan: "needs_ride" } }, [{ answer: "no" }, { answer: "yes" }]);
+      while (!call.done) await call.hear("…");
+      assert.equal(saved[0].exitPlan, "needs_ride");
+      assert.equal(saved[0].helper, undefined);
+    });
   });
 
   it("ends without saving or counting a miss when now isn't a good time", async () => {
