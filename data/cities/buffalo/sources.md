@@ -159,3 +159,9 @@ The dispatch simulator uses a blizzard rule instead (`blizzard_need` in `dispatc
 Together that's 24,526 of 104,953 households, or 23.4%. The population fills the whole baked extent: the `buffalo` detail box in `lib/cities.ts` grown by its 0.005° extent pad.
 
 A household that needs moving is at risk only if it loses power during the storm. Its power-loss time is drawn from the outage curve above, and households above the curve's peak share (17.5%) keep power. We didn't add a separate no-heat share for homes that keep power, because we found no source to ground one.
+
+## What the dispatcher knows about outages
+
+A home's outage counts as known to the dispatcher **30 minutes after it happens**. That's an assumption about how quickly National Grid's public outage map shows a block group as out. From then on, the home's deadline is the real one: 15:00, when the streets become impassable, or the moment its power went out if someone there uses oxygen. Until then, the dispatcher plans as if the home could ride out the 12-hour no-heat window, so it ranks behind homes known to be dark.
+
+Calls also ask about heat and power, so a call or retry that reaches a home after its outage would flag it sooner. The simulator doesn't credit that, which makes the result a little pessimistic. The at-risk total doesn't change: it's still the homes that need moving and actually lose power. The results file also has an `oursBlind` row: the same system with no outage information, where every home that needs moving looks equally urgent. The difference between the two rows is what knowing about outages is worth.
