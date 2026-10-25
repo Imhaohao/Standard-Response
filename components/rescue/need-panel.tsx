@@ -62,11 +62,14 @@ function ApproveButton({ assignment }: { assignment: Assignment }) {
   );
 }
 
-function PersonRow({ person, now, focus, trailing }: { person: Person; now: number; focus: FocusProps; trailing?: ReactNode }) {
+type PersonRowProps = { person: Person; now: number; focus: FocusProps; trailing?: ReactNode; action?: ReactNode };
+
+// The row opens the person on the map; an action (approving a van) sits beside it, never inside it.
+function PersonRow({ person, now, focus, trailing, action }: PersonRowProps) {
   const selected = focus.focusId === person._id;
   const escalation = person.escalation;
   return (
-    <li>
+    <li className={`flex items-center transition-colors duration-150 hover:bg-surface-sunk ${selected ? "bg-surface-sunk" : ""} ${action ? "pr-4" : ""}`}>
       <button
         type="button"
         onClick={() => focus.onFocus(person)}
@@ -74,7 +77,7 @@ function PersonRow({ person, now, focus, trailing }: { person: Person; now: numb
         onMouseLeave={() => focus.onHover(null)}
         onFocus={() => focus.onHover(person)}
         onBlur={() => focus.onHover(null)}
-        className={`flex w-full items-center gap-2.5 px-4 py-1.5 text-left transition-colors duration-150 hover:bg-surface-sunk ${selected ? "bg-surface-sunk" : ""}`}
+        className={`flex min-w-0 flex-1 items-center gap-2.5 py-1.5 pl-4 text-left ${action ? "pr-1.5" : "pr-4"}`}
         aria-pressed={selected}
       >
         <RequestBadge request={person} />
@@ -90,6 +93,7 @@ function PersonRow({ person, now, focus, trailing }: { person: Person; now: numb
         </span>
         {trailing ?? <TimeLeft minutes={minutesLeft(person, now)} />}
       </button>
+      {action}
     </li>
   );
 }
@@ -125,13 +129,10 @@ function UnplacedRow({ request }: { request: OpenRequest }) {
 
 function OfferedVan({ person }: { person: Person }) {
   if (!person.assignment || !person.vehicle) return null;
-  return (
-    <span className="flex shrink-0 items-center gap-1.5">
-      <VanChip label={person.vehicle.label} busy={false} title={`${person.vehicle.label} offered, waiting for the driver`} />
-      {person.assignment.status === "proposed" && <ApproveButton assignment={person.assignment} />}
-    </span>
-  );
+  return <VanChip label={person.vehicle.label} busy={false} title={`${person.vehicle.label} offered, waiting for the driver`} />;
 }
+
+const approval = (person: Person) => (person.assignment?.status === "proposed" ? <ApproveButton assignment={person.assignment} /> : undefined);
 
 function Group({ title, count, tone, children }: { title: string; count: number; tone: "signal" | "ink"; children: ReactNode }) {
   if (count === 0) return null;
@@ -279,6 +280,7 @@ export function NeedPanel({ people, unplaced, focus, className = "" }: NeedPanel
                     <OfferedVan person={person} />
                   </span>
                 }
+                action={approval(person)}
               />
             ))}
           </Group>
