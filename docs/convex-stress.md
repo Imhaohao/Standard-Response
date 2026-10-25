@@ -34,70 +34,72 @@ mutation held under every storm:
 | inbound-same-number | 10 unknown numbers, each calling in 25 times at once | One household per number |
 | chaos | 8 rounds of 120 random writes from stale views: commits, accepts, declines, expiries, cancels, corrections, riders leaving and coming back | Every contract invariant holds |
 
-## What breaks
+## What it found, now fixed
 
-### 1. Reads that stop early miss live rows after enough churn
+Every scenario passes now. These are the four bugs the first runs found, and what changed.
 
-`liveAssignmentsFor` reads the first 50 assignments of a request and `liveAssignmentsForVehicle`
-reads the first 100 of a vehicle ([convex/offers.ts:18](../convex/offers.ts#L18),
-[convex/offers.ts:26](../convex/offers.ts#L26)), oldest first, and only then filters for live ones.
-Every re-plan that changes an offer and every 2-minute expiry adds a dead row, so on a long night
-the live rows fall past the limit.
+### 1. Reads that stopped early missed live rows after enough churn
 
-- **request-churn:** after 60 re-plans of one request, `plans:propose` lets a second live offer
-  through. A correction no longer drops the offer the van can't serve, and closing the request
-  leaves both offers live.
-- **vehicle-churn:** after 110 replaced offers on one van, `offers:forVehicle` (the driver page)
-  doesn't show the van's accepted stop. `plans:propose` also accepts an offer ahead of that stop,
-  which breaks the frozen-run rule. `dispatch.commit`'s `firstFreeStop` reads the same list.
+`liveAssignmentsFor`, `liveAssignmentsForVehicle`, `openRequestFor` and the status line's driver
+lookup in `voice.ts` read the oldest 50, 100 or 20 rows and only then filtered for live ones. Every
+re-plan that changes an offer and every 2-minute expiry leaves a dead row, so on a long night the
+live rows fell past the limit:
 
-`openRequestFor` has the same shape with 20 ([convex/requests.ts:55](../convex/requests.ts#L55)).
-
-- **household-churn:** a rider who flips between "I can leave" and "I can't" 25 times ends with
+- **request-churn:** after 60 re-plans of one request, `plans:propose` let a second live offer
+  through. A correction no longer dropped the offer the van couldn't serve, and closing the request
+  left both offers live.
+- **vehicle-churn:** after 110 replaced offers on one van, the driver page (`offers:forVehicle`)
+  lost the van's accepted stop, and an offer could be placed ahead of it, which breaks the
+  frozen-run rule.
+- **household-churn:** a rider who flipped between "I can leave" and "I can't" 25 times ended with
   7 open ride requests instead of 1.
 
-A likely fix is to read live rows by status through an index (`by_vehicleId_and_status_and_stopOrder`
-already exists for vehicles; requests need a `by_requestId_and_status`).
+**Fix:** these reads go through the status in an index (`assignments.by_requestId_and_status`,
+`requests.by_householdId_and_status`, and the existing `by_vehicleId_and_status_and_stopOrder`).
 
-### 2. `plans:propose` offers rides to requests that already closed
+### 2. `plans:propose` offered rides to requests that had already closed
 
-`assertOfferAllowed` ([convex/plans.ts:39](../convex/plans.ts#L39)) checks compatibility and live
-offers but not the request's status. In **stale-propose**, an outside solver proposes for 5 requests
-that closed while it solved. All 5 offers go live, and the driver's accept then throws `cannot move
-from closed to driver_accepted` instead of answering `"changed"`. The built-in dispatcher is safe,
-because `dispatch.commit` checks `OFFERABLE` first. The exposure is the public mutation, which outside solvers write through
-(`dispatch/verify_dispatch.py` describes OR-Tools doing so), as do the red-team change cases.
+In **stale-propose**, an outside solver proposed for 5 requests that closed while it solved. All 5
+offers went live, and the driver's accept then threw `cannot move from closed to driver_accepted`
+instead of answering `"changed"`. `dispatch.commit` already checked for this; the public mutation
+didn't.
 
-### 3. Household writes contend on the household counts
+**Fix:** `plans:propose` refuses an offer unless the request is `received`, `approved` or
+`reassigning`. The same `OFFERABLE` set in `convex/requests.ts` now backs both paths.
 
-Every write to `households` also updates the two aggregates behind `households:counts`
-([convex/householdCounts.ts:19](../convex/householdCounts.ts#L19)). Those B-trees share nodes, so
-writes to different households conflict with each other. When Convex retries and still loses, the
-whole write fails. Nothing partial stays, so no invariant broke, but the answer is lost unless the
-caller retries.
+### 3. Household writes conflicted through the household counts
 
-- **concurrent-corrections:** 450 updates to 150 different households, all sent at once: about 55
-  to 60% give up on a `btreeNode` conflict.
-- **call-floor-load:** 12 calls at once, each saving 30 answers in a row to its own household: 1 to 7
-  of 360 are lost (0.3 to 2%). That run makes 120 to 235 writes a second, far more than a real call
-  floor, so treat it as an upper bound.
+Every household write updated the two aggregates behind `households:counts` in its own
+transaction. With nodes of 16, a namespace is only a few B-tree leaves, so writes for *different*
+homes conflicted. When Convex's retries ran out, the whole write failed. No invariant broke, but the
+answer was lost, and the voice agent's record writes are fire-and-forget:
 
-The voice agent's record writes are fire-and-forget (PLAN.md, Track B), so a lost write is a lost
-answer. The aggregate's `rootLazy` and `maxNodeSize` options, or a retry on the caller's side,
-are where to look.
+- **concurrent-corrections:** with 450 updates to 150 households sent at once, 55 to 60% gave up.
+- **call-floor-load:** with 12 calls each saving 30 answers in a row, 1 to 7 of 360 gave up. That's
+  at 120 to 235 writes a second, far faster than a real call floor.
 
-Conflicts on one shared document are expected and are reported but not failed:
+**Fix:** the trigger queues its aggregate writes to the aggregate's batch worker, and
+`households:counts` reads stale. Both scenarios now lose nothing. The counts trail the records by
+moments, and the scenario checks that they catch up within 10 seconds.
+
+Two side effects of the fix:
+- `householdCounts:backfill` must run while no household is being written, because clearing needs
+  an empty queue.
+- convex-test files register the counts with `registerHouseholdCounts(t)` from
+  `tests/workflow/householdCounts.ts`. Aggregate's own test helper doesn't register the nested
+  batch worker.
+
+Writes that give up on one shared document are expected, and are reported but not failed:
 - `plans`: the plan version counter, when many proposals race.
 - `households`: the same caller ringing 25 times at once.
 - `dispatchState`: concurrent commits, which the re-plan lock prevents in practice.
 
-### 4. Callback state can move backwards
+### 4. Callback state could move backwards
 
-`markPlaced` and `markUnanswered` overwrite the state unconditionally
-([convex/callbacks.ts:38](../convex/callbacks.ts#L38)). In **callback-ordering**, a `placed` or
-`unanswered` that lands after `played` moves the callback back, and `unanswered` is what starts a
-retry call. `voice/callbackRunner.ts` sends these in order from one process today, so this stays
-latent until two paths mark the same callback.
+In **callback-ordering**, a `placed` or `unanswered` that landed after `played` moved the callback
+back, and `unanswered` is what starts a retry call.
+
+**Fix:** a played callback stays played.
 
 ## Not covered
 
