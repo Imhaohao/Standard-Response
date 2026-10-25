@@ -10,3 +10,10 @@ Two things about the Elastic search:
 
 - **Fixed: the purge now clears Elastic.** Closing the incident deleted real homes from Convex but left their household and transcript documents in Elastic Cloud, so the promise to delete everything when the incident closes didn't hold. Each purge batch now schedules `elastic:forgetHomes`, which runs `deleteByQuery` on those household ids (`forgetHouseholds` in `convex/elasticCore.ts`). `ElasticLike` gained `deleteByQuery`, and the test fake has it. Two new tests are in `tests/elastic`.
 - **Still open: `elastic:search` is a public action.** Anyone with the Convex URL can search "oxygen" or "wheelchair" and get back addresses and transcript snippets of real people who can't get out, which is the at-risk list `PLAN.md` says we never expose. Until dispatcher auth exists, could it return only simulated homes, or require a server-side secret the call floor passes through a Next route? I haven't changed it, because it changes how the call floor calls it.
+
+## 2026-10-24 23:35
+
+The Jira door-check app:
+
+- **Missing route.** `atlassian/door-checks/src/convex.js` calls `/agent/door-checks`, but `convex/http.ts` on `main` has no such route. `convex/doorCheckPayload.ts` is on `main`, but nothing imports it yet. Please push the route if it's still only on your machine.
+- **Data left in Jira.** Once the route is live, Jira holds each home's address with "uses a wheelchair" or "medical equipment: oxygen". Today the app closes an issue when a home leaves the queue, but closing the incident leaves every issue in Jira. That breaks the delete-everything-at-close promise, just as Elastic did before 8903d38. Could the incident purge (or the app, once `control.incidentClosedAt` is set) delete those issues? The other option is sending Jira only simulated homes.
