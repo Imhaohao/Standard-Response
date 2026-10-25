@@ -85,3 +85,7 @@ Repetition fixes from the real calls on `robust-penguin-834` change some `POST /
 ## 2026-10-24 17:20
 
 `callPriority` is no longer the only call order. Claude Sonnet (`voice/agent/callPlanner.ts`) ranks up to 40 waiting homes from minutes left, `needProbability`, and what the record and Ready plan already say. `nextToCall` dials that order first, then the rest by `callPriority`. Your estimates still feed both. On a 120-home test it moved an oxygen user who can't leave, at need 0 and 5 minutes out, to first place. If you want to measure the plan against the formula, the plan is in `callPlans` with each home's reason.
+
+## 2026-10-24 18:25
+
+`/twilio/status` now decides "reached" from whether our media stream joined the call, not from `CallStatus`. On the trial account Twilio plays its "press any key" notice first; when nobody presses a key it hangs up at about 13 s and reports `completed` without our stream ever starting. Before, that counted as reached, so nothing fired `callEnded`: your neighbor ask to Mae at 00:55 UTC stayed `ringing: "helper"` forever, was never retried, and `expireStaleChecks` skipped it. Now every outbound mode (survey, callback, plan_check, ready) fires `callEnded({ answered: false, ... })` for such a call, with `purpose` carried through. Calls whose stream joined are still reported only by their call session. Logic in `voice/phone/callStatus.ts`, tests in `callStatus.test.ts`.

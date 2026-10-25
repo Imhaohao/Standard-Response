@@ -26,6 +26,15 @@ export type CallEnded = {
 
 export const liveByCallSid = new Map<string, LiveCall>();
 export const liveByHousehold = new Map<string, LiveCall>();
+// Calls our media stream joined. Twilio reports "completed" for a call that ended before the stream
+// started (a trial-account notice nobody pressed a key for), so this set, not CallStatus, says
+// whether a call reached us. The status webhook removes each entry.
+export const streamedCallSids = new Set<string>();
+
+export function registerLive(callSid: string, call: LiveCall) {
+  liveByCallSid.set(callSid, call);
+  streamedCallSids.add(callSid);
+}
 export const callbackScripts = new Map<string, CallbackScript>();
 
 type EndListener = (ended: CallEnded) => void;

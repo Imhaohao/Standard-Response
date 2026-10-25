@@ -10,7 +10,7 @@ import { ElevenLabsCall } from "./elevenLabsCall";
 import { householdCallFor, onFileRecord } from "./householdCall";
 import { interrupts, isBackchannel } from "./interruption";
 import { isOutboundFlowMode, outboundFlowFor } from "./outboundFlows";
-import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
+import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
 import { CallMode, hangUp, StreamParameters } from "./twilio";
 import { env } from "../env";
@@ -125,7 +125,7 @@ class CallSession implements LiveCall {
     this.params = start.customParameters;
     this.callSid = start.callSid;
     this.speech = new CallSpeech(socket, start.streamSid);
-    liveByCallSid.set(this.callSid, this);
+    registerLive(this.callSid, this);
   }
 
   async begin() {

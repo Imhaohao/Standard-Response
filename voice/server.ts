@@ -12,8 +12,9 @@ import { startReadyDialer } from "./readyDialer";
 import { env } from "./env";
 import { watchHazard } from "./hazard";
 import { handleMediaStream } from "./phone/callSession";
-import { callEnded, liveByCallSid, onCallEnded } from "./phone/registry";
-import { CallMode, signatureIsValid, streamTwiml } from "./phone/twilio";
+import { unreachedCall } from "./phone/callStatus";
+import { callEnded, liveByCallSid, streamedCallSids } from "./phone/registry";
+import { signatureIsValid, streamTwiml } from "./phone/twilio";
 import { startTextFollowUp } from "./textFollowUp";
 import { handleTurn } from "./textAgent";
 
@@ -25,13 +26,7 @@ import { handleTurn } from "./textAgent";
 //   POST /turn             the same agent over text, for Track D's persona eval
 //   GET  /health
 
-const NOT_REACHED = new Set(["no-answer", "busy", "failed", "canceled"]);
 const MACHINE = /^machine_end|^fax/;
-
-const endedCalls = new Set<string>();
-onCallEnded((ended) => {
-  if (ended.callId) endedCalls.add(ended.callId);
-});
 
 async function readBody(req: http.IncomingMessage) {
   const chunks: Buffer[] = [];
@@ -50,34 +45,15 @@ function inbound(params: Record<string, string>) {
   return streamTwiml({ mode: "inbound", from: params.From });
 }
 
-// Twilio never connected a stream (no answer, busy, failed): run the reach ladder.
+// Twilio never connected our stream (no answer, busy, failed, or a trial notice left unanswered):
+// the dialer, the runners and the Ready dialer count the miss when they hear about it.
 function callStatus(query: URLSearchParams, params: Record<string, string>) {
-  const callId = query.get("callId") ?? "";
-  const mode = query.get("mode");
-  const reached = !NOT_REACHED.has(params.CallStatus ?? "");
-  if (reached || liveByCallSid.has(params.CallSid ?? "") || (callId && endedCalls.has(callId))) return;
-  if (mode === "survey" && callId) {
-    void convex().mutation(api.calls.end, { callId: callId as Id<"calls">, answered: false });
-    callEnded({ mode: "survey", callId, answered: false });
-  } else if (mode === "callback") {
-    callEnded({ mode: "callback", callbackId: query.get("callbackId") ?? undefined, answered: false });
-  } else if (mode === "plan_check" || mode === "ready") {
-    reportUnreached(mode, query);
+  const ended = unreachedCall(query, streamedCallSids.delete(params.CallSid ?? ""));
+  if (!ended) return;
+  if (ended.mode === "survey" && ended.callId) {
+    void convex().mutation(api.calls.end, { callId: ended.callId as Id<"calls">, answered: false });
   }
-}
-
-// The pickup runner and the Ready dialer count the miss when they hear about it.
-function reportUnreached(mode: CallMode, query: URLSearchParams) {
-  const role = query.get("role");
-  const purpose = query.get("purpose");
-  callEnded({
-    mode,
-    householdId: query.get("householdId") || undefined,
-    planId: query.get("planId") || undefined,
-    role: role === "helper" || role === "resident" ? role : undefined,
-    purpose: purpose === "ask" || purpose === "confirm" || purpose === "notice" ? purpose : undefined,
-    answered: false,
-  });
+  callEnded(ended);
 }
 
 function machineDetected(params: Record<string, string>) {

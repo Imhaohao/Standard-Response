@@ -8,7 +8,7 @@ import { env } from "../env";
 import type { TwilioStart } from "./callSession";
 import { confidenceFor, CONVERSATION_URL, createAgent, deleteAgent, HouseholdBrief, recordFrom, SaveAnswers } from "./elevenlabs";
 import { householdCallFor, onFileRecord } from "./householdCall";
-import { callEnded, LiveCall, liveByCallSid, liveByHousehold } from "./registry";
+import { callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
 import { hangUp, StreamParameters } from "./twilio";
 
@@ -47,7 +47,7 @@ export class ElevenLabsCall implements LiveCall {
     this.params = start.customParameters;
     this.callSid = start.callSid;
     this.streamSid = start.streamSid;
-    liveByCallSid.set(this.callSid, this);
+    registerLive(this.callSid, this);
   }
 
   async begin() {
