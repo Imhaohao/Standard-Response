@@ -22,6 +22,10 @@
   src: url("/brand-fonts/NexaRustSans-Trial-Black2.woff2") format("woff2");
   font-weight: 100 900;
   font-display: swap;
+  /* The trial draws a "TRIAL FONT" stamp for every other character (%, +, /, #, −, ×, brackets), so
+     those fall through to the next face in the stack. */
+  unicode-range: U+0020-0021, U+002C-002E, U+0030-003B, U+003F, U+0041-005A, U+0061-007A, U+00A0, U+00AB,
+    U+00BB, U+2013-2014, U+2018-2019, U+201C-201D, U+2026, U+2039-203A;
 }
 
 /* Light mode only: the map is paper, and every surface around it is paper too.
