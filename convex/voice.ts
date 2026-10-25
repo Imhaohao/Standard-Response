@@ -5,6 +5,9 @@ import { requestStatus, vehicleType } from "./schema";
 import { nextToCall } from "./households";
 import { openRequestFor } from "./requests";
 import { dialableNow } from "./reachLadder";
+import { DEFAULT_HAZARD, hazard as hazardKind } from "./hazards";
+import { hazardReaches } from "./fireArrival";
+import { escapeRoute } from "./escapeRoute";
 
 // What the real voice server reads. Only real riders (simulated: false) appear here;
 // the stand-in keeps handling the simulated households.
@@ -160,5 +163,49 @@ export const textFollowUps = query({
       rows.push({ householdId: household._id, language: household.language, lastAttemptAt: household.lastAttemptAt, texts });
     }
     return rows;
+  },
+});
+
+const situationShape = v.object({
+  hazard: hazardKind,
+  warningIssuedAt: v.union(v.number(), v.null()),
+  fireArrivalAt: v.union(v.number(), v.null()),
+  hazardReaches: v.boolean(),
+  route: v.union(v.null(), v.object({ streets: v.array(v.string()), minutes: v.number(), destination: v.string() })),
+  fireUnits: v.number(),
+  homesWaitingForCrew: v.number(),
+  onCrewList: v.boolean(),
+});
+
+export type Situation = typeof situationShape.type;
+
+// What a 911 call-taker's screen shows about this home, for the voice agent's brief. The minutes
+// left and where the fire edge is now depend on the night clock, so the voice server works those
+// out each turn from fireArrivalAt and the scenario fronts; this holds what changes with data.
+export const situation = query({
+  args: { householdId: v.id("households") },
+  returns: v.union(v.null(), situationShape),
+  handler: async (ctx, { householdId }) => {
+    const home = await ctx.db.get("households", householdId);
+    if (!home) return null;
+    const control = await ctx.db.query("control").first();
+    const hazard = control?.hazard ?? DEFAULT_HAZARD;
+    const point = home.lat !== undefined && home.lng !== undefined ? { lat: home.lat, lng: home.lng } : null;
+    const [shelters, closures, waiting, vehicles] = await Promise.all([
+      ctx.db.query("shelters").take(50),
+      ctx.db.query("roadClosures").take(1000),
+      ctx.db.query("households").withIndex("by_callStatus_and_callPriority", (q) => q.eq("callStatus", "door_check")).take(1000),
+      ctx.db.query("vehicles").take(500),
+    ]);
+    return {
+      hazard,
+      warningIssuedAt: control?.warningIssuedAt ?? null,
+      fireArrivalAt: home.fireArrivalAt ?? null,
+      hazardReaches: point ? hazardReaches(point, hazard) : true,
+      route: point ? escapeRoute(point, shelters, closures) : null,
+      fireUnits: vehicles.filter((vehicle) => vehicle.type === "fire_unit").length,
+      homesWaitingForCrew: waiting.length,
+      onCrewList: home.callStatus === "door_check",
+    };
   },
 });

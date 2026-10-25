@@ -3,7 +3,10 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
-import { AgentTurn, Conversation, ConversationEffects, isLineCheck } from "../agent/conversation";
+import { AgentTurn, CallScreen, Conversation, ConversationEffects, isLineCheck } from "../agent/conversation";
+import { briefText, CallFacts, fireLine, routeLine } from "../agent/brief";
+import { hazardEdgeFrom } from "../../convex/fireArrival";
+import type { Situation } from "../../convex/voice";
 import { Language, languageOf, LINES, RideStatus } from "../agent/script";
 import { convex, fireAndForget, logSubscriptionError } from "../convex";
 import { CutOffApology } from "./apology";
@@ -124,6 +127,10 @@ export class CallSession implements LiveCall {
   // Pickups this home's warning call can ask about before it hangs up, so one call carries both.
   private pickups: FunctionReturnType<typeof api.pickups.callQueue> = [];
   private unsubscribePickups: (() => void) | null = null;
+  private unsubscribeSituation: (() => void) | null = null;
+  // The 911 screen's live data for this home (convex/voice.ts situation) and where the home is.
+  private situation: Situation | null = null;
+  private homePoint: { lat: number; lng: number } | null = null;
   private onPickupQuestion = false;
   // The carrier is putting this caller through to their helper: our side ends without a hang-up.
   private connecting = false;
@@ -175,6 +182,10 @@ export class CallSession implements LiveCall {
     this.unsubscribe = convex().onUpdate(api.voice.statusFor, { householdId }, (ride) => {
       this.ride = ride;
     }, logSubscriptionError("statusFor"));
+    this.homePoint = household.lat !== undefined && household.lng !== undefined ? { lat: household.lat, lng: household.lng } : null;
+    this.unsubscribeSituation = convex().onUpdate(api.voice.situation, { householdId }, (situation) => {
+      this.situation = situation;
+    }, logSubscriptionError("situation"));
     this.conversation = new Conversation({
       language: this.language,
       onFile: onFileRecord(household),
@@ -222,7 +233,19 @@ export class CallSession implements LiveCall {
       nominate: (spokenAddress, danger) =>
         fireAndForget("nominations.add", convex().mutation(api.nominations.add, { fromHouseholdId: householdId, spokenAddress, danger })),
       rideStatus: () => this.ride,
+      screen: (language) => this.callScreen(language),
     };
+  }
+
+  // The screen as it stands this turn: the minutes left and the fire edge follow the night clock.
+  private callScreen(language: Language): CallScreen | null {
+    const situation = this.situation;
+    if (!situation) return null;
+    const now = simTime(this.fire?.clock, Date.now());
+    const warningAt = situation.warningIssuedAt;
+    const edge = this.homePoint && warningAt !== null ? hazardEdgeFrom(this.homePoint, situation.hazard, (now - warningAt) / 60_000) : null;
+    const facts: CallFacts = { situation, ride: this.ride, edge, now };
+    return { brief: briefText(facts), fire: fireLine(facts, language), route: routeLine(facts, language) };
   }
 
   private listen() {
@@ -595,6 +618,7 @@ export class CallSession implements LiveCall {
     if (this.quietTimer) clearTimeout(this.quietTimer);
     this.unsubscribe?.();
     this.unsubscribePickups?.();
+    this.unsubscribeSituation?.();
     this.line.close();
   }
 

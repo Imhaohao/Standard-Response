@@ -853,3 +853,32 @@ describe("a resident who isn't at the home", () => {
   });
 });
 
+
+describe("the 911 screen on a call", () => {
+  const SCREEN = { brief: "Disaster: wildfire evacuation.", fire: "Our fire map shows the fire about 1.4 miles to your northeast.", route: "The fastest way out right now is Lincoln Avenue." };
+  function screened() {
+    const conversation = new Conversation({
+      language: "en",
+      onFile: {},
+      knownAddress: ADDRESS,
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null, screen: () => SCREEN },
+    });
+    conversation.start();
+    return conversation;
+  }
+
+  it("answers where the fire is and which way to go with the screen's lines", () => {
+    const conversation = screened();
+    const turn = conversation.respond("Where's the fire? Which way do I go?", heard({ asksFire: true, asksRoute: true }));
+    assert.ok(turn.sentences.includes(SCREEN.fire));
+    assert.ok(turn.sentences.includes(SCREEN.route));
+  });
+
+  it("tells someone leaving on their own the fastest way out", () => {
+    const conversation = screened();
+    conversation.respond("yes", heard({ answer: "yes", updates: { canLeave: "yes" } }));
+    conversation.respond("yes I have a car", heard({ answer: "yes", updates: { hasCar: true } }));
+    const turn = conversation.respond("what should I do?", heard({ asksWhatToDo: true }));
+    assert.ok(turn.sentences.includes(SCREEN.route));
+  });
+});

@@ -87,12 +87,17 @@ export const OUTLINE: Record<Step, OutlineStage> = {
 };
 
 // What the conversation does to the world. The phone call writes to Convex; the eval endpoint doesn't.
+// What the 911 screen gives the conversation, in the call language (voice/agent/brief.ts).
+export type CallScreen = { brief: string; fire: string | null; route: string | null };
+
 export interface ConversationEffects {
   updateRecord(patch: AgentRecord & { language?: string }, confidence: Confidence): void;
   escalate(kind: Escalation): void;
   // danger: the person is dying, hurt or can't breathe now, so a dispatcher hears of it first.
   nominate(spokenAddress: string, danger?: boolean): void;
   rideStatus(): RideStatus;
+  // The 911 screen for this home now, in the call language. Absent on calls without one (the eval).
+  screen?(language: Language): CallScreen | null;
 }
 
 export type AgentTurn = {
@@ -353,7 +358,7 @@ export class Conversation {
       this.moveTo(this.nextMissing());
       return this.reply(heard, urgent, fixed, { stalled: false, passedOn });
     }
-    const asked = urgent.length > 0 || heard.asksAboutRide || heard.asksWhatToDo || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
+    const asked = urgent.length > 0 || heard.asksAboutRide || heard.asksWhatToDo || heard.asksFire || heard.asksRoute || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
     return asked ? this.reply(heard, urgent, [], { stalled: false, passedOn }) : this.say("", [], false);
   }
 
@@ -369,7 +374,7 @@ export class Conversation {
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const feeling = this.feelingLines(heard, status, urgent);
     const said = this.claudeAnswer(heard, answer, feeling);
-    const told = [...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard)].filter((line) => line !== "");
+    const told = [...urgent, ...extra, ...this.rideLines(heard), ...this.screenLines(heard), ...this.whatToDoLines(heard)].filter((line) => line !== "");
     const silent = Boolean(transfer) || leavingHold;
     const plain = !silent && !givesTime && told.length === 0;
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
@@ -506,9 +511,18 @@ export class Conversation {
 
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
   // leaving on their own is told to go now.
+  // "Where's the fire?" and "Which way do I go?" get the 911 screen's lines, never Claude's numbers.
+  private screenLines(heard: Interpretation) {
+    const screen = this.effects.screen?.(this.language);
+    if (!screen) return [];
+    return [heard.asksFire ? screen.fire : null, heard.asksRoute ? screen.route : null].filter((line): line is string => line !== null);
+  }
+
   private whatToDoLines(heard: Interpretation) {
     if (!heard.asksWhatToDo) return [];
-    if (this.record.canLeave === "yes" && !needsRide(this.record)) return [LINES[this.language].leaveNow];
+    // Someone leaving on their own also hears the fastest way out, unless they just asked for it.
+    const route = heard.asksRoute ? null : this.effects.screen?.(this.language)?.route;
+    if (this.record.canLeave === "yes" && !needsRide(this.record)) return [LINES[this.language].leaveNow, ...(route ? [route] : [])];
     // "Are we supposed to wait here?" got a packing tip; whether to wait is answered by the status
     // line, which ends with "If you can leave safely, leave now."
     if (ASKS_WHETHER_TO_WAIT.test(this.lastResidentLine())) return [this.rideLine()];
@@ -657,6 +671,7 @@ export class Conversation {
       record: this.record,
       recentTurns: this.history.slice(-HISTORY_TURNS),
       neighborNames: this.neighborNames,
+      brief: this.effects.screen?.(this.language)?.brief,
       utterance,
     };
   }

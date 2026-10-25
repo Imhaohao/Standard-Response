@@ -35,6 +35,7 @@ import type * as elasticCore from "../elasticCore.js";
 import type * as elasticData from "../elasticData.js";
 import type * as elasticDocs from "../elasticDocs.js";
 import type * as elasticHooks from "../elasticHooks.js";
+import type * as escapeRoute from "../escapeRoute.js";
 import type * as estimates from "../estimates.js";
 import type * as events from "../events.js";
 import type * as fatalityRisk from "../fatalityRisk.js";
@@ -121,6 +122,7 @@ declare const fullApi: ApiFromModules<{
   elasticData: typeof elasticData;
   elasticDocs: typeof elasticDocs;
   elasticHooks: typeof elasticHooks;
+  escapeRoute: typeof escapeRoute;
   estimates: typeof estimates;
   events: typeof events;
   fatalityRisk: typeof fatalityRisk;

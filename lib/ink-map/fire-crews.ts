@@ -1,4 +1,4 @@
-import { ENGINE } from "@/convex/vehicleRun";
+import { ENGINE } from "../../convex/vehicleRun";
 import { LatLng } from "../geo";
 import { Point } from "./data";
 
