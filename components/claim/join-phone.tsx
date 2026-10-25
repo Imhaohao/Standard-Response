@@ -78,7 +78,7 @@ export function JoinPhone({ code }: { code: string | null }) {
           <BrandMark className="size-6" />
           <span className="type-heading font-brand">{PRODUCT_NAME}</span>
         </div>
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
             initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}

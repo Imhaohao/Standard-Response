@@ -130,7 +130,7 @@ export function Kiosk() {
         animate={{ opacity: picking ? 0 : 1 }}
         transition={{ duration: 0.4, ease: EASE_OUT }}
       />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         {step === "signin" && (
           <Centered key={`signin-${code}`}>
             <SignInCard code={code} error={kiosk.error} />
