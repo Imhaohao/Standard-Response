@@ -3,7 +3,7 @@
 import { PhoneOutgoing, PhoneSlash } from "@phosphor-icons/react";
 import { motion, type Transition } from "motion/react";
 import { STAGE } from "../stage";
-import { CAMERA_GLIDE_SECONDS, sceneMove } from "../motion";
+import { CAMERA_GLIDE_SECONDS, STORY_ANIMATION_PACE, briskSceneMove, quickFade, sceneMove } from "../motion";
 import { Photo } from "../photo";
 import { isAtOrAfter, type Beat } from "../script";
 import { Show } from "../show";
@@ -42,7 +42,8 @@ function portraitFrame(beat: Beat): Frame {
 
 function portraitMove(beat: Beat): Transition {
   if (beat === "family") return { type: "tween", duration: CAMERA_GLIDE_SECONDS, ease: [0.65, 0, 0.35, 1], opacity: { delay: CAMERA_GLIDE_SECONDS - 0.35, duration: 0.35 } };
-  if (beat === "gone") return { ...sceneMove, opacity: { duration: 1.6 } };
+  if (beat === "gone") return { ...briskSceneMove, opacity: { duration: 1.6 / STORY_ANIMATION_PACE } };
+  if (beat === "night" || beat === "calls") return briskSceneMove;
   return sceneMove;
 }
 
@@ -60,10 +61,11 @@ function Portrait({ beat }: { beat: Beat }) {
 }
 
 // Each 911 call rings, then goes dead: the phone turns into a slashed phone and the row greys out.
-const RING_SECONDS = 2.8;
+// Leaving the slide, the row just fades with the dead phone still showing.
+const RING_SECONDS = 2.8 / STORY_ANIMATION_PACE;
 
 function CallRow({ shown, delay, time }: { shown: boolean; delay: number; time: string }) {
-  const at = (keyframes: number[]) => ({ duration: RING_SECONDS, delay: shown ? delay : 0, times: keyframes });
+  const at = (keyframes: number[]) => (shown ? { duration: RING_SECONDS, delay, times: keyframes } : quickFade);
   return (
     <motion.div
       className="flex h-[104px] items-center gap-7 rounded-3xl bg-night-raised px-8"
@@ -72,10 +74,10 @@ function CallRow({ shown, delay, time }: { shown: boolean; delay: number; time: 
       transition={at([0, 0.12, 0.8, 1])}
     >
       <span className="relative size-12 shrink-0">
-        <motion.span className="absolute inset-0 text-signal" initial={false} animate={{ opacity: shown ? [1, 1, 0] : 1 }} transition={at([0, 0.8, 0.9])}>
+        <motion.span className="absolute inset-0 text-signal" initial={false} animate={{ opacity: shown ? [1, 1, 0] : 0 }} transition={at([0, 0.8, 0.9])}>
           <PhoneOutgoing size={48} weight="fill" className={shown ? "animate-ringing" : undefined} />
         </motion.span>
-        <motion.span className="absolute inset-0 text-on-night-muted" initial={false} animate={{ opacity: shown ? [0, 0, 1] : 0 }} transition={at([0, 0.8, 0.95])}>
+        <motion.span className="absolute inset-0 text-on-night-muted" initial={false} animate={{ opacity: shown ? [0, 0, 1] : 1 }} transition={at([0, 0.8, 0.95])}>
           <PhoneSlash size={48} weight="bold" />
         </motion.span>
       </span>
@@ -101,13 +103,13 @@ export function StoryScene({ beat }: { beat: Beat }) {
         <p className="type-deck-title">Anthony Mitchell</p>
         <p className="type-deck-lede mt-4 text-on-night-muted">68 years old</p>
       </Show>
-      <Show when={beat === "night"} delay={0.6} className="absolute" style={{ left: 128, bottom: 120 }}>
+      <Show when={beat === "night"} delay={0.6 / STORY_ANIMATION_PACE} className="absolute" style={{ left: 128, bottom: 120 }}>
         <p className="type-deck-title">Eaton Fire</p>
         <p className="type-deck-lede mt-4 text-on-night-muted">January 7, 2025</p>
       </Show>
       <div className="absolute flex flex-col gap-5" style={CALL_ROWS}>
-        <CallRow shown={calling} delay={0.9} time="6:03 am" />
-        <CallRow shown={calling} delay={3.4} time="6:14 am" />
+        <CallRow shown={calling} delay={0.9 / STORY_ANIMATION_PACE} time="6:03 am" />
+        <CallRow shown={calling} delay={3.4 / STORY_ANIMATION_PACE} time="6:14 am" />
       </div>
     </>
   );

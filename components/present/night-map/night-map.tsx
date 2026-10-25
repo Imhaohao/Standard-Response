@@ -6,7 +6,7 @@ import { InkMapCanvas, InkMapHandle } from "@/components/ink-map/ink-map-canvas"
 import { TOWN_FRAME } from "@/components/map/projection";
 import type { InkMapView } from "@/lib/ink-map/camera";
 import type { BuildingState, InkMapRenderer } from "@/lib/ink-map/renderer";
-import { CAMERA_GLIDE_SECONDS, cameraMove } from "../motion";
+import { CAMERA_GLIDE_SECONDS, animationPaceFor, cameraMove, transitionPaceFor } from "../motion";
 import type { Beat } from "../script";
 import { CallWave } from "./call-wave";
 import { HouseMark } from "./house-mark";
@@ -95,23 +95,23 @@ function focusFor(renderer: InkMapRenderer, center: Point | null, shot: Shot): P
 }
 
 // The camera pans rather than the canvas sliding, so the map always fills the stage.
-function useCamera(renderer: InkMapRenderer | null, center: Point | null, shot: Shot) {
+function useCamera(renderer: InkMapRenderer | null, center: Point | null, shot: Shot, pace: number) {
   const { zoom, offsetX } = shot;
   const [x, y] = center ?? [NaN, NaN];
   useEffect(() => {
     if (!renderer) return;
-    renderer.glideTo(focusFor(renderer, center, shot), zoom, CAMERA_GLIDE_SECONDS * 1000);
+    renderer.glideTo(focusFor(renderer, center, shot), zoom, (CAMERA_GLIDE_SECONDS * 1000) / pace);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the framing fields move the camera
   }, [renderer, x, y, zoom, offsetX]);
 }
 
 // The fire runs forward or back to its beat's minute instead of jumping there.
-function useFireMinutes(renderer: InkMapRenderer | null, minutes: number) {
+function useFireMinutes(renderer: InkMapRenderer | null, minutes: number, pace: number) {
   const current = useRef(minutes);
   useEffect(() => {
     if (!renderer) return;
     const controls = animate(current.current, minutes, {
-      duration: FIRE_RUN_SECONDS,
+      duration: FIRE_RUN_SECONDS / pace,
       ease: [0.4, 0, 0.2, 1],
       onUpdate: (value) => {
         current.current = value;
@@ -119,13 +119,14 @@ function useFireMinutes(renderer: InkMapRenderer | null, minutes: number) {
       },
     });
     return () => controls.stop();
-  }, [renderer, minutes]);
+  }, [renderer, minutes, pace]);
 }
 
 type NightMapProps = { beat: Beat; story: StoryMap; town: Town | null };
 
 export function NightMap({ beat, story, town }: NightMapProps) {
   const shot = SHOTS[beat];
+  const pace = animationPaceFor(beat);
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
   const view = useMemo<InkMapView>(() => ({ kind: "overview", fit: TOWN_FRAME }), []);
   const renderer = useNightRenderer(handle, story);
@@ -135,8 +136,8 @@ export function NightMap({ beat, story, town }: NightMapProps) {
   const scene = useMemo(() => (town && plan && crowd && close ? { town, plan, crowd, close, houseCenter: story.house.center } : null), [town, plan, crowd, close, story.house.center]);
   useRunWhileShown(renderer, shot.shown);
   useHouseRoof(renderer, story, shot.house);
-  useCamera(renderer, focusPoint(story, town, shot.focus, plan?.safe ?? null), shot);
-  useFireMinutes(renderer, shot.fire * story.house.arrives);
+  useCamera(renderer, focusPoint(story, town, shot.focus, plan?.safe ?? null), shot, transitionPaceFor(beat));
+  useFireMinutes(renderer, shot.fire * story.house.arrives, pace);
   const fading = beat === "gone";
 
   return (
@@ -149,7 +150,7 @@ export function NightMap({ beat, story, town }: NightMapProps) {
         className="absolute inset-0 bg-night"
         initial={false}
         animate={{ opacity: shot.dark }}
-        transition={{ duration: fading ? 3.5 : 1.2, delay: fading ? 1.8 : 0, ease: [0.2, 0, 0, 1] }}
+        transition={{ duration: (fading ? 3.5 : 1.2) / pace, delay: (fading ? 1.8 : 0) / pace, ease: [0.2, 0, 0, 1] }}
       />
     </motion.div>
   );
