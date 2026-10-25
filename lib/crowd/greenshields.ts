@@ -3,5 +3,7 @@
 
 // A stated assumption: at a standstill each car takes 7.5 m of one lane. The dynamics use the same spacing.
 export const JAM_SPACING_METERS = 7.5;
-// The slowest a crowded street gets, as a share of its free speed. The dynamics use the same floor.
+// The slowest a crowded street gets, as a share of its free speed, in route choice and drive times.
+// The dynamics use the same floor for the density ahead, but a car closer than the jam spacing to the
+// car ahead stands still.
 export const MIN_SPEED_SHARE = 0.05;

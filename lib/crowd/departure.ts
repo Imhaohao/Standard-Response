@@ -31,7 +31,14 @@ export function departureDrift(keen: boolean, minutesToFire: number, params: Dep
   return base + params.threatDrift * Math.exp(-Math.max(0, minutesToFire) / THREAT_SCALE_MINUTES);
 }
 
-// One Euler-Maruyama step of the decision variable over `minutes`.
+// One Euler-Maruyama step of the decision variable over `minutes`, and 1 if it reached 1 within the
+// step. Between two steps below 1 the path may have crossed 1 and come back; given both ends, it did
+// with probability exp(-2 (1 - x0)(1 - x1) / (sigma^2 minutes)), the Brownian bridge's (whatever
+// the drift). Checking the steps alone left households leaving late: 1.5 minutes for a keen one at
+// half-minute steps, 6 minutes for a reluctant one.
 export function stepDecision(x: number, keen: boolean, minutesToFire: number, minutes: number, params: DepartureParams, random: Random) {
-  return x + departureDrift(keen, minutesToFire, params) * minutes + params.sigma * Math.sqrt(minutes) * gaussian(random);
+  const next = x + departureDrift(keen, minutesToFire, params) * minutes + params.sigma * Math.sqrt(minutes) * gaussian(random);
+  if (x >= 1 || next >= 1) return next;
+  const crossed = Math.exp((-2 * (1 - x) * (1 - next)) / (params.sigma * params.sigma * minutes));
+  return random() < crossed ? 1 : next;
 }

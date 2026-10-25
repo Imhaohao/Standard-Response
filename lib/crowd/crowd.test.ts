@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { gaussian, seededRandom } from "../mesh/random";
-import { DEFAULT_DEPARTURE, stepDecision } from "./departure";
+import { DEFAULT_DEPARTURE, departureDrift, stepDecision } from "./departure";
 import { advance, FORECAST_HORIZON_MINUTES, FORECAST_WINDOWS, rangeOf, TrafficEnsemble } from "./forecast";
 import { buildGround, cellIndex, toLatLng, toXY } from "./grid";
 import { EDGES } from "../../convex/roadGraph";
@@ -482,6 +482,24 @@ describe("Langevin dynamics", () => {
       slowest = Math.min(slowest, sim.routeSpeed(0), sim.routeSpeed(1));
     }
     assert.ok(slowest > 0.8 * free, `slowed to ${slowest.toFixed(1)} of ${free.toFixed(1)} m/s passing`);
+  });
+
+  it("leaves at drift-diffusion's exact mean first passage, 1 / mu, not later", () => {
+    // Far from the fire the drift is constant, and the first passage to 1 from 0 takes 1 / mu on
+    // average. Steps are half a minute, so a departure is counted up to half a minute late.
+    const step = 0.5;
+    for (const [keen, runs, tolerance] of [[true, 20_000, 0.5], [false, 10_000, 3]] as const) {
+      const random = seededRandom(5);
+      let total = 0;
+      for (let run = 0; run < runs; run++) {
+        let x = 0;
+        let minutes = 0;
+        for (; x < 1; minutes += step) x = stepDecision(x, keen, 1e6, step, DEFAULT_DEPARTURE, random);
+        total += minutes;
+      }
+      const exact = 1 / departureDrift(keen, 1e6, DEFAULT_DEPARTURE) + step / 2;
+      assert.ok(Math.abs(total / runs - exact) < tolerance, `${(total / runs).toFixed(1)} min against ${exact.toFixed(1)}`);
+    }
   });
 
   it("leaves keen households earlier than reluctant ones", () => {
