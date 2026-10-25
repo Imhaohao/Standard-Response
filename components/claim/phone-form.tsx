@@ -5,6 +5,7 @@ import { useMutation } from "convex/react";
 import { FormEvent, useId, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { formatPhoneAsTyped } from "@/lib/phone-number";
 import { FIELD, failureText } from "./controls";
 
 // One number field and one button. `autoComplete="tel"` lets iOS and Android offer the phone's own
@@ -45,7 +46,7 @@ export function PhoneForm({ code, submitLabel, onSent, autoFocus = false }: { co
         autoComplete="tel"
         placeholder="(626) 555-0142"
         value={phone}
-        onChange={(event) => setPhone(event.target.value)}
+        onChange={(event) => setPhone(formatPhoneAsTyped(event.target.value))}
         aria-invalid={error !== null}
         aria-describedby={error ? `${id}-error` : undefined}
         autoFocus={autoFocus}

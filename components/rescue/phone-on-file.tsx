@@ -9,6 +9,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ON_PANEL_FIELD } from "@/components/ui/field";
 import { phoneForPeople } from "@/lib/labels";
+import { formatPhoneAsTyped } from "@/lib/phone-number";
 
 type Home = { _id: Id<"households">; callbackNumber: string; residentName?: string; simulated: boolean };
 
@@ -39,7 +40,7 @@ function NumberForm({ home, onDone }: { home: Home; onDone: () => void }) {
       <label className="sr-only" htmlFor="home-resident-name">Who lives here</label>
       <input id="home-resident-name" className={ON_PANEL_FIELD} value={name} onChange={(event) => setName(event.target.value)} placeholder="Name, like Boris" autoComplete="off" />
       <label className="sr-only" htmlFor="home-phone">Phone number</label>
-      <input id="home-phone" className={ON_PANEL_FIELD} value={phone} onChange={(event) => setPhoneInput(event.target.value)} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" autoFocus required />
+      <input id="home-phone" className={ON_PANEL_FIELD} value={phone} onChange={(event) => setPhoneInput(formatPhoneAsTyped(event.target.value))} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" autoFocus required />
       {error && <p role="alert" className="type-small font-semibold text-signal">{error}</p>}
       <div className="flex justify-end gap-2">
         <Button variant="onPanelQuiet" size="sm" onClick={onDone}>Cancel</Button>

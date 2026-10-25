@@ -123,7 +123,6 @@ export function JoinPhone({ code }: { code: string | null }) {
             <Body view={view} code={code} session={session} />
           </motion.div>
         </AnimatePresence>
-        <p className="type-caption mt-auto text-ink-muted">We call this number only during the demo, and delete it after the event.</p>
       </div>
     </PhoneScreen>
   );

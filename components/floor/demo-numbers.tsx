@@ -8,7 +8,7 @@ import { ArrowUUpLeft, HouseLine, MagnifyingGlass, Phone, Plus, Trash } from "@p
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { phoneForPeople } from "@/lib/labels";
-import { isFictionalNumber } from "@/lib/phone-number";
+import { formatPhoneAsTyped, isFictionalNumber } from "@/lib/phone-number";
 import { Button } from "../ui/button";
 import { ON_PANEL_FIELD } from "../ui/field";
 import { Switch } from "../ui/switch";
@@ -166,7 +166,7 @@ function AddNumberForm() {
         </label>
         <label className="flex-1">
           <span className="sr-only">Phone number</span>
-          <input className={ON_PANEL_FIELD} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" required />
+          <input className={ON_PANEL_FIELD} value={phone} onChange={(event) => setPhone(formatPhoneAsTyped(event.target.value))} placeholder="(626) 555-0142" inputMode="tel" autoComplete="off" required />
         </label>
       </div>
       <ErrorLine error={error} />

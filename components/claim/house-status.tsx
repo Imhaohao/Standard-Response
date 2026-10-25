@@ -129,7 +129,6 @@ export function HouseStatus({ token }: { token: string }) {
             {ready ? <Body stage={stage} facts={facts} now={now} /> : <div className="h-64 animate-pulse rounded-2xl bg-surface-sunk" aria-hidden />}
           </motion.div>
         </AnimatePresence>
-        <p className="type-caption mt-auto text-ink-muted">We call this number only during the demo, and delete it after the event.</p>
       </div>
     </PhoneScreen>
   );

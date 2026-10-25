@@ -193,7 +193,7 @@ export const homes = query({
 });
 
 // The picked house's address and a starting record: what the house already says, else the fictional
-// resident the demo town was seeded with, so a judge has someone to play without typing anything.
+// resident the demo town was seeded with. The name starts empty, because the judge names the person they play.
 export const draft = query({
   args: { householdId: v.id("households") },
   returns: v.union(v.null(), v.object({ address: v.string(), record: claimRecord })),
@@ -225,7 +225,7 @@ function startingRecord(home: Doc<"households">, persona: Doc<"personas"> | null
     ...NOBODY_ON_FILE,
     ...persona?.truth,
     ...onFile,
-    residentName: home.residentName ?? persona?.name ?? "",
+    residentName: "",
     language: KIOSK_LANGUAGES.has(home.language) ? home.language : "en",
   };
 }

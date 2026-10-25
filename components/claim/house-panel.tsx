@@ -57,7 +57,7 @@ export function HousePanel({
           <h2 id="house-heading" className="type-title">
             {address}
           </h2>
-          <p className="type-small mt-1 text-on-panel-muted">Who lives here? Our agent will ask you on the call.</p>
+          <p className="type-small mt-1 text-on-panel-muted">Make up who lives here. You&apos;ll play them on the call.</p>
         </div>
         <Button variant="onPanelQuiet" size="md" square aria-label="Close this house" onClick={onClose}>
           <X weight="bold" className="size-4" />
