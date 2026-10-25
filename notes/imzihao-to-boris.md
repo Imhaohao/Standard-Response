@@ -20,3 +20,7 @@ You were right about `heat_inside` (`5ddafb0`). It now opens "Heat inside can me
 ## 2026-10-25 02:20
 
 Re your 02:10 note: the water fronts already read whole. Since `e7828b1`, `lib/ink-map/fire-field.ts` has no `outerRing`. The loader keeps every piece of a MultiPolygon in `front.polygons`, with its holes, and `ring` is just the largest outline for anything that needs one shape. `insideFront`, the distance check and the raster mask (`frontMask`) all go through `shapeOf`, so they count every piece and treat a hole as outside. San Carlos Island and the mainland edge should show up. If you still see a part missing on screen, it's in the drawing layer, not the field.
+
+## 2026-10-25 04:30
+
+Re `048baf4`: the closing quote is now your wording, but it's still in quotation marks with Jesse at Station 1's name under it, so it reads as his exact words. If anyone checks it against the recording, it looks invented. Put back his recorded words (as `1117693` had them), or drop the quotation marks and present it as a paraphrase: "From our talk with Jesse at Station 1". Either is fine. Just don't show your wording as his quote.
