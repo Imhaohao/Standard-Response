@@ -9,6 +9,7 @@ import { canSpeak, Emergency, interpret, Interpretation, Rehearing, TurnContext 
 import { quickReading } from "./quickAnswer";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
 import { echo, Language, LINES, readback, readbackChanges, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
+import { withoutRepeatedSentences } from "./sentences";
 
 // The deterministic half of the agent. It decides what to ask next and what may be said about a
 // ride. Claude (interpreter.ts) reads the resident's words, writes a short acknowledgment, and may
@@ -167,7 +168,10 @@ export class Conversation {
   // The resident said they aren't at the address on file, so it isn't theirs to flag.
   private knownAddressDenied = false;
   private confirmedAddress?: string;
-  private lastFeeling = "";
+  // Feelings already named on this call, so "I can hear how scared you are" isn't said every turn.
+  private readonly feelingsSaid = new Set<string>();
+  // The answer to a ride question with nothing new, kept for the turn it was chosen on.
+  private unchangedThisTurn?: { turn: number; line: string };
   // The resident spoke about mobility on this call, so the file's version needs no confirming.
   private mobilityHeard = false;
   // Firefighters told us "wheelchair" alone isn't enough: a battery chair can weigh 400 pounds.
@@ -496,14 +500,15 @@ export class Conversation {
     return answer.blocked || this.isFreshReply(answer.text);
   }
 
-  // A frightened caller hears their feeling named before the facts, once, not every turn.
+  // A frightened caller hears their feeling named before the facts, once, not every turn: the same
+  // words again later in the call are left out.
   private feelingLines(heard: Interpretation, status: RequestStatus | "none", urgent: string[]) {
     const lifeThreat = urgent.includes(LINES[this.language].emergency);
     const written = heard.feeling === "" && lifeThreat ? LINES[this.language].frightening : heard.feeling;
     const feeling = guardAcknowledgment(written, status, this.language);
     const normalized = normalizeAck(feeling.text);
-    if (feeling.blocked || normalized === "" || normalized === this.lastFeeling) return [];
-    this.lastFeeling = normalized;
+    if (feeling.blocked || normalized === "" || this.feelingsSaid.has(normalized)) return [];
+    this.feelingsSaid.add(normalized);
     return [feeling.text];
   }
 
@@ -694,7 +699,9 @@ export class Conversation {
     return rest === text.trim() ? "" : rest.charAt(0).toUpperCase() + rest.slice(1);
   }
 
-  private say(acknowledgment: string, sentences: string[], guardBlocked: boolean): AgentTurn {
+  private say(said: string, lines: string[], guardBlocked: boolean): AgentTurn {
+    const [acknowledgment, ...kept] = withoutRepeatedSentences([said, ...lines]);
+    const sentences = kept.filter((line) => line !== "");
     const text = [acknowledgment, ...sentences].filter(Boolean).join(" ");
     if (this.step === "readback" && sentences.includes(this.readbackQuestion())) this.lastReadback = { ...this.record };
     const ride = this.rideLine();
@@ -1080,10 +1087,34 @@ export class Conversation {
   private rideUpdate(heard?: Interpretation) {
     const lifeThreat = heard?.emergency !== undefined && heard.emergency !== "none";
     const asked = this.askedThisTurn(heard);
-    if (asked && this.gaveRideAnswerLastTurn() && !lifeThreat && this.hasStatus()) return LINES[this.language].statusUnchanged;
+    if (asked && this.gaveRideAnswerLastTurn() && !lifeThreat && this.hasStatus()) return this.unchangedAnswer(asked);
     if (!this.rideJustSaid()) return this.rideLine();
     if (!this.hasStatus() || lifeThreat) return "";
-    return asked ? this.rideAnswer() : LINES[this.language].statusUnchanged;
+    return this.unchangedAnswer(asked);
+  }
+
+  // Asked again with nothing new to tell, they hear the short answer they heard least recently, and
+  // once that answer has been said before, the next step for waiting with it, so the turn still
+  // tells them something new. A caller asking every turn heard "Nothing has changed since I last told
+  // you" and the request line in turn, word for word, and nothing else. Chosen once a turn, so a turn
+  // that answers the ride twice doesn't use up two steps.
+  private unchangedAnswer(asked: boolean) {
+    const turn = this.history.length;
+    if (this.unchangedThisTurn?.turn === turn) return this.unchangedThisTurn.line;
+    const { statusUnchanged } = LINES[this.language];
+    const answers = asked ? [this.rideAnswer(), statusUnchanged] : [statusUnchanged, this.rideAnswer()];
+    const answer = answers.reduce((best, line) => (this.lastAnsweredWith(line) < this.lastAnsweredWith(best) ? line : best));
+    const step = this.lastAnsweredWith(answer) >= 0 ? this.nextHoldStep(false) : null;
+    const line = step ? `${answer} ${step}` : answer;
+    this.unchangedThisTurn = { turn, line };
+    return line;
+  }
+
+  // Where in the call the agent last gave this short answer, or -1 if it never has. The full status
+  // starts with the same sentences as the short one, but saying it isn't giving the short answer.
+  private lastAnsweredWith(line: string) {
+    const ride = this.rideLine();
+    return this.history.findLastIndex((said) => said.speaker === "agent" && said.text.includes(line) && !said.text.includes(ride));
   }
 
   // The short answer alone, not the full status that starts with the same sentences: "Is the driver

@@ -55,7 +55,7 @@ async function signedIn(t: T, phone: string) {
 }
 
 describe("judge kiosk claims", () => {
-  test("a judge's number goes on an open demo house, which becomes a real rider the voice agent will dial", async () => {
+  test("a judge's number goes on an open demo house, which becomes a real rider the warning never dials", async () => {
     const t = setup();
     const householdId = await demoHouse(t, "12 Oak St", "+16265551001");
     const code = await t.mutation(api.claims.startKiosk, {});
@@ -67,8 +67,10 @@ describe("judge kiosk claims", () => {
     expect(home).toMatchObject({ callbackNumber: "+14152230142", simulated: false, residentName: "Carmen", mobility: "walks", hasCar: true, outcome: "leaving", callStatus: "not_called" });
     expect(await t.query(api.claims.session, { code })).toMatchObject({ claimedAddress: "12 Oak St" });
     expect((await t.query(api.claims.homes, {}))[0]).toMatchObject({ _id: householdId, state: "taken", address: null });
+    // The warning rings only the team's phones (lib/warning-call-list.ts).
+    await t.mutation(api.control.issueWarning, {});
     const dialQueue = await t.query(api.voice.dialQueue, { limit: 5 });
-    expect(dialQueue.map((row) => row._id)).toContain(householdId);
+    expect(dialQueue.map((row) => row._id)).not.toContain(householdId);
     const calls = await t.run(async (ctx) => ctx.db.query("calls").collect());
     expect(calls).toHaveLength(0);
   });

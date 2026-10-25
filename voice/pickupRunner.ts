@@ -4,7 +4,7 @@ import type { Doc, Id } from "../convex/_generated/dataModel";
 import type { PlanPurpose } from "./agent/planCheck";
 import type { PlanRole } from "./agent/planInterpreter";
 import { convex, logSubscriptionError } from "./convex";
-import { mayDial } from "./env";
+import { mayDialOnWarning } from "./env";
 import { CallEnded, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 import { simTime } from "../lib/sim-clock";
@@ -93,10 +93,10 @@ export function startPickupRunner() {
   const warnedNotAllowed = new Set<string>();
 
   function allowed(phone: string) {
-    if (mayDial(phone)) return true;
+    if (mayDialOnWarning(phone)) return true;
     if (!warnedNotAllowed.has(phone)) {
       warnedNotAllowed.add(phone);
-      console.warn(`[pickups] ${phone} is not in DIAL_ALLOWLIST; skipping`);
+      console.warn(`[pickups] ${phone} is not on the warning call list or in DIAL_ALLOWLIST; skipping`);
     }
     return false;
   }

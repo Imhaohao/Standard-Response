@@ -1,6 +1,7 @@
 // Every setting the voice server reads. Secrets come from the shared env file (.env.local), never git.
 
 import { isFictionalNumber } from "../lib/phone-number";
+import { onWarningCallList } from "../lib/warning-call-list";
 
 function required(name: string) {
   const value = process.env[name];
@@ -126,4 +127,10 @@ export const env = {
 export function mayDial(phone: string) {
   if (isFictionalNumber(phone)) return false;
   return env.dialAllowlist.includes("*") || env.dialAllowlist.includes(phone);
+}
+
+// The warning's calls, its pickup checks and its callbacks ring only the team's phones
+// (lib/warning-call-list.ts). The Ready check, before the warning, still follows `mayDial` alone.
+export function mayDialOnWarning(phone: string) {
+  return mayDial(phone) && onWarningCallList(phone);
 }

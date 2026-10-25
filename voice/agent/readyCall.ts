@@ -15,6 +15,7 @@ import {
   ReadyUpdates,
 } from "./readyInterpreter";
 import { Language, LINES } from "./script";
+import { withoutRepeatedSentences } from "./sentences";
 
 // The Ready check census call, made before any warning. It asks who lives in the home, what help
 // they'd need getting out, where that person sleeps, care needs, and how they'd leave, then saves
@@ -562,7 +563,9 @@ export class ReadyCall implements CallFlow {
     };
   }
 
-  private say(acknowledgment: string, sentences: string[]): AgentTurn {
+  private say(said: string, lines: string[]): AgentTurn {
+    const [acknowledgment, ...kept] = withoutRepeatedSentences([said, ...lines]);
+    const sentences = kept.filter((line) => line !== "");
     this.history.push({ speaker: "agent", text: [acknowledgment, ...sentences].filter(Boolean).join(" ") });
     return { acknowledgment, sentences, stage: this.done ? "close" : "household", done: this.done, guardBlocked: false, ignored: false };
   }

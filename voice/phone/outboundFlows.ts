@@ -7,7 +7,7 @@ import type { PlanRole } from "../agent/planInterpreter";
 import { ReadyCall } from "../agent/readyCall";
 import { languageOf } from "../agent/script";
 import { convex, fireAndForget } from "../convex";
-import { mayDial } from "../env";
+import { mayDialOnWarning } from "../env";
 import type { CallMode, StreamParameters } from "./callParameters";
 import { simTime } from "../../lib/sim-clock";
 
@@ -73,7 +73,7 @@ export async function pickupFlowFor({ planId, role, purpose, continued }: Pickup
     minutes: minutesUntil(plan.helperEtaAt, simTime(control.clock, Date.now())),
     notice,
     continued,
-    canConnect: role === "resident" && plan.helperPhone !== "" && mayDial(plan.helperPhone),
+    canConnect: role === "resident" && plan.helperPhone !== "" && mayDialOnWarning(plan.helperPhone),
     effects: planEffects(plan._id, role, purpose, plan.householdId),
   });
   return { conversation, call: { householdId: plan.householdId, flow: { kind: "pickup", planId: plan._id, role, purpose } } };

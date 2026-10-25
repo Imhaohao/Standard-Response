@@ -24,8 +24,8 @@ type T = ReturnType<typeof setup>;
 
 // About 50 m apart on one street. The neighbor is on the side the stand-in fire reaches first, so
 // driving over to the resident is driving away from it.
-const RESIDENT = { phone: "+15550000001", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
-const NEIGHBOR = { phone: "+15550000002", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
+const RESIDENT = { phone: "+14252468208", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
+const NEIGHBOR = { phone: "+16502234376", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
 
 async function signUpBoth(t: T) {
   await t.mutation(api.control.reset, {});

@@ -9,6 +9,7 @@ import { DEFAULT_HAZARD, hazard as hazardKind } from "./hazards";
 import { hazardReaches } from "./fireArrival";
 import { escapeRoute } from "./escapeRoute";
 import { readClosures } from "./roads";
+import { onWarningCallList } from "../lib/warning-call-list";
 
 // What the real voice server reads. Only real riders (simulated: false) appear here;
 // the stand-in keeps handling the simulated households.
@@ -76,6 +77,8 @@ export const statusFor = query({
 
 // Real riders the dialer may call now, highest priority first. The reach ladder workflow decides
 // when a missed rider is due again (convex/reachLadder.ts); until then it stays out of this list.
+// Only the team's phones are listed (lib/warning-call-list.ts), so other real numbers on houses
+// never fill the queue ahead of them.
 export const dialQueue = query({
   args: { limit: v.number() },
   returns: v.array(
@@ -93,7 +96,7 @@ export const dialQueue = query({
   handler: async (ctx, { limit }) => {
     const households = await nextToCall(ctx, limit * 4);
     return households
-      .filter((h) => !h.simulated && dialableNow(h))
+      .filter((h) => !h.simulated && onWarningCallList(h.callbackNumber) && dialableNow(h))
       .slice(0, limit)
       .map((h) => ({
         _id: h._id,

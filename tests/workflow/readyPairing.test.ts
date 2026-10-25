@@ -24,10 +24,10 @@ type T = ReturnType<typeof setup>;
 
 // The stand-in fire comes from the northeast, so a neighbor east of the resident is reached first and
 // driving over is driving away from it; one to the west would be driving toward it.
-const RESIDENT = { phone: "+15550000001", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
-const EAST = { phone: "+15550000002", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
-const WEST = { phone: "+15550000003", address: "1200 Palm St", lat: 34.19, lng: -118.1554, residentName: "Rosa" };
-const FAR = { phone: "+15550000004", address: "40 Far Rd", lat: 34.2, lng: -118.155, residentName: "Lee" };
+const RESIDENT = { phone: "+14252468208", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
+const EAST = { phone: "+16502234376", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
+const WEST = { phone: "+16507099911", address: "1200 Palm St", lat: 34.19, lng: -118.1554, residentName: "Rosa" };
+const FAR = { phone: "+16506567040", address: "40 Far Rd", lat: 34.2, lng: -118.155, residentName: "Lee" };
 
 const base = { language: "en", care: [] };
 const needsRide = (who: typeof RESIDENT, extra: object = {}) => ({ ...base, ...who, exitPlan: "needs_ride" as const, hasCar: false, mobility: "walker" as const, ...extra });

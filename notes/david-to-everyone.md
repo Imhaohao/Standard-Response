@@ -201,3 +201,22 @@ The crowd model now pulls each car out onto the street in front of its house ins
 - **Reruns on Boris's regenerated scenario** (04:25): `door-fairness.json` baseline has needy homes checked before the fire at 97.5% for our order, 81% nearest-first and 51% random, and worst wait 308, 293 and 401 min. The isolated pocket is that same corner, so its worst wait rose to 560 min (nearest-first 532). `danger-zones.geojson` is rerun too.
 
 **The models runner follows `WILDFIRE_LINE_HOLD`.** Its wildfire deadlines are now scenario minutes × 8 from the warning, and its closures come due on the same stretched clock, as `convex/fireArrival.ts` and `useFireClock` do. Before this, a runner pass would have written deadlines 8 times earlier than Convex's. The constant lives in `rollcall_d/runner.py` as `LINE_HOLD`, so change both together. Door fairness and the danger zones stay on the scenario's own clock, the night as it happened.
+
+## 2026-10-25 09:47
+
+**The evacuation warning now rings only the team's four phones: David, Boris, Brendan and Jerry.** The list is `lib/warning-call-list.ts`. A judge or anyone else who signs up still gets their house, but the warning never calls them.
+- `voice:dialQueue` lists only homes whose number is on that list, so other real numbers can't fill the queue ahead of ours.
+- The voice server checks the same list before every warning-night call. `mayDialOnWarning` (`voice/env.ts`) covers the warning dialer, pickup checks, callbacks and the "connect you to your helper" offer, and it still needs Fly's `DIAL_ALLOWLIST`.
+- **Not changed:** the Ready check still calls every real number `mayDial` allows, judges included.
+- Tests: the reach-ladder, pairing, real-pickup and night-run fixtures now use team numbers. The kiosk test now checks that a judge's home stays out of the warning queue.
+- Takes effect once Convex is deployed, and on Fly once the voice server is redeployed.
+
+## 2026-10-25 09:47
+
+The voice agent repeats itself less. Nothing in the contract changed, but the pressure eval and voice exam will see different wording on repeat ride questions:
+
+- **Ride asked again with no news:** the caller hears whichever short answer they heard least recently (the status's first sentences, or `statusUnchanged`). Once that answer has been said before, it comes with the next of `holdSteps`. Before this, a caller asking every turn heard the same two lines in turn, word for word. A ride answer is chosen once per turn, so two answers in one turn no longer both say "Nothing has changed since I last told you." `alignment.py`'s `shorter` already accepts `holdSteps`, so the matcher should still pass these.
+- **No sentence twice in one turn**, in both the 911 call and the Ready check (`voice/agent/sentences.ts`, applied in each flow's `say`). Claude's reply ending with the next question, followed by the code's own question, used to say it twice.
+- **A named feeling is said once per call**, not just never twice in a row. Different wordings still pass.
+- **Interpreter prompt:** `feeling` and `reply` are told not to reuse sentences the agent already said on the call.
+- Live after the voice server redeploy, which I'm running now.

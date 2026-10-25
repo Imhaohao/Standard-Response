@@ -1,7 +1,7 @@
 import { api } from "../convex/_generated/api";
 import type { Doc, Id } from "../convex/_generated/dataModel";
 import { convex, logSubscriptionError } from "./convex";
-import { env, mayDial } from "./env";
+import { env, mayDialOnWarning } from "./env";
 import { isDraining, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 
@@ -40,10 +40,10 @@ export function startDialer() {
   const busy = (id: Id<"households">) => dialing.has(id) || [...inFlight.values()].includes(id);
 
   function allowed(household: Queued) {
-    if (mayDial(household.callbackNumber)) return true;
+    if (mayDialOnWarning(household.callbackNumber)) return true;
     if (!warnedNotAllowed.has(household._id)) {
       warnedNotAllowed.add(household._id);
-      console.warn(`[dialer] ${household.callbackNumber} is not in DIAL_ALLOWLIST; skipping`);
+      console.warn(`[dialer] ${household.callbackNumber} is not on the warning call list or in DIAL_ALLOWLIST; skipping`);
     }
     return false;
   }

@@ -2,7 +2,7 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
-import { mayDial } from "./env";
+import { mayDialOnWarning } from "./env";
 import { callbackScripts, isDraining, liveByHousehold, onCallEnded } from "./phone/registry";
 import { placeCall } from "./phone/carrier";
 
@@ -49,8 +49,8 @@ export function startCallbackRunner() {
     if (await deliverOnLiveCall(callback, template)) return;
     // A deploy is stopping this server; the next one places it.
     if (isDraining()) return;
-    if (!mayDial(callback.callbackNumber)) {
-      console.warn(`[callbacks] ${callback.callbackNumber} is not in DIAL_ALLOWLIST; leaving callback pending`);
+    if (!mayDialOnWarning(callback.callbackNumber)) {
+      console.warn(`[callbacks] ${callback.callbackNumber} is not on the warning call list or in DIAL_ALLOWLIST; leaving callback pending`);
       return;
     }
     const lines = LINES[language];

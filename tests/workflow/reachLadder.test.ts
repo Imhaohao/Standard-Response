@@ -40,7 +40,7 @@ async function insertHousehold(t: T, simulated = false) {
   return await t.run(async (ctx) =>
     ctx.db.insert("households", {
       address: "100 Terrace St",
-      callbackNumber: simulated ? "+15550000002" : "+15550000001",
+      callbackNumber: simulated ? "+16502234376" : "+14252468208",
       language: "en",
       callStatus: "not_called",
       outcome: "unknown",

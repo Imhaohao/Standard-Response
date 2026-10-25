@@ -23,8 +23,8 @@ function setup() {
 
 type T = ReturnType<typeof setup>;
 
-const RESIDENT = { phone: "+15550000001", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
-const NEIGHBOR = { phone: "+15550000002", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
+const RESIDENT = { phone: "+14252468208", address: "1210 Palm St", lat: 34.19, lng: -118.155, residentName: "Wen" };
+const NEIGHBOR = { phone: "+16502234376", address: "1212 Palm St", lat: 34.19, lng: -118.15445, residentName: "Ana" };
 const HELPER = { name: NEIGHBOR.residentName, phone: NEIGHBOR.phone, relation: "neighbor" };
 
 async function signUp(t: T) {
@@ -115,8 +115,8 @@ describe("night runs", () => {
   test("a night that began before runs were kept clears what calls learned from the homes they reached", async () => {
     const t = setup();
     const { resident } = await signUp(t);
-    await t.mutation(api.riders.importCsv, { csv: "rider_id,name,address,lat,lng,phone,language,mobility,assistance\nR-1,Quiet,3 Quiet Ln,34.191,-118.151,+15550000003,en,walker,none" });
-    const quiet = (await t.run(async (ctx) => ctx.db.query("households").withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", "+15550000003")).first()))!._id;
+    await t.mutation(api.riders.importCsv, { csv: "rider_id,name,address,lat,lng,phone,language,mobility,assistance\nR-1,Quiet,3 Quiet Ln,34.191,-118.151,+16507099911,en,walker,none" });
+    const quiet = (await t.run(async (ctx) => ctx.db.query("households").withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", "+16507099911")).first()))!._id;
     // As if the warning went out before this deployment kept runs: no run was started for it.
     await t.run(async (ctx) => {
       const control = await ctx.db.query("control").first();
