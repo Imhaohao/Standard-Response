@@ -1,0 +1,159 @@
+{
+ "source": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2135.pdf",
+ "extractedFrom": "Appendix B. Burnover Data",
+ "timezone": "PST (UTC-8)",
+ "burnovers": [
+  {
+   "number": 1,
+   "name": "Hoffman Road",
+   "when": "November 8, 07:50\u201308:30",
+   "location": "Hoffman Road, Concow",
+   "lat": 39.783963,
+   "lng": -121.509288
+  },
+  {
+   "number": 2,
+   "name": "Concow Road",
+   "when": "November 8, 07:50\u201309:00",
+   "location": "Concow Road, Concow",
+   "lat": 39.779816,
+   "lng": -121.506844
+  },
+  {
+   "number": 3,
+   "name": "Chapman Ln",
+   "when": "November 8, 08:30",
+   "location": "Chapman Ln, Paradise, off Dean Rd",
+   "lat": 39.789343,
+   "lng": -121.572755
+  },
+  {
+   "number": 4,
+   "name": "Skyway (upper, north of Wagstaff Road)",
+   "when": "November 8, 08:30\u201314:30",
+   "location": "Skyway, Paradise, between Wagstaff Rd and Clark Rd",
+   "lat": 39.785431,
+   "lng": -121.597351
+  },
+  {
+   "number": 5,
+   "name": "Windermere Lane",
+   "when": "November 8, 08:35\u2013n/d",
+   "location": "Windermere Ln, Concow",
+   "lat": 39.788864,
+   "lng": -121.509851
+  },
+  {
+   "number": 6,
+   "name": "Pentz Road",
+   "when": "November 8, 08:45\u201311:15",
+   "location": "Pentz Rd, Paradise, between Bille Rd and Feather River Hospital (FRH)",
+   "lat": 39.764012,
+   "lng": -121.574553
+  },
+  {
+   "number": 7,
+   "name": "Pearson Road",
+   "when": "November 8, 09:15\u201310:15",
+   "location": "Pearson Rd, Paradise, between Hilbe Dr and Cherry Ln",
+   "lat": 39.749969,
+   "lng": -121.577933
+  },
+  {
+   "number": 8,
+   "name": "Bille Road",
+   "when": "November 8, 09:25\u201311:45",
+   "location": "Bille Rd near Pentz Rd",
+   "lat": 39.769364,
+   "lng": -121.582853
+  },
+  {
+   "number": 9,
+   "name": "Wagstaff Road",
+   "when": "November 8, 9:30\u201310:30",
+   "location": "Wagstaff Rd, Paradise, between Oak Way and Rocky Ln",
+   "lat": 39.777655,
+   "lng": -121.603046
+  },
+  {
+   "number": 10,
+   "name": "Clark Road/American Way",
+   "when": "November 8, 10:00\u201312:00",
+   "location": "Clark Rd, Paradise, near American Way",
+   "lat": 39.738857,
+   "lng": -121.611887
+  },
+  {
+   "number": 11,
+   "name": "Clark Road/Airport Road",
+   "when": "November 8, 10:00\u201311:30",
+   "location": "Clark Rd at Airport Rd, south of Paradise",
+   "lat": 39.715652,
+   "lng": -121.611268
+  },
+  {
+   "number": 12,
+   "name": "Skyway (lower, west of Princeton Way)",
+   "when": "November 8, 10:15\u201311:45",
+   "location": "Skyway, Paradise, between Skyway Crossroad and Princeton Way",
+   "lat": 39.745615,
+   "lng": -121.648307
+  },
+  {
+   "number": 13,
+   "name": "Jordan Hill Road/Granite Ridge Road",
+   "when": "November 8, 11:30",
+   "location": "Jordan Hill Rd at Granite Ridge Rd, south of Concow",
+   "lat": 39.753223,
+   "lng": -121.552523
+  },
+  {
+   "number": 14,
+   "name": "Clark Road/Black Bear Diner",
+   "when": "November 8, 13:10",
+   "location": "5791 Clark Rd, Paradise, at Black Bear Diner",
+   "lat": 39.753598,
+   "lng": -121.60774
+  },
+  {
+   "number": 15,
+   "name": "Rattlesnake Flats Road",
+   "when": "November 8, 15:15",
+   "location": "Rattlesnake Flats Rd off Clark Rd, south of Paradise",
+   "lat": 39.679551,
+   "lng": -121.619215
+  },
+  {
+   "number": 16,
+   "name": "Coutolenc Road",
+   "when": "November 9, 00:00\u201302:00",
+   "location": "Coutolenc Rd, Magalia, between Skyway and Ridgeway",
+   "lat": 39.812765,
+   "lng": -121.5784
+  },
+  {
+   "number": 17,
+   "name": "Chestnut Circle",
+   "when": "November 9, 06:00",
+   "location": "Chestnut Cir, Magalia",
+   "lat": 39.815564,
+   "lng": -121.6009
+  },
+  {
+   "number": 18,
+   "name": "Ponderosa Way",
+   "when": "November 9, 07:15",
+   "location": "Ponderosa Way, Magalia, west of Compton Dr",
+   "lat": 39.814665,
+   "lng": -121.604539
+  },
+  {
+   "number": 19,
+   "name": "Concow Fire Station 37",
+   "when": "November 9, 07:15",
+   "location": "Concow Rd, south of Concow, between Nelson Bar Rd and Hwy 70",
+   "lat": 39.721161,
+   "lng": -121.52327
+  }
+ ]
+}

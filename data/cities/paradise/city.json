@@ -1,0 +1,39 @@
+{
+ "id": "paradise",
+ "name": "Paradise, California",
+ "event": "Camp Fire, November 8, 2018",
+ "hazard": "wildfire",
+ "detail": {
+  "south": 39.72,
+  "north": 39.82,
+  "west": -121.67,
+  "east": -121.55
+ },
+ "state": {
+  "fips": "06",
+  "abbr": "ca"
+ },
+ "timezone": "America/Los_Angeles",
+ "censusYear": "pre-fire housing from CAL FIRE's Camp Fire damage inspections; household mix from ACS 2019-2023",
+ "roadBox": {
+  "south": 39.6985,
+  "north": 39.83,
+  "west": -121.8217,
+  "east": -121.53999999999999
+ },
+ "staging": {
+  "name": "Silver Dollar Fairgrounds, Chico",
+  "lat": 39.7177,
+  "lng": -121.8117,
+  "record": "event shelter; staging role assumed",
+  "source": "https://www.capradio.org/articles/2018/11/20/some-camp-wildfire-evacuees-plan-to-stay-outside-even-if-it-rains/"
+ },
+ "shelter": {
+  "name": "Neighborhood Church, Chico",
+  "lat": 39.7085,
+  "lng": -121.7932,
+  "capacity": 1200,
+  "record": "named Camp Fire evacuation center",
+  "source": "https://www.mynspr.org/news/2018-11-10/evacuation-shelter-and-information-resources-for-the-camp-wildfire"
+ }
+}

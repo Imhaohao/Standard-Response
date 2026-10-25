@@ -1,0 +1,171 @@
+{
+ "source": "https://web.archive.org/web/20220309060121/https://www.buttecounty.net/Portals/30/CFReport/Camp-Fire-Victim-Locations.kmz",
+ "publisher": "Butte County District Attorney, The Camp Fire Public Report (June 2020), victim locations file",
+ "privacy": "Names, descriptions and exact points are discarded; only counts per 0.01-degree cell are kept.",
+ "placemarksInFile": 82,
+ "victimsInFrame": 70,
+ "cellDegrees": 0.01,
+ "cells": [
+  {
+   "west": -121.63,
+   "south": 39.75,
+   "count": 2
+  },
+  {
+   "west": -121.63,
+   "south": 39.77,
+   "count": 2
+  },
+  {
+   "west": -121.62,
+   "south": 39.74,
+   "count": 5
+  },
+  {
+   "west": -121.62,
+   "south": 39.79,
+   "count": 1
+  },
+  {
+   "west": -121.61,
+   "south": 39.74,
+   "count": 2
+  },
+  {
+   "west": -121.61,
+   "south": 39.75,
+   "count": 2
+  },
+  {
+   "west": -121.61,
+   "south": 39.77,
+   "count": 1
+  },
+  {
+   "west": -121.61,
+   "south": 39.78,
+   "count": 1
+  },
+  {
+   "west": -121.61,
+   "south": 39.8,
+   "count": 1
+  },
+  {
+   "west": -121.6,
+   "south": 39.74,
+   "count": 6
+  },
+  {
+   "west": -121.6,
+   "south": 39.75,
+   "count": 7
+  },
+  {
+   "west": -121.6,
+   "south": 39.76,
+   "count": 2
+  },
+  {
+   "west": -121.6,
+   "south": 39.77,
+   "count": 1
+  },
+  {
+   "west": -121.6,
+   "south": 39.78,
+   "count": 1
+  },
+  {
+   "west": -121.6,
+   "south": 39.8,
+   "count": 2
+  },
+  {
+   "west": -121.6,
+   "south": 39.81,
+   "count": 1
+  },
+  {
+   "west": -121.59,
+   "south": 39.72,
+   "count": 5
+  },
+  {
+   "west": -121.59,
+   "south": 39.73,
+   "count": 3
+  },
+  {
+   "west": -121.59,
+   "south": 39.74,
+   "count": 4
+  },
+  {
+   "west": -121.59,
+   "south": 39.78,
+   "count": 2
+  },
+  {
+   "west": -121.59,
+   "south": 39.8,
+   "count": 3
+  },
+  {
+   "west": -121.58,
+   "south": 39.72,
+   "count": 1
+  },
+  {
+   "west": -121.58,
+   "south": 39.73,
+   "count": 2
+  },
+  {
+   "west": -121.58,
+   "south": 39.74,
+   "count": 1
+  },
+  {
+   "west": -121.58,
+   "south": 39.76,
+   "count": 2
+  },
+  {
+   "west": -121.58,
+   "south": 39.77,
+   "count": 4
+  },
+  {
+   "west": -121.58,
+   "south": 39.78,
+   "count": 2
+  },
+  {
+   "west": -121.57,
+   "south": 39.73,
+   "count": 2
+  },
+  {
+   "west": -121.57,
+   "south": 39.74,
+   "count": 1
+  },
+  {
+   "west": -121.57,
+   "south": 39.76,
+   "count": 1
+  }
+ ],
+ "minutesFromFirstOrderToFireWithin250m": {
+  "what": "Per victim location: first NIST TN 2135 observation within 250 m, minus 07:46 PST",
+  "locationsWithAnObservation": 47,
+  "min": 7,
+  "p25": 50,
+  "median": 134,
+  "p75": 223,
+  "max": 926,
+  "within30Minutes": 8,
+  "within60Minutes": 14
+ }
+}

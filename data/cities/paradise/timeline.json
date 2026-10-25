@@ -1,0 +1,218 @@
+{
+  "id": "paradise",
+  "event": "Camp Fire reaching Paradise, California",
+  "timezone": "America/Los_Angeles",
+  "utcOffset": "-08:00",
+  "sources": {
+    "nist-tn-2135": "https://doi.org/10.6028/NIST.TN.2135",
+    "nist-tn-2252": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2252.pdf",
+    "butte-da": "https://web.archive.org/web/20210903004619/http://www.buttecounty.net/Portals/30/CFReport/PGE-THE-CAMP-FIRE-PUBLIC-REPORT.pdf",
+    "calfire-incident": "https://www.fire.ca.gov/incidents/2018/11/8/camp-fire/",
+    "calfire-ecc-chronology": "https://www.nist.gov/system/files/documents/2020/11/16/ECC%20Camp%20Inc%20Chronology%20of%20events_Redacted.pdf",
+    "paradise-mayor-slides": "https://wstc.wa.gov/wp-content/uploads/2019/09/BP4-20190917-Evacuation-JJ.pdf"
+  },
+  "minuteZero": {
+    "at": "2018-11-08T07:46:00-08:00",
+    "what": "The incident commander requests the first evacuation order inside Paradise: the east side of Pentz Rd (Zones 3, 8, 14 and Lower Pentz).",
+    "why": "It is the first order (not warning) that covers Paradise households, so it is when a coordinator would start calling. The first fire in Paradise was reported 3 minutes later.",
+    "source": "nist-tn-2252"
+  },
+  "events": [
+    {
+      "at": "2018-11-08T06:15:00-08:00",
+      "kind": "ignition",
+      "what": "PG&E's grid control center records an interruption on the Caribou-Palermo 115 kV line near Pulga; the fire starts there.",
+      "source": "butte-da",
+      "where": "The Camp Fire Public Report"
+    },
+    {
+      "at": "2018-11-08T06:25:00-08:00",
+      "kind": "first-report",
+      "what": "First 911 call reports a fire in the Feather River Canyon near Camp Creek Rd and Poe Dam on Highway 70.",
+      "source": "nist-tn-2252",
+      "where": "Table 10, 911-001-1"
+    },
+    {
+      "at": "2018-11-08T06:33:00-08:00",
+      "kind": "ignition",
+      "what": "CAL FIRE's official start time, Pulga Rd at Camp Creek Rd near Jarbo Gap.",
+      "source": "calfire-incident"
+    },
+    {
+      "at": "2018-11-08T06:45:00-08:00",
+      "kind": "ignition",
+      "what": "Second ignition near Rim Rd and Concow Rd (first fire data point in the Concow zone).",
+      "source": "nist-tn-2252",
+      "where": "Sec. 6.3.1 and Table 11"
+    },
+    {
+      "at": "2018-11-08T06:55:00-08:00",
+      "kind": "order",
+      "what": "Evacuation order for Pulga.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T07:22:00-08:00",
+      "kind": "warning",
+      "what": "Evacuation warning for Concow.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T07:25:00-08:00",
+      "kind": "hazard",
+      "what": "First structures burning in Concow, 5 km from the origin.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T07:32:00-08:00",
+      "kind": "warning",
+      "what": "First evacuation warning for Paradise, for Pentz Rd (Zones 3, 8, 14 and Lower Pentz).",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T07:37:00-08:00",
+      "kind": "order",
+      "what": "Evacuation order for Concow.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T07:44:00-08:00",
+      "kind": "hazard-reaches-town",
+      "what": "ECC takes a call at Drayer Dr and Pentz Rd reporting three spot fires on the Paradise side of the canyon.",
+      "source": "calfire-ecc-chronology"
+    },
+    {
+      "at": "2018-11-08T07:46:00-08:00",
+      "kind": "order",
+      "what": "First evacuation order in Paradise: east side of Pentz Rd (Zones 3, 8, 14, Lower Pentz). Minute 0.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T07:49:00-08:00",
+      "kind": "hazard-reaches-town",
+      "what": "First 911 report of fire in Paradise, on Lowry Ln off Pentz Rd.",
+      "source": "nist-tn-2252",
+      "where": "Sec. 6.2 (time); NIST TN 2135 Sec. 9.1.2 (Lowry Ln)"
+    },
+    {
+      "at": "2018-11-08T07:50:00-08:00",
+      "kind": "hazard-reaches-town",
+      "what": "First spot fires arrive in Paradise, 12 km from the origin.",
+      "source": "nist-tn-2135",
+      "where": "Executive Summary and Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T07:57:00-08:00",
+      "kind": "alert",
+      "what": "BCSO sends CodeRED for the Pentz Rd zones.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T08:01:00-08:00",
+      "kind": "order",
+      "what": "IC extends orders to Zones 2, 7, 13 and Morgan Ridge; everything west becomes a warning.",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T08:02:00-08:00",
+      "kind": "order",
+      "what": "ECC calls the Sheriff's Office with immediate mandatory evacuations for all of Paradise (NIST TN 2252 places the same step at 08:03).",
+      "source": "calfire-ecc-chronology"
+    },
+    {
+      "at": "2018-11-08T08:03:00-08:00",
+      "kind": "order",
+      "what": "Butte ECC tells Paradise PD that all of Paradise is under mandatory evacuation; from here 911 operators and officers tell every zone to leave.",
+      "source": "nist-tn-2252",
+      "where": "Table 10 and Sec. 6.2"
+    },
+    {
+      "at": "2018-11-08T08:25:00-08:00",
+      "kind": "hazard",
+      "what": "Feather River Hospital impacted by fire; its full evacuation had been ordered at 08:07.",
+      "source": "calfire-ecc-chronology"
+    },
+    {
+      "at": "2018-11-08T08:30:00-08:00",
+      "kind": "hazard",
+      "what": "Main fire front reaches Pentz Rd between Apple View Way and Lowry Ln; 30 spot fires had been identified in Paradise by then, reaching 3.4 km into town.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T08:45:00-08:00",
+      "kind": "hazard",
+      "what": "Spot fire ignites in Honey Run Canyon on the west side of Paradise, 6.3 km from Lowry Ln.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T08:49:00-08:00",
+      "kind": "order",
+      "what": "IC names Paradise Zones 1, 4, 9, 5, 11, Lower Clark and most of Magalia for orders (Paradise had effectively been under orders since 08:03).",
+      "source": "nist-tn-2252",
+      "where": "Table 10"
+    },
+    {
+      "at": "2018-11-08T10:00:00-08:00",
+      "kind": "peak",
+      "what": "Fire is impacting Pentz, Bille, Pearson and Clark Roads at once, with civilians stuck in traffic and trapped in vehicles.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T11:30:00-08:00",
+      "kind": "hazard",
+      "what": "Edgewood Ln overcome by fire; five of the victims found in or beside vehicles were on Edgewood Ln.",
+      "source": "paradise-mayor-slides",
+      "where": "count from butte-da"
+    },
+    {
+      "at": "2018-11-08T12:00:00-08:00",
+      "kind": "hazard",
+      "what": "Fire pushing south down Berkshire Ave and approaching Bille Rd and Skyway from several directions; structures burning south and east of Skyway near Almond St and Fir St.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T13:00:00-08:00",
+      "kind": "hazard",
+      "what": "Fire well established through most of Paradise and impacting downtown; 10 to 15 structures burning at the south end of Andover Dr and on Adrian Dr.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T15:00:00-08:00",
+      "kind": "hazard",
+      "what": "Heavy fire on the west side of Skyway between Black Olive Dr and Jewell Rd, threatening Town Hall.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-08T16:56:00-08:00",
+      "kind": "end-of-main-run",
+      "what": "Sunset. In Paradise structures keep burning, but the run has moved on to the foothills toward Highway 99; the scenario's last front is 17:00.",
+      "source": "nist-tn-2135",
+      "where": "Sec. 16.3.1"
+    },
+    {
+      "at": "2018-11-25T08:00:00-08:00",
+      "kind": "end",
+      "what": "Fire 100% contained at 153,336 acres after 17 days.",
+      "source": "calfire-incident"
+    }
+  ],
+  "conflicts": [
+    "Ignition: 06:15 (line fault, DA), 06:25 (first 911 call), 06:29 (Green Sheet), 06:33 (CAL FIRE official start).",
+    "Deaths: 85 (CAL FIRE, Sheriff, NIST) against 84 direct deaths in the DA report, which counts only deaths within the footprint on 8 November or after medical evacuation.",
+    "Whole-town order: 08:02 (ECC log) or 08:03 (NIST TN 2252) against 09:17 (LA Times). CapRadio reports Zones 1, 11 and 12 stayed under warning until after 16:00, but the Sheriff tweeted Zones 11 and 12 at 08:55, and CodeRED logs show Zones 4, 9 and 10 were never sent a CodeRED message."
+  ]
+}
