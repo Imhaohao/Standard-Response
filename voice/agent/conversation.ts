@@ -1265,8 +1265,12 @@ async function readRehearings(context: TurnContext, first: Interpretation, rehea
   }
 }
 
-// Claude judged it not meant for the agent, and it carries nothing we must act on.
+// Claude judged it not meant for the agent, and it carries nothing we must act on. Words we can't
+// read (a language we don't speak, or speech-to-text forcing one into the call language) are someone
+// trying to talk to us: read as noise, an Armenian or garbled caller heard silence and was never
+// handed to a person, because ignored turns don't count toward the hand-off.
 function isNoise(heard: Interpretation) {
+  if (heard.mistranscribed || !canSpeak(heard.spokenLanguage)) return false;
   return !heard.addressedToAgent && heard.emergency === "none" && isEmpty(heard.updates) && heard.neighborAddresses.length === 0;
 }
 

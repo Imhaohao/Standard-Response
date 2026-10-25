@@ -473,6 +473,32 @@ describe("nobody can understand each other", () => {
   });
 });
 
+describe("speech the agent can't read", () => {
+  it("hands a caller in a language we don't speak to a person even when Claude called it not meant for us", () => {
+    const { conversation, escalations } = call();
+    const turn = conversation.respond("Ես չեմ հասկանում", heard({ spokenLanguage: "hy", addressedToAgent: false }));
+    assert.ok(turn.done);
+    assert.deepEqual(escalations, ["language_barrier"]);
+  });
+
+  it("counts garbled speech-to-text as a missed turn, not noise, so it reaches a person", () => {
+    const { conversation, escalations } = call();
+    const garbled = () => heard({ mistranscribed: true, addressedToAgent: false });
+    const first = conversation.respond("Well ting boo dung.", garbled());
+    assert.ok(!first.ignored);
+    assert.ok(first.sentences.length > 0);
+    conversation.respond("Knee shoe Sher ma?", garbled());
+    const third = conversation.respond("Ching jow run bang wall.", garbled());
+    assert.ok(third.done);
+    assert.ok(escalations.includes("language_barrier"));
+  });
+
+  it("still ignores talk in the call language that wasn't meant for the agent", () => {
+    const { conversation } = call();
+    assert.ok(conversation.respond("Turn the TV down!", heard({ addressedToAgent: false })).ignored);
+  });
+});
+
 // From the Palo Alto Fire visit: "you said wheelchair, I thought wheelchair. And then you get there,
 // and it's a battery-operated wheelchair, and they're 400 pounds."
 describe("which kind of wheelchair", () => {
