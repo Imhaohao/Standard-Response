@@ -13,6 +13,15 @@ describe("spoken form", () => {
     assert.equal(spokenForm("Bring your ID."), "Bring your I-D.");
   });
 
+  it("says 911 digit by digit, not nine hundred eleven", () => {
+    assert.equal(spokenForm("If fire reaches your home, call 911."), "If fire reaches your home, call 9 1 1.");
+    assert.equal(spokenForm("This is 911, calling about the evacuation."), "This is 9 1 1, calling about the evacuation.");
+  });
+
+  it("leaves a 911 house number as a number", () => {
+    assert.equal(spokenForm("Are you at 911 Elm Street?"), "Are you at 911 Elm Street?");
+  });
+
   it("leaves words that only contain the letters alone", () => {
     assert.equal(spokenForm("IDK, the idea was Idaho Street"), "IDK, the idea was Idaho Street");
   });

@@ -27,7 +27,11 @@ const SOUND_TAGS = /\[[^\]]*\]|\([^)]*\)|\*[^*]*\*|♪/g;
 // Sonic expands "ID" and "I.D." to "Idaho" as a state abbreviation; "I-D" is read as letters.
 const STATE_LOOKALIKE_ID = /\bI\.D\.|\bID\b/g;
 
-export const spokenForm = (text: string) => text.replace(STATE_LOOKALIKE_ID, "I-D");
+// Sonic reads 911 as "nine hundred eleven". Spaced digits are read one by one. A house number
+// (911 Elm Street) is followed by its street name and stays a number.
+const EMERGENCY_NUMBER = /\b911\b(?!\s+[A-Z])/g;
+
+export const spokenForm = (text: string) => text.replace(STATE_LOOKALIKE_ID, "I-D").replace(EMERGENCY_NUMBER, "9 1 1");
 
 type ErrorMessage = { type: "error"; message?: string; title?: string };
 type SttMessage = { type: string; text?: string; transcript?: string; is_final?: boolean; message?: string; title?: string };
