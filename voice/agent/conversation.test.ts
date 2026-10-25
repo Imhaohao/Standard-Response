@@ -251,6 +251,17 @@ describe("answers that don't answer", () => {
     assert.notEqual(conversation.step, "neighbor");
   });
 
+  // Jerry's call: "Thanks, Boris up the stream. Thanks, I've passed on Boris Nezlobin."
+  it("says one thanks for a neighbor passed on, not Claude's acknowledgment as well", () => {
+    const { conversation } = atNeighbor();
+    const turn = conversation.respond(
+      "I think up the stream, Boris is bedridden right now",
+      heard({ neighborAddresses: ["Boris, bedridden"], acknowledgment: "Thanks, Boris up the stream." }),
+    );
+    assert.equal(turn.acknowledgment, "");
+    assert.ok(turn.sentences.includes(EN.passedOn("Boris Nezlobin")));
+  });
+
   it("passes on someone down the road who is dying as urgent, without an address", () => {
     const { conversation, nominations } = atNeighbor();
     const turn = conversation.respond(

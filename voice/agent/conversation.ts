@@ -147,7 +147,8 @@ const HISTORY_TURNS = 6;
 
 type Transition = { step: Step; lines?: string[] };
 // stalled: the turn left the question where it was, so it is asked again in other words.
-type ReplyOptions = { transfer?: AgentTurn["transfer"]; stalled: boolean };
+// passedOn: a "Thanks, I've passed on ..." line is said this turn, so it is the acknowledgment.
+type ReplyOptions = { transfer?: AgentTurn["transfer"]; stalled: boolean; passedOn?: boolean };
 
 export class Conversation {
   language: Language;
@@ -312,19 +313,21 @@ export class Conversation {
     this.noteChairKind(heard);
     const away = this.awayTurn(heard);
     if (away) return away;
-    const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
+    const passed = this.passOn(heard);
+    const urgent = [...this.handleEmergency(heard), ...passed];
+    const passedOn = passed.length > 0;
 
     // Asking us to repeat, to wait, or something of their own, or switching language, isn't a
     // failed answer, so it doesn't use up a try.
     if (heard.wantsRepeat) this.shortReadback = false;
-    if (switched && heardNothing(heard)) return this.reply(heard, urgent, [], { transfer, stalled: false });
+    if (switched && heardNothing(heard)) return this.reply(heard, urgent, [], { transfer, stalled: false, passedOn });
     const keeps = heard.wantsRepeat || this.holdsQuestion(heard);
-    if (keeps) return this.reply(heard, urgent, [], { transfer, stalled: !heard.wantsRepeat });
+    if (keeps) return this.reply(heard, urgent, [], { transfer, stalled: !heard.wantsRepeat, passedOn });
     const previousStep = this.step;
     const transition = this.advance(heard);
     this.moveTo(transition.step);
     const stalled = this.step === previousStep && !this.changedThisTurn;
-    return this.reply(heard, urgent, transition.lines ?? [], { transfer, stalled });
+    return this.reply(heard, urgent, transition.lines ?? [], { transfer, stalled, passedOn });
   }
 
   // At the neighbor question "let me go check" ends the question rather than holding the line open.
@@ -342,21 +345,23 @@ export class Conversation {
     this.changesThisTurn = {};
     this.applyUpdates(heard.updates, heard.confidence);
     this.noteChairKind(heard);
-    const urgent = [...this.handleEmergency(heard), ...this.passOn(heard)];
+    const passed = this.passOn(heard);
+    const urgent = [...this.handleEmergency(heard), ...passed];
+    const passedOn = passed.length > 0;
     if (this.changedThisTurn || heard.wantsTime || heard.answer === "no") {
       const fixed = this.changedThisTurn ? [LINES[this.language].readbackFixed] : [];
       this.moveTo(this.nextMissing());
-      return this.reply(heard, urgent, fixed, { stalled: false });
+      return this.reply(heard, urgent, fixed, { stalled: false, passedOn });
     }
     const asked = urgent.length > 0 || heard.asksAboutRide || heard.asksWhatToDo || heard.wantsRepeat || heard.reply !== "" || heard.neighborAddresses.length > 0;
-    return asked ? this.reply(heard, urgent, [], { stalled: false }) : this.say("", [], false);
+    return asked ? this.reply(heard, urgent, [], { stalled: false, passedOn }) : this.say("", [], false);
   }
 
   // After a transfer the new agent opens with transferIn, and a goodbye after hold stands alone,
   // so neither leads with an acknowledgment.
   // When Claude's question is spoken it carries the acknowledgment, so neither the echo nor Claude's
   // separate ack is said as well.
-  private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled }: ReplyOptions): AgentTurn {
+  private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled, passedOn = false }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const leavingHold = this.done && this.reachedHold;
     const answer = guardAcknowledgment(heard.reply, status, this.language, heard.approvedAnswer !== undefined);
@@ -368,7 +373,7 @@ export class Conversation {
     const silent = Boolean(transfer) || leavingHold;
     const plain = !silent && !givesTime && told.length === 0;
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
-    const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime });
+    const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime, passedOn });
     const sentences = [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
@@ -388,10 +393,10 @@ export class Conversation {
 
   // The acknowledgment and the turn's last line: Claude's question alone, or the code's own
   // acknowledgment and question.
-  private turnEnd(heard: Interpretation, asked: AskVerdict, turn: { status: RequestStatus | "none"; silent: boolean; stalled: boolean; givesTime: boolean }) {
+  private turnEnd(heard: Interpretation, asked: AskVerdict, turn: { status: RequestStatus | "none"; silent: boolean; stalled: boolean; givesTime: boolean; passedOn: boolean }) {
     if (asked.line) return { ack: NO_ACK, next: [asked.line] };
     const again = turn.stalled || this.askedLastTurn(heard);
-    return { ack: this.acknowledgmentFor(heard, turn.status, turn.silent), next: this.nextLines(again, turn.givesTime) };
+    return { ack: this.acknowledgmentFor(heard, turn.status, turn.silent, turn.passedOn), next: this.nextLines(again, turn.givesTime) };
   }
 
   // Claude's wording of the next question, when it aimed at the step the code just landed on.
@@ -471,11 +476,14 @@ export class Conversation {
   // Facts the resident just gave are said back from templates, so "two people, with pets" is heard
   // in every language and can't overstate anything. Otherwise Claude's acknowledgment, guarded.
   // silent: a transfer opens with transferIn and a goodbye after hold stands alone.
-  private acknowledgmentFor(heard: Interpretation, status: RequestStatus | "none", silent: boolean) {
+  // Claude's ack for a neighbor ("Thanks, Boris up the stream.") came before "Thanks, I've passed on
+  // Boris Nezlobin.", so the caller heard two thanks for one answer: the passed-on line stands alone.
+  private acknowledgmentFor(heard: Interpretation, status: RequestStatus | "none", silent: boolean, passedOn: boolean) {
     const guarded = guardAcknowledgment(heard.acknowledgment, status, this.language);
     if (silent) return { text: "", blocked: guarded.blocked, isEcho: false };
     const heardBack = echo(this.changesThisTurn, this.language);
     if (heardBack !== "") return { text: heardBack, blocked: false, isEcho: true };
+    if (passedOn) return { text: "", blocked: guarded.blocked, isEcho: false };
     return { text: this.freshAcknowledgment(guarded.text), blocked: guarded.blocked, isEcho: false };
   }
 
