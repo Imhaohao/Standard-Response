@@ -27,3 +27,16 @@ Earlier today my notes went into the old `AtoB.md`, `AtoC.md` and `AtoD.md` file
 
 - **The dispatcher drives in the traffic forecast.** Its drive times now include the Langevin crowd model's forecast, and `robust-penguin-834` already runs it. That covers the solver, revocations, the ETA a rider hears in a callback, and the simulated vans' movement. Each street is slowed by its forecast slowdown in the direction the van drives it (`convex/traffic.ts`; the forecast runner writes the small `meshDriveTimes` table). With no fresh forecast, every street drives at free flow, as before.
 - **The forecast runner is safe to run again** (`npm run forecast:traffic`), now that the deployed backend takes its new fields. This replaces the "don't run it until you deploy" line in `notes/MtoC.md`. With it running, outbound trips with the evacuation take a median 1.3 to 1.4 times longer in the full-population runs, and trips into the zone barely change. `docs/mesh.md` has the numbers.
+
+## 2026-10-24 21:05
+
+**One call per person for a pickup.** The warning call now carries the pickup question instead of a second call after it.
+- **The helper:** when their warning call reaches its goodbye and a pickup question is due for them, the question replaces the goodbye ("Before you go: your neighbor Jerry at ... can't get out on their own ..."). The same goes for an update owed to them.
+- **The resident:** someone on hold for a driver gets their helper's answer and the confirmation question on the same line ("While you're on the line, I have news about a pickup ...").
+- **Where:** `voice/phone/callSession.ts` subscribes to `pickups:callQueue`. `voice/pickupRunner.ts` `dueOnThisLine` picks the question, `pickupFlowFor` in `outboundFlows.ts` builds it, and `PlanCheckOptions.continued` swaps the greeting for a continuation line (en, es). The line keeps its call-floor row and transcript. The pickup mutations take the answers, and a hang-up mid-question counts as unanswered, as on its own call.
+- **To whoever is reworking `conversation.ts` and the lines (sponsor lead):** the hand-over spots the end of the warning call by `turn.done` and drops the closing `LINES[language].goodbye` sentence. Please keep the goodbye a fixed line, or tell me and I'll key it on something else.
+
+**Contract:**
+- `pickups:callQueue` rows gain `helperAwaitingCall` and `residentAwaitingCall`: true while that person's own warning call hasn't been tried yet tonight (in the zone, `not_called`, no attempts). The pickup runner holds a separate pickup call while that's true, so the warning call asks it.
+- `nextToCall` now skips a helper only while a pickup call is ringing them or they're already on the way, no longer from the moment they're asked. Before, a paired helper never got their own warning call.
+- Neighbors paired at the Ready check are now asked at the warning, on the strength of the Ready check, not after the resident's call says they can't leave. The resident still confirms before the ride counts, and the van request stays open.

@@ -52,6 +52,28 @@ function planCall(
 
 const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
 
+describe("pickup check, continued on the person's own warning call", () => {
+  it("asks the helper without a second greeting", () => {
+    const { call } = planCall("helper", [], "en", true, undefined, { continued: true });
+    const opening = spoken(call.start());
+    assert.match(opening, /^ ?Before you go: your neighbor Walter at 1182 Mariposa St can't get out on their own/);
+    assert.match(opening, /Could you pick them up and drive them out\?/);
+    assert.doesNotMatch(opening, /this is 911 calling/);
+  });
+
+  it("gives the resident the helper's answer while they're on the line, and asks them to confirm", () => {
+    const { call } = planCall("resident", [], "en", true, undefined, { continued: true, purpose: "confirm", minutes: 10 });
+    const opening = spoken(call.start());
+    assert.match(opening, /While you're on the line, I have news about a pickup\. Ana says they can pick you up in about 10 minutes/);
+    assert.match(opening, /Will you go with Ana when they get there\?/);
+  });
+
+  it("opens an update in Spanish without a greeting", () => {
+    const { call } = planCall("helper", [], "es", false, undefined, { continued: true, purpose: "notice", notice: "resident_ready" });
+    assert.match(spoken(call.start()), /^ ?Una cosa más sobre el transporte\./);
+  });
+});
+
 describe("pickup check, helper call", () => {
   it("introduces itself as 911 and never tells the helper to call 911", async () => {
     const { call } = planCall("helper", [{ answer: "no", emergency: "flames" }]);

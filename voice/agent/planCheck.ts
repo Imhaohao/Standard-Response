@@ -46,6 +46,10 @@ type PlanCheckLines = {
   helperComing: (residentName: string | undefined, residentPhone: string | undefined) => string;
   helperNotComing: string;
   residentIntro: (residentName: string | undefined) => string;
+  // Said in place of the greeting when the question comes on the person's own warning call.
+  helperContinued: (residentName: string | undefined, address: string, recruited: boolean) => string;
+  residentContinued: string;
+  updateContinued: string;
   helperUpdateIntro: (helperName: string) => string;
   askPickedUp: (helperName: string) => string;
   // Told as soon as the helper says yes. Their word, never our promise, and the ride request stays open.
@@ -89,6 +93,12 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Thank you.${residentPhone ? ` ${possessive(residentName ?? "Their")} number is ${spokenDigits(residentPhone)}, if you need to reach them.` : ""} We'll check in with ${residentName ?? "them"} after that. If anything changes, call this number.`,
     helperNotComing: "Thanks for telling us. We'll find them another way.",
     residentIntro: (residentName) => `Hi${residentName ? ` ${residentName}` : ""}, it's 911 calling about your pickup.`,
+    helperContinued: (residentName, address, recruited) =>
+      recruited
+        ? `Before you go: ${residentName ? `your neighbor ${residentName}` : "a neighbor of yours"} at ${address} can't get out on their own, and our crews may not reach them in time.`
+        : `Before you go: you're down to pick up ${residentName ?? "your neighbor"} at ${address}.`,
+    residentContinued: "While you're on the line, I have news about a pickup.",
+    updateContinued: "One more thing about the pickup.",
     helperUpdateIntro: (helperName) => `Hi ${helperName}, it's 911 with an update on the pickup.`,
     askPickedUp: (helperName) => `Has ${helperName} picked you up?`,
     helperOnTheWay: (helperName, minutes, helperPhone) =>
@@ -139,6 +149,12 @@ export const PLAN_CHECK_LINES: Partial<Record<Language, PlanCheckLines>> & { en:
       `Gracias.${residentPhone ? ` El número de ${residentName ?? "esa persona"} es ${spokenDigits(residentPhone)}, por si necesita comunicarse.` : ""} Después hablaremos con ${residentName ?? "esa persona"}. Si algo cambia, llame a este número.`,
     helperNotComing: "Gracias por avisarnos. Buscaremos otra manera.",
     residentIntro: (residentName) => `Hola${residentName ? ` ${residentName}` : ""}, le llamamos del 911 por su transporte.`,
+    helperContinued: (residentName, address, recruited) =>
+      recruited
+        ? `Antes de irse: ${residentName ? `su vecino ${residentName}` : "un vecino suyo"}, en ${address}, no puede salir por su cuenta, y es posible que nuestros equipos no lleguen a tiempo.`
+        : `Antes de irse: usted quedó en pasar por ${residentName ?? "su vecino"} en ${address}.`,
+    residentContinued: "Mientras sigue en la línea, tengo noticias sobre su transporte.",
+    updateContinued: "Una cosa más sobre el transporte.",
     helperUpdateIntro: (helperName) => `Hola ${helperName}, le llamamos del 911 con novedades sobre la recogida.`,
     askPickedUp: (helperName) => `¿Ya le recogió ${helperName}?`,
     helperOnTheWay: (helperName, minutes, helperPhone) =>
@@ -210,6 +226,8 @@ export type PlanCheckOptions = {
   minutes?: number;
   // The update a notice call gives.
   notice?: PlanNotice;
+  // Asked on the person's own warning call, which is already under way: no greeting.
+  continued?: boolean;
   effects: PlanCheckEffects;
   interpret?: PlanInterpret;
 };
@@ -287,9 +305,17 @@ export class PlanCheck implements CallFlow {
 
   private intro() {
     const { role, recruited, helperName, residentName, address } = this.options;
+    if (this.options.continued) return this.continuedIntro();
     if (role === "resident") return this.lines.residentIntro(residentName);
     if (this.purpose === "notice") return this.lines.helperUpdateIntro(helperName);
     return recruited ? this.lines.recruitIntro(residentName, address) : this.lines.helperIntro(helperName, residentName, address);
+  }
+
+  private continuedIntro() {
+    const { role, recruited, residentName, address } = this.options;
+    if (this.purpose === "notice") return this.lines.updateContinued;
+    if (role === "resident") return this.lines.residentContinued;
+    return this.lines.helperContinued(residentName, address, recruited ?? false);
   }
 
   endHold(): AgentTurn {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { FunctionReturnType } from "convex/server";
 import type { api } from "../convex/_generated/api";
-import { dueCall } from "./pickupRunner";
+import { dueCall, dueOnThisLine } from "./pickupRunner";
 
 type Plan = FunctionReturnType<typeof api.pickups.callQueue>[number];
 
@@ -61,6 +61,25 @@ describe("pickup runner", () => {
     assert.equal(dueCall(missed, NOW), null);
     assert.deepEqual(dueCall({ ...missed, lastAttemptAt: NOW - 90_000 }, NOW), { role: "helper", purpose: "notice" });
     assert.equal(dueCall({ ...missed, helperNoticeAttempts: 2, lastAttemptAt: 0 }, NOW), null);
+  });
+
+  it("waits for each side's own warning call, which asks the pickup question on the same line", () => {
+    assert.equal(dueCall(plan({ helperAwaitingCall: true }), NOW), null);
+    const coming = plan({ status: "coming", helperEtaAt: NOW + 600_000, residentAwaitingCall: true });
+    assert.equal(dueCall(coming, NOW), null);
+    assert.deepEqual(dueCall({ ...coming, residentAwaitingCall: false }, NOW), { role: "resident", purpose: "confirm" });
+  });
+
+  it("knows what the person on a warning call can be asked before it hangs up", () => {
+    assert.deepEqual(dueOnThisLine(plan({}), "helper"), { role: "helper", purpose: "ask" });
+    assert.equal(dueOnThisLine(plan({}), "resident"), null);
+    const coming = plan({ status: "coming", helperEtaAt: NOW + 600_000 });
+    assert.deepEqual(dueOnThisLine(coming, "resident"), { role: "resident", purpose: "confirm" });
+    assert.equal(dueOnThisLine(coming, "helper"), null);
+    assert.deepEqual(dueOnThisLine(plan({ status: "coming", residentConfirmedAt: NOW, helperNotice: "resident_ready" }), "helper"), { role: "helper", purpose: "notice" });
+    assert.equal(dueOnThisLine(plan({ ringing: "helper" }), "helper"), null);
+    assert.equal(dueOnThisLine(plan({ helperAttempts: 2 }), "helper"), null);
+    assert.equal(dueOnThisLine(plan({}), "someone else"), null);
   });
 
   it("never rings a plan whose call is already ringing", () => {

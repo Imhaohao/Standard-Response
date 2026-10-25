@@ -55,14 +55,31 @@ function candidates(plan: Plan, now: number): PlanCall[] {
 }
 
 // Who this plan needs called right now, and why, if anyone. Never while one of its calls is
-// ringing, and never while that person is still on another call with us: theirs would come up busy.
+// ringing, never while that person is still on another call with us (theirs would come up busy),
+// and never before their own warning call has been tried: that call asks it on the same line.
 export function dueCall(plan: Plan, now: number, onAnotherCall: (householdId: string) => boolean = () => false): PlanCall | null {
   if (plan.ringing) return null;
   const busy = ({ role }: PlanCall) => {
+    if (role === "helper" ? plan.helperAwaitingCall : plan.residentAwaitingCall) return true;
     const householdId = role === "helper" ? plan.helperHouseholdId : plan.householdId;
     return householdId !== undefined && onAnotherCall(householdId);
   };
   return candidates(plan, now).find((call) => !busy(call) && retryDue(plan, call, now)) ?? null;
+}
+
+// What this plan could ask the person on this line, a home's warning call, before it hangs up: the
+// helper's ask, the resident's confirmation, or an update owed to either. Not the "were you picked
+// up?" check, which waits for the helper's ETA.
+export function dueOnThisLine(plan: Plan, householdId: string): PlanCall | null {
+  if (plan.ringing) return null;
+  const helperHere = plan.helperHouseholdId === householdId;
+  const residentHere = plan.householdId === householdId;
+  const calls: PlanCall[] = [];
+  if (helperHere && plan.helperNotice) calls.push({ role: "helper", purpose: "notice" });
+  if (residentHere && plan.residentNotice) calls.push({ role: "resident", purpose: "notice" });
+  if (helperHere && plan.status === "checking") calls.push({ role: "helper", purpose: "ask" });
+  if (residentHere && confirming(plan)) calls.push({ role: "resident", purpose: "confirm" });
+  return calls.find((call) => attemptsOf(plan, call) < MAX_ATTEMPTS) ?? null;
 }
 
 const logUnansweredFailure = (error: unknown) => console.error("[pickups] could not record the missed call", error);

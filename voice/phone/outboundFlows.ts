@@ -46,10 +46,15 @@ function planEffects(planId: Id<"pickupPlans">, role: PlanRole, purpose: PlanPur
 // The flow to run and the call-floor row to open for it.
 export type OutboundFlow = { conversation: CallFlow; call: FunctionArgs<typeof api.calls.startFlow> };
 
+export type PickupQuestion = { planId: string; role: PlanRole; purpose: PlanPurpose; continued?: boolean };
+
 async function planCheckFor(params: StreamParameters): Promise<OutboundFlow> {
-  const role = params.role ?? "helper";
-  const [plan, control] = await Promise.all([planRow(params.planId ?? ""), convex().query(api.control.get, {})]);
-  const purpose = purposeOf(params.purpose);
+  return await pickupFlowFor({ planId: params.planId ?? "", role: params.role ?? "helper", purpose: purposeOf(params.purpose) });
+}
+
+// A pickup question, on its own call or `continued` on the person's warning call.
+export async function pickupFlowFor({ planId, role, purpose, continued }: PickupQuestion): Promise<OutboundFlow> {
+  const [plan, control] = await Promise.all([planRow(planId), convex().query(api.control.get, {})]);
   const notice = role === "helper" ? plan.helperNotice : plan.residentNotice;
   if (purpose === "notice" && !notice) throw new Error(`Pickup plan ${plan._id} owes the ${role} no update now`);
   const conversation = new PlanCheck({
@@ -65,6 +70,7 @@ async function planCheckFor(params: StreamParameters): Promise<OutboundFlow> {
     purpose,
     minutes: minutesUntil(plan.helperEtaAt, simTime(control.clock, Date.now())),
     notice,
+    continued,
     effects: planEffects(plan._id, role, purpose, plan.householdId),
   });
   return { conversation, call: { householdId: plan.householdId, flow: { kind: "pickup", planId: plan._id, role, purpose } } };

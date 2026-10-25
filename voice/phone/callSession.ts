@@ -1,4 +1,5 @@
 import type WebSocket from "ws";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
@@ -9,7 +10,8 @@ import { Transcriber } from "./cartesia";
 import { ElevenLabsCall } from "./elevenLabsCall";
 import { householdCallFor, onFileRecord } from "./householdCall";
 import { interrupts, isBackchannel } from "./interruption";
-import { isOutboundFlowMode, outboundFlowFor } from "./outboundFlows";
+import { isOutboundFlowMode, outboundFlowFor, PickupQuestion, pickupFlowFor } from "./outboundFlows";
+import { dueOnThisLine } from "../pickupRunner";
 import { callbackScripts, callEnded, LiveCall, liveByCallSid, liveByHousehold, registerLive } from "./registry";
 import { CallSpeech } from "./speech";
 import { CallMode, hangUp, StreamParameters } from "./twilio";
@@ -107,6 +109,10 @@ class CallSession implements LiveCall {
   private language: Language = "en";
   private ride: RideStatus = null;
   private unsubscribe: (() => void) | null = null;
+  // Pickups this home's warning call can ask about before it hangs up, so one call carries both.
+  private pickups: FunctionReturnType<typeof api.pickups.callQueue> = [];
+  private unsubscribePickups: (() => void) | null = null;
+  private onPickupQuestion = false;
   private heardSoFar = "";
   private lastSpeechAt = 0;
   private turnTimer: NodeJS.Timeout | null = null;
@@ -147,6 +153,10 @@ class CallSession implements LiveCall {
       residentName: household.residentName,
       effects: this.effects(householdId),
     });
+    this.unsubscribePickups = convex().onUpdate(api.pickups.callQueue, {}, (rows) => {
+      this.pickups = rows;
+      void this.askPickupWhileHolding();
+    }, logSubscriptionError("pickups.callQueue"));
     this.listen();
     if (this.callId) fireAndForget("setPhase", convex().mutation(api.calls.setPhase, { callId: this.callId, phase: "live" }));
     this.speakTurn(this.conversation.start(), null);
@@ -306,6 +316,8 @@ class CallSession implements LiveCall {
   // After a backchannel, Claude's "Okay" would say it twice; an echo of the facts still plays.
   private speakTurn(turn: AgentTurn, timing: TurnTiming | null, backchanneled = false) {
     if (this.ended) return;
+    const question = turn.done ? this.duePickup() : null;
+    if (question) return void this.askInsteadOfGoodbye(turn, question, timing, backchanneled);
     const dropAcknowledgment = backchanneled && !turn.acknowledgmentIsEcho;
     const sentences = [dropAcknowledgment ? "" : turn.acknowledgment, ...turn.sentences].filter((line) => line !== "");
     const text = sentences.join(" ");
@@ -323,6 +335,53 @@ class CallSession implements LiveCall {
     this.waiting = waitingAfter(turn, this.conversation?.holding ?? false);
     await this.speech.whenSilent();
     this.restartQuietTimer();
+    void this.askPickupWhileHolding();
+  }
+
+  // A pickup question due for the person on this line, if this is their warning call.
+  private duePickup(): PickupQuestion | null {
+    if (this.onPickupQuestion || !this.householdId || isOutboundFlowMode(this.params.mode)) return null;
+    for (const plan of this.pickups) {
+      const due = dueOnThisLine(plan, this.householdId);
+      if (due) return { planId: plan._id, ...due, continued: true };
+    }
+    return null;
+  }
+
+  // Moves the line from the warning call to the pickup question. The call keeps its call-floor row
+  // and transcript; the question reports through the pickup mutations like its own call would.
+  private async switchToPickup(question: PickupQuestion): Promise<AgentTurn | null> {
+    this.onPickupQuestion = true;
+    try {
+      const planId = question.planId as Id<"pickupPlans">;
+      await convex().mutation(api.pickups.startAttempt, { planId, role: question.role, purpose: question.purpose });
+      const { conversation } = await pickupFlowFor(question);
+      this.conversation = conversation;
+      this.syncLanguage();
+      return conversation.start();
+    } catch (error) {
+      console.error(`[call ${this.callSid}] could not ask the pickup question on this line`, error);
+      return null;
+    }
+  }
+
+  // The warning call is done, but this person has a pickup question due: it comes in place of the goodbye.
+  private async askInsteadOfGoodbye(turn: AgentTurn, question: PickupQuestion, timing: TurnTiming | null, backchanneled: boolean) {
+    const goodbye = LINES[this.language].goodbye;
+    const pickup = await this.switchToPickup(question);
+    if (this.ended) return;
+    if (!pickup) return this.speakTurn(turn, timing, backchanneled);
+    const closing = turn.sentences.filter((line) => line !== goodbye);
+    this.speakTurn({ ...pickup, acknowledgment: turn.acknowledgment, sentences: [...closing, ...pickup.sentences] }, timing, backchanneled);
+  }
+
+  // On hold for a driver, a resident hears their helper's answer and confirms it on this line.
+  private async askPickupWhileHolding() {
+    if (this.ended || !this.conversation?.holding || this.thinking || this.speech.speaking) return;
+    const question = this.duePickup();
+    if (!question) return;
+    const pickup = await this.switchToPickup(question);
+    if (pickup) this.speakTurn(pickup, null);
   }
 
   // Any sound from the resident restarts the clock, so it only runs out on a quiet line.
@@ -419,15 +478,20 @@ class CallSession implements LiveCall {
     await this.finish(true);
   }
 
+  private stopListening() {
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    if (this.quietTimer) clearTimeout(this.quietTimer);
+    this.unsubscribe?.();
+    this.unsubscribePickups?.();
+    this.transcriber?.close();
+    this.speech.close();
+  }
+
   // answered: true or false when we end the call; null when Twilio or the caller ended it.
   async finish(answered: boolean | null) {
     if (this.ended) return;
     this.ended = true;
-    if (this.turnTimer) clearTimeout(this.turnTimer);
-    if (this.quietTimer) clearTimeout(this.quietTimer);
-    this.unsubscribe?.();
-    this.transcriber?.close();
-    this.speech.close();
+    this.stopListening();
     liveByCallSid.delete(this.callSid);
     if (this.householdId && liveByHousehold.get(this.householdId) === this) liveByHousehold.delete(this.householdId);
     if (answered !== null) await hangUp(this.callSid);
