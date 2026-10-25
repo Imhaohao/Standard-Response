@@ -90,7 +90,7 @@
   ]
  },
  "ward": {
-  "what": "Water surface inside the Lower Ninth Ward: the highest level the published interior evidence shows by each time. Before 07:30 the evidence is next to the north breach (Site C1, OP-5); after 07:30 it is Jackson Barracks at the ward's east edge.",
+  "what": "Water surface inside the Lower Ninth Ward: the highest level the published interior evidence shows by each time. Before 07:30 the evidence is next to the north breach (Site C1, OP-5); after 07:30 it is Jackson Barracks at the ward's east edge. Arabi, between the parish line and Paris Road, shares this surface: IPET found the Lower Ninth and St. Bernard peaking together at 10.5-11 ft, and Team Louisiana puts Chalmette's high water about 0.5 ft above the Lower Ninth's.",
   "source": "ipet-iv",
   "where": "Vol. IV pp. IV-194 to IV-199 and Fig. 136 (digitized)",
   "samplesFt": [
@@ -185,5 +185,16 @@
     "source": "nhc-tcr-al122005"
    }
   ]
- }
+ },
+ "inflows": [
+  {
+   "id": "paris-road",
+   "label": "St. Bernard floodwater from the 40 Arpent overtopping, meeting the ward's water near Paris Road",
+   "opens": "2005-08-29T10:00-05:00",
+   "opensNote": "assumed: IPET p. IV-199 says the IHNC water moving east merged with the Chalmette water 'in the vicinity of Paris Road in the midmorning timeframe'; we take 10:00. Chalmette's water entered from the north-east about 08:20 (IPET p. IV-198), and Team Louisiana dates the 40 Arpent overtopping east of Paris Road from about 08:30 (pp. 80-81)",
+   "edge": "east",
+   "frontMetersPerMinute": 105,
+   "speedNote": "assumed equal to the south breach's derived speed"
+  }
+ ]
 }

@@ -1,6 +1,6 @@
-# Lower Ninth Ward: Industrial Canal breaches, Hurricane Katrina, 29 August 2005
+# Lower Ninth Ward and Arabi: Industrial Canal breaches, Hurricane Katrina, 29 August 2005
 
-All times are Central Daylight Time (UTC-5). Elevations are feet or metres NAVD88. IPET's water levels use the 2004.65 epoch, and the ground under them is today's USGS 3DEP DEM, also in NAVD88. The ward has subsided since 2005, so depths in the scenario can be off by a few tenths of a foot. Built by `modeling/scripts/cities/build_water_scenario.py --city lower-ninth` into `public/scenarios/lower-ninth.json`, from `timeline.json`, `series.json` and `neighborhoods.geojson` in this folder.
+All times are Central Daylight Time (UTC-5). Elevations are feet or metres NAVD88. IPET's water levels use the 2004.65 epoch, and the ground under them is today's USGS 3DEP DEM, also in NAVD88. The ward has subsided since 2005, so depths in the scenario can be off by a few tenths of a foot. Built by `modeling/scripts/cities/build_water_scenario.py --city lower-ninth` into `public/scenarios/lower-ninth.json`, from `timeline.json`, `series.json`, `neighborhoods.geojson` and `st-bernard-polder.geojson` in this folder.
 
 ## Sources and what we took
 
@@ -30,6 +30,15 @@ All times are Central Daylight Time (UTC-5). Elevations are feet or metres NAVD8
 - **House Select Committee, *A Failure of Initiative*, p. 108** (https://www.govinfo.gov/content/pkg/CRPT-109hrpt377/pdf/CRPT-109hrpt377.pdf), and the **NWS Katrina Service Assessment, p. 19**: Nagin's mandatory evacuation order came at about 11:00 on 28 August. Secondary accounts say 09:30–10:00. We use the federal reports' 11:00, which is minute 0.
 - **IPET Vol. VI, p. VI-23**: St. Bernard unwatering was complete on about 15 September. No date is published for the Lower Ninth alone.
 - **City of New Orleans neighbourhood statistical areas** (https://maps.nola.gov/server/rest/services/Reference/Reference_Layers/MapServer/0): the outlines of the Lower Ninth Ward and Holy Cross. They are the only area the water may enter.
+- **St. Bernard Parish (Arabi).**
+  - IPET Vol. IV pp. IV-196 to IV-199 says floodwater from the IHNC moved east through the Lower Ninth and merged with Chalmette's water near Paris Road "in the midmorning timeframe". Both areas peaked at 10.5–11 ft.
+  - Chalmette's water came from the north-east from about 08:20 (the Channel 8 tower camera). Houses in Corinne Estates were 8–10 ft deep by 09:00–09:30, and the water peaked there at about 10.8 ft. All of these places are east of Paris Road and outside the map.
+  - Team Louisiana pp. 66 and 80–81 adds three things:
+    - Jackson Barracks in Arabi first saw water about 07:00, rising fast after 07:30.
+    - The 40 Arpent back levee (crown 7–9 ft) overtopped massively from about 08:30 into St. Bernard *east of Paris Road*.
+    - The IHNC breaches and the Caernarvon overtopping supplied about 10 percent of the St. Bernard basin's flooding.
+  - Team Louisiana p. 81 puts Chalmette's high water about 0.5 ft above the Lower Ninth's.
+- **OpenStreetMap St. Bernard Parish boundary (relation 1836430) and Forty Arpent Canal (way 977577408)** (https://www.openstreetmap.org/relation/1836430, ODbL). `st-bernard-polder.geojson` is the parish south of the canal, inside the map extent in `lib/cities.ts` (east edge -89.966, just short of Paris Road).
 - **USGS 3DEP 1/3 arc-second DEM** (https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/), resampled to 5 m.
 
 ## How the fronts are made
@@ -51,10 +60,16 @@ All times are Central Daylight Time (UTC-5). Elevations are feet or metres NAVD8
 - **The ward's water surface is level** (*assumption*). The real surface sloped down from the breaches early on. The travel gate stands in for that slope.
 - **Water after the peak is held at 10.5 ft** (*assumption*). The series ends at the peak, and the map holds it there. The ward stayed flooded for weeks.
 - **Ground** (*assumption*). The DEM is today's ground, not 2005's. The floodwalls are too thin for it to see, which is why the ward outline is the boundary.
-- **Nothing outside the ward is modelled.** That excludes Arabi, St. Bernard and the Upper Ninth, though they flooded too.
+- **Arabi gets the same water surface as the ward** *(assumption)*.
+  - The map extent ends just short of Paris Road. Inside it, IPET's account has Arabi's water coming from the west, out of the Lower Ninth. Team Louisiana's 40 Arpent overtopping entered St. Bernard east of Paris Road.
+  - So the ward's level series and the south breach's travel gate carry on across the parish line into Arabi. The water stops at the 40 Arpent Canal, which is the polder's back edge.
+- **Chalmette's water is a second source** *(assumption)*.
+  - It crosses the domain's east edge from 10:00, at 105 m a minute. 10:00 is our reading of IPET's "midmorning".
+  - By then the west water has already reached the same ground at the same level, so it changes no front. It is there so the merge IPET describes is in the model.
+- **What is not modelled.** Chalmette and Meraux east of Paris Road, the wetland north of the 40 Arpent Canal, and the Upper Ninth west of the canal all flooded but are not modelled, because they are outside the map or have their own sources.
 
 ## Deadline for the dispatch simulator
 
 - **On time means aboard and out of the ward before the scenario's water reaches the home**, meaning the first front that contains it.
-- Once water arrives it gets deep within minutes, so there is no safe depth threshold to wait for. Site 2 went from water coming through the floor to 9 ft deep in about 15 minutes. Vans cannot drive in it either. Near the breaches the walls of water destroyed houses, and 71 of the ward's 73 victims were within a mile of them.
+- Once water arrives it gets deep within minutes, so there is no safe depth threshold to wait for. Site 2 went from water coming through the floor to 9 ft deep in about 15 minutes. Vans cannot drive in it either. Near the breaches the walls of water destroyed houses, and 71 of the ward's 73 victims were within a mile of them. The same rule applies in Arabi.
 - **Hard cutoff: 04:30 on 29 August (minute 1050).** This is when the first water came in, with no warning. No van should be routed into the ward after it.

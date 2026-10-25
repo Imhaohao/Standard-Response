@@ -17,7 +17,7 @@ from water_terrain import Box, Terrain
 
 ID = "lower-ninth"
 KIND = "flood"
-BOX = Box(south=29.945, west=-90.045, north=29.99, east=-89.975)
+BOX = Box(south=29.935, west=-90.045, north=29.99, east=-89.96)
 CELL_METERS = 5.0
 MIN_PART_CELLS = 40
 FEET = 0.3048
@@ -26,7 +26,7 @@ LEVEE_CROSSING_METERS = 40
 RIVER_POINT = (29.952, -90.02)
 FRONT_CLOCK_TIMES = [
     "04:45", "05:00", "05:15", "05:30", "06:00", "06:30", "07:00", "07:30", "07:40", "07:50", "08:00",
-    "08:15", "08:30", "09:00", "09:20", "10:30", "12:30", "13:42",
+    "08:15", "08:30", "09:00", "09:20", "10:00", "10:30", "12:30", "13:42",
 ]
 
 
@@ -39,7 +39,8 @@ def ward_level_points(series: dict, start: str) -> list[tuple[float, float]]:
 
 
 def ward_and_canal(terrain: Terrain) -> tuple[np.ndarray, np.ndarray]:
-    outlines = city_data(ID, "neighborhoods.geojson")["features"]
+    """The Lower Ninth Ward and Holy Cross, plus St. Bernard Parish south of the 40 Arpent Canal out to the map's extent."""
+    outlines = city_data(ID, "neighborhoods.geojson")["features"] + city_data(ID, "st-bernard-polder.geojson")["features"]
     ward = rasterize(terrain, [shape(feature["geometry"]) for feature in outlines])
     canal = open_water(terrain, [CANAL_POINT], still_level=0.0)
     river = open_water(terrain, [RIVER_POINT], still_level=0.5)
@@ -77,19 +78,41 @@ def breach_mask(terrain: Terrain, breach: dict) -> np.ndarray:
     return rasterize(terrain, [Point(at["lng"], at["lat"]).buffer(radius_degrees)])
 
 
-def travel_gate(terrain: Terrain, series: dict, start: str, minute: float) -> np.ndarray:
+def inflow_mask(terrain: Terrain, inflow: dict) -> np.ndarray:
+    """Water arriving across the domain's east edge, where the map's extent stops short of Paris Road."""
+    ward, _ = ward_and_canal(terrain)
+    columns = np.flatnonzero(ward.any(axis=0))
+    edge = np.zeros(terrain.shape, dtype=bool)
+    edge[:, columns[-2:]] = True
+    return edge & ward
+
+
+def entry_masks(terrain: Terrain, series: dict) -> list[tuple[dict, np.ndarray]]:
+    return [(b, breach_mask(terrain, b)) for b in series["breaches"]] + [(i, inflow_mask(terrain, i)) for i in series.get("inflows", [])]
+
+
+def travel_gate(terrain: Terrain, entries: list[tuple[dict, np.ndarray]], start: str, minute: float) -> np.ndarray:
     gate = np.zeros(terrain.shape, dtype=bool)
-    for breach in series["breaches"]:
-        open_for = minute - minutes_between(start, breach["opens"])
+    for entry, mask in entries:
+        open_for = minute - minutes_between(start, entry["opens"])
         if open_for > 0:
-            gate |= distance_meters(terrain, breach_mask(terrain, breach)) <= breach["frontMetersPerMinute"] * open_for
+            gate |= distance_meters(terrain, mask) <= entry["frontMetersPerMinute"] * open_for
     return gate
+
+
+def open_inflows(terrain: Terrain, series: dict, start: str, minute: float) -> np.ndarray:
+    sources = np.zeros(terrain.shape, dtype=bool)
+    for inflow in series.get("inflows", []):
+        if minute >= minutes_between(start, inflow["opens"]):
+            sources |= inflow_mask(terrain, inflow)
+    return sources
 
 
 def front_steps(terrain: Terrain) -> list[dict]:
     timeline, series = inputs()
     start = warning_time(timeline)
     points = ward_level_points(series, start)
+    entries = entry_masks(terrain, series)
     steps = []
     for clock in FRONT_CLOCK_TIMES:
         minute = minutes_between(start, f"2005-08-29T{clock}-05:00")
@@ -97,7 +120,8 @@ def front_steps(terrain: Terrain) -> list[dict]:
             continue
         level = interpolated(points, minute)
         steps.append({
-            "minute": round(minute), "level": level, "gate": travel_gate(terrain, series, start, minute),
+            "minute": round(minute), "level": level, "gate": travel_gate(terrain, entries, start, minute),
+            "sources": open_inflows(terrain, series, start, minute),
             "note": f"{clock} CDT 29 Aug: ward water surface {level / FEET:.1f} ft NAVD88",
         })
     return steps
@@ -126,9 +150,10 @@ def scenario_parts(fronts: list[dict], terrain: Terrain) -> dict:
     return {
         "kind": KIND,
         "label": "Scenario input from the 2005 record, not a forecast",
-        "basis": "Water enters through the two Industrial Canal floodwall breaches IPET, ILIT and Team Louisiana describe and rises "
-        "to the levels IPET's stopped clocks and Jackson Barracks photographs show, peaking near 10.5 ft NAVD88; the depths "
-        "come from today's USGS 3DEP ground. Breach positions and how fast water spread from them are stated assumptions.",
+        "basis": "Water enters through the two Industrial Canal floodwall breaches IPET, ILIT and Team Louisiana describe, runs east "
+        "across the parish line into Arabi as IPET found, and rises to the levels IPET's stopped clocks and Jackson Barracks photographs "
+        "show, peaking near 10.5 ft NAVD88; depths come from today's USGS 3DEP ground. Breach positions and how fast the water "
+        "spread are stated assumptions.",
         "clock": {"warningAt": start, "minutesShown": fronts[-1]["minutesAfterWarning"]},
         "series": {
             "water": {
@@ -151,6 +176,7 @@ SOURCES = [
     {"label": "Knabb, Rhome & Brown, NHC Tropical Cyclone Report: Hurricane Katrina (AL122005)", "url": "https://www.nhc.noaa.gov/data/tcr/AL122005_Katrina.pdf"},
     {"label": "US House Select Bipartisan Committee, A Failure of Initiative (2006), p. 108: the 11:00 evacuation order", "url": "https://www.govinfo.gov/content/pkg/CRPT-109hrpt377/pdf/CRPT-109hrpt377.pdf"},
     {"label": "City of New Orleans neighbourhood statistical areas (Lower Ninth Ward, Holy Cross)", "url": "https://maps.nola.gov/server/rest/services/Reference/Reference_Layers/MapServer/0"},
+    {"label": "OpenStreetMap St. Bernard Parish boundary and Forty Arpent Canal (ODbL)", "url": "https://www.openstreetmap.org/relation/1836430"},
     {"label": "USGS 3DEP 1/3 arc-second DEM", "url": "https://www.usgs.gov/3d-elevation-program"},
     {"label": "Every source and assumption: data/cities/lower-ninth/sources.md"},
 ]

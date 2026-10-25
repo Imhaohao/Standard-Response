@@ -18,6 +18,7 @@ import argparse
 import importlib
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -38,7 +39,8 @@ def build_fronts(city, terrain) -> tuple[list[dict], list[np.ndarray]]:
     reached = np.zeros(terrain.shape, dtype=bool)
     fronts, masks = [], []
     for step in city.front_steps(terrain):
-        reached = flooded_by(setup, step["level"], reached, step.get("gate"))
+        step_setup = replace(setup, source_water=setup.source_water | step["sources"]) if "sources" in step else setup
+        reached = flooded_by(step_setup, step["level"], reached, step.get("gate"))
         shown = tidy(reached, city.MIN_PART_CELLS)
         geometry = polygonize(terrain, shown, MAX_VERTICES_PER_FRONT)
         if geometry is None:

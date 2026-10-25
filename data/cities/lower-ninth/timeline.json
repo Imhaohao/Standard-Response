@@ -1,6 +1,6 @@
 {
   "id": "lower-ninth",
-  "event": "Industrial Canal floodwall breaches into the Lower Ninth Ward, New Orleans, during Hurricane Katrina",
+  "event": "Industrial Canal floodwall breaches flood the Lower Ninth Ward and on into Arabi, St. Bernard Parish, during Hurricane Katrina",
   "timezone": "America/Chicago",
   "utcOffset": "-05:00",
   "minuteZero": {
@@ -88,6 +88,20 @@
       "where": "p. IV-196"
     },
     {
+      "at": "2005-08-29T08:20:00-05:00",
+      "kind": "water",
+      "what": "In Chalmette, east of Paris Road and outside the map, water from the marsh to the north-east arrives as 'waves of black water' (Channel 8 tower camera, Magistrate St and Marietta Dr); houses in Corinne Estates are 8-10 ft deep by 09:00-09:30 and the water peaks there at about 10.8 ft.",
+      "source": "ipet-iv",
+      "where": "pp. IV-198 to IV-199"
+    },
+    {
+      "at": "2005-08-29T08:30:00-05:00",
+      "kind": "hazard",
+      "what": "The 40 Arpent back levee (crown 7-9 ft) is overtopped massively from the filled St. Bernard wetland, flooding St. Bernard east of Paris Road. The IHNC breaches and Caernarvon overtopping account for about 10 percent of the St. Bernard basin's flooding.",
+      "source": "team-louisiana",
+      "where": "pp. 80-81"
+    },
+    {
       "at": "2005-08-29T09:00:00-05:00",
       "kind": "peak",
       "what": "IHNC peaks at about 14.3 ft NAVD88(2004.65) at the lock.",
@@ -100,6 +114,14 @@
       "what": "Final landfall near the Louisiana/Mississippi border (1445 UTC).",
       "source": "nhc-tcr-al122005",
       "where": "p. 7"
+    },
+    {
+      "at": "2005-08-29T10:00:00-05:00",
+      "kind": "water",
+      "what": "The ward's water moving east meets Chalmette's near Paris Road 'in the midmorning timeframe' (10:00 is our reading of 'midmorning').",
+      "source": "ipet-iv",
+      "where": "p. IV-199",
+      "approximate": true
     },
     {
       "at": "2005-08-29T13:42:00-05:00",

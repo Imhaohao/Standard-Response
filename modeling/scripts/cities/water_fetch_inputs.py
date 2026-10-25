@@ -10,7 +10,8 @@ data/cities/<id>/. Run once per city; build_water_scenario.py then works offline
 fort-myers-beach: the USGS storm-tide sensor records for Hurricane Ian (STN event 325) on Estero Island and the
     NOAA CO-OPS Fort Myers gauge's wind, written to gauges.json.
 hilo: the State of Hawaii tsunami evacuation zones and Loomis's 1960 runup heights around Hilo Bay.
-lower-ninth: the City of New Orleans neighbourhood outlines of the Lower Ninth Ward and Holy Cross.
+lower-ninth: the City of New Orleans neighbourhood outlines of the Lower Ninth Ward and Holy Cross, and St. Bernard Parish
+    south of the Forty Arpent Canal from OpenStreetMap.
 """
 
 import argparse
@@ -21,13 +22,19 @@ from pathlib import Path
 import h5py
 import numpy as np
 import requests
-from shapely.geometry import box, mapping, shape
+from shapely.geometry import LineString, Polygon, box, mapping, shape
+from shapely.ops import polygonize, unary_union
 
 REPO = Path(__file__).resolve().parents[3]
 CACHE = REPO / "modeling" / "cache" / "cities"
 STN = "https://api.waterdata.usgs.gov/stnservices"
 COOPS = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 HAWAII_HAZARDS = "https://geodata.hawaii.gov/arcgis/rest/services/Hazards/MapServer"
+OVERPASS = "https://overpass-api.de/api/interpreter"
+ST_BERNARD_PARISH_RELATION = 1836430
+FORTY_ARPENT_CANAL_WAY = 977577408
+# lib/cities.ts: lower-ninth's extent (detail grown by 0.015 degrees), as west, south, east, north.
+LOWER_NINTH_MAP_EXTENT = (-90.052, 29.933, -89.966, 29.999)
 NOLA_NEIGHBOURHOODS = "https://maps.nola.gov/server/rest/services/Reference/Reference_Layers/MapServer/0/query"
 EDT = timezone(timedelta(hours=-4))
 
@@ -157,7 +164,24 @@ def lower_ninth() -> None:
     response.raise_for_status()
     features = [{"type": "Feature", "properties": {"name": f["properties"]["GNOCDC_LAB"]}, "geometry": f["geometry"]} for f in response.json()["features"]]
     (city_dir("lower-ninth") / "neighborhoods.geojson").write_text(json.dumps({"type": "FeatureCollection", "source": NOLA_NEIGHBOURHOODS, "features": features}))
+    st_bernard_polder()
     print("wrote lower-ninth inputs")
+
+
+def st_bernard_polder() -> None:
+    """St. Bernard Parish south of the Forty Arpent Canal (the polder's back levee), inside the map extent."""
+    query = f"[out:json][timeout:90];(way({FORTY_ARPENT_CANAL_WAY});relation({ST_BERNARD_PARISH_RELATION}););out geom;"
+    elements = requests.post(OVERPASS, data={"data": query}, headers={"User-Agent": "standard-response-calhacks/0.1"}, timeout=180).json()["elements"]
+    canal = next(e for e in elements if e["type"] == "way")
+    points = [(p["lon"], p["lat"]) for p in canal["geometry"]]
+    relation = next(e for e in elements if e["type"] == "relation")
+    outer = [LineString([(p["lon"], p["lat"]) for p in m["geometry"]]) for m in relation["members"] if m["type"] == "way" and m.get("role") == "outer"]
+    parish = unary_union(list(polygonize(unary_union(outer))))
+    south_of_canal = Polygon([(-90.03, points[0][1]), *points, (-89.95, points[-1][1] - 0.0035), (-89.95, 29.90), (-90.03, 29.90)])
+    polder = parish.intersection(south_of_canal).intersection(box(*LOWER_NINTH_MAP_EXTENT)).buffer(0).simplify(0.00002)
+    feature = {"type": "Feature", "properties": {"name": "St. Bernard (Arabi), south of the 40 Arpent Canal"}, "geometry": mapping(polder)}
+    collection = {"type": "FeatureCollection", "source": "OpenStreetMap relation 1836430 and way 977577408 (ODbL), clipped to lib/cities.ts extent", "features": [feature]}
+    (city_dir("lower-ninth") / "st-bernard-polder.geojson").write_text(json.dumps(collection))
 
 
 FETCHERS = {"fort-myers-beach": fort_myers_beach, "hilo": hilo, "lower-ninth": lower_ninth}
