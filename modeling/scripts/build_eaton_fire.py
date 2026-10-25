@@ -13,14 +13,17 @@ arriving well after a nearby report.
 
 Every building on the map burns as one piece. The grid cells nearest a building, out to BUILDING_REACH_M,
 take that building's minute, so a front never passes through a house. A building outside the perimeter
-never burns, and neither does the ground nearest it.
+never burns, but the ground inside the perimeter next to it still does, so the burn's edge follows the
+perimeter rather than the outlines of the lots beside it.
 
 Minute zero is 10:50 p.m. on January 7, the first fire reported west of Lake Avenue: the moment this
 system would have warned west Altadena (scripts/eaton_replay.py uses the same trigger). Ground that burned
 earlier has negative minutes.
 
 Both files carry the same fronts: everything burned by each half hour, traced from the grid as polygons
-with the unburned islands as holes, so every reader of the scenario format reads the real fire. After
+with the unburned islands as holes, so every reader of the scenario format reads the real fire. Each
+traced front is closed and opened by part of a cell before it is simplified, so its edge runs smoothly
+instead of in the grid's stair steps. After
 running, bake them for the server: npx tsx scripts/hazard/bake-scenarios.ts
 """
 
@@ -66,6 +69,7 @@ FRONT_STEP_MINUTES = 30
 LAST_FRONT_MINUTES = 780
 HOURLY_AFTER_MINUTES = 540  # 7:50 a.m.
 SIMPLIFY_M = 8.0  # under a lot's width, so a front still runs between houses
+SMOOTH_M = 0.75 * CELL_M  # rounds off the grid's corners and fills single-cell notches
 
 FIRST_IN_AREA_M = 300.0  # a report counts toward the fit only if no earlier report lies this close
 SNAP_M = 200.0  # a report geocoded just outside the perimeter moves to the nearest burned cell
@@ -293,8 +297,9 @@ def arrival_grid(grid, burned, ground, centres, perimeter):
     building_minutes[inside] = ground[row[inside], col[inside]]
     minutes = np.where(burned, ground, np.inf)
     owner = nearest_building(grid, centres)
-    owned = owner >= 0
-    minutes[owned] = building_minutes[owner[owned]]
+    owned_by_burning = owner >= 0
+    owned_by_burning[owned_by_burning] = inside[owner[owned_by_burning]]
+    minutes[owned_by_burning] = building_minutes[owner[owned_by_burning]]
     return minutes, building_minutes, inside
 
 
@@ -312,7 +317,8 @@ def burned_by(grid: Grid, minutes: np.ndarray, minute: float):
         y0 = grid.y0 + row * grid.cell_y
         for start, end in zip(edges[::2], edges[1::2]):
             pieces.append(box(grid.x0 + start * grid.cell_x, y0, grid.x0 + end * grid.cell_x, y0 + grid.cell_y))
-    return unary_union(pieces).simplify(SIMPLIFY_M)
+    closed = unary_union(pieces).buffer(SMOOTH_M).buffer(-SMOOTH_M)
+    return closed.buffer(-SMOOTH_M / 2).buffer(SMOOTH_M / 2).simplify(SIMPLIFY_M)
 
 
 # Half-hourly through the hours west Altadena burned. Before the warning the night only needs to show

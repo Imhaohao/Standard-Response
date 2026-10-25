@@ -194,12 +194,29 @@ float fbm(vec2 p) {
   return sum;
 }
 
-// Minutes after the warning when the scenario fire reaches this map point. 1e4 means never.
+float fireCell(ivec2 cell, ivec2 last) {
+  return texelFetch(tFire, clamp(cell, ivec2(0), last), 0).r;
+}
+
+// Minutes after the warning when the scenario fire reaches this map point. 1e4 means never. Read from
+// the field's four nearest cells: where all four are reached their minutes blend. Where some never
+// burn, blending their 1e4 would put the edge on the cell boundary in the grid's stair steps, so the
+// point counts as burned once most of its weight lies in cells the fire has reached by now, and the
+// edge of ground the fire went round runs smoothly between cells.
 float arrivalMinutes(vec2 mapXY) {
   vec2 uv = (mapXY - uFireRegion.xy) / (uFireRegion.zw - uFireRegion.xy);
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1e4;
-  float m = texture(tFire, uv).r;
-  return m > uFireLast + 1.0 ? 1e4 : m;
+  ivec2 last = textureSize(tFire, 0) - 1;
+  vec2 p = uv * vec2(last + 1) - 0.5;
+  ivec2 cell = ivec2(floor(p));
+  vec2 f = fract(p);
+  vec4 m = vec4(fireCell(cell, last), fireCell(cell + ivec2(1, 0), last), fireCell(cell + ivec2(0, 1), last), fireCell(cell + ivec2(1, 1), last));
+  vec4 w = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y);
+  vec4 reached = step(m, vec4(uFireLast + 1.0));
+  if (dot(reached, vec4(1.0)) > 3.5) return dot(m, w);
+  float burned = dot(w * reached, step(m, vec4(uFireNow)));
+  if (burned < 0.5) return 1e4;
+  return dot(m * reached, w) / max(dot(reached, w), 1e-4);
 }
 
 float decodeId(vec2 uv) {
