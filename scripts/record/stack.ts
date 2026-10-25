@@ -6,7 +6,7 @@
 
 import { ChildProcess, execFile, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -83,11 +83,14 @@ function backendBinary() {
   return found[0];
 }
 
-async function ensureBackend(dir: string): Promise<State> {
+// `fresh` starts from an empty database, so every scene's night begins the same way.
+async function ensureBackend(dir: string, fresh: boolean): Promise<State> {
   const binary = backendBinary();
   const previous = readState(dir);
   const url = `http://127.0.0.1:${PORTS.convex}`;
-  if (previous && alive(previous.pids.convex) && (await answers(`${url}/version`))) return previous;
+  if (!fresh && previous && alive(previous.pids.convex) && (await answers(`${url}/version`))) return previous;
+  stopPid(previous?.pids.convex);
+  if (fresh) for (const name of ["convex.sqlite3", "convex-storage"]) rmSync(path.join(dir, name), { recursive: true, force: true });
   const instanceSecret = previous?.instanceSecret ?? randomBytes(32).toString("hex");
   const { stdout } = await run(binary, ["keygen", "admin-key", "--instance-name", "standard-response-record", "--instance-secret", instanceSecret]);
   const child = startDetached(dir, "convex", binary, [
@@ -147,32 +150,31 @@ const appEnv = () => ({
   NEXT_TELEMETRY_DISABLED: "1",
 });
 
-// A production build renders the map more smoothly than `next dev` and holds less memory.
-async function ensureApp(root: string, dir: string, state: State, build: boolean) {
+// A production build renders the map more smoothly than `next dev` and holds less memory. The
+// backend's URL is baked into it, which is why the ports are fixed. Run it with nothing else up.
+export async function buildApp(root: string) {
+  console.log("Building the app (next build) …");
+  await run("npx", ["next", "build"], { cwd: root, env: appEnv(), maxBuffer: 64 * 1024 * 1024 });
+}
+
+async function ensureApp(root: string, dir: string, state: State) {
   const url = `http://127.0.0.1:${PORTS.app}`;
-  if (!build && alive(state.pids.app) && (await answers(url))) return;
+  if (alive(state.pids.app) && (await answers(url))) return;
   stopPid(state.pids.app);
-  if (build || !existsSync(path.join(root, ".next", "BUILD_ID"))) {
-    console.log("  building the app (next build) …");
-    await run("npx", ["next", "build"], { cwd: root, env: appEnv(), maxBuffer: 64 * 1024 * 1024 });
-  }
+  if (!existsSync(path.join(root, ".next", "BUILD_ID"))) await buildApp(root);
   const child = startDetached(dir, "app", "npx", ["next", "start", "-p", String(PORTS.app), "-H", "127.0.0.1"], { cwd: root, env: appEnv() });
   await waitFor(url, "Next server", 60_000, child);
   state.pids.app = child.pid!;
   writeState(dir, state);
 }
 
-export async function startStack(root: string, options: { build: boolean }): Promise<Stack> {
+export async function startStack(root: string, options: { fresh: boolean }): Promise<Stack> {
   const dir = stackDir(root);
-  console.log("Starting the isolated stack …");
-  const state = await ensureBackend(dir);
-  console.log(`  convex backend at http://127.0.0.1:${PORTS.convex}, deploying convex/ …`);
+  const state = await ensureBackend(dir, options.fresh);
   await deployFunctions(root, dir, state.adminKey);
   await setBackendEnv(state.adminKey, { SOLVER_URL: `http://127.0.0.1:${PORTS.solver}` });
   await ensureSolver(root, dir, state);
-  console.log(`  solver at http://127.0.0.1:${PORTS.solver}`);
-  await ensureApp(root, dir, state, options.build);
-  console.log(`  app at http://127.0.0.1:${PORTS.app}`);
+  await ensureApp(root, dir, state);
   return { convexUrl: `http://127.0.0.1:${PORTS.convex}`, adminKey: state.adminKey, appUrl: `http://127.0.0.1:${PORTS.app}` };
 }
 

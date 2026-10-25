@@ -4,6 +4,8 @@
 import { ConvexHttpClient } from "convex/browser";
 import { FunctionReference, getFunctionName, makeFunctionReference } from "convex/server";
 import { api, internal } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { AREA } from "../../convex/model";
 import { censusTown } from "./census";
 
 const asPublic = <R extends FunctionReference<"query" | "mutation", "internal">>(ref: R) =>
@@ -11,7 +13,20 @@ const asPublic = <R extends FunctionReference<"query" | "mutation", "internal">>
 
 const SEED_BATCH = 100;
 
+export type Speed = 0 | 1 | 10 | 30 | 60;
+
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The warning zone as a dispatcher would draw it: west Altadena between the foothills and
+// Woodbury, a little inside the calling area so its edge reads on the map.
+const WARNING_ZONE = [
+  { lat: AREA.north - 0.001, lng: AREA.west + 0.0015 },
+  { lat: AREA.north - 0.0005, lng: AREA.east - 0.003 },
+  { lat: (AREA.north + AREA.south) / 2, lng: AREA.east - 0.001 },
+  { lat: AREA.south + 0.001, lng: AREA.east - 0.002 },
+  { lat: AREA.south + 0.0015, lng: AREA.west + 0.001 },
+  { lat: (AREA.north + AREA.south) / 2 + 0.002, lng: AREA.west + 0.0005 },
+];
 
 export class World {
   readonly client: ConvexHttpClient;
@@ -32,23 +47,18 @@ export class World {
   async waitUntil(label: string, check: () => Promise<boolean>, timeoutMs = 120_000, everyMs = 500) {
     const until = Date.now() + timeoutMs;
     while (Date.now() < until) {
-      if (await check()) return;
+      if (await check()) return true;
       await sleep(everyMs);
     }
-    throw new Error(`Timed out waiting for ${label}`);
+    console.warn(`  (gave up waiting for ${label} after ${timeoutMs / 1000}s)`);
+    return false;
   }
 
-  private async archiveDone() {
-    const control = await this.query(api.control.get, {});
-    return !("archivingRunId" in control) || !control.archivingRunId;
-  }
-
-  // Clears the deployment (the night and the homes), then seeds `homes` census households and the fleet.
-  async freshTown(root: string, homes: number, extraVans: number) {
-    await this.waitUntil("the last night to finish saving", () => this.archiveDone());
-    await this.mutation(api.control.reset, {});
-    await this.waitUntil("reset to finish", () => this.archiveDone(), 600_000);
+  // On an empty deployment: the stand-ins on (the dispatch stand-in off, so the real dispatcher and
+  // solver plan), `homes` census households, and the fleet.
+  async seedTown(root: string, homes: number, extraVans: number) {
     await this.mutation(api.control.setStandIns, { simulateVoice: true, simulateNeedModel: true, simulateDispatch: false, simulateDrivers: true, autoApprove: true });
+    await this.mutation(api.control.setMaxConcurrentCalls, { value: 48 });
     await this.countsFromAggregates();
     const town = censusTown(root, homes);
     for (let i = 0; i < town.length; i += SEED_BATCH) {
@@ -58,8 +68,7 @@ export class World {
     return town.length;
   }
 
-  // Switches households:counts to the running totals. On an empty table the backfill only clears;
-  // it refuses while the aggregate's queue still holds the reset's deletes, so it is retried.
+  // Switches households:counts to the running totals. It refuses while the aggregate's queue is busy.
   private async countsFromAggregates() {
     await this.waitUntil("the household counts to switch on", async () => {
       try {
@@ -72,11 +81,65 @@ export class World {
     }, 120_000, 1000);
   }
 
-  async setSpeed(speed: 0 | 1 | 10 | 30 | 60) {
-    await this.mutation(api.control.setPlayback, { speed });
+  setSpeed(speed: Speed) {
+    return this.mutation(api.control.setPlayback, { speed });
   }
 
-  async counts() {
-    return await this.query(api.households.counts, {});
+  setAutoApprove(autoApprove: boolean) {
+    return this.mutation(api.control.setStandIns, { autoApprove });
+  }
+
+  startReadyCheck() {
+    return this.mutation(api.ready.start, {});
+  }
+
+  stopReadyCheck() {
+    return this.mutation(api.ready.stop, {});
+  }
+
+  drawWarningZone() {
+    return this.mutation(api.riders.setZone, { polygon: WARNING_ZONE });
+  }
+
+  issueWarning() {
+    return this.mutation(api.control.issueWarning, {});
+  }
+
+  control() {
+    return this.query(api.control.get, {});
+  }
+
+  counts() {
+    return this.query(api.households.counts, {});
+  }
+
+  openRequests() {
+    return this.query(api.requests.open, {});
+  }
+
+  latestPlan() {
+    return this.query(api.plans.latest, {});
+  }
+
+  async vehicleOf(driverName: string): Promise<Id<"vehicles">> {
+    const vehicles = await this.query(api.vehicles.list, {});
+    const vehicle = vehicles.find((v) => v.driverName === driverName);
+    if (!vehicle) throw new Error(`No vehicle driven by ${driverName}`);
+    return vehicle._id;
+  }
+
+  offersFor(vehicleId: Id<"vehicles">) {
+    return this.query(api.offers.forVehicle, { vehicleId });
+  }
+
+  // Homes the Ready check has a profile for.
+  async readyProfiles() {
+    const homes = await this.query(api.households.coverage, {});
+    return homes.filter((home) => home.exitPlan !== undefined).length;
+  }
+
+  async reached() {
+    const { outcome } = await this.counts();
+    return Object.entries(outcome).reduce((sum, [key, count]) => (key === "unknown" ? sum : sum + count), 0);
   }
 }
