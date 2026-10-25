@@ -125,7 +125,7 @@ export function Kiosk() {
       <ClaimMap homes={homes} selectedId={picking ? selection.selectedId : null} onSelect={selection.select} flyTo={selection.flyTo} picking={picking} />
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-map-paper/75 backdrop-blur-[3px]"
+        className="pointer-events-none absolute inset-0 bg-map-paper/30 bg-radial from-map-paper/70 from-50% via-map-paper/35 via-65% to-transparent to-85%"
         initial={false}
         animate={{ opacity: picking ? 0 : 1 }}
         transition={{ duration: 0.4, ease: EASE_OUT }}
