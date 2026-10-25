@@ -49,16 +49,28 @@ describe("pairing at the Ready check", () => {
     const [pairing] = await plansFor(t, resident);
     expect(pairing).toMatchObject({ helperHouseholdId: neighbor, helperName: "Ana", helperPhone: EAST.phone, status: "arranged", recruited: true });
 
-    // The warning alone doesn't send anyone: the house may be empty.
+    // The warning starts the ask on the strength of the Ready check, held for the neighbor's own
+    // warning call so one call carries both.
     await t.mutation(api.control.issueWarning, {});
-    expect((await plansFor(t, resident))[0].status).toBe("arranged");
-    expect(await t.query(api.pickups.callQueue, {})).toHaveLength(0);
+    expect((await plansFor(t, resident))[0].status).toBe("checking");
+    const [queued] = await t.query(api.pickups.callQueue, {});
+    expect(queued).toMatchObject({ _id: pairing._id, helperAwaitingCall: true, residentAwaitingCall: true });
+    const dialed = async () => (await t.query(api.voice.dialQueue, { limit: 10 })).map((home) => home._id);
+    expect(await dialed()).toContain(neighbor);
+    // While a pickup call rings the neighbor, their own warning call waits.
+    await t.mutation(api.pickups.startAttempt, { planId: pairing._id, role: "helper" });
+    expect(await dialed()).not.toContain(neighbor);
+    await t.mutation(api.pickups.unanswered, { planId: pairing._id, role: "helper" });
+
+    // Once the neighbor's warning call has been tried, a separate pickup call may go out.
+    const callId = await t.mutation(api.calls.start, { householdId: neighbor, direction: "outbound" });
+    await t.mutation(api.calls.end, { callId, answered: true });
+    expect((await t.query(api.pickups.callQueue, {}))[0].helperAwaitingCall).toBe(false);
 
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
     const plans = await plansFor(t, resident);
     expect(plans).toHaveLength(1);
     expect(plans[0]).toMatchObject({ _id: pairing._id, status: "checking" });
-    expect((await t.query(api.pickups.callQueue, {})).map((plan) => plan._id)).toEqual([pairing._id]);
 
     // Then the usual pickup check: the helper says yes, the resident confirms, the helper hears back.
     await t.mutation(api.pickups.helperAnswered, { planId: pairing._id, coming: true, etaMinutes: 10 });
@@ -109,6 +121,7 @@ describe("pairing at the Ready check", () => {
     expect((await plansFor(t, resident))[0].helperHouseholdId).toBe(west);
     const east = await t.mutation(api.ready.submit, drives(EAST));
     await t.mutation(api.control.issueWarning, {});
+    expect(await plansFor(t, resident)).toHaveLength(0);
     await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
     const plans = await plansFor(t, resident);
     expect(plans).toHaveLength(1);

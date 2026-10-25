@@ -4,7 +4,7 @@ import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { applyRecordPatch } from "./households";
 import { resolveFollowUpFor } from "./calls";
-import { askNearbyDriver } from "./neighborPickups";
+import { askNearbyDriver, startPairedAskFor } from "./neighborPickups";
 import { canDrive, fitsInACar } from "./neighborRules";
 import { syncRequest } from "./requests";
 import { pickupFailure, pickupPurpose, pickupRole, pickupStatus } from "./schema";
@@ -112,15 +112,19 @@ async function markDone(ctx: MutationCtx, plan: Plan) {
   await logPickup(ctx, plan, `${plan.helperName} picked up ${await placeOf(ctx, plan)}`);
 }
 
-// The warning reached these homes: start calling the helpers they named. A neighbor the Ready check
-// paired them with (`recruited`) waits until the resident's own call says they can't get out
-// (neighborPickups.ts), so nobody is sent to a house that may be empty.
+// The warning reached these homes: start asking their helpers, the ones they named and the neighbors
+// the Ready check paired them with. A paired neighbor is asked on the strength of the Ready check;
+// the resident confirms on their own call before anyone counts on the ride, and the van request
+// stays open. A paired neighbor who can't go tonight is let go (neighborPickups.ts).
 export async function startPickupChecks(ctx: MutationCtx, now: number) {
   const arranged = await ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", "arranged")).take(200);
   for (const plan of arranged) {
-    if (plan.recruited) continue;
     const household = await ctx.db.get("households", plan.householdId);
     if (!household?.inZone) continue;
+    if (plan.recruited) {
+      await startPairedAskFor(ctx, household);
+      continue;
+    }
     await ctx.db.patch("pickupPlans", plan._id, { status: "checking", checkStartedAt: now, updatedAt: now });
   }
 }
@@ -339,7 +343,12 @@ const residentPart = (household: Doc<"households"> | null) => ({
   oxygen: household?.medical?.includes("oxygen") ?? false,
 });
 
-const callRow = (plan: Plan, household: Doc<"households"> | null) => ({
+// This person's own warning call hasn't been tried yet tonight. Their pickup question waits for it,
+// so one call carries both (voice/phone/callSession.ts continues it on the same line).
+const awaitingWarningCall = (household: Doc<"households"> | null) =>
+  household !== null && !household.simulated && household.inZone && household.callStatus === "not_called" && household.attempts === 0;
+
+const callRow = (plan: Plan, household: Doc<"households"> | null, helper: Doc<"households"> | null) => ({
   _id: plan._id,
   householdId: plan.householdId,
   status: plan.status,
@@ -361,6 +370,8 @@ const callRow = (plan: Plan, household: Doc<"households"> | null) => ({
   residentNotice: plan.residentNotice,
   residentNoticeAttempts: plan.residentNoticeAttempts ?? 0,
   reason: plan.reason,
+  residentAwaitingCall: awaitingWarningCall(household),
+  helperAwaitingCall: awaitingWarningCall(helper),
   ...residentPart(household),
 });
 
@@ -377,7 +388,11 @@ export const callQueue = query({
       ),
     );
     const real = lists.flat().filter((plan) => !plan.simulated && (isLive(plan) || owesNotice(plan)));
-    return await Promise.all(real.map(async (plan) => callRow(plan, await ctx.db.get("households", plan.householdId))));
+    return await Promise.all(
+      real.map(async (plan) =>
+        callRow(plan, await ctx.db.get("households", plan.householdId), plan.helperHouseholdId ? await ctx.db.get("households", plan.helperHouseholdId) : null),
+      ),
+    );
   },
 });
 

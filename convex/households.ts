@@ -5,7 +5,6 @@ import { Doc, Id } from "./_generated/dataModel";
 import { assistanceRequired, callStatus, canLeave, exitPlan, mobility, medicalNeed, outcome } from "./schema";
 import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
 import { askNearbyDriver, askNewDriver } from "./neighborPickups";
-import { busyHelpers } from "./neighborRules";
 import { neighborCallsDue } from "./neighborCalls";
 import { openRequestsFor, syncRequest } from "./requests";
 import { reviewPickups } from "./pickups";
@@ -121,12 +120,24 @@ export const setEstimates = mutation({
 
 const isQueued = (h: Doc<"households">) => (QUEUE_STATUSES as readonly string[]).includes(h.callStatus);
 
+// Helpers not to ring for their own warning call: one a pickup call is ringing right now (it would
+// find the line busy), or one already on the way. A helper who has only been paired gets their
+// warning call, and it asks the pickup question on the same line (voice/phone/callSession.ts).
+async function helpersOnAPickup(ctx: QueryCtx) {
+  const busy = new Set<string>();
+  for (const status of ["checking", "coming"] as const) {
+    const plans = await ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", status)).take(200);
+    for (const plan of plans) {
+      if (plan.helperHouseholdId && (status === "coming" || plan.ringing === "helper")) busy.add(plan.helperHouseholdId);
+    }
+  }
+  return busy;
+}
+
 // Neighbors a call just made worth calling go first (convex/neighborCalls.ts), then Claude's plan
-// for this warning (convex/callPlans.ts), then everyone else by callPriority. A neighbor 911 is
-// asking to drive someone, or who is already on the way, isn't rung for their own warning call at
-// the same time: the pickup call would find the line busy.
+// for this warning (convex/callPlans.ts), then everyone else by callPriority.
 export async function nextToCall(ctx: QueryCtx, limit: number) {
-  const busy = await busyHelpers(ctx);
+  const busy = await helpersOnAPickup(ctx);
   const callable = (h: Doc<"households"> | null): h is Doc<"households"> => h !== null && h.inZone && isQueued(h) && !busy.has(h._id);
   const [neighbors, plan] = await Promise.all([neighborCallsDue(ctx), currentPlan(ctx)]);
   const ahead = [...neighbors.keys(), ...[...plan.keys()].filter((id) => !neighbors.has(id))];

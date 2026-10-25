@@ -3,7 +3,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { located, metersBetween } from "./model";
 import { simNow } from "./clock";
 import { callDriversNear, callRidersNear } from "./neighborCalls";
-import { awayFromTheFire, busyHelpers, canDrive, Household, Located, REACH_METERS, reachOf, waitingForANeighbor } from "./neighborRules";
+import { awayFromTheFire, busyHelpers, canDrive, fitsInACar, Household, Located, REACH_METERS, reachOf, waitingForANeighbor } from "./neighborRules";
 
 // When tonight's call hears that someone can't get out and nobody agreed ahead of time to come for
 // them, 911 calls the nearest neighbor with a car straight away and asks them to pick the person up,
@@ -105,9 +105,10 @@ async function askToPickUp(ctx: MutationCtx, resident: Located, neighbor: Househ
   });
 }
 
-// The neighbor the Ready check paired with this home (readyPairing.ts) is asked first, now that the
-// resident's own call says they can't get out. One who can no longer drive, is busy with someone
-// else, or would have to drive toward the fire is let go, and the nearest other neighbor is asked.
+// The neighbor the Ready check paired with this home (readyPairing.ts) is asked at the warning, or
+// now if the resident's own call came first. One who can no longer drive, is busy with someone
+// else, or would have to drive toward the fire is let go; once the resident's call says they can't
+// get out, the nearest other neighbor is asked instead.
 async function startPairedAsk(ctx: MutationCtx, resident: Located, plans: Doc<"pickupPlans">[]) {
   const paired = plans.find((plan) => plan.status === "arranged" && plan.recruited);
   if (!paired) return "none";
@@ -133,6 +134,12 @@ async function startPairedAsk(ctx: MutationCtx, resident: Located, plans: Doc<"p
     at: now,
   });
   return "released";
+}
+
+// The warning: start the Ready check's pairing for this home, if it has one and the home fits in a car.
+export async function startPairedAskFor(ctx: MutationCtx, resident: Household) {
+  if (!located(resident) || !fitsInACar(resident)) return;
+  await startPairedAsk(ctx, resident, await plansFor(ctx, resident._id));
 }
 
 export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"households">) {

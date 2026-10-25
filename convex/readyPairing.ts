@@ -6,11 +6,11 @@ import { fitsInACar, Household, Located, REACH_METERS } from "./neighborRules";
 
 // Before the night, the Ready check pairs each real home that said it would need a ride, and fits in
 // a car, with the nearest neighbor whose Ready profile says they'd drive out in their own car. Nobody
-// has agreed yet. The pair is an `arranged`, `recruited` pickup: on the night the neighbor is asked
-// first, once the resident's own call says they can't get out (neighborPickups.ts startPairedAsk),
-// then the resident confirms, and both hear updates. Firefighters asked for helpers arranged ahead
-// of time instead of strangers scrambled for on the night. Simulated homes get theirs from the
-// stand-in (readySim.ts).
+// has agreed yet. The pair is an `arranged`, `recruited` pickup: when the warning goes out the
+// neighbor is asked, on the same call as their own warning call when it can be (neighborPickups.ts
+// startPairedAsk, voice/phone/callSession.ts), then the resident confirms, and both hear updates.
+// Firefighters asked for helpers arranged ahead of time instead of strangers scrambled for on the
+// night. Simulated homes get theirs from the stand-in (readySim.ts).
 
 const PAIR_WITHIN_METERS = REACH_METERS[0];
 
