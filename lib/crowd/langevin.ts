@@ -274,6 +274,10 @@ export class CrowdSim {
   private delay: Float64Array | null = null;
   private potentials = new Map<string, Potential>();
   private agentPotential: (Potential | null)[];
+  // For a driver with no route to safety: the refuge it drives to (-1 until it needs one) and the
+  // potential toward it, null once there. Both are chosen again whenever its potential is.
+  private refugeNode: Int32Array;
+  private refugePotential: (Potential | null)[];
   private lastRefresh = -Infinity;
   private nextDecision = 0;
   // Head of each hash cell's list of moving cars (-1 for none), and the next car in each list.
@@ -327,6 +331,8 @@ export class CrowdSim {
     this.stuck = new Uint8Array(n);
     this.known = Array.from({ length: n }, () => new Set<number>());
     this.agentPotential = Array(n).fill(null);
+    this.refugeNode = new Int32Array(n).fill(-1);
+    this.refugePotential = Array(n).fill(null);
     this.hashNext = new Int32Array(n);
     this.hashKey = new Int32Array(n);
     this.edgeAt = new Float64Array(n);
@@ -385,6 +391,7 @@ export class CrowdSim {
     for (const segment of segments) known.add(segment);
     if (known.size === before) return;
     this.agentPotential[agent] = null;
+    this.refugeNode[agent] = -1;
     const edge = this.edge[agent];
     if (edge >= 0 && known.has(this.router.edgeSegment[edge])) {
       // The street ahead is blocked: turn back to the last intersection and choose again there.
@@ -448,6 +455,8 @@ export class CrowdSim {
       edgeCars: this.edgeCars.slice(),
       potentials: new Map(this.potentials),
       agentPotential: [...this.agentPotential],
+      refugeNode: this.refugeNode.slice(),
+      refugePotential: [...this.refugePotential],
       hashHead: new Int32Array(this.hashHead.length),
       hashNext: new Int32Array(this.count),
       hashKey: new Int32Array(this.count),
@@ -546,6 +555,7 @@ export class CrowdSim {
     this.measureCongestion();
     this.potentials = new Map();
     this.agentPotential.fill(null);
+    this.refugeNode.fill(-1);
   }
 
   private measureCongestion() {
@@ -702,14 +712,35 @@ export class CrowdSim {
       planned >= 0 && this.plannedOn[i] === potential && this.router.edgeStart(planned) === node
         ? planned
         : this.router.chooseEdge(node, potential, this.known[i], this.params.routeSpreadSeconds, this.random);
-    this.stuck[i] = next < 0 ? 1 : 0;
     if (next >= 0) {
+      this.stuck[i] = 0;
       this.enterEdge(i, next, 1, potential);
+      return;
+    }
+    // No route to safety: away from the fire, to the refuge, and wait there.
+    const refuge = this.towardRefuge(i, node);
+    this.stuck[i] = refuge < 0 ? 1 : 0;
+    if (refuge >= 0) {
+      this.enterEdge(i, refuge, 1, this.refugePotential[i]!);
       return;
     }
     this.edge[i] = -1;
     this.goal[i] = node;
     this.next[i] = -1;
+  }
+
+  // The street out of `node` toward car i's refuge, the intersection it can reach that the fire
+  // reaches last, or -1 at the refuge. Without this a driver with no route to safety stood where it
+  // was until the fire came, though open streets led away from it.
+  private towardRefuge(i: number, node: number) {
+    if (this.refugeNode[i] < 0) {
+      const refuge = this.router.refuge(node, this.minutes, this.known[i], this.delay);
+      this.refugeNode[i] = refuge;
+      this.refugePotential[i] = refuge === node ? null : this.router.potential(this.minutes, this.known[i], this.delay, [refuge]);
+    }
+    const potential = this.refugePotential[i];
+    if (node === this.refugeNode[i] || !potential) return -1;
+    return this.router.nextEdge(node, potential, this.known[i]);
   }
 
   // Pulling out of the driveway onto the street in front of the house, in whichever direction it

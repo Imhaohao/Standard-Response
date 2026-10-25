@@ -521,6 +521,24 @@ describe("Langevin dynamics", () => {
     assert.ok(inFront >= sim.count - 1, `${inFront} of ${sim.count} took the street in front`);
   });
 
+  it("with no route to safety, drives away from the fire to wait where it reaches last", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    // The driver believes every street into safety is blocked.
+    const cut = new Set(EDGES.flatMap((e, k) => (router.safe[e.v] ? [router.edgeSegment[k]] : [])));
+    const trapped = router.potential(0, cut);
+    const start = router.nodeFire.findIndex((fire, n) => fire > 30 && fire < 300 && !router.safe[n] && !Number.isFinite(trapped.phi[n]) && router.refuge(n, 0, cut) !== n);
+    assert.ok(start >= 0);
+    const home = { ...toLatLng(router.nodeX[start], router.nodeY[start]), peopleCount: 1, canLeave: "yes", hasCar: true };
+    const sim = new CrowdSim(ground, [home], seededRandom(1), () => new Set(), DEFAULT_CROWD);
+    sim.setKnown(0, cut);
+    sim.state[0] = STATE.moving;
+    for (let s = 0; s < 15 * 60 * 2; s++) sim.step();
+    const at = router.nearestNode(sim.x[0], sim.y[0]);
+    assert.equal(sim.state[0], STATE.moving);
+    assert.equal(sim.stuck[0], 1, "waiting at the refuge");
+    assert.ok(router.nodeFire[at] > router.nodeFire[start], `fire at ${router.nodeFire[at]} min where it waits, ${router.nodeFire[start]} where it started`);
+  });
+
   it("drives households to safety, and blocked streets are found and routed around", () => {
     const random = seededRandom(3);
     const households = population.filter(() => random() < 0.04);

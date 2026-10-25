@@ -172,6 +172,9 @@ export class RoadRouter {
   readonly nodeX = new Float64Array(NODE_COUNT);
   readonly nodeY = new Float64Array(NODE_COUNT);
   readonly safe = new Uint8Array(NODE_COUNT);
+  readonly safeNodes: number[] = [];
+  // When the fire reaches each intersection, in minutes.
+  readonly nodeFire = new Float64Array(NODE_COUNT);
   readonly edgeSegment = new Int32Array(EDGES.length);
   // When the fire first reaches any part of each edge, in minutes: from then on it is a wall
   // somewhere along it.
@@ -203,6 +206,9 @@ export class RoadRouter {
       const point = nodePoint(n);
       [this.nodeX[n], this.nodeY[n]] = toXY(point);
       this.safe[n] = point.lat < safeLat ? 1 : 0;
+      if (this.safe[n]) this.safeNodes.push(n);
+      const cell = cellIndex(ground, this.nodeX[n], this.nodeY[n]);
+      this.nodeFire[n] = cell < 0 ? NEVER_BURNS : ground.fireMinutes[cell];
     }
     const directed = new Set(EDGES.map((edge) => `${edge.u}-${edge.v}`));
     this.edgeShape = EDGES.map((edge, e) => {
@@ -242,11 +248,11 @@ export class RoadRouter {
     return delay;
   }
 
-  potential(minutes: number, blocked: ReadonlySet<number>, delay: Float64Array | null = null): Potential {
+  // The fastest drive to the safe intersections from every intersection, or to `targets` instead.
+  potential(minutes: number, blocked: ReadonlySet<number>, delay: Float64Array | null = null, targets: number[] | null = null): Potential {
     const phi = new Float64Array(NODE_COUNT).fill(Infinity);
     const heap = new IndexHeap(4096);
-    for (let n = 0; n < NODE_COUNT; n++) {
-      if (!this.safe[n]) continue;
+    for (const n of targets ?? this.safeNodes) {
       phi[n] = 0;
       heap.push(0, n);
     }
@@ -263,6 +269,29 @@ export class RoadRouter {
       }
     }
     return { minutes, phi, delay };
+  }
+
+  // For a driver at `node` with no route to safety: the intersection it can reach that the fire
+  // reaches last, the nearest of those; `node` itself if none is later.
+  refuge(node: number, minutes: number, blocked: ReadonlySet<number>, delay: Float64Array | null = null) {
+    const time = new Float64Array(NODE_COUNT).fill(Infinity);
+    const heap = new IndexHeap(256);
+    time[node] = 0;
+    heap.push(0, node);
+    let best = node;
+    while (heap.size > 0) {
+      const at = heap.pop();
+      if (heap.lastKey > time[at]) continue;
+      if (this.nodeFire[at] > this.nodeFire[best]) best = at;
+      for (const edge of this.outgoing[at]) {
+        const arrival = heap.lastKey + this.edgeSeconds(edge, minutes, blocked, delay);
+        const to = EDGES[edge].v;
+        if (arrival >= time[to]) continue;
+        time[to] = arrival;
+        heap.push(arrival, to);
+      }
+    }
+    return best;
   }
 
   // Time to safety leaving `node` by `edge`: the edge's drive time plus phi at its far end.
