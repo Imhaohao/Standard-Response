@@ -121,27 +121,39 @@ export const FLEET: VehicleSeed[] = [
   { ...van("Medic 41", "Rosa", 2), type: "ambulance", seats: 1, wheelchairSpaces: 0, stretcherSpaces: 1 },
 ];
 
-const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.1446, capacity: 1200 }];
+export const SHELTERS = [{ name: "Pasadena Convention Center", lat: 34.1443, lng: -118.1446, capacity: 1200 }];
+
+// Where each vehicle starts: two draws each, along the south edge of the area.
+function fleetSpots(random: Random, count: number) {
+  return Array.from({ length: count }, () => ({
+    lat: AREA.south + 0.001 + random() * 0.004,
+    lng: AREA.west + random() * (AREA.east - AREA.west),
+  }));
+}
 
 export async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number, fleet: VehicleSeed[] = FLEET) {
-  for (const vehicle of fleet) {
-    const lat = AREA.south + 0.001 + random() * 0.004;
-    const lng = AREA.west + random() * (AREA.east - AREA.west);
-    await ctx.db.insert("vehicles", { ...vehicle, lat, lng, shiftEndsAt: warningAt + 8 * 60 * 60_000 });
+  for (const [i, spot] of fleetSpots(random, fleet.length).entries()) {
+    await ctx.db.insert("vehicles", { ...fleet[i], ...spot, shiftEndsAt: warningAt + 8 * 60 * 60_000 });
   }
   for (const shelter of SHELTERS) await ctx.db.insert("shelters", shelter);
 }
 
 type AreaOptions = { withFleet: boolean; batch: number };
 
-// Batch 0 is the demo area. Later batches (the dispatcher's checks) get other households and phone numbers.
-export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, options: AreaOptions = { withFleet: true, batch: 0 }) {
-  const random = mulberry32(13 + options.batch);
-  const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
-  const usedAddresses = new Set<string>();
-  const hazard = await currentHazard(ctx);
-  if (options.withFleet) await seedFleet(ctx, random, warningAt);
+export type AreaHome = {
+  lat: number;
+  lng: number;
+  address: string;
+  language: string;
+  needPrior: number;
+  persona: Persona;
+};
 
+// The simulated households in the order seeding draws them. Each home's draws come in a fixed order
+// (place, address, age, prior, language, then the persona), so a batch is the same town every time.
+function sampleHomes(random: Random, blockVulnerability: number[]): AreaHome[] {
+  const usedAddresses = new Set<string>();
+  const homes: AreaHome[] = [];
   for (let i = 0; i < HOUSEHOLD_COUNT; i++) {
     const { lat, lng, street } = placeOnStreet(random);
     let address = `${100 + Math.floor(random() * 1900)} ${street}`;
@@ -151,14 +163,47 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, opt
     const vulnerability = blockVulnerability[blockOf(lat, lng)];
     const age = Math.round(28 + random() * 40 + vulnerability * 50);
     const needPrior = Math.min(0.95, Math.max(0.03, vulnerability + (random() - 0.5) * 0.12));
-    const fireArrivalAt = fireArrivalFor({ lat, lng }, warningAt, hazard);
+    const language = sampleLanguage(random);
+    const persona: Persona = {
+      name: pick(random, FIRST_NAMES),
+      age,
+      answersPhone: 0.55 + random() * 0.4 - (age > 80 ? 0.15 : 0),
+      repliesToText: random() < 0.45,
+      truth: sampleTruth(random, age, vulnerability),
+    };
+    homes.push({ lat, lng, address, language, needPrior, persona });
+  }
+  return homes;
+}
 
+function areaRandom(batch: number) {
+  const random = mulberry32(13 + batch);
+  const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
+  return { random, blockVulnerability };
+}
+
+// The demo area's households and truth cards as the warning seeds them, without writing anything.
+export function demoAreaHomes() {
+  const { random, blockVulnerability } = areaRandom(0);
+  fleetSpots(random, FLEET.length);
+  return sampleHomes(random, blockVulnerability);
+}
+
+// Batch 0 is the demo area. Later batches (the dispatcher's checks) get other households and phone numbers.
+export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, options: AreaOptions = { withFleet: true, batch: 0 }) {
+  const { random, blockVulnerability } = areaRandom(options.batch);
+  const hazard = await currentHazard(ctx);
+  if (options.withFleet) await seedFleet(ctx, random, warningAt);
+
+  for (const [i, home] of sampleHomes(random, blockVulnerability).entries()) {
+    const { lat, lng, address, language, needPrior, persona } = home;
+    const fireArrivalAt = fireArrivalFor({ lat, lng }, warningAt, hazard);
     const householdId = await ctx.db.insert("households", {
       address,
       lat,
       lng,
       callbackNumber: `+1626555${String(1000 + options.batch * HOUSEHOLD_COUNT + i).padStart(4, "0")}`,
-      language: sampleLanguage(random),
+      language,
       callStatus: "not_called",
       outcome: "unknown",
       inZone: true,
@@ -169,14 +214,7 @@ export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, opt
       callPriority: callPriorityFor(needPrior, fireArrivalAt, warningAt),
       simulated: true,
     });
-    await ctx.db.insert("personas", {
-      householdId,
-      name: pick(random, FIRST_NAMES),
-      age,
-      answersPhone: 0.55 + random() * 0.4 - (age > 80 ? 0.15 : 0),
-      repliesToText: random() < 0.45,
-      truth: sampleTruth(random, age, vulnerability),
-    });
+    await ctx.db.insert("personas", { householdId, ...persona });
   }
 }
 

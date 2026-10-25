@@ -10,6 +10,14 @@ export const UNLOAD_SECONDS = 120;
 // during a demo. ETAs, deadlines and the solver all stay in real minutes. Label it on screen.
 export const SIMULATED_TIME_LAPSE = 4;
 
+// The one-truck drill's fire engine (convex/truckRun.ts). A type 1 engine's cab seats six and LA County
+// staffs it with four, which leaves two seats. In an evacuation the engine averages well under the
+// limit: narrow streets, cars leaving, smoke.
+export type TruckSpec = { speedMph: number; seats: number };
+export const ENGINE: TruckSpec = { speedMph: 20, seats: 2 };
+// The furthest the drill looks for how many engines it would take to reach everyone in time.
+export const MOST_TRUCKS_TRIED = 20;
+
 export type Load = { seats: number; wheelchairSpaces: number; stretcherSpaces: number };
 const LOAD_FIELDS = ["seats", "wheelchairSpaces", "stretcherSpaces"] as const;
 

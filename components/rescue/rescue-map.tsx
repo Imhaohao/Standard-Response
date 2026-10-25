@@ -30,6 +30,9 @@ import { RiderUpload } from "./map-tools";
 import { useDrawingTools } from "./use-drawing-tools";
 import { HouseCard } from "./house-card";
 import { PickupLayer } from "./pickup-layer";
+import { TruckDrillLayer } from "./truck-drill-layer";
+import { TruckDrillPanel } from "./truck-drill-panel";
+import { useDrillOnMap } from "./use-truck-drill";
 import { ReadyPanel } from "./ready-panel";
 import { useMapClick, useMapFocus } from "./use-map-focus";
 import { usePickups } from "./use-pickups";
@@ -53,7 +56,8 @@ export function RescueMap() {
   const { homes, withOpenRequest, highlights, stillHome: quietHomes } = useRoofs(data, board.people, toLocal);
   const { hazard, danger, clock, simulated, ignite } = useFireOnScreen(data, control?.warningIssuedAt, homes, toLocal);
   const { unreached, skipped, stillHome } = useUnreachedHomes({ homes, withOpenRequest, quietHomes, control, fire: { hazard, danger, minutes: clock.minutes }, toLocal });
-  const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, clock.minutes) : null), [hazard, clock.minutes]);
+  const { drill, localDrill, fireMinutes } = useDrillOnMap(toLocal, clock.minutes);
+  const fireAt = useCallback((point: Point) => (hazard ? fireStateAt(hazard.field, point, fireMinutes) : null), [hazard, fireMinutes]);
   const forecast = useMemo(() => (danger ? { field: forecastField(danger), aheadMinutes: FORECAST_AHEAD_MINUTES } : null), [danger]);
   const mapFocus = useMapFocus(homes, toLocal);
   const pickups = usePickups(data, toLocal, board.closed);
@@ -82,7 +86,7 @@ export function RescueMap() {
         view={VIEW}
         mode={mode}
         hazard={hazard}
-        minutes={clock.minutes}
+        minutes={fireMinutes}
         forecast={forecastShown ? forecast : null}
         highlights={highlights}
         onPick={onPick}
@@ -100,11 +104,12 @@ export function RescueMap() {
         underlay={
           <>
             {danger && forecast && forecastShown && mode === "paper" && <DangerLayer danger={danger} field={forecast.field} minutes={clock.minutes + FORECAST_AHEAD_MINUTES} />}
-            <FireSpreadLayer hazard={hazard} minutes={clock.minutes} />
+            <FireSpreadLayer hazard={hazard} minutes={fireMinutes} />
           </>
         }
       >
         <PickupLayer pickups={pickups} focusHouseholdId={mapFocus.homeEmphasis} />
+        {drill && localDrill && <TruckDrillLayer drill={drill} local={localDrill} />}
         <MapOverlays
           zone={drawing.zone}
           street={drawing.street}
@@ -132,6 +137,7 @@ export function RescueMap() {
             </div>
             <div className="min-w-0 flex-1" />
             <div className={`${PANEL_COLUMN} w-[20rem] max-w-[32vw] pl-1`}>
+              <TruckDrillPanel drill={drill} />
               <PlanPanel />
               <FleetPanel vans={board.vans} onVanHover={setVanFocusId} />
               <DoorCheckPanel unreached={unreached.length} />

@@ -30,6 +30,7 @@ const NIGHT_TABLES = [
   "vehicleRoutes",
   "vehicleLoads",
   "dispatchState",
+  "truckDrills",
 ] as const;
 // The setup a reset also clears. A rewind keeps it: homes are put back, the zone and personas stay.
 const SETUP_TABLES = ["households", "zones", "personas"] as const;

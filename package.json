@@ -24,6 +24,7 @@
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
     "exam:triage": "tsx --env-file=.env.local scripts/droid/triage.ts",
     "test:droid": "tsx --test scripts/droid/*.test.ts",
+    "test:truck": "tsx --test scripts/truck/*.test.ts",
     "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts",
     "knowledge:generate": "VOICE_MODEL=claude-haiku-5-5 VOICE_KNOWLEDGE=off VOICE_HEDGED_REQUESTS=1 tsx --env-file=.env.local voice/knowledge/generate.ts",
     "moss:index": "tsx --env-file=.env.local scripts/moss/build-answer-index.ts",

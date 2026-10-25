@@ -648,6 +648,42 @@ export default defineSchema({
     riders: v.array(v.object({ requestId: v.id("requests"), shelterId: v.optional(v.id("shelters")), load })),
   }).index("by_vehicleId", ["vehicleId"]),
 
+  // The latest one-truck drill (convex/truckDrill.ts): one fire engine's whole run, worked out at
+  // once and played back on the rescue map from `ranAt`. Times are seconds after the warning.
+  truckDrills: defineTable({
+    ranAt: v.number(),
+    playbackRate: v.number(),
+    source: v.union(v.literal("board"), v.literal("simulated_area")),
+    speedMph: v.number(),
+    seats: v.number(),
+    station: v.object({ name: v.string(), lat: v.number(), lng: v.number() }),
+    shelter: v.object({ name: v.string(), lat: v.number(), lng: v.number() }),
+    endSeconds: v.number(),
+    trucksNeeded: v.union(v.number(), v.null()),
+    legs: v.array(v.object({ startSeconds: v.number(), path: v.array(v.object({ lat: v.number(), lng: v.number() })), legSeconds: v.array(v.number()) })),
+    stops: v.array(
+      v.object({
+        kind: v.union(v.literal("board"), v.literal("too_late"), v.literal("unload")),
+        home: v.union(v.number(), v.null()),
+        atSeconds: v.number(),
+        dwellSeconds: v.number(),
+        onboard: v.number(),
+      }),
+    ),
+    homes: v.array(
+      v.object({
+        householdId: v.optional(v.id("households")),
+        address: v.string(),
+        lat: v.number(),
+        lng: v.number(),
+        people: v.number(),
+        fireSeconds: v.number(),
+        reachedSeconds: v.union(v.number(), v.null()),
+        outcome: v.union(v.literal("rescued"), v.literal("too_late"), v.literal("never_reached")),
+      }),
+    ),
+  }),
+
   // A helper who agreed ahead of time to pick a household up. The pickup check calls them
   // the moment a warning covers the household, and a broken promise becomes a ride request.
   pickupPlans: defineTable({
