@@ -105,3 +105,12 @@ New and updated Track D results, all additive:
 ## 2026-10-24 11:30
 
 New, additive: `data/hazard/danger-zones.geojson` from `modeling/scripts/danger_zones.py`, served at `GET /api/danger` (null when the file is missing). Features are `{ probability: 0.1|0.5|0.9, minutesAfterWarning: 0..270 step 10 }` with Polygon or MultiPolygon geometry; the area is burned by that minute in at least that share of 100 spread-model runs under the NWS wind forecast. `metadata.wind` is `{ source: "nws"|"scenario", note?, fetched?, now?: { speedKmh, fromDegrees, gustKmh } }`. The rescue map draws it through `useDangerZones` + `DangerLayer` with a show/hide control above the scrubber. `/api/scenario` now shares `lib/hazard-file.ts` and is otherwise unchanged; deadlines and closures still use the scenario only.
+
+## 2026-10-24 19:20
+
+Fast playback made the need-model runner look dead. `estimates:reportRun` stamped `lastRunAt` with `simNow`, and the 15 s staleness check compared it on the night's clock. At 10× a 5 s runner pass is 50 s of night, so `convex/sim.ts` ran the stand-in need model between real passes and overwrote the runner's estimates.
+
+- New additive field: `modelState.lastRunWallAt` (wall clock), also returned by `estimates:state`. `needModelRunnerLive(ctx)` now uses it and takes no `now`. I changed its one caller in `convex/sim.ts`.
+- `lastRunAt` is unchanged and still on the night's clock.
+- For you: the plan panel's "Last pass … ago / Stand-in or stopped" hint (`components/rescue/plan-panel.tsx` `ModelState`) has the same problem at 10× and above. Comparing `lastRunWallAt` against `Date.now()` there fixes it.
+- Not deployed yet. The fix reaches `robust-penguin-834` with the next `npx convex dev` push from `main`.

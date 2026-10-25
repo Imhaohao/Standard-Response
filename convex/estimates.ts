@@ -20,13 +20,14 @@ async function ensureState(ctx: MutationCtx) {
   return (await ctx.db.get("modelState", id))!;
 }
 
-// The runner passes every ~5 s. Once its last pass is older than this, the need-model stand-in covers
-// for it, so stopping the runner (or a `--once` pass) never leaves the incident without a need model.
+// The runner passes every ~5 s of real time. Once its last pass is older than this, the need-model
+// stand-in covers for it, so stopping the runner (or a `--once` pass) never leaves the incident without a
+// need model. Measured on the wall clock: at 10x playback a 5 s pass is 50 s on the night's clock.
 export const RUNNER_STALE_MS = 15_000;
 
-export async function needModelRunnerLive(ctx: QueryCtx, now: number) {
-  const lastRunAt = (await stateRow(ctx))?.lastRunAt;
-  return lastRunAt !== undefined && now - lastRunAt < RUNNER_STALE_MS;
+export async function needModelRunnerLive(ctx: QueryCtx) {
+  const lastRunWallAt = (await stateRow(ctx))?.lastRunWallAt;
+  return lastRunWallAt !== undefined && Date.now() - lastRunWallAt < RUNNER_STALE_MS;
 }
 
 export const state = query({
@@ -35,11 +36,18 @@ export const state = query({
     smoothing: v.boolean(),
     doorAlpha: v.optional(v.number()),
     lastRunAt: v.optional(v.number()),
+    lastRunWallAt: v.optional(v.number()),
     stats: v.optional(v.record(v.string(), v.number())),
   }),
   handler: async (ctx) => {
     const row = await stateRow(ctx);
-    return { smoothing: row?.smoothing ?? DEFAULT_STATE.smoothing, doorAlpha: row?.doorAlpha, lastRunAt: row?.lastRunAt, stats: row?.stats };
+    return {
+      smoothing: row?.smoothing ?? DEFAULT_STATE.smoothing,
+      doorAlpha: row?.doorAlpha,
+      lastRunAt: row?.lastRunAt,
+      lastRunWallAt: row?.lastRunWallAt,
+      stats: row?.stats,
+    };
   },
 });
 
@@ -68,7 +76,7 @@ export const reportRun = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ensureState(ctx);
-    await ctx.db.patch("modelState", row._id, { ...args, lastRunAt: await simNow(ctx) });
+    await ctx.db.patch("modelState", row._id, { ...args, lastRunAt: await simNow(ctx), lastRunWallAt: Date.now() });
     return null;
   },
 });

@@ -231,6 +231,6 @@ async function runStandIns(ctx: MutationCtx, control: Doc<"control">, now: numbe
     await standInTextFollowUp(ctx, now);
     await standInCallbacks(ctx, now);
   }
-  if (control.simulateNeedModel || !(await needModelRunnerLive(ctx, now))) await standInNeedModel(ctx, now);
+  if (control.simulateNeedModel || !(await needModelRunnerLive(ctx))) await standInNeedModel(ctx, now);
   if (control.autoApprove) await approveLeftovers(ctx);
 }

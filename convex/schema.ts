@@ -487,7 +487,10 @@ export default defineSchema({
     // Door-check aging weight, fixed once per incident (keyed by warningIssuedAt) so the order is stable.
     doorAlpha: v.optional(v.number()),
     incidentKey: v.optional(v.number()),
+    // The last pass on the night's clock (shown), and on the wall clock (whether the runner is alive,
+    // since faster playback stretches the runner's real-time cadence).
     lastRunAt: v.optional(v.number()),
+    lastRunWallAt: v.optional(v.number()),
     // Counts from the last run: households estimated, door checks scored, closures added, matches.
     stats: v.optional(v.record(v.string(), v.number())),
   }),
