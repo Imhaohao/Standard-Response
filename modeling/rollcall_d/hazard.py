@@ -1,12 +1,11 @@
 """The hazard scenario: labeled fire-front polygons by minutes after the warning.
 
 Scenario input, not a forecast. The scenario only ever moves arrival times earlier or later; it never
-marks a household safe. A home outside every polygon still gets a finite arrival time, extrapolated
-from the last front's spread rate, so an unanswered household is always treated as unknown and at risk.
+marks a household safe. A home outside every polygon still gets a finite arrival time just past the last
+front, as convex/fireArrival.ts gives it, so an unanswered household is always treated as unknown and at risk.
 """
 
 import json
-import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +25,9 @@ SCENARIO_FILES = {
     "hurricane": "scenario-hurricane.geojson",
 }
 DEFAULT_HAZARD = "wildfire"
+# A home the scenario never reaches still needs a deadline: this long after its last front.
+# Matches PAST_SCENARIO_MINUTES in convex/fireArrival.ts, so the runner writes the deadlines Convex would.
+PAST_SCENARIO_MINUTES = 30.0
 
 
 @dataclass(frozen=True)
@@ -40,7 +42,6 @@ class Scenario:
             raise ValueError("A scenario needs at least one front")
         self.fronts = sorted(fronts, key=lambda f: f.minutes)
         self.metadata = metadata or {}
-        self._tail_rate = self._spread_rate_at_end()
 
     @classmethod
     def load(cls, path: Path = SCENARIO_FILE) -> "Scenario":
@@ -57,14 +58,6 @@ class Scenario:
         path = HAZARD / SCENARIO_FILES.get(hazard, SCENARIO_FILES[DEFAULT_HAZARD])
         return cls.load(path) if path.exists() else None
 
-    def _spread_rate_at_end(self) -> float:
-        """Meters per minute the front was growing over the last interval, by equivalent radius."""
-        if len(self.fronts) < 2:
-            return float(self.metadata.get("headSpreadMetersPerMinute", 20.0))
-        a, b = self.fronts[-2], self.fronts[-1]
-        radius = lambda f: math.sqrt(f.shape.area / math.pi)  # noqa: E731
-        return max((radius(b) - radius(a)) / max(b.minutes - a.minutes, 1e-6), 1.0)
-
     def arrival_minutes_xy(self, x: float, y: float) -> float:
         """Minutes after the warning when the front reaches a point, interpolated between fronts."""
         point = Point(x, y)
@@ -78,14 +71,13 @@ class Scenario:
                 share = to_previous / max(to_previous + to_boundary, 1e-9)
                 return previous.minutes + share * (front.minutes - previous.minutes)
             previous = front
-        last = self.fronts[-1]
-        return last.minutes + last.shape.distance(point) / self._tail_rate
+        return self.fronts[-1].minutes + PAST_SCENARIO_MINUTES
 
     def arrival_minutes(self, lat: float, lng: float) -> float:
         return self.arrival_minutes_xy(*to_xy(lat, lng))
 
     def reaches(self, lat: float, lng: float) -> bool:
-        """Whether the scenario's last front covers a point. Past it, arrival_minutes extrapolates a deadline
+        """Whether the scenario's last front covers a point. Past it, arrival_minutes still gives a deadline
         so nobody is marked safe, but the scenario itself never burns there."""
         return self.fronts[-1].shape.covers(Point(*to_xy(lat, lng)))
 

@@ -4,7 +4,7 @@ from shapely.geometry import Point
 
 from rollcall_d import door, need
 from rollcall_d.geo import to_latlng
-from rollcall_d.hazard import Front, Scenario
+from rollcall_d.hazard import PAST_SCENARIO_MINUTES, Front, Scenario
 
 
 def ring_scenario():
@@ -21,6 +21,11 @@ def test_arrival_interpolates_between_fronts():
 def test_outside_every_front_is_never_safe():
     minutes = ring_scenario().arrival_minutes_xy(5000, 0)
     assert math.isfinite(minutes) and minutes > 60
+
+
+def test_outside_every_front_gets_the_deadline_convex_gives_it():
+    assert ring_scenario().arrival_minutes_xy(5000, 0) == 60 + PAST_SCENARIO_MINUTES
+    assert ring_scenario().arrival_minutes_xy(800, 0) == ring_scenario().arrival_minutes_xy(9000, 0)
 
 
 def test_a_point_near_an_unburned_island_arrives_with_the_front_that_rings_it():

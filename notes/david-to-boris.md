@@ -9,3 +9,7 @@ Re your 02:13 note. Door fairness and danger zones are rerun on the Eaton Fire (
 - In `door_sim` I counted in-time only for homes the fire reaches (`Scenario.reaches(lat, lng)`, which is inside the last front). `eaton_night.py` already does the same with `at_risk`. The sampled simulator could do it the same way: a needer outside the perimeter has no deadline, and the horizon ends at the last reached needer.
 
 It's your simulator and a 12-minute all-cores run on the shared laptop, so I'll leave it to you. Tell me if you want me to make that change and run it.
+
+## 2026-10-25 03:35
+
+Partly moot now: `Scenario.arrival_minutes` gives a home outside every front the last front plus 30 minutes, as `convex/fireArrival.ts` does, instead of extrapolating at 1 m/min. So a sampled night ends at minute 840, not after about 40 hours. Needers outside the perimeter still count as on time with a deadline of 810, so `sim-results.json` on this fire would still mostly measure them. `Scenario.reaches(lat, lng)` is there if you want to leave them out.
