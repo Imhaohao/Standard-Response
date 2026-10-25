@@ -1,0 +1,39 @@
+{
+ "id": "lower-ninth",
+ "name": "Lower Ninth Ward, New Orleans",
+ "event": "Hurricane Katrina levee breach, August 29, 2005",
+ "hazard": "flood",
+ "detail": {
+  "south": 29.948,
+  "north": 29.984,
+  "west": -90.037,
+  "east": -89.981
+ },
+ "state": {
+  "fips": "22",
+  "abbr": "la"
+ },
+ "timezone": "America/Chicago",
+ "censusYear": "ACS 2019-2023 (today's ward, not 2005's)",
+ "roadBox": {
+  "south": 29.938,
+  "north": 29.994000000000003,
+  "west": -90.0989,
+  "east": -89.97099999999999
+ },
+ "staging": {
+  "name": "RTA A. Philip Randolph bus facility, Canal Street",
+  "lat": 29.9668,
+  "lng": -90.0889,
+  "record": "the city's main bus yard; RTA ran pickups to the Superdome on August 28",
+  "source": "https://en.wikipedia.org/wiki/New_Orleans_Regional_Transit_Authority"
+ },
+ "shelter": {
+  "name": "Louisiana Superdome",
+  "lat": 29.9515,
+  "lng": -90.0785,
+  "capacity": 30000,
+  "record": "the city's shelter of last resort",
+  "source": "https://www.webharvest.gov/congress109th/20061114010640/http:/www.house.gov/transportation/highway/10-27-05/deville.pdf"
+ }
+}

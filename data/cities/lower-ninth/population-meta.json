@@ -1,0 +1,21 @@
+{
+ "label": "Synthetic population for simulation. Real ACS PUMS household records reweighted to real block-group and tract totals; not real people.",
+ "city": "lower-ninth",
+ "name": "Lower Ninth Ward, New Orleans",
+ "event": "Hurricane Katrina levee breach, August 29, 2005",
+ "source": "ACS 2019-2023 5-year: PUMS (LA PUMAs 02401, 02402, 02403, 02501), B11001, B11007, B25044 by block group, B18101 by tract, from www2.census.gov bulk files. Buildings: OpenStreetMap residential buildings in the detail box, retrieved via Overpass. Care facilities: OpenStreetMap.",
+ "era": "Households are the ward as Census 2000 counted it: 4,820 in the Lower Ninth Ward neighborhood and 1,982 in Holy Cross, 32.4% and 36.1% of them without a car (GNO Community Data Center pre-Katrina tables), shared among today's block groups by land area. Ages and disability follow today's ACS shares and PUMS records. Where today's buildings are fewer than the 2000 households, the rest are placed on empty lots in the same block group.",
+ "blockGroups": 18,
+ "buildings": 8084,
+ "households": 6803,
+ "needHelp": 2529,
+ "ipfWorstRelativeError": {
+  "households": 0.0,
+  "hasMember65": 0.0,
+  "alone65": 0.0,
+  "noVehicle": 0.0,
+  "disabled65 (tract)": 0.0
+ },
+ "seed": 13,
+ "assumptions": "ACS has no wheelchair, bed or oxygen variables; see modeling/rollcall_d/population.py for the mapping and its rates."
+}
