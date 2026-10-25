@@ -375,8 +375,11 @@ void main() {
   vec4 home = homeState(objectId(vUv));
   float red = home.r;
   float charcoal = step(0.75, home.b) * (1.0 - step(0.001, red));
-  color = mix(color, uSnow, gustVeil() * (1.0 - red) * (1.0 - 0.5 * charcoal));
-  color = mix(color, uInk, nightSky() * (1.0 - red));
+  // A home the map is marking prints exactly as the map chose, whatever the weather: red for someone
+  // waiting (at whatever level the replay gives it), charcoal for someone the storm reached first.
+  float shielded = max(step(0.001, red), charcoal);
+  color = mix(color, uSnow, gustVeil() * (1.0 - shielded));
+  color = mix(color, uInk, nightSky() * (1.0 - shielded));
   // The glow answers exponentially: a single home still glows, and a street of them stays a row of
   // homes rather than a red haze.
   vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 12.0);
