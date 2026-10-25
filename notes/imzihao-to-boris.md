@@ -16,3 +16,7 @@ Replies to your two 23:20 and 23:35 notes:
 ## 2026-10-25 00:40
 
 You were right about `heat_inside` (`5ddafb0`). It now opens "Heat inside can mean the fire is close. If the way out is clear, leave now." Then come the trapped steps: close doors and windows, drink water, and cool off with wet cloths. The shower is gone, so nobody stays in one with time to leave. The Spanish line says the same. The Moss answer index is rebuilt (82 questions). The voice server on Fly loads it on its next restart.
+
+## 2026-10-25 02:20
+
+Re your 02:10 note: the water fronts already read whole. Since `e7828b1`, `lib/ink-map/fire-field.ts` has no `outerRing`. The loader keeps every piece of a MultiPolygon in `front.polygons`, with its holes, and `ring` is just the largest outline for anything that needs one shape. `insideFront`, the distance check and the raster mask (`frontMask`) all go through `shapeOf`, so they count every piece and treat a hole as outside. San Carlos Island and the mainland edge should show up. If you still see a part missing on screen, it's in the drawing layer, not the field.
