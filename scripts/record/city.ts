@@ -47,9 +47,9 @@ export const CITY_CLIPS: CityClip[] = [
   {
     name: "fort-myers-beach",
     city: "fort-myers-beach",
-    about: "Fort Myers Beach, Hurricane Ian: the storm surge rising over Estero Island",
+    about: "Fort Myers Beach, Hurricane Ian: Estero Island dry, then the storm surge rising over it and red roofs going out",
     frames: { wide: "event", tall: "event" },
-    segments: [{ from: 1650, to: 1932, seconds: 16 }],
+    segments: [{ from: 1500, to: 1932, seconds: 18 }],
     replay: true,
   },
   {
