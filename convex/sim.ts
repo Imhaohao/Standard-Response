@@ -75,7 +75,8 @@ async function advanceLive(ctx: MutationCtx, call: Doc<"calls">, household: Doc<
 
 async function standInVoiceAgent(ctx: MutationCtx, now: number, speed: number) {
   for (const call of await activeSimulatedCalls(ctx)) {
-    if (!call.simulated) continue;
+    // Simulated Ready calls belong to the Ready check's own stand-in (ready.ts).
+    if (!call.simulated || call.flow) continue;
     const household = await ctx.db.get("households", call.householdId);
     const persona = household && (await personaFor(ctx, household));
     if (!household || !persona) continue;

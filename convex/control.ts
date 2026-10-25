@@ -12,6 +12,7 @@ import { simNow } from "./clock";
 import { clockAtSpeed, PLAYBACK_SPEEDS, runningMs } from "../lib/sim-clock";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
 import { archiveNight, startRunIfNone } from "./nightRuns";
+import { hangUpStandInReadyCalls } from "./ready";
 
 const DEFAULTS = {
   dialerRunning: false,
@@ -69,6 +70,7 @@ export const issueWarning = mutation({
     const tickGeneration = control.tickGeneration + 1;
     const readyCheckGeneration = (control.readyCheckGeneration ?? 0) + 1;
     await ctx.db.patch("control", control._id, { warningIssuedAt: now, dialerRunning: true, tickGeneration, readyCheckRunning: false, readyCheckGeneration, clock: { ...clock, ranMs: 0 } });
+    await hangUpStandInReadyCalls(ctx);
     await startPickupChecks(ctx, now);
     await logControl(ctx, "Evacuation warning issued for west Altadena. Dialer started");
     await ctx.scheduler.runAfter(TICK_MS, internal.sim.tick, { generation: tickGeneration });

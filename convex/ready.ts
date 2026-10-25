@@ -8,7 +8,8 @@ import { callPriorityFor, located } from "./model";
 import { fileLanguageOf } from "./languages";
 import { seedSimulatedArea } from "./seed";
 import { Helper, saveProfile } from "./readyProfile";
-import { helperFor, profileFromPersona } from "./readySim";
+import { helperFor, profileFromPersona, readyScript } from "./readySim";
+import { endCall, startFlowCall } from "./calls";
 import { seededRandom } from "./roll";
 import { simNow } from "./clock";
 import { syncRequest } from "./requests";
@@ -269,27 +270,82 @@ export const stop = mutation({
   handler: async (ctx) => {
     const control = await controlRow(ctx);
     await ctx.db.patch("control", control._id, { readyCheckRunning: false, readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1 });
+    await hangUpStandInReadyCalls(ctx);
     return null;
   },
 });
 
 // People pick up more readily on a calm afternoon than in the middle of an evacuation.
 const READY_ANSWER_BOOST = 0.15;
+// Each stand-in Ready call says this many lines a tick at normal speed, so it shows on the call floor as it happens.
+const READY_LINES_PER_TICK = 2;
+const READY_FLOW = { kind: "ready" } as const;
 
-async function standInReadyCall(ctx: MutationCtx, household: Doc<"households">, nearby: (Doc<"households"> & { lat: number; lng: number })[]) {
-  const persona = await ctx.db
+type Located = Doc<"households"> & { lat: number; lng: number };
+
+async function personaOf(ctx: MutationCtx, household: Doc<"households">) {
+  return await ctx.db
     .query("personas")
     .withIndex("by_householdId", (q) => q.eq("householdId", household._id))
     .unique();
-  if (!persona) return;
+}
+
+// Every draw for one attempt at one home comes from its own seed, so each tick of a call rebuilds the
+// same answers: first whether they pick up, then the profile, then who would pick them up.
+async function readyAnswers(ctx: MutationCtx, household: Doc<"households">, persona: Doc<"personas">, nearby: Located[], now: number) {
   const random = seededRandom(`${household._id}:${household.readyMisses ?? 0}`);
-  if (random() > persona.answersPhone + READY_ANSWER_BOOST) {
-    await ctx.db.patch("households", household._id, { readyMisses: (household.readyMisses ?? 0) + 1 });
-    return;
+  const answers = random() <= persona.answersPhone + READY_ANSWER_BOOST;
+  const profile = profileFromPersona(persona, random, now);
+  const helper = profile.ready.exitPlan === "helper" && located(household) ? await helperFor(ctx, household, nearby, random) : undefined;
+  return { answers, profile, helper, script: readyScript(household, persona, profile, helper) };
+}
+
+// The simulated Ready calls on the line now.
+async function standInReadyCalls(ctx: MutationCtx) {
+  const phases = await Promise.all(
+    (["ringing", "live"] as const).map((phase) => ctx.db.query("calls").withIndex("by_phase", (q) => q.eq("phase", phase)).take(100)),
+  );
+  return phases.flat().filter((call) => call.simulated && call.flow?.kind === "ready");
+}
+
+async function ringReadyCall(ctx: MutationCtx, call: Doc<"calls">, household: Doc<"households">, answers: boolean) {
+  if (answers) return await ctx.db.patch("calls", call._id, { phase: "live" });
+  await ctx.db.patch("households", household._id, { readyMisses: (household.readyMisses ?? 0) + 1 });
+  await endCall(ctx, call._id, false);
+}
+
+async function advanceReadyCall(ctx: MutationCtx, call: Doc<"calls">, household: Doc<"households">, nearby: Located[], speed: number) {
+  const persona = await personaOf(ctx, household);
+  // Without a persona card there's nobody to answer: it counts as a miss, so the check still finishes.
+  if (!persona) return await ringReadyCall(ctx, call, household, false);
+  const now = await simNow(ctx);
+  const { answers, profile, helper, script } = await readyAnswers(ctx, household, persona, nearby, now);
+  if (call.phase === "ringing") return await ringReadyCall(ctx, call, household, answers);
+  const spoken = await ctx.db
+    .query("transcriptLines")
+    .withIndex("by_callId", (q) => q.eq("callId", call._id))
+    .take(50);
+  const lines = READY_LINES_PER_TICK * speed;
+  for (const step of script.slice(spoken.length, spoken.length + lines)) {
+    await ctx.db.insert("transcriptLines", { callId: call._id, speaker: step.speaker, text: step.text, at: now });
+    await ctx.db.patch("calls", call._id, { stage: step.stage });
+    if (step.fields) await ctx.db.patch("households", household._id, step.fields);
   }
-  const profile = profileFromPersona(persona, random, await simNow(ctx));
-  const arranged = profile.ready.exitPlan === "helper" && located(household) ? await helperFor(ctx, household, nearby, random) : undefined;
-  await saveProfile(ctx, household._id, { ...profile, helper: arranged });
+  if (spoken.length + lines < script.length) return;
+  await saveProfile(ctx, household._id, { ...profile, helper });
+  await endCall(ctx, call._id, true);
+}
+
+// A stand-in call cut off by a pause or the warning ends where it is; the home stays on the list.
+export async function hangUpStandInReadyCalls(ctx: MutationCtx) {
+  for (const call of await standInReadyCalls(ctx)) await endCall(ctx, call._id, call.phase === "live");
+}
+
+async function dialReadyCalls(ctx: MutationCtx, control: Doc<"control">, waiting: Doc<"households">[], onLine: number, speed: number) {
+  const slots = Math.min(control.maxConcurrentCalls - onLine, HOMES_PER_TICK * speed, MOST_HOMES_PER_TICK);
+  for (const household of waiting.slice(0, Math.max(0, slots))) {
+    await startFlowCall(ctx, household, READY_FLOW, { simulated: true, phase: "ringing" });
+  }
 }
 
 async function finish(ctx: MutationCtx, control: Doc<"control">, households: Doc<"households">[]) {
@@ -308,12 +364,20 @@ export const tick = internalMutation({
     const speed = control.clock?.speed ?? 1;
     if (speed === 0) return null;
     const households = await ctx.db.query("households").take(1000);
-    const simulatedWaiting = control.simulateVoice ? households.filter((household) => household.simulated && needsCall(household)) : [];
+    const onLine = await standInReadyCalls(ctx);
+    const inCall = new Set(onLine.map((call) => call.householdId));
+    const simulatedWaiting = control.simulateVoice
+      ? households.filter((household) => household.simulated && needsCall(household) && !inCall.has(household._id))
+      : [];
     const realWaiting = households.some((household) => !household.simulated && needsCall(household));
-    if (simulatedWaiting.length === 0 && !realWaiting) return await finish(ctx, control, households);
+    if (onLine.length === 0 && simulatedWaiting.length === 0 && !realWaiting) return await finish(ctx, control, households);
     const nearby = households.filter(located);
-    const homes = Math.min(HOMES_PER_TICK * speed, MOST_HOMES_PER_TICK);
-    for (const household of simulatedWaiting.slice(0, homes)) await standInReadyCall(ctx, household, nearby);
+    const byId = new Map(households.map((household) => [household._id, household]));
+    for (const call of onLine) {
+      const household = byId.get(call.householdId);
+      if (household) await advanceReadyCall(ctx, call, household, nearby, speed);
+    }
+    await dialReadyCalls(ctx, control, simulatedWaiting, onLine.length, speed);
     await ctx.scheduler.runAfter(READY_TICK_MS, internal.ready.tick, { generation });
     return null;
   },

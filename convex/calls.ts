@@ -108,25 +108,35 @@ async function flowAttempt(ctx: MutationCtx, household: Doc<"households">, flow:
   return plan ? attemptsOf(plan, flow.role, flow.purpose) : 1;
 }
 
-// Voice server: a pickup-check or Ready-check call connected. It goes on the call floor with the
-// home it's about (for a pickup, the home being picked up) but isn't an attempt at its warning call.
+// A pickup-check or Ready-check call. It goes on the call floor with the home it's about (for a
+// pickup, the home being picked up) but isn't an attempt at its warning call.
+export async function startFlowCall(
+  ctx: MutationCtx,
+  household: Doc<"households">,
+  flow: Infer<typeof callFlow>,
+  { simulated, phase }: { simulated: boolean; phase: "ringing" | "live" },
+) {
+  return await ctx.db.insert("calls", {
+    householdId: household._id,
+    direction: "outbound",
+    phase,
+    stage: "greet",
+    language: household.language,
+    attempt: await flowAttempt(ctx, household, flow),
+    startedAt: await simNow(ctx),
+    simulated,
+    flow,
+  });
+}
+
+// Voice server: a pickup-check or Ready-check call connected.
 export const startFlow = mutation({
   args: { householdId: v.id("households"), flow: callFlow },
   returns: v.id("calls"),
   handler: async (ctx, { householdId, flow }) => {
     const household = await ctx.db.get("households", householdId);
     if (!household) throw new Error(`Household ${householdId} not found`);
-    return await ctx.db.insert("calls", {
-      householdId,
-      direction: "outbound",
-      phase: "live",
-      stage: "greet",
-      language: household.language,
-      attempt: await flowAttempt(ctx, household, flow),
-      startedAt: await simNow(ctx),
-      simulated: false,
-      flow,
-    });
+    return await startFlowCall(ctx, household, flow, { simulated: false, phase: "live" });
   },
 });
 

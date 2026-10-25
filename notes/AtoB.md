@@ -147,3 +147,13 @@ The activity list now opens calls, including ended ones. Two small additions, bo
 
 - `events` has a new optional `callId`. An event that names a call opens that call's transcript; older events without it are matched to the latest call at their home.
 - `endCall` writes one `call` event, with `callId`, when a pickup or Ready call (`flow` set) ends: "Ready check call with <address> ended" or "Ready check: no answer at <address>". Those calls wrote nothing to the activity list before, so a finished one couldn't be found again. Warning calls are unchanged: their record and retry events already point at them.
+
+## 2026-10-24 21:40
+
+Ready check calls on simulated homes are now calls on the floor, so they can be watched live. Nothing changes for your real Ready calls.
+
+- The Ready stand-in (`ready.ts`) opens a `calls` row with `flow: { kind: "ready" }` and `simulated: true` for each home. It rings, says its script a couple of lines per tick (`readyScript` in `readySim.ts`), fills the record as answers come in, saves the profile, and ends through `endCall`. It keeps up to `maxConcurrentCalls` on the line.
+- `calls.ts`: the body of `startFlow` is now `startFlowCall(ctx, household, flow, { simulated, phase })`, which the stand-in shares. `startFlow` behaves exactly as before.
+- `sim.ts`: `standInVoiceAgent` skips calls with `flow` set. Before, it would have run the warning script on them.
+- `scripts.ts`: exports `needsLineFor(language, truth)`, the resident's mobility answer, which the Ready script reuses. `scriptFor` is unchanged.
+- Pausing the Ready check or issuing the warning hangs up any stand-in Ready call still on the line.

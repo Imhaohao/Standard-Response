@@ -95,12 +95,19 @@ function phrasebookFor(language: string) {
 
 const NEEDS_VEHICLE = (truth: Truth) => truth.canLeave !== "yes" || truth.mobility !== "walks" || !truth.hasCar;
 
-export function scriptFor(address: string, language: string, truth: Truth): ScriptStep[] {
+// The resident's answer to "does anyone use a walker or wheelchair, or need oxygen?"
+export function needsLineFor(language: string, truth: Truth) {
   const p = phrasebookFor(language);
-  const needsLine =
+  return (
     p.mobility[truth.mobility] +
     (truth.medical.includes("oxygen") ? p.oxygen : "") +
-    (truth.assistanceRequired === "two_person_lift" ? p.twoPersonLift : "");
+    (truth.assistanceRequired === "two_person_lift" ? p.twoPersonLift : "")
+  );
+}
+
+export function scriptFor(address: string, language: string, truth: Truth): ScriptStep[] {
+  const p = phrasebookFor(language);
+  const needsLine = needsLineFor(language, truth);
   return [
     { speaker: "agent", stage: "greet", text: p.greet(address) },
     { speaker: "resident", stage: "confirm_address", text: p.confirm(address), patch: { address } },
