@@ -14,6 +14,7 @@ export class TwilioLine implements CallLine {
   readonly callSid: string;
   readonly params: StreamParameters;
   readonly voice: CallSpeech;
+  readonly fillsPauses = true;
   private transcriber: Transcriber | null = null;
 
   constructor(socket: WebSocket, start: TwilioStart) {

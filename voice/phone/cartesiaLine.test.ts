@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CartesiaLine, SocketSink } from "./cartesiaLine";
+import { CartesiaLine, CartesiaTiming, SocketSink } from "./cartesiaLine";
 
 // CartesiaLine against a fake socket: what it sends Cartesia and what it tells the call session.
+
+const QUICK: CartesiaTiming = { turnSettleMs: 20, voiceSettleMs: 30 };
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function fakeSocket() {
   const sent: Record<string, unknown>[] = [];
@@ -12,7 +15,7 @@ function fakeSocket() {
 
 function lineWithHearing() {
   const { socket, sent } = fakeSocket();
-  const line = new CartesiaLine(socket, "ac_1", { mode: "survey" }, (language) => `voice-${language}`);
+  const line = new CartesiaLine(socket, "ac_1", { mode: "survey" }, (language) => `voice-${language}`, QUICK);
   const heard: string[] = [];
   let turnEnds = 0;
   line.listen("en", { onSpeech: (text) => void heard.push(text), onTurnEnd: () => void (turnEnds += 1), onError: () => {} });
@@ -28,11 +31,23 @@ describe("cartesia line", () => {
     ]);
   });
 
-  it("sends a turn as one message and closes it, switching voice only when the language changes", () => {
+  it("holds the greeting back until the voice change has settled", async () => {
     const { line, sent } = lineWithHearing();
+    line.voice.say(["Hi, this is the evacuation line."], "en");
+    assert.equal(line.voice.speaking, true, "it counts as speaking from the moment it's handed over");
+    await pause(10);
+    assert.equal(sent.some((message) => message.type === "message"), false);
+    await line.voice.sent();
+    assert.deepEqual(sent.at(-2), { type: "message", content: "Hi, this is the evacuation line.", interruptible: true });
+  });
+
+  it("sends a turn as one message and closes it, switching voice only when the language changes", async () => {
+    const { line, sent } = lineWithHearing();
+    await pause(QUICK.voiceSettleMs);
     sent.length = 0;
     line.voice.say(["Two people.", "Is that right?"], "en");
     line.voice.say(["Hola."], "es");
+    await line.voice.sent();
     assert.deepEqual(sent, [
       { type: "message", content: "Two people. Is that right?", interruptible: true },
       { type: "response_end" },
@@ -42,41 +57,64 @@ describe("cartesia line", () => {
     ]);
   });
 
-  it("ends the resident's turn when they go quiet after a transcript, in either order", () => {
+  it("answers a turn once the resident has gone quiet after a transcript, in either order", async () => {
     const { line, heard, turnEnds } = lineWithHearing();
     line.receive({ type: "user_state", value: "speaking" });
     line.receive({ type: "message", content: "It's just me." });
-    assert.equal(turnEnds(), 0);
     line.receive({ type: "user_state", value: "idle" });
+    assert.equal(turnEnds(), 0, "it waits a moment for more");
+    await pause(QUICK.turnSettleMs + 10);
     assert.equal(turnEnds(), 1);
     line.receive({ type: "user_state", value: "speaking" });
     line.receive({ type: "user_state", value: "idle" });
+    await pause(QUICK.turnSettleMs + 10);
     assert.equal(turnEnds(), 1, "a turn with no words in it isn't answered");
     line.receive({ type: "message", content: "No car." });
-    assert.equal(turnEnds(), 2, "a transcript that lands after the quiet ends the turn at once");
+    await pause(QUICK.turnSettleMs + 10);
+    assert.equal(turnEnds(), 2, "a transcript that lands after the quiet ends the turn");
     assert.deepEqual(heard, ["It's just me.", "No car."]);
+  });
+
+  it("reads scraps of room talk a moment apart as one turn", async () => {
+    const { line, heard, turnEnds } = lineWithHearing();
+    for (const scrap of ["Yeah,", "Oh, that's disgusting."]) {
+      line.receive({ type: "user_state", value: "speaking" });
+      line.receive({ type: "message", content: scrap });
+      line.receive({ type: "user_state", value: "idle" });
+      await pause(QUICK.turnSettleMs / 2);
+    }
+    await pause(QUICK.turnSettleMs + 10);
+    assert.equal(turnEnds(), 1);
+    assert.deepEqual(heard, ["Yeah,", "Oh, that's disgusting."]);
+  });
+
+  it("never covers Claude's reading time with a filler", () => {
+    const { line } = lineWithHearing();
+    assert.equal(line.fillsPauses, false);
   });
 
   it("counts the agent as speaking from the message until Cartesia reports it idle", async () => {
     const { line } = lineWithHearing();
     line.voice.say(["One moment."], "en");
-    assert.equal(line.voice.speaking, true);
+    await line.voice.sent();
     line.receive({ type: "agent_state", value: "speaking" });
     let silent = false;
     void line.voice.whenSilent().then(() => (silent = true));
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await pause(350);
     line.receive({ type: "agent_state", value: "idle" });
-    await new Promise((resolve) => setImmediate(resolve));
+    await pause(0);
     assert.equal(silent, true);
     assert.equal(line.voice.speaking, false);
   });
 
-  it("hangs up and transfers with Cartesia's own call controls", async () => {
+  it("hangs up and transfers after what it was saying has gone out", async () => {
     const { line, sent } = lineWithHearing();
-    sent.length = 0;
+    line.voice.say(["Connecting you now."], "en");
     await line.connectTo("+15550100103");
     await line.hangUp();
-    assert.deepEqual(sent, [
+    assert.deepEqual(sent.slice(-4), [
+      { type: "message", content: "Connecting you now.", interruptible: true },
+      { type: "response_end" },
       { type: "transfer", transfer_destination: { type: "phone", value: "+15550100103" }, interruptible: false },
       { type: "end_call" },
     ]);

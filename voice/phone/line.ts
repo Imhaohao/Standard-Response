@@ -28,6 +28,8 @@ export interface CallLine {
   readonly callSid: string;
   readonly params: StreamParameters;
   readonly voice: CallVoice;
+  // Whether a short filler ("mm-hm") covers the wait while Claude reads a turn.
+  readonly fillsPauses: boolean;
   // Starts hearing the resident in this language, replacing any earlier listener.
   listen(language: Language, hearing: Hearing): void;
   hangUp(): Promise<void>;
