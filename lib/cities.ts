@@ -154,7 +154,9 @@ const DRAFTS: Draft[] = [
     pad: { extent: 0.005, terrain: 0.02 },
     terrainZoom: 14,
     terrainCellMeters: 15,
-    osmSnapshot: "2022-12-22T00:00:00Z",
+    // The 2022-12-22 snapshot holds 9,926 buildings here and today's map 48,266; the East Side has
+    // changed little since, so today's footprints stand in for the town the storm hit.
+    osmSnapshot: null,
     closeups: [],
     sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/buffalo/sources.md" }],
   },
