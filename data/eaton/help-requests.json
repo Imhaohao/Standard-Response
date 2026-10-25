@@ -1,0 +1,46 @@
+{
+  "label": "Hand-reviewed from the FSRI Eaton timeline: households west of Lake Avenue whose records ask for help getting out, 6 p.m. Jan 7 to noon Jan 8, 2025",
+  "source": "UL FSRI Southern California Fires Timeline Dataset, Eaton sheet, doi:10.60752/102376.29905157. Row numbers are line numbers in data/eaton/fsri-timeline-eaton.csv.",
+  "categories": {
+    "cannot_leave": "The record says the person could not get out without help: elderly, disabled, bedridden, in a wheelchair, or 'needs help evacuating'. These are the people the system calls.",
+    "trapped": "Trapped by fire at the home or on the street, with nothing said about mobility.",
+    "refused": "Would not leave.",
+    "blocked": "Tried to leave but the road was blocked.",
+    "facility": "A care facility evacuated by crews."
+  },
+  "requests": [
+    { "id": "terrace-w-100", "block": "1** W Terrace St", "category": "cannot_leave", "need": "disabled", "people": 2, "firstAt": "2025-01-07T20:28", "rows": [686, 2309, 2313, 2371, 2374], "outcome": "Still asking at 6:37 a.m.: '2 disabled pts stuck in home, backyard now on fire.' No record of anyone reaching them.", "note": "The 8:28 p.m. request ('two disabled male and female') may be another home on the same block." },
+    { "id": "chaney-3600", "block": "36** Chaney Trail", "category": "cannot_leave", "need": "elderly", "people": 2, "firstAt": "2025-01-07T21:31", "rows": [875], "outcome": "No later record." },
+    { "id": "glenrose-n-3400", "block": "34** N Glenrose Ave", "category": "cannot_leave", "need": "bedbound", "people": 1, "firstAt": "2025-01-07T23:20", "rows": [1173, 1219, 1231, 1247, 1248], "outcome": "A woman in her 90s in hospice care who needed an ambulance. No record of a pickup." },
+    { "id": "mendocino-w-600", "block": "6** W Mendocino St", "category": "cannot_leave", "need": "elderly", "people": 1, "firstAt": "2025-01-08T03:39", "rows": [1787, 1796], "outcome": "Needed help getting into a vehicle. Law enforcement was sent; no record of arrival." },
+    { "id": "palm-100", "block": "1** Palm St", "category": "cannot_leave", "need": "elderly", "people": 1, "firstAt": "2025-01-08T03:41", "rows": [1797, 2095], "outcome": "Elderly woman 'trapped and needs help getting out.' Houses on the block reported burning at 5:13 a.m.", "note": "Records give both E and W Palm for this block, so it is placed between them at Fair Oaks." },
+    { "id": "lincoln-3000", "block": "30** Lincoln Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T04:53", "rows": [2007], "outcome": "No later record." },
+    { "id": "highview-3000", "block": "30** Highview Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T05:00", "rows": [2051, 2075], "outcome": "'Unable to evacuate.' The division couldn't make out the address on the radio at 5:08 a.m." },
+    { "id": "calaveras-e-700", "block": "7** E Calaveras St", "category": "cannot_leave", "need": "elderly", "people": 1, "firstAt": "2025-01-08T05:18", "rows": [2108, 2119], "outcome": "'Evacuation needed for elderly male.' No later record." },
+    { "id": "lincoln-2400", "block": "24** Lincoln Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T05:18", "rows": [2108], "outcome": "Evacuation assist requested. No later record." },
+    { "id": "harriet-e-100", "block": "1** E Harriet St", "category": "cannot_leave", "need": "elderly", "people": 1, "firstAt": "2025-01-08T05:26", "rows": [2132], "outcome": "'Fire in yard, needs help evac, female elderly,' called in by someone not at the home. No later record.", "place": { "near": ["Harriet", "Fair Oaks"], "why": "OSM has no house numbers on the 100 block of E Harriet; the block starts at Fair Oaks Avenue" } },
+    { "id": "highview-2600", "block": "26** Highview Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T05:35", "rows": [2173, 2179, 2183], "outcome": "A ham radio operator heard someone asking for help. Dispatch flagged it as a life priority." },
+    { "id": "fairoaks-n-3000", "block": "30** N Fair Oaks Ave", "category": "cannot_leave", "need": "wheelchair", "people": 3, "firstAt": "2025-01-08T05:40", "rows": [2197, 2210, 2216, 2301, 2307, 2361, 2363, 3074, 3078, 3109, 3249], "outcome": "At 6:33 a.m. the division said the area was impassable. Three people, one in a wheelchair, were still reported trapped in the garage at 11:52 a.m." },
+    { "id": "lafiesta-n-2500", "block": "25** N La Fiesta Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T06:31", "rows": [2358, 2390], "outcome": "Evacuation assistance requested; at 6:41 a.m., 'stuck in home, front yard on fire.'" },
+    { "id": "harriet-w-200", "block": "2** W Harriet St", "category": "cannot_leave", "need": "elderly", "people": 1, "firstAt": "2025-01-08T06:59", "rows": [2438, 2456], "outcome": "'Elderly unable to get out of the house.' No later record." },
+    { "id": "glen-2700", "block": "27** Glen Ave", "category": "cannot_leave", "need": "unknown", "people": null, "firstAt": "2025-01-08T07:13", "rows": [2484, 2493], "outcome": "At 7:18 a.m.: 'resident already evacuated.'" },
+    { "id": "pine-e-600", "block": "6** E Pine St", "category": "cannot_leave", "need": "unknown", "people": 1, "firstAt": "2025-01-08T07:50", "rows": [2569], "outcome": "'1 person unable to evacuate, fire is coming into yard.' No later record." },
+
+    { "id": "tonia", "block": "Tonia Ave", "category": "trapped", "need": "unknown", "people": null, "firstAt": "2025-01-08T04:42", "rows": [1960, 1961], "outcome": "Radio reported a person trapped in a burning home. The Los Angeles Times later reported the coroner confirmed a death at that address.", "place": { "street": "Tonia Avenue", "why": "the record gives no house number" } },
+    { "id": "highland-700", "block": "7** Highland St", "category": "trapped", "need": "elderly", "people": 1, "firstAt": "2025-01-08T05:39", "rows": [2188], "outcome": "Structure fire with an elderly woman trapped inside." },
+    { "id": "sacramento-w-800", "block": "8** W Sacramento St", "category": "trapped", "need": "unknown", "people": null, "firstAt": "2025-01-08T05:50", "rows": [2218, 2270, 2306], "outcome": "At 6:14 a.m. an investigator found nobody at the address." },
+    { "id": "mcnally-2700", "block": "27** McNally Ave", "category": "trapped", "need": "unknown", "people": 2, "firstAt": "2025-01-08T05:55", "rows": [2240, 2402, 2410], "outcome": "At 6:48 a.m.: 'no resident, the house is clear.'" },
+    { "id": "mariposa-w-400", "block": "4** W Mariposa St", "category": "trapped", "need": "unknown", "people": 2, "firstAt": "2025-01-08T06:02", "rows": [2269, 2275], "outcome": "'2 people stuck in house, can't get out due to fire on street.'" },
+    { "id": "ventura-w-300", "block": "3** W Ventura St", "category": "trapped", "need": "unknown", "people": null, "firstAt": "2025-01-08T07:12", "rows": [2483, 2487, 2508], "outcome": "At 7:24 a.m. crews got the people to drive out." },
+    { "id": "glenrose-2100", "block": "21** Glenrose Ave", "category": "trapped", "need": "unknown", "people": null, "firstAt": "2025-01-08T09:55", "rows": [2927, 2931, 2941], "outcome": "A family on the roof spraying hoses; crews made contact and they could get down." },
+    { "id": "krenz-3000", "block": "30** Krenz Ave", "category": "trapped", "need": "unknown", "people": null, "firstAt": "2025-01-08T10:27", "rows": [3027, 3048], "outcome": "Possible persons trapped. No later record." },
+
+    { "id": "calaveras-e-300", "block": "3** E Calaveras St", "category": "refused", "need": "unknown", "people": 1, "firstAt": "2025-01-08T06:26", "rows": [2337, 2359], "outcome": "'Father is sick and refuses to leave.'" },
+    { "id": "pine-700", "block": "7** Pine St", "category": "refused", "need": "elderly", "people": 1, "firstAt": "2025-01-08T08:26", "rows": [2662], "outcome": "An elderly grandmother wouldn't leave; she was afraid crews would take her dogs." },
+    { "id": "pentagon-e-200", "block": "2** E Pentagon St", "category": "refused", "need": "elderly", "people": 1, "firstAt": "2025-01-08T10:54", "rows": [3094, 3123], "outcome": "An elderly woman refused to leave while every home around was burning." },
+
+    { "id": "elprieto-4500", "block": "45** El Prieto Rd", "category": "blocked", "need": "unknown", "people": null, "firstAt": "2025-01-08T04:15", "rows": [1874, 1882, 1970, 1976], "outcome": "A fallen tree blocked the street. At 4:46 a.m. operations asked for a crew to clear it.", "place": { "street": "El Prieto Road", "why": "OSM has no house numbers on El Prieto Road" } },
+
+    { "id": "elmolino-2200", "block": "22** El Molino Ave", "category": "facility", "need": "facility", "people": 250, "firstAt": "2025-01-08T04:00", "rows": [2282, 2300, 3125, 3181], "outcome": "A senior living facility. Crews and buses moved about 250 residents; search and rescue called it complete at 11:23 a.m.", "note": "4:00 a.m. start from the Citygate report, Table 7." }
+  ]
+}

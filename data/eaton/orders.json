@@ -1,0 +1,23 @@
+{
+  "label": "Evacuation alerts for Altadena during the Eaton Fire, January 7-8, 2025",
+  "sources": {
+    "citygate": "Citygate Associates for LA County Fire, Investigation Report of the Eaton Fire Evacuation Alerts, revised May 18, 2026 (Tables 1-7)",
+    "pbs": "PBS WARN alert archive rows in the FSRI timeline dataset (Genasys codes)",
+    "press": "Los Angeles Times, January 26, 2025; NBC News, January 23, 2025"
+  },
+  "alerts": [
+    { "at": "2025-01-07T18:48", "kind": "advisory", "side": "east", "zones": ["ALD-EASTLOMA", "ALD-EATONCANYON", "ALD-GARFIAS", "ALD-MENDOCINO", "ALD-MIDLOTHIAN"], "source": "citygate" },
+    { "at": "2025-01-07T19:26", "kind": "order", "side": "east", "zones": ["ALD-EASTLOMA", "ALD-EATONCANYON", "ALD-GARFIAS", "ALD-MENDOCINO", "ALD-MIDLOTHIAN"], "source": "citygate" },
+    { "at": "2025-01-07T19:55", "kind": "warning", "side": "east", "zones": ["ALD-MOUNTLOWE"], "source": "citygate" },
+    { "at": "2025-01-07T21:00", "kind": "order", "side": "east", "zones": ["ALD-MENDOCINO", "ALD-MOUNTLOWE"], "source": "citygate" },
+    { "at": "2025-01-08T03:25", "kind": "order", "side": "west", "zones": ["ALD-ARROYOSECO", "ALD-CANON", "ALD-CASITAS", "ALD-CHANEY", "ALD-FARNSWORTH", "ALD-GARDEN", "ALD-LAUREL", "ALD-MEADOWS", "ALD-MILLARD", "ALD-PALM", "ALD-WAPELLO", "ALD-WHITEPARK"], "source": "citygate", "note": "No warning came before it." },
+    { "at": "2025-01-08T05:42", "kind": "order", "side": "west", "zones": ["ALD-CALAVERAS"], "source": "pbs", "note": "The southwest section left out at 3:25 a.m. No warning came before it. Its exact boundary isn't public, so the replay reports every request against both west-side order times." }
+  ],
+  "facts": [
+    { "at": "2025-01-07T23:49", "what": "First structure fire west of Lake Avenue reported by a LACoFD battalion chief (Glenrose Ave and W Loma Alta Dr)", "source": "citygate" },
+    { "at": "2025-01-08T02:18", "what": "Incident Command begins the west-of-Lake evacuation expansion after hearing radio traffic", "source": "citygate" },
+    { "at": "2025-01-08T04:00", "what": "AccessLA, the county's paratransit agency with over 1,800 vehicles, ready to help; it was never called", "source": "LAist, Despite three 911 calls, two homebound disabled men died in the Eaton Fire waiting for rescue" },
+    { "at": "2025-01-08T05:13", "what": "Fire front one block west of Lake Avenue between Concha Street and East Los Flores Drive (FireGuard)", "source": "citygate" },
+    { "at": "2025-01-08T06:00", "what": "Community conflagration well underway", "source": "citygate" }
+  ]
+}

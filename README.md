@@ -43,6 +43,29 @@ A UN survey of about 6,000 people with disabilities found that only 1 in 5 could
 | Under the hood | `/system` | Judges. How dispatch decides, with the numbers behind it |
 | Ready sign-up | `/ready` | Residents. The Ready check profile, filled in on their own phone |
 
+## Replaying the night in west Altadena
+
+We rebuilt the night of January 7 to 8, 2025 from public records and ran our system's rules against it. The UL Fire Safety Research Institute published more than 3,300 timestamped Eaton Fire records, taken from dispatch logs, radio and body-camera transcripts, and the alert archive. LA County's own investigation gives the time of every evacuation order. We placed each record on the map by its block and read every request for help west of Lake Avenue by hand.
+
+Sixteen households west of Lake asked for help because someone there couldn't get out alone. Three of them asked before midnight, more than three hours before the 3:25 a.m. order. For one of the sixteen the records show the resident got out. Two were still asking for help after 6:30 a.m. with fire in the yard.
+
+| If our system had run that night | Reached before they had to ask for help | Reached before fire was reported within two blocks |
+| --- | --- | --- |
+| Calls start with the real 3:25 a.m. order, and AccessLA's vans leave at 4 a.m. | 11 of 16 | 8 of 14 |
+| Calls and AccessLA start at 10:50 p.m., when the first fire west of Lake was reported | 13 of 16 | 14 of 14 |
+
+Two of the sixteen had no fire reported within two blocks, so the last column counts fourteen. The three still missed in the second row asked for help in the evening, at 8:28, 9:31 and 11:20 p.m. A van would have boarded each of them within 25 minutes of their call.
+
+Those sixteen are only the people whose calls got through, so we also ran the whole west side using our synthetic census population. About 1,600 households west of Lake would need a ride, and 943 of them had fire reported within two blocks. Starting at 10:50 p.m., 50 vans pick up 97% of those 943 households before fire is reported near them. Fifty vans is under 3% of AccessLA's fleet of more than 1,800, which LAist reported was ready by 4 a.m. and never called. Starting from the 3:25 a.m. order with vans at 4 a.m., the same 50 vans reach 64%. No fleet size gets past 69%, because fire was already reported near the rest before 4 a.m.
+
+The replay is a test of timing, not a claim about who would have lived. It assumes free-flow driving from the Rose Bowl command post, 4 minutes to reach a household and 3 more for a driver to accept, and the boarding times in `PLAN.md`. It can't know whether someone would have answered, been ready at the door, or been reachable past a fallen tree. Every assumption and every source row is listed in `data/eaton/replay-results.json`.
+
+```bash
+cd modeling
+uv run python scripts/fetch_eaton.py    # the FSRI timeline sheet
+uv run python scripts/eaton_replay.py   # writes data/eaton/replay-results.json
+```
+
 ## What firefighters changed
 
 On October 24 we visited two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. At Station 1 one of them said: "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." They also pointed out four gaps. We fixed all four that afternoon.
