@@ -46,3 +46,7 @@ Deployed to `robust-penguin-834`: the `workflow` component (reach ladder) and `P
 - Every Apify row is `confirmed: true`, because Caltrans reports closures it has made.
 - Tests: `npx vitest run apify/tests --environment edge-runtime` (7 new cases: snapped write, repeat ignored, lift reopens, a lift never removes a manual closure, crossing-only and far-away lines close nothing, bad input ignored, 401/400).
 - Not deployed to `robust-penguin-834` yet. Whoever runs `npx convex dev` or deploy next pushes it. The schema change is additive.
+
+## 2026-10-24 19:36
+
+Deployed `main` at `c811a9d` to `robust-penguin-834`, from a clean copy of `origin/main`, because the shared folder has uncommitted `convex/` edits. Indexes added: `roadClosures.by_sourceKey`, plus `assignments.by_requestId_and_status` and `requests.by_householdId_and_status`, which were already on `main`. Checked live: `POST /apify/road-closures` with a wrong secret returns 401, and `apify:applyClosures` with a closure near Sacramento returns `offOurRoads: 1` and writes nothing.
