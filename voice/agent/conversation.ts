@@ -1,5 +1,7 @@
 import type { Doc } from "../../convex/_generated/dataModel";
 import { findApprovedAnswer } from "./answerLookup";
+import { NOBODY } from "./answerPatterns";
+import { AskVerdict, checkAsk, GoalPrompt } from "./askLine";
 import { withApprovedAnswer } from "./approvedAnswers";
 import { guardAcknowledgment, GuardResult } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
@@ -8,7 +10,8 @@ import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, ne
 import { echo, Language, LINES, readback, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
 
 // The deterministic half of the agent. It decides what to ask next and what may be said about a
-// ride. Claude (interpreter.ts) only reads the resident's words and writes a short acknowledgment.
+// ride. Claude (interpreter.ts) reads the resident's words, writes a short acknowledgment, and may
+// word the next question; its question is spoken only for the goal this class lands on (askLine.ts).
 // Phone calls and the text endpoint (POST /turn) run this same class.
 
 export type Stage = Doc<"calls">["stage"];
@@ -166,6 +169,7 @@ export class Conversation {
   // Fields this turn actually changed, as opposed to values Claude merely repeated.
   private changedThisTurn = false;
   private changesThisTurn: AgentRecord = {};
+  private unsureThisTurn = false;
   private escalated = new Set<Escalation>();
   private history: { speaker: "agent" | "resident"; text: string }[] = [];
   private lastAcknowledgment = "";
@@ -329,20 +333,70 @@ export class Conversation {
 
   // After a transfer the new agent opens with transferIn, and a goodbye after hold stands alone,
   // so neither leads with an acknowledgment.
+  // When Claude's question is spoken it carries the acknowledgment, so neither the echo nor Claude's
+  // separate ack is said as well.
   private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const leavingHold = this.done && this.reachedHold;
-    const ack = this.acknowledgmentFor(heard, status, Boolean(transfer) || leavingHold);
     const answer = guardAcknowledgment(heard.reply, status, this.language);
-    const givesTime = stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
+    const givesTime = this.givesTime(heard, stalled);
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const feeling = this.feelingLines(heard, status, urgent);
     const said = this.claudeAnswer(heard, answer, feeling);
-    const lines = [...greeting, ...feeling, ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
-    const sentences = [...new Set(lines)].filter((line) => line !== "");
-    const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
+    const told = [...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard)].filter((line) => line !== "");
+    const silent = Boolean(transfer) || leavingHold;
+    const plain = !silent && !givesTime && told.length === 0;
+    const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
+    const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime });
+    const sentences = [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== "");
+    const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
+  }
+
+  // The answer changed something else ("it's just me") and left the question open: it is asked
+  // again in other words, not word for word, unless they asked to hear it again.
+  private askedLastTurn(heard: Interpretation) {
+    const question = this.question();
+    return !heard.wantsRepeat && question !== "" && this.lastAgentLine().includes(question);
+  }
+
+  private givesTime(heard: Interpretation, stalled: boolean) {
+    return stalled && heard.wantsTime && !this.done && !this.holding && this.step !== "neighbor";
+  }
+
+  // The acknowledgment and the turn's last line: Claude's question alone, or the code's own
+  // acknowledgment and question.
+  private turnEnd(heard: Interpretation, asked: AskVerdict, turn: { status: RequestStatus | "none"; silent: boolean; stalled: boolean; givesTime: boolean }) {
+    if (asked.line) return { ack: NO_ACK, next: [asked.line] };
+    const again = turn.stalled || this.askedLastTurn(heard);
+    return { ack: this.acknowledgmentFor(heard, turn.status, turn.silent), next: this.nextLines(again, turn.givesTime) };
+  }
+
+  // Claude's wording of the next question, when it aimed at the step the code just landed on.
+  // "Say that again?" hears the question as first put, and scripted steps never take Claude's words.
+  private claudeQuestion(heard: Interpretation, opensTurn: boolean): AskVerdict {
+    if (heard.wantsRepeat || !ASKABLE.has(this.step)) return NO_ASK;
+    const verdict = checkAsk(heard.ask, {
+      goal: this.step,
+      templates: [this.question(), this.questionAgain()],
+      language: this.language,
+      heldDigits: this.step === "confirm_address" ? (this.record.address ?? this.knownAddress) : undefined,
+      said: this.history.filter((line) => line.speaker === "agent").map((line) => line.text),
+      opener: opensTurn ? firstWord(normalizeAck(this.lastAgentLine())) : undefined,
+    });
+    if (verdict.line) this.lastAcknowledgment = normalizeAck(verdict.line);
+    return verdict;
+  }
+
+  // The goals Claude may word next, in the order the code asks them, from the current step on.
+  // Each says when the code asks it; the read-back is listed so Claude knows to leave it to the code.
+  private goalsAhead(): GoalPrompt[] {
+    const from = GOAL_ORDER.indexOf(this.step);
+    if (from < 0) return [];
+    return GOAL_ORDER.slice(from)
+      .filter((step) => step === this.step || STILL_OPEN[step](this))
+      .map((step) => ({ goal: step, question: ASKABLE.has(step) ? QUESTIONS[step](this) : "", when: GOAL_WHEN[step], scripted: !ASKABLE.has(step) }));
   }
 
   private freshReply(text: string) {
@@ -503,6 +557,7 @@ export class Conversation {
       stage: this.step,
       outline: OUTLINE[this.step],
       question: this.question(),
+      goals: this.goalsAhead(),
       record: this.record,
       recentTurns: this.history.slice(-HISTORY_TURNS),
       utterance,
@@ -593,12 +648,14 @@ export class Conversation {
     this.step = step;
   }
 
-  // Give up on a step after two tries rather than trap the resident in a loop.
+  // Give up on a step after two tries rather than trap the resident in a loop. "I don't know" has no
+  // better answer to wait for, so it moves on at once.
   private retryOr(fallback: Step): Transition {
-    return this.triesOnStep + 1 >= MAX_TRIES_PER_STEP ? { step: fallback } : { step: this.step };
+    return this.triesOnStep + 1 >= MAX_TRIES_PER_STEP || this.unsureThisTurn ? { step: fallback } : { step: this.step };
   }
 
   private advance(heard: Interpretation): Transition {
+    this.unsureThisTurn = heard.unsure === true;
     return STEP_HANDLERS[this.step](this, heard);
   }
 
@@ -638,10 +695,11 @@ export class Conversation {
     return this.retryOr("household");
   }
 
+  // "Nobody" answers "Do you have a car or someone who can drive you out?" with a no.
   hasCar(heard: Interpretation): Transition {
-    if (this.record.hasCar === undefined && heard.answer && heard.answer !== "unclear") {
-      this.applyUpdates({ hasCar: heard.answer === "yes" }, { hasCar: 0.8 });
-    }
+    const nobody = NOBODY.test(this.lastResidentLine()) ? "no" : null;
+    const answer = heard.answer && heard.answer !== "unclear" ? heard.answer : nobody;
+    if (this.record.hasCar === undefined && answer) this.applyUpdates({ hasCar: answer === "yes" }, { hasCar: 0.8 });
     if (this.record.hasCar === undefined) return this.retryOr("household");
     return { step: this.afterCanLeave() };
   }
@@ -925,6 +983,41 @@ const MAX_ASKS_WITHOUT_ANSWER = 2;
 const UNSURE = /^\s*(i don'?t know|i'?m not sure|not sure|no s[eé]\b|no estoy segur)/i;
 const GOODBYE = /bye|adi[oó]s|chao|hasta luego|hang up|colg|再见|안녕|tạm biệt|paalam|до свидания|さようなら|失礼/i;
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+const NO_ASK: AskVerdict = { line: null, blocked: false };
+const NO_ACK = { text: "", blocked: false, isEcho: false };
+
+// The steps Claude may word. The address is said back only from what the record holds; the
+// read-back, the fix question, hold and the goodbye stay templates.
+const ASKABLE = new Set<Step>(["ask_address", "confirm_address", "can_leave", "has_car", "household", "needs", "chair_kind", "assistance", "neighbor"]);
+const GOAL_ORDER: Step[] = ["ask_address", "confirm_address", "can_leave", "has_car", "household", "needs", "chair_kind", "assistance", "readback", "neighbor"];
+const NEEDS_A_RIDE = "only if canLeave is no or unsure, or hasCar is false";
+const GOAL_WHEN: Partial<Record<Step, string>> = {
+  confirm_address: "once they give an address with a house number",
+  can_leave: "once the address is confirmed",
+  has_car: "only if canLeave is yes",
+  household: NEEDS_A_RIDE,
+  needs: NEEDS_A_RIDE,
+  chair_kind: "only if mobility is manual_wheelchair and they didn't say whether it has a motor",
+  assistance: "only if mobility is walker, a wheelchair or bedbound",
+  readback: "next once every goal above whose condition holds is answered",
+};
+// Whether a later goal is still to be asked, from the record before this answer.
+const STILL_OPEN: Record<Step, (conversation: Conversation) => boolean> = {
+  ask_address: () => false,
+  confirm_address: () => true,
+  can_leave: (c) => c.record.canLeave === undefined,
+  has_car: (c) => c.record.hasCar === undefined && c.record.canLeave !== "no",
+  household: (c) => c.record.peopleCount === undefined,
+  needs: (c) => c.record.mobility === undefined,
+  chair_kind: (c) => c.record.mobility === undefined || c.record.mobility === "manual_wheelchair",
+  assistance: (c) => c.record.assistanceRequired === undefined,
+  readback: () => true,
+  fix: () => false,
+  neighbor: () => true,
+  hold: () => false,
+  done: () => false,
+};
 
 // Chinese and Japanese have no spaces, so "我会死吗" counted as one word and a caller asking
 // whether they would die got silence on hold. There, brief is "嗯", "好的" or "谢谢".

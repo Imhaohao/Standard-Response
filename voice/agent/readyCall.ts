@@ -1,5 +1,7 @@
 import type { FunctionArgs } from "convex/server";
 import type { api } from "../../convex/_generated/api";
+import { NOBODY } from "./answerPatterns";
+import { checkAsk, GoalPrompt } from "./askLine";
 import { CallFlow, silentTurn } from "./callFlow";
 import type { AgentTurn } from "./conversation";
 import { guardAcknowledgment } from "./honesty";
@@ -17,6 +19,7 @@ import { Language, LINES } from "./script";
 // The Ready check census call, made before any warning. It asks who lives in the home, what help
 // they'd need getting out, where that person sleeps, care needs, and how they'd leave, then saves
 // the profile through `ready:saveFromCall`. There is no ride talk: nothing is promised or booked.
+// Code picks each question; Claude may word it (askLine.ts), and the templates below are the fallback.
 
 export type ReadyProfileArgs = Omit<FunctionArgs<typeof api.ready.saveFromCall>, "householdId">;
 
@@ -52,6 +55,24 @@ type ReadyLines = {
   helperPlan: (name: string | undefined) => string;
   needsRide: string;
   addressNote: (address: string) => string;
+  // Each question again in other words, so a resident asked twice never hears the same sentence.
+  askAgain: {
+    intro: string;
+    confirmAddress: (address: string) => string;
+    askAddress: string;
+    people: string;
+    needs: string;
+    assistance: string;
+    bedroom: string;
+    care: string;
+    exitPlan: string;
+    helper: string;
+    helperPhone: (name: string) => string;
+    confirmPhone: (spokenDigits: string) => string;
+    note: string;
+    readback: string;
+    fix: string;
+  };
 };
 
 const EN_READY: ReadyLines = {
@@ -93,6 +114,23 @@ const EN_READY: ReadyLines = {
   helperPlan: (name) => `${name ?? "someone"} would pick you up`,
   needsRide: "you'd need a ride",
   addressNote: (address) => `Address given on the call: ${address}`,
+  askAgain: {
+    intro: "Do you have two minutes to go over this now?",
+    confirmAddress: (address) => `Just to check: is ${address} the home's address?`,
+    askAddress: "Can you tell me the street address of the home?",
+    people: "Counting yourself, how many people live in the home? Any dogs, cats or other pets?",
+    needs: "Does anyone there have trouble walking, use a wheelchair, or need oxygen or dialysis?",
+    assistance: "Could they get out with one person helping, or would it take two people to lift them?",
+    bedroom: "Which floor is that person's bedroom on, and is it at the front or the back of the house?",
+    care: "Is anyone hard of hearing or low vision, or forgetful? Does anyone rely on a medical device that plugs in, or a service animal?",
+    exitPlan: "Say you had to leave in a hurry: would you drive, would a friend or family member come for you, or would you need a ride from us?",
+    helper: "Is there a friend, relative or neighbor who would drive you out? What's their phone number?",
+    helperPhone: (name) => `What number should we call to reach ${name}?`,
+    confirmPhone: (spokenDigits) => `Just to check, the number is ${spokenDigits}?`,
+    note: "Anything that would help firefighters get in, like a gate code or where a spare key is?",
+    readback: "Did I get all of that right?",
+    fix: "Tell me the part that's wrong, and I'll change it.",
+  },
 };
 
 const ES_READY: ReadyLines = {
@@ -134,6 +172,23 @@ const ES_READY: ReadyLines = {
   helperPlan: (name) => `${name ?? "alguien"} pasaría por usted`,
   needsRide: "necesitaría transporte",
   addressNote: (address) => `Dirección dada en la llamada: ${address}`,
+  askAgain: {
+    intro: "¿Tiene dos minutos para repasar esto ahora?",
+    confirmAddress: (address) => `Solo para confirmar: ¿la dirección de la casa es ${address}?`,
+    askAddress: "¿Me puede decir la dirección de la casa?",
+    people: "Contándole a usted, ¿cuántas personas viven en la casa? ¿Algún perro, gato u otra mascota?",
+    needs: "¿Alguien ahí tiene dificultad para caminar, usa silla de ruedas, o necesita oxígeno o diálisis?",
+    assistance: "¿Podría salir con una persona que le ayude, o harían falta dos personas para levantarle?",
+    bedroom: "¿En qué piso está el cuarto de esa persona, y es al frente o atrás de la casa?",
+    care: "¿Alguien oye poco, ve poco o tiene problemas de memoria? ¿Alguien depende de un aparato médico que se enchufa, o tiene un animal de servicio?",
+    exitPlan: "Si tuviera que salir de prisa, ¿manejaría usted, vendría por usted un familiar o amigo, o necesitaría transporte de nosotros?",
+    helper: "¿Hay un amigo, familiar o vecino que le sacaría en su carro? ¿Cuál es su número de teléfono?",
+    helperPhone: (name) => `¿A qué número llamamos para hablar con ${name}?`,
+    confirmPhone: (spokenDigits) => `Solo para confirmar, ¿el número es ${spokenDigits}?`,
+    note: "¿Hay algo que ayude a los bomberos a entrar, como el código de una reja o dónde hay una llave?",
+    readback: "¿Anoté todo bien?",
+    fix: "Dígame qué parte está mal y la cambio.",
+  },
 };
 
 export const READY_LINES: Partial<Record<Language, ReadyLines>> & { en: ReadyLines } = { en: EN_READY, es: ES_READY };
@@ -176,7 +231,8 @@ type Step =
   | "done";
 
 // `progress` marks a partial answer (a name before the number) so it doesn't use up a try.
-type Transition = { step: Step; lines?: string[]; progress?: boolean };
+// `retry` asks the same question again, in other words.
+type Transition = { step: Step; lines?: string[]; progress?: boolean; retry?: boolean };
 
 const MAX_TRIES_PER_STEP = 2;
 const MAX_READBACKS = 2;
@@ -207,6 +263,7 @@ export class ReadyCall implements CallFlow {
   private readbacks = 0;
   private phoneRejections = 0;
   private changedThisTurn = false;
+  private unsureThisTurn = false;
   private declined = false;
   // Whether we've asked if a wheelchair has a motor: "wheelchair" alone doesn't tell a crew or a
   // neighbor whether it's a 400-pound battery chair.
@@ -234,6 +291,20 @@ export class ReadyCall implements CallFlow {
 
   question(): string {
     return QUESTIONS[this.step](this);
+  }
+
+  questionAgain(): string {
+    return QUESTIONS_AGAIN[this.step](this);
+  }
+
+  // The question again in other words, or as first put when the rephrasing was the last thing said.
+  private askAgain() {
+    const again = this.questionAgain();
+    return this.lastAgentLine().includes(again) ? this.question() : again;
+  }
+
+  private lastAgentLine() {
+    return this.history.findLast((line) => line.speaker === "agent")?.text ?? "";
   }
 
   endHold(): AgentTurn {
@@ -271,20 +342,30 @@ export class ReadyCall implements CallFlow {
 
   private act(utterance: string, heard: ReadyHeard | null): AgentTurn {
     this.history.push({ speaker: "resident", text: utterance });
-    if (!heard) return this.say("", [LINES[this.language].repeatPrompt, this.question()]);
+    if (!heard) return this.say("", [LINES[this.language].repeatPrompt, this.askAgain()]);
     if (!heard.addressedToAgent && !heard.emergency) return this.ignore();
     const asides = this.asidesFor(heard);
     if (heard.wantsRepeat) return this.say("", [...asides, this.question()]);
     if (heard.wantsToEnd) return this.endEarly(asides);
-    return this.advance(heard, asides);
+    return this.advance(this.withNobody(heard, utterance), asides);
+  }
+
+  // "Nobody, nobody will." to the helper question set no field, so the same question came back four
+  // times. Nobody to pick them up is an answer: they'd need a ride.
+  private withNobody(heard: ReadyHeard, utterance: string): ReadyHeard {
+    const { exitPlan, helperName, helperPhone } = heard.updates;
+    const asked = this.step === "exit_plan" || this.step === "helper";
+    if (!asked || !NOBODY.test(utterance) || helperName || helperPhone || (exitPlan && exitPlan !== "helper")) return heard;
+    return { ...heard, updates: { ...heard.updates, exitPlan: "needs_ride" } };
   }
 
   private advance(heard: ReadyHeard, asides: string[]): AgentTurn {
     this.apply(heard.updates);
+    this.unsureThisTurn = heard.unsure === true;
     const transition = STEP_HANDLERS[this.step](this, heard);
     this.moveTo(transition);
     if (this.done && !this.declined) this.save();
-    return this.reply(heard, [...asides, ...(transition.lines ?? [])]);
+    return this.reply(heard, transition, asides);
   }
 
   // Said before the next question without changing where the call is.
@@ -293,14 +374,51 @@ export class ReadyCall implements CallFlow {
     return heard.asksAboutRide ? [...emergency, this.lines.noRideToday] : emergency;
   }
 
-  private reply(heard: ReadyHeard, extra: string[]): AgentTurn {
-    const ack = this.done ? "" : guardAcknowledgment(heard.acknowledgment, "none", this.language).text;
-    return this.say(ack, [...extra, ...this.closingLines()]);
+  // Claude's question carries its own acknowledgment, so the separate ack isn't said with it. A
+  // question asked again is never the same sentence twice in a row.
+  private reply(heard: ReadyHeard, transition: Transition, asides: string[]): AgentTurn {
+    const extra = [...asides, ...(transition.lines ?? [])];
+    if (this.done) return this.say("", [...extra, ...(this.declined ? [] : [this.lines.goodbye])]);
+    const asked = extra.length === 0 ? this.claudeQuestion(heard) : null;
+    if (asked) return this.say("", [asked]);
+    if (transition.retry) return this.say("", [...extra, this.lines.sorry, this.askAgain()]);
+    const askedLastTurn = this.lastAgentLine().includes(this.question());
+    return this.say(this.freshAcknowledgment(heard), [...extra, askedLastTurn ? this.askAgain() : this.question()]);
   }
 
-  private closingLines() {
-    if (!this.done) return [this.question()];
-    return this.declined ? [] : [this.lines.goodbye];
+  // An opener said already ("Okay, ..." after "Okay, ...", or a second "Okay" in the call) is
+  // dropped and the rest kept; with nothing after it, nothing is said.
+  private freshAcknowledgment(heard: ReadyHeard) {
+    const ack = guardAcknowledgment(heard.acknowledgment, "none", this.language).text;
+    const opener = firstWord(ack);
+    const agentLines = this.history.filter((line) => line.speaker === "agent").map((line) => firstWord(line.text));
+    const repeated = opener === firstWord(this.lastAgentLine()) || (OKAY.test(opener) && agentLines.some((word) => OKAY.test(word)));
+    if (/\bgot it\b/i.test(ack)) return "";
+    if (!repeated) return ack;
+    const rest = ack.replace(/^\S+?[,.!]\s+/u, "");
+    return rest === ack ? "" : capitalize(rest);
+  }
+
+  // Claude's wording of the step the code just landed on, or null for the template.
+  private claudeQuestion(heard: ReadyHeard) {
+    if (!ASKABLE.has(this.step)) return null;
+    return checkAsk(heard.ask, {
+      goal: this.step,
+      templates: [this.question(), this.questionAgain()],
+      language: this.language,
+      heldDigits: this.step === "confirm_address" ? this.options.addressOnFile : undefined,
+      said: this.history.filter((line) => line.speaker === "agent").map((line) => line.text),
+      opener: firstWord(this.lastAgentLine()),
+    }).line;
+  }
+
+  // The goals Claude may word next, in the order the code asks them, from the current step on.
+  private goalsAhead(): GoalPrompt[] {
+    const from = this.step === "intro" ? 0 : GOAL_ORDER.indexOf(this.step);
+    if (from < 0) return [];
+    return GOAL_ORDER.slice(from)
+      .filter((step) => step === this.step || STILL_OPEN[step](this))
+      .map((step) => ({ goal: step, question: ASKABLE.has(step) ? QUESTIONS[step](this) : "", when: GOAL_WHEN[step], scripted: !ASKABLE.has(step) }));
   }
 
   private endEarly(asides: string[]): AgentTurn {
@@ -325,10 +443,11 @@ export class ReadyCall implements CallFlow {
     return this.triesOnStep + 1 < MAX_TRIES_PER_STEP;
   }
 
-  // Give up on a step after two tries rather than trap the resident in a loop.
+  // Give up on a step after two tries rather than trap the resident in a loop. "I don't know" has no
+  // better answer to wait for, so it moves on at once.
   retryOr(fallback: Step): Transition {
-    if (!this.triesOnStepLeft()) return { step: fallback };
-    return { step: this.step, lines: [this.lines.sorry] };
+    if (!this.triesOnStepLeft() || this.unsureThisTurn) return { step: fallback };
+    return { step: this.step, retry: true };
   }
 
   get changed() {
@@ -399,6 +518,10 @@ export class ReadyCall implements CallFlow {
     return this.lines.confirmAddress(this.options.addressOnFile ?? "");
   }
 
+  get addressOnFile() {
+    return this.options.addressOnFile;
+  }
+
   phoneQuestion() {
     const digits = spokenDigits(this.answers.helperPhone ?? "");
     const name = this.answers.helperName;
@@ -420,6 +543,7 @@ export class ReadyCall implements CallFlow {
       language: this.language,
       step: this.step,
       question: this.question(),
+      goals: this.goalsAhead(),
       answers: { ...this.answers },
       recentTurns: this.history.slice(-HISTORY_TURNS),
       utterance,
@@ -438,6 +562,8 @@ export class ReadyCall implements CallFlow {
 }
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const OKAY = /^(okay|ok|vale)$/;
+const firstWord = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, "").trim().split(" ")[0];
 
 function needsParts(answers: ReadyUpdates, language: Language) {
   const lines = LINES[language];
@@ -507,7 +633,7 @@ type Handler = (call: ReadyCall, heard: ReadyHeard) => Transition;
 const intro: Handler = (call, heard) => {
   if (heard.answer === "yes" || call.changed) return { step: call.firstQuestion() };
   if (heard.answer === "no") return call.decline();
-  return call.triesOnStepLeft() ? { step: "intro", lines: [call.readyLines.sorry] } : call.decline();
+  return call.triesOnStepLeft() ? { step: "intro", retry: true } : call.decline();
 };
 
 const confirmAddress: Handler = (call, heard) => {
@@ -534,7 +660,7 @@ const chairKind: Handler = (call, heard) => {
     call.answers = { ...call.answers, mobility: "power_wheelchair" };
   }
   const settled = heard.answer === "yes" || heard.answer === "no" || call.answers.mobility !== "manual_wheelchair";
-  if (!settled && call.triesOnStepLeft()) return { step: "chair_kind", lines: [call.readyLines.sorry] };
+  if (!settled && call.triesOnStepLeft()) return { step: "chair_kind", retry: true };
   call.chairKindAsked = true;
   return { step: call.afterNeeds() };
 };
@@ -581,7 +707,7 @@ const readback: Handler = (call, heard) => {
   if (call.readbackDone()) return { step: "done" };
   if (call.changed) return { step: "readback" };
   if (heard.answer === "no") return { step: "fix" };
-  return heard.answer === "yes" ? { step: "done" } : { step: "readback" };
+  return heard.answer === "yes" ? { step: "done" } : { step: "readback", retry: true };
 };
 
 const fix: Handler = (call) => (call.changed ? { step: "readback" } : call.retryOr("done"));
@@ -622,4 +748,57 @@ const QUESTIONS: Record<Step, (call: ReadyCall) => string> = {
   readback: (call) => call.readbackQuestion(),
   fix: (call) => call.readyLines.whatToFix,
   done: (call) => call.readyLines.goodbye,
+};
+
+const QUESTIONS_AGAIN: Record<Step, (call: ReadyCall) => string> = {
+  intro: (call) => call.readyLines.askAgain.intro,
+  confirm_address: (call) => call.readyLines.askAgain.confirmAddress(call.addressOnFile ?? ""),
+  ask_address: (call) => call.readyLines.askAgain.askAddress,
+  people: (call) => call.readyLines.askAgain.people,
+  needs: (call) => call.readyLines.askAgain.needs,
+  chair_kind: (call) => LINES[call.language].askAgain.chairKind,
+  assistance: (call) => call.readyLines.askAgain.assistance,
+  bedroom: (call) => call.readyLines.askAgain.bedroom,
+  care: (call) => call.readyLines.askAgain.care,
+  exit_plan: (call) => call.readyLines.askAgain.exitPlan,
+  helper: (call) => (call.answers.helperName ? call.readyLines.askAgain.helperPhone(call.answers.helperName) : call.readyLines.askAgain.helper),
+  confirm_phone: (call) => call.readyLines.askAgain.confirmPhone(spokenDigits(call.answers.helperPhone ?? "")),
+  note: (call) => call.readyLines.askAgain.note,
+  readback: (call) => call.readyLines.askAgain.readback,
+  fix: (call) => call.readyLines.askAgain.fix,
+  done: (call) => call.readyLines.goodbye,
+};
+
+// The steps Claude may word. The intro, the phone read-back, the read-back and the goodbye stay
+// templates: they say back the record or what the call is.
+const ASKABLE = new Set<Step>(["confirm_address", "ask_address", "people", "needs", "chair_kind", "assistance", "bedroom", "care", "exit_plan", "helper", "note"]);
+const GOAL_ORDER: Step[] = ["confirm_address", "ask_address", "people", "needs", "chair_kind", "assistance", "bedroom", "care", "exit_plan", "helper", "confirm_phone", "note", "readback"];
+const GOAL_WHEN: Partial<Record<Step, string>> = {
+  confirm_address: "right after they agree to the call",
+  ask_address: "only if they say the address on file is wrong",
+  chair_kind: "only if mobility is manual_wheelchair and they didn't say whether it has a motor",
+  assistance: "only if mobility is walker, a wheelchair or bedbound",
+  bedroom: "only if mobility is walker, a wheelchair or bedbound, medical is set, or assistanceRequired isn't none",
+  helper: "only if exitPlan is helper and there is no helperPhone yet; asks for that person's phone number",
+  confirm_phone: "once helperPhone is given",
+  readback: "after the note question",
+};
+// Whether a later goal is still to be asked, from the answers before this one.
+const STILL_OPEN: Record<Step, (call: ReadyCall) => boolean> = {
+  intro: () => false,
+  confirm_address: (call) => call.step === "intro" && call.addressOnFile !== undefined,
+  ask_address: (call) => call.step === "confirm_address" || (call.step === "intro" && call.addressOnFile === undefined),
+  people: (call) => call.answers.peopleCount === undefined,
+  needs: (call) => call.answers.mobility === undefined && call.answers.medical === undefined,
+  chair_kind: (call) => !call.chairKindAsked && (call.answers.mobility === undefined || call.answers.mobility === "manual_wheelchair"),
+  assistance: (call) => call.answers.assistanceRequired === undefined,
+  bedroom: (call) => call.answers.bedroomFloor === undefined,
+  care: (call) => call.answers.care === undefined,
+  exit_plan: (call) => call.answers.exitPlan === undefined,
+  helper: (call) => call.answers.exitPlan !== "own_car" && call.answers.exitPlan !== "needs_ride" && !call.answers.helperPhone,
+  confirm_phone: (call) => call.answers.exitPlan !== "own_car" && call.answers.exitPlan !== "needs_ride",
+  note: (call) => call.answers.note === undefined,
+  readback: () => true,
+  fix: () => false,
+  done: () => false,
 };

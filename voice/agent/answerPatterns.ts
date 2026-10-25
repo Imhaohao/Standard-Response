@@ -9,6 +9,9 @@ import type { Language } from "./script";
 // written from the answer space and checked against the persona phrasings
 // (modeling/rollcall_d/resident.py), not from the voice exam's calls.
 
+// Nobody to drive them out or pick them up: "nobody", "no one", "I don't have anyone", "nadie".
+export const NOBODY = /\b(nobody|no ?-?one|(i )?(don'?t|do not) have any(one|body)|i have no one|nadie|no tengo a nadie)\b/i;
+
 export type Parsed = { updates: AgentRecord; answer?: Answer; saysChairKind?: boolean };
 type Pattern = { match: RegExp; read: (groups: Record<string, string | undefined>) => Parsed };
 

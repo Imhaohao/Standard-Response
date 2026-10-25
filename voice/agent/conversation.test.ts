@@ -598,3 +598,85 @@ describe("a home with a Ready check profile on file", () => {
     assert.equal(conversation.step, "needs");
   });
 });
+
+// Goals, not a script: code picks the question, Claude may word it, and code checks the words.
+describe("Claude's wording of the next question", () => {
+  const household = "You can't leave on your own, alright. Who's at home with you right now, and any pets?";
+  const cantLeave = (ask: Interpretation["ask"]) => heard({ answer: "no", updates: { canLeave: "no" }, ask });
+
+  it("is spoken when Claude aimed it at the step the code lands on, with no second acknowledgment", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("no, I can't", cantLeave({ goal: "household", line: household }));
+    assert.equal(conversation.step, "household");
+    assert.deepEqual(turn.sentences, [household]);
+    assert.equal(turn.acknowledgment, "");
+  });
+
+  it("falls back to the template when Claude aimed at a different goal", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("no, I can't", cantLeave({ goal: "needs", line: "Alright. Does anyone there use a walker or a wheelchair?" }));
+    assert.equal(turn.sentences.at(-1), EN.askHousehold);
+    assert.equal(turn.acknowledgment, "You can't leave on your own.");
+  });
+
+  it("drops a line that implies help is coming while no driver has accepted", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("no, I can't", cantLeave({ goal: "household", line: "Help is on the way. How many people are with you?" }));
+    assert.equal(turn.sentences.at(-1), EN.askHousehold);
+    assert.ok(!turn.sentences.some((line) => /on the way/.test(line)));
+    assert.equal(turn.guardBlocked, true);
+  });
+
+  it("drops a line that also asks about another goal", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("no, I can't", cantLeave({ goal: "household", line: "Alright. How many of you are there, and does anyone use a wheelchair?" }));
+    assert.equal(turn.sentences.at(-1), EN.askHousehold);
+  });
+
+  it("drops a line in another language than the call's", () => {
+    const { conversation } = atCanLeave("es");
+    const ask = { goal: "household", line: "Alright. How many people are with you right now?" };
+    const turn = conversation.respond("no puedo", heard({ answer: "no", updates: { canLeave: "no" }, spokenLanguage: "es", ask }));
+    assert.equal(turn.sentences.at(-1), LINES.es.askHousehold);
+  });
+
+  it("says back only the digits of the address the record holds", () => {
+    const given = heard({ answer: "no", updates: { address: "2585 Catherine Road" } });
+    const right = call().conversation.respond("no, I'm at 2585 Catherine Road", { ...given, ask: { goal: "confirm_address", line: "Thanks. So that's 2585 Catherine Road?" } });
+    assert.deepEqual(right.sentences, ["Thanks. So that's 2585 Catherine Road?"]);
+    const wrong = call().conversation.respond("no, I'm at 2585 Catherine Road", { ...given, ask: { goal: "confirm_address", line: "Thanks. So that's 2586 Catherine Road?" } });
+    assert.equal(wrong.sentences.at(-1), EN.confirmAddress("2585 Catherine Road"));
+  });
+
+  it("never asks a goal again in the same words", () => {
+    const { conversation } = atCanLeave();
+    const turn = conversation.respond("hmm", heard({ answer: "unclear", ask: { goal: "can_leave", line: EN.askCanLeave } }));
+    assert.equal(conversation.step, "can_leave");
+    assert.equal(turn.sentences.at(-1), EN.askAgain.canLeave);
+  });
+
+  it("rewords a question left open by a correction to something else", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("me and my husband", heard({ updates: { peopleCount: 2 } }));
+    const turn = conversation.respond("wait, he's not here, it's just me", heard({ updates: { peopleCount: 1 } }));
+    assert.equal(conversation.step, "needs");
+    assert.equal(turn.sentences.at(-1), EN.askAgain.needs);
+  });
+
+  it("takes \"nobody\" to the car question as no car", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("yes we can", heard({ answer: "yes", updates: { canLeave: "yes" } }));
+    assert.equal(conversation.step, "has_car");
+    conversation.respond("Nobody, I'd need you to come get me.", heard());
+    assert.equal(conversation.record.hasCar, false);
+    assert.equal(conversation.step, "household");
+  });
+
+  it("moves on at once when the resident doesn't know", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no", heard({ answer: "no", updates: { canLeave: "no" } }));
+    conversation.respond("I'm not sure", heard({ unsure: true }));
+    assert.equal(conversation.step, "needs");
+  });
+});

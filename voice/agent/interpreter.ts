@@ -8,9 +8,11 @@ import { currentHazard } from "../hazard";
 import { Guidance, guidanceText } from "../knowledge/bank";
 import { recall } from "../knowledge/moss";
 import type { ApprovedMatch } from "./approvedAnswers";
+import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
 
 // Claude's whole job on a call: turn one messy utterance into structured changes plus a short
-// acknowledgment. It never decides what to ask next or what may be promised; the state machine does.
+// acknowledgment, and word the next question. It never decides what to ask next or what may be
+// promised; the state machine does, and speaks Claude's question only for the goal it chose (askLine.ts).
 
 export type Emergency = "none" | "medical" | HazardEscalation;
 export type Answer = "yes" | "no" | "unclear";
@@ -47,6 +49,10 @@ export type Interpretation = {
   reply: string;
   // Set when reply holds an approved answer Moss matched, rather than Claude's words.
   approvedAnswer?: ApprovedMatch;
+  // The next question in Claude's words, for the goal Claude expects the code to ask about.
+  ask?: Ask;
+  // "I don't know", "I'm not sure": the question has no better answer to wait for.
+  unsure?: boolean;
 };
 
 export type TurnContext = {
@@ -55,6 +61,8 @@ export type TurnContext = {
   // Where the call is in the outline (conversation.ts OUTLINE) and what that stage is for.
   outline: { stage: string; goal: string };
   question: string;
+  // The goals the code may ask about after this answer, current first.
+  goals?: GoalPrompt[];
   record: AgentRecord;
   recentTurns: { speaker: "agent" | "resident"; text: string }[];
   utterance: string;
@@ -75,7 +83,7 @@ const objectOf = (properties: Record<string, object>) => ({
 // as both medical and flames, and the wrong escalation won.
 // Names say what the resident does: a bare "repeat" was read as "the resident is repeating
 // themselves" and held a question for eleven turns, and "ends" hung up on "I won't leave without my son".
-const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind"] as const;
+const CONDITIONS = ["asks_ride", "asks_repeat", "not_to_agent", "goodbye", "wants_time", "asks_what_to_do", "says_chair_kind", "says_unsure"] as const;
 type Condition = (typeof CONDITIONS)[number];
 const GUESSED_CONFIDENCE = 0.5;
 const HEARD_CONFIDENCE = 0.9;
@@ -95,6 +103,7 @@ const outputSchemaFor = (kind: Hazard) => ({
     ack: { type: "string" },
     reply: { type: "string" },
     policy_question: { type: "string" },
+    ask: ASK_SCHEMA,
   }),
   required: ["set"],
 });
@@ -140,7 +149,7 @@ const numberedPrinciples = CALL_TAKER_PRINCIPLES.map((principle, index) => `${in
 
 const systemFor = (kind: Hazard) => `You interpret one thing a resident just said on an evacuation phone call run by a paratransit agency. ${HAZARD_CONTEXT[kind].situation} You return structured data only: set always, and every other key only when it has something to say (leave it out rather than write none, an empty list or an empty string; language only when it isn't the call language).
 
-How the agent talks. The code picks the next question; you write only the acknowledgment and the reply, and they follow these principles, which come from 911 call-taker, crisis-line and evacuation-warning practice:
+How the agent talks. The code picks the next goal and owns every line about a ride, status, safety, the read-back and the goodbye; you write the acknowledgment, the reply and the next question's wording (ask), and they follow these principles, which come from 911 call-taker, crisis-line and evacuation-warning practice:
 ${numberedPrinciples}
 
 The household record has these fields and allowed values:
@@ -161,6 +170,7 @@ Rules for changes:
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
 - "They need a person to wheel them out", "someone has to push her chair", "my son helps me to the car", "I need help getting to the door" mean assistanceRequired one_person_assist: one helper. It is two_person_lift only when they say it takes two people or that they must be lifted or carried; a wheelchair, oxygen or several people in the home doesn't make it two.
 - Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure when the record has no canLeave yet; it never replaces a recorded no. Respect it and don't argue.
+- "Nobody", "no one", "I don't have anyone" or "you'd have to come get me" to the car question means hasCar=false.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure, and so is "I don't know" to the can-leave question, even with more said after it. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
 - mobility is the most limited of anyone in the home now. Mentioning someone less limited never lowers it: after "my son can't get out of bed", "I'm in the wheelchair" keeps bedbound.
 - An emergency in the same answer doesn't replace the answer: set the fields it gives as well.
@@ -179,13 +189,16 @@ Other outputs:
   - goodbye: they say goodbye, that they're hanging up, or that they need nothing else ("that's all, thanks", "okay bye"). A plain "okay", "thanks" or "okay, thank you" is not goodbye, and neither is refusing to leave ("I'm not leaving without my son").
   - wants_time: they ask the agent to wait a moment, or say they're going to check or ask someone first ("hold on", "one second", "let me ask my daughter", "let me think").
   - says_chair_kind: they say which kind of wheelchair it is: manual, one they or someone else pushes, or electric, powered, motorized or battery.
+  - says_unsure: they say they don't know or aren't sure, and give no answer to the question.
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
 - neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
 - feeling: when the resident sounds frightened, panicked, desperate or upset (pleading, asking anxiously whether anyone knows they are there, saying not to risk anyone for them), at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
 - ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists canLeave, hasCar, peopleCount, mobility, medical, assistanceRequired or pets, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("Alright, that's the address."). On hold, or when they plead or ask about the ride, reflect their words in a few words without any promise ("You need help fast.", "You want to know they know you're here."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
 - reply: when the resident asks the agent something or says something that isn't an answer to the agent's last question (why the agent needs to know, who is calling, what is going on, that they're scared or confused, that they won't leave without someone, whether the agent will stay on the line), one short, calm sentence of at most 20 words in the resident's language that responds to it directly, such as "It helps us match the right vehicle to your needs." or "This is 911, calling about the evacuation in Altadena." State only what this prompt and the agent's own earlier words say; never invent details about the hazard, roads, shelters, routes or orders. Never mention help, crews, vehicles, sending, plans or what dispatchers are doing: the code's status line is the only thing said about those. If you don't know, say so ("I don't know that."). Never give safety advice or directions of your own; the code's lines give the only advice. Never say you are marking, noting or recording anything. "Are we supposed to evacuate?" gets "If you can leave safely, leave now." (say a warning covers their street only if the agent's greeting said so). Never repeat sympathy the feeling already named. Name people only as the resident did ("he", "my son"); never guess who someone is. Don't ask a question, because the agent asks its next question itself. Empty string when they answered the question, asked about a ride (a fixed status message answers that), asked to repeat, asked the agent to wait, asked what to do or bring (asks_what_to_do), or when not_to_agent is listed. The ack's limits apply here too: never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number, and never repeat back a demand.
-- policy_question: when they ask whether they may bring or take something or someone along (pets, oxygen, medications, dialysis supplies, a wheelchair, walker, cane or scooter, papers, a caregiver or family member), what the shelter has, or whether the ride costs anything, that question as a short plain question in English in their own terms ("Can I bring my cat?", "Can my granddaughter come?", "Is there food at the shelter?"). Also when they ask whether to go back inside or back for someone or something, or to change a medicine dose or an oxygen setting ("Can I go back in for my cat?", "Should I go get my neighbor?", "Should I turn my oxygen up?"): the code has the agency's safety answer for those. Always English, never the language they spoke: "¿Puedo llevar a mi gato?" is "Can I bring my cat?" and "¿Cuánto cuesta?" is "How much does the ride cost?". Otherwise leave it out. When it is set and asks_what_to_do isn't listed, reply is "I don't know that." in their language; the code replaces it with the agency's approved answer when it has one.`;
+- policy_question: when they ask whether they may bring or take something or someone along (pets, oxygen, medications, dialysis supplies, a wheelchair, walker, cane or scooter, papers, a caregiver or family member), what the shelter has, or whether the ride costs anything, that question as a short plain question in English in their own terms ("Can I bring my cat?", "Can my granddaughter come?", "Is there food at the shelter?"). Also when they ask whether to go back inside or back for someone or something, or to change a medicine dose or an oxygen setting ("Can I go back in for my cat?", "Should I go get my neighbor?", "Should I turn my oxygen up?"): the code has the agency's safety answer for those. Always English, never the language they spoke: "¿Puedo llevar a mi gato?" is "Can I bring my cat?" and "¿Cuánto cuesta?" is "How much does the ride cost?". Otherwise leave it out. When it is set and asks_what_to_do isn't listed, reply is "I don't know that." in their language; the code replaces it with the agency's approved answer when it has one.
+${ASK_RULES}
+  - Never write ask for the read-back, a status, the hold or the goodbye; on this call never mention a ride at all.`;
 
 const forEachHazard = <T>(build: (kind: Hazard) => T) =>
   Object.fromEntries(HAZARDS.map((kind) => [kind, build(kind)])) as Record<Hazard, T>;
@@ -279,6 +292,8 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     acknowledgment: textOf(raw.ack),
     feeling: textOf(raw.feeling),
     reply: textOf(raw.reply),
+    ask: askFrom(raw.ask),
+    unsure: flags.has("says_unsure"),
   };
 }
 
@@ -290,6 +305,7 @@ function promptFor(turn: TurnContext, guidance: Guidance | null) {
     guidanceText(guidance),
     `Record so far: ${JSON.stringify(turn.record)}`,
     history ? `Recent turns:\n${history}` : "",
+    goalsText(turn.goals),
     `Agent's last question: ${turn.question}`,
     `Resident just said: ${turn.utterance}`,
   ]

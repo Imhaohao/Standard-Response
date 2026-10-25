@@ -1,12 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { env } from "../env";
+import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
 import type { Answer } from "./interpreter";
 import type { Language } from "./script";
 
 // Claude's job on a Ready check call: turn one answer into profile fields plus a short
-// acknowledgment. Nothing here is about a ride; there is no warning yet. readyCall.ts decides
-// what to ask next.
+// acknowledgment, and word the next question. Nothing here is about a ride; there is no warning
+// yet. readyCall.ts decides what to ask next and speaks Claude's wording only for that goal.
 
 type Household = Doc<"households">;
 type ReadyProfile = NonNullable<Household["ready"]>;
@@ -47,12 +48,18 @@ export type ReadyHeard = {
   wantsToEnd: boolean;
   addressedToAgent: boolean;
   acknowledgment: string;
+  // The next question in Claude's words, for the goal Claude expects the code to ask about.
+  ask?: Ask;
+  // "I don't know", "not sure": the question has no better answer to wait for.
+  unsure?: boolean;
 };
 
 export type ReadyTurnContext = {
   language: Language;
   step: string;
   question: string;
+  // The goals the code may ask about after this answer, current first.
+  goals?: GoalPrompt[];
   answers: Record<string, unknown>;
   recentTurns: { speaker: "agent" | "resident"; text: string }[];
   utterance: string;
@@ -130,13 +137,17 @@ Rules:
 - List a field only when this utterance gives or changes it. A correction to an earlier answer lists the new value.
 - When the question asks about mobility needs and they say nobody has any, list mobility walks and an empty medical (value "").
 - When the question asks about care needs and they say none, list care with value "".
-- answer: yes, no or unclear when the agent asked a yes-or-no question (including "is now okay?" and "is that right?"); null otherwise.
+- At the exit plan or helper question, "nobody", "no one", "I don't have anyone", "I'd need you to come get me" or "I don't know how I'd get out" mean exitPlan needs_ride, with no helper fields. Never leave the plan unset for those.
+- unsure: true when they say they don't know or aren't sure and give no answer to the question; the code then moves on instead of asking again.
+- answer: yes, no or unclear when the agent asked a yes-or-no question (including "is now okay?", "is that right?" and "is there anything...?"); null otherwise. "No", "nothing", "nope, nothing" and "not really" to "is there anything...?" are no.
 - emergency: true only if someone is hurt, can't breathe or is in danger right now.
 - asksAboutRide: true if they ask whether we will come get them or send someone.
 - wantsRepeat: true if they didn't hear or understand the question.
 - wantsToEnd: true if they say they have to go, don't want to continue, or say goodbye.
 - addressedToAgent: false for background noise, an animal, a TV, filler alone ("um"), or talk to someone else in the room. When false, list nothing.
-- acknowledgment: at most 6 words in the call language that show what you understood, such as "Okay, three people." or "Thanks, a walker." Never start with "Got it". Empty when addressedToAgent is false or nothing fits. Never promise a ride, help, a visit or a time. Never ask a question.`;
+- acknowledgment: at most 6 words in the call language that show what you understood, such as "Three of you, thanks." or "Mm, a walker." Vary the opening word from turn to turn and never start the way the agent's last turn did; say "Okay" at most once in a call, and never "Got it". Empty when addressedToAgent is false or nothing fits. Never promise a ride, help, a visit or a time. Never ask a question.
+${ASK_RULES}
+  - On this call "you'd need a ride from us, then" is fine to say back about the plan; it is a fact about them, not a promise. Say "firefighters", never "crew". Use null when you leave ask out.`;
 
 const OUTPUT_SCHEMA = {
   type: "object",
@@ -157,8 +168,10 @@ const OUTPUT_SCHEMA = {
     wantsToEnd: { type: "boolean" },
     addressedToAgent: { type: "boolean" },
     acknowledgment: { type: "string" },
+    unsure: { type: "boolean" },
+    ask: { anyOf: [ASK_SCHEMA, { type: "null" }] },
   },
-  required: ["changes", "answer", "emergency", "asksAboutRide", "wantsRepeat", "wantsToEnd", "addressedToAgent", "acknowledgment"],
+  required: ["changes", "answer", "emergency", "asksAboutRide", "wantsRepeat", "wantsToEnd", "addressedToAgent", "acknowledgment", "unsure", "ask"],
   additionalProperties: false,
 };
 
@@ -190,6 +203,8 @@ export function parseReadyHeard(json: string): ReadyHeard {
     wantsToEnd: raw.wantsToEnd === true,
     addressedToAgent: raw.addressedToAgent !== false,
     acknowledgment: typeof raw.acknowledgment === "string" ? raw.acknowledgment : "",
+    ask: askFrom(raw.ask),
+    unsure: raw.unsure === true,
   };
 }
 
@@ -199,6 +214,7 @@ function promptFor(turn: ReadyTurnContext) {
     `Call language: ${turn.language}. Current step: ${turn.step}.`,
     `Answers so far: ${JSON.stringify(turn.answers)}`,
     history ? `Recent turns:\n${history}` : "",
+    goalsText(turn.goals),
     `Agent's last question: ${turn.question}`,
     `Resident just said: ${turn.utterance}`,
   ]
