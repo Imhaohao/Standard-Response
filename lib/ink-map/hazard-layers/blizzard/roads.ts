@@ -94,6 +94,13 @@ function joined(a: ClosureWindow, b: ClosureWindow): ClosureWindow {
   return { closedAt: Math.min(a.closedAt, b.closedAt), reopensAt: Math.max(a.reopensAt, b.reopensAt) };
 }
 
+// The rules that cover each road, so a drawing can tell from closureStateKey alone which are shut.
+export function roadRules(data: InkMapData, rules: ClosureRule[]): number[][] {
+  return data.roads.map((road) => rules.flatMap((rule, index) => (ruleCovers(rule, road) ? [index] : [])));
+}
+
+export const closedUnder = (ruleIndices: number[], stateKey: string) => ruleIndices.some((index) => stateKey[index] === "1");
+
 export function roadWindows(data: InkMapData, rules: ClosureRule[]): ClosureWindow[] {
   return data.roads.map((road) => rules.reduce((window, rule) => (ruleCovers(rule, road) ? joined(window, rule.window) : window), NEVER_CLOSED));
 }
@@ -173,7 +180,7 @@ class SegmentGrid {
   }
 }
 
-const isStreet = (road: Road) => !road.tunnel && road.roadClass <= MOST_STREET_CLASS && road.path.length >= 2;
+export const isStreet = (road: Road) => !road.tunnel && road.roadClass <= MOST_STREET_CLASS && road.path.length >= 2;
 
 function streetGrid(data: InkMapData) {
   const grid = new SegmentGrid(40);

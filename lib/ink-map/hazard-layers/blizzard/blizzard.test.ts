@@ -38,13 +38,16 @@ describe("blizzard weather", () => {
     assert.ok(morning.snowfall > 0.7 && clearing.snowfall < morning.snowfall);
     // A south-west wind blows toward the north-east.
     assert.ok(morning.windToward[0] > 0 && morning.windToward[1] > 0);
-    assert.equal(morning.powerOutShare, 0);
+    assert.ok(evening.powerOutShare > morning.powerOutShare && evening.powerOutShare < 0.5);
   });
 
   it("darkens homes only when the scenario says how many lost power", () => {
     const series: BlizzardSeriesWithPower = { ...buffalo.series, power: [{ minutes: 0, shareOut: 0 }, { minutes: 600, shareOut: 0.2 }] };
     const withPower: Scenario = { ...buffalo, series };
     assert.ok(Math.abs(blizzardWeather(withPower, 300, BUFFALO).powerOutShare - 0.1) < 1e-9);
+    const unlit: BlizzardSeriesWithPower = { ...series, power: undefined };
+    const withoutPower: Scenario = { ...buffalo, series: unlit };
+    assert.equal(blizzardWeather(withoutPower, 300, BUFFALO).powerOutShare, 0);
   });
 
   it("is calm and lit without a blizzard scenario", () => {
