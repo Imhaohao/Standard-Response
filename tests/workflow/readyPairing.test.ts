@@ -62,8 +62,10 @@ describe("pairing at the Ready check", () => {
     expect(await dialed()).not.toContain(neighbor);
     await t.mutation(api.pickups.unanswered, { planId: pairing._id, role: "helper" });
 
-    // Once the neighbor's warning call has been tried, a separate pickup call may go out.
+    // While the neighbor's warning call rings or is live, it carries the question: no second call.
     const callId = await t.mutation(api.calls.start, { householdId: neighbor, direction: "outbound" });
+    expect((await t.query(api.pickups.callQueue, {}))[0].helperAwaitingCall).toBe(true);
+    // Once it has ended, a separate pickup call may go out.
     await t.mutation(api.calls.end, { callId, answered: true });
     expect((await t.query(api.pickups.callQueue, {}))[0].helperAwaitingCall).toBe(false);
 

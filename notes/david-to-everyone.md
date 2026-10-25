@@ -55,3 +55,8 @@ npm run apify:drill -- clear
 - It runs the real Actor on your machine, against the real Cal OES, CAL FIRE and Caltrans feeds for west Altadena, plus drill mode. It posts to `NEXT_PUBLIC_CONVEX_SITE_URL` with `APIFY_WEBHOOK_SECRET` from `.env.local`, and that value must match the backend's own `APIFY_WEBHOOK_SECRET`.
 - The activity feed says "Apify drill: road closed on Lincoln Avenue". To demo the change moment through Apify instead of the "Close this road" button, run `closure` at that step.
 - Checked against a local stand-in receiver: each run sends only what changed, and `clear` lifts the closure. Not yet run against a real backend, because I don't have the secret.
+
+## 2026-10-24 20:26
+
+- **Double calls to a helper:** `pickups:callQueue` `helperAwaitingCall` / `residentAwaitingCall` are now also true while that person's warning call is ringing or live (`callStatus: "in_call"`, under 15 minutes old). The voice server only registers someone as on a call once they answer, so while David's warning call was still ringing, the pickup runner saw him as free and rang him a second time.
+- **The voice server was crash-looping from 20:20 to about 20:25.** Fly release v31 shipped `voice/agent/interpreter.ts` with a merge-conflict marker at line 201. Please deploy Fly from a clean checkout of a commit (`git archive HEAD | tar -x -C <dir>`), not from a shared working tree, which can be mid-rebase. I'm redeploying from clean `main`.

@@ -343,12 +343,20 @@ const residentPart = (household: Doc<"households"> | null) => ({
   oxygen: household?.medical?.includes("oxygen") ?? false,
 });
 
-// This person's own warning call hasn't been tried yet tonight. Their pickup question waits for it,
-// so one call carries both (voice/phone/callSession.ts continues it on the same line).
-const awaitingWarningCall = (household: Doc<"households"> | null) =>
-  household !== null && !household.simulated && household.inZone && household.callStatus === "not_called" && household.attempts === 0;
+// A call row this old was dropped without ending (a server restart), so it no longer holds anyone.
+const STALE_CALL_MS = 15 * 60_000;
 
-const callRow = (plan: Plan, household: Doc<"households"> | null, helper: Doc<"households"> | null) => ({
+// This person's own warning call is still to come or still going: not tried yet tonight, or ringing
+// or live now. Their pickup question waits for it, so one call carries both (voice/phone/callSession.ts
+// continues it on the same line), and nobody is rung twice at once: the voice server only knows
+// someone is on a call once they've answered it.
+function awaitingWarningCall(household: Doc<"households"> | null, now: number) {
+  if (household === null || household.simulated || !household.inZone) return false;
+  if (household.callStatus === "not_called") return household.attempts === 0;
+  return household.callStatus === "in_call" && now - (household.lastAttemptAt ?? 0) < STALE_CALL_MS;
+}
+
+const callRow = (plan: Plan, household: Doc<"households"> | null, helper: Doc<"households"> | null, now: number) => ({
   _id: plan._id,
   householdId: plan.householdId,
   status: plan.status,
@@ -370,8 +378,8 @@ const callRow = (plan: Plan, household: Doc<"households"> | null, helper: Doc<"h
   residentNotice: plan.residentNotice,
   residentNoticeAttempts: plan.residentNoticeAttempts ?? 0,
   reason: plan.reason,
-  residentAwaitingCall: awaitingWarningCall(household),
-  helperAwaitingCall: awaitingWarningCall(helper),
+  residentAwaitingCall: awaitingWarningCall(household, now),
+  helperAwaitingCall: awaitingWarningCall(helper, now),
   ...residentPart(household),
 });
 
@@ -388,9 +396,10 @@ export const callQueue = query({
       ),
     );
     const real = lists.flat().filter((plan) => !plan.simulated && (isLive(plan) || owesNotice(plan)));
+    const now = await simNow(ctx);
     return await Promise.all(
       real.map(async (plan) =>
-        callRow(plan, await ctx.db.get("households", plan.householdId), plan.helperHouseholdId ? await ctx.db.get("households", plan.helperHouseholdId) : null),
+        callRow(plan, await ctx.db.get("households", plan.householdId), plan.helperHouseholdId ? await ctx.db.get("households", plan.helperHouseholdId) : null, now),
       ),
     );
   },
