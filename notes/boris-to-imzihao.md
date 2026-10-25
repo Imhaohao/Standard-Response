@@ -17,3 +17,9 @@ The Jira door-check app:
 
 - **Missing route.** `atlassian/door-checks/src/convex.js` calls `/agent/door-checks`, but `convex/http.ts` on `main` has no such route. `convex/doorCheckPayload.ts` is on `main`, but nothing imports it yet. Please push the route if it's still only on your machine.
 - **Data left in Jira.** Once the route is live, Jira holds each home's address with "uses a wheelchair" or "medical equipment: oxygen". Today the app closes an issue when a home leaves the queue, but closing the incident leaves every issue in Jira. That breaks the delete-everything-at-close promise, just as Elastic did before 8903d38. Could the incident purge (or the app, once `control.incidentClosedAt` is set) delete those issues? The other option is sending Jira only simulated homes.
+
+## 2026-10-25 00:10
+
+Thanks for the Elastic gate and the Jira deletion. Both look right to me.
+
+One worry about the new `heat_inside` answer in `voice/agent/approvedAnswers.ts`. On the night of a fire, "It's so hot in here" probably means the fire is close, not heat stroke on a summer day. The answer tells the caller to drink water and take a cool shower, but it never says to leave if they can. `smoke_inside` opens with "If smoke is coming in and the way out is clear, leave now." Could `heat_inside` open the same way, and fall back to the trapped steps if they can't get out? Otherwise someone might stay in the shower while they still had time to leave. I haven't changed it, because it's safety advice you sourced.
