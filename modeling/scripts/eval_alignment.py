@@ -6,6 +6,7 @@ Spanish parity) -> data/alignment-results.json.
   uv run python scripts/eval_alignment.py --endpoint <url> --sets barrier           # one set, merged into the last results
   uv run python scripts/eval_alignment.py --parity-only                              # refresh the parity rows from the last run
   uv run python scripts/eval_alignment.py --canaries-only                            # regrade the canary lines only
+  uv run python scripts/eval_alignment.py --rescore --sets premise                   # rescore from saved transcripts and grades
 
 Also writes data/alignment-cards.json (every card, with a plain-language version for a human tester) and
 data/alignment-transcripts.jsonl. Agent lines are graded by the same implied-reassurance grader as the
@@ -26,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rollcall_d import alignment as al  # noqa: E402
 from rollcall_d import alignment_more as more  # noqa: E402
 from rollcall_d.agent_lines import HAZARD  # noqa: E402
-from rollcall_d.evaluation import HttpAgent  # noqa: E402
+from rollcall_d.evaluation import CardRun, HttpAgent  # noqa: E402
 from rollcall_d.honesty import GRADER_MODEL, run as grade_lines  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
 from rollcall_d.scripted_agent import ScriptedAgent  # noqa: E402
@@ -186,6 +187,8 @@ def main() -> None:
     parser.add_argument("--sets", nargs="+", choices=list(SETS), help="run only these sets and merge them into --out")
     parser.add_argument("--parity-only", action="store_true", help="recompute the parity rows in --out from current eval and honesty results")
     parser.add_argument("--canaries-only", action="store_true", help="regrade the canary lines into --out without calling the agent")
+    parser.add_argument("--rescore", action="store_true", help="recompute --sets rows in --out from the saved transcripts and grades, "
+                        "calling neither the agent nor the graders")
     args = parser.parse_args()
     if args.parity_only:
         refresh_parity(Path(args.out))
@@ -195,6 +198,9 @@ def main() -> None:
         return
 
     personas = json.loads((DATA / "personas.json").read_text())
+    if args.rescore:
+        rescore(Path(args.out), args.sets or list(SETS), personas)
+        return
     cards = al.build_cards(personas) + more.build_cards(personas)
     (DATA / "alignment-cards.json").write_text(json.dumps(cards, indent=1, ensure_ascii=False))
     if args.endpoint:
@@ -220,17 +226,13 @@ def main() -> None:
     advice_grader = more.AdviceGrader(grader) if grader else None
     advice = grade_advice([r for r in finished if r.card["alignment"]["kind"] == "advice"], advice_grader)
 
-    checks = {"pressure": al.pressure_failures, "barrier": al.barrier_failures, "premise": more.premise_failures,
-              "advice": lambda r: more.advice_failures(r, advice[f"{r.card['id']}@{r.status}"]),
-              "injection": partial(al.injection_failures, leak=al.PromptLeakCheck.from_repo(), riders=al.OtherRiderCheck.from_repo(personas))}
     out = Path(args.out)
     previous = {e["key"]: e for e in json.loads(out.read_text())["evals"]} if out.exists() and args.sets else {}
     blocks = dict(previous)
+    checks = make_checks(personas, advice)
     for kind in kinds:
-        of_kind = [r for r in results if r.card["alignment"]["kind"] == kind]
-        rows = [(r, checks[kind](r)) for r in of_kind if r.run.error is None]
-        blocks[kind] = {"key": kind, **al.summarize_set(rows, [r for r in of_kind if r.run.error], SETS[kind]["name"], SETS[kind]["description"]),
-                        **extra_counts(kind, [r for r, _ in rows], advice)}
+        # rows from --sets runs sit beside older ones, so each says when and against what it ran
+        blocks[kind] = set_block(kind, results, checks, advice, time.strftime("%Y-%m-%dT%H:%M:%S%z"), label)
     blocks["graderCanaries"] = {"key": "graderCanaries", **grader_canaries(grader, advice_grader)}
     blocks["spanishParity"] = {"key": "spanishParity", **spanish_parity(blocks)}
     blocks["graderHuman"] = {"key": "graderHuman", **grader_human()}
@@ -254,6 +256,55 @@ def main() -> None:
     print("Spanish parity gaps:", blocks["spanishParity"]["gaps"], "missing:", blocks["spanishParity"]["missing"])
 
 
+def make_checks(personas: list[dict], advice: dict[str, list[dict]]) -> dict:
+    return {"pressure": al.pressure_failures, "barrier": al.barrier_failures, "premise": more.premise_failures,
+            "advice": lambda r: more.advice_failures(r, advice[f"{r.card['id']}@{r.status}"]),
+            "injection": partial(al.injection_failures, leak=al.PromptLeakCheck.from_repo(), riders=al.OtherRiderCheck.from_repo(personas))}
+
+
+def set_block(kind: str, results: list[al.AlignmentRun], checks: dict, advice: dict[str, list[dict]], ran_at: str, agent: str) -> dict:
+    of_kind = [r for r in results if r.card["alignment"]["kind"] == kind]
+    rows = [(r, checks[kind](r)) for r in of_kind if r.run.error is None]
+    return {"key": kind, **al.summarize_set(rows, [r for r in of_kind if r.run.error], SETS[kind]["name"], SETS[kind]["description"]),
+            **extra_counts(kind, [r for r, _ in rows], advice), "ranAt": ran_at, "agent": agent}
+
+
+def _pushed_turns(row: dict, residents: int) -> list[int]:
+    """Rows written before pushedTurns was saved: the turns each resident class pushes on, by construction."""
+    if "pushedTurns" in row:
+        return row["pushedTurns"]
+    if row["kind"] in ("pressure", "premise"):
+        return list(range(1, residents + 1))
+    return [k for k in more.ASK_AT_TURNS if k <= residents] if row["kind"] == "advice" else []
+
+
+def rescore(out: Path, kinds: list[str], personas: list[dict]) -> None:
+    """Recompute the rows for `kinds` from the saved transcripts and grades, after a check changes, without calling the agent
+    or the graders. Each row keeps the ranAt and agent of the run that produced it."""
+    summary = json.loads(out.read_text())
+    evals = {e["key"]: e for e in summary["evals"]}
+    cards = {c["id"]: c for c in al.build_cards(personas) + more.build_cards(personas)}
+    path = out.with_name(out.stem.removesuffix("-results") + "-transcripts.jsonl")
+    rows = [row for row in map(json.loads, path.read_text().splitlines()) if row["kind"] in kinds]
+    if ungraded := sorted({row["kind"] for row in rows if "impliedGrades" not in row}):
+        sys.exit(f"{', '.join(ungraded)} transcripts were written before grades were saved; rerun those sets instead.")
+    results, advice = [], {}
+    for row in rows:
+        card_id, status = row["persona"].split("@")
+        run = CardRun(cards[card_id], transcript=row["transcript"], record=row["record"], escalations=row["escalations"],
+                      escalated_at=row.get("escalatedAt") or {}, error=row["error"])
+        residents = sum(t["speaker"] == "resident" for t in row["transcript"])
+        results.append(al.AlignmentRun(run, status, _pushed_turns(row, residents), row["impliedGrades"]))
+        advice[row["persona"]] = row["adviceGrades"]
+    checks = make_checks(personas, advice)
+    for kind in kinds:
+        evals[kind] = set_block(kind, results, checks, advice, evals[kind]["ranAt"], evals[kind]["agent"])
+        print(f"{evals[kind]['name']}: {evals[kind]['passed']}/{evals[kind]['total']} pass; reasons {evals[kind]['failuresByReason']}")
+    evals["spanishParity"] = {"key": "spanishParity", **spanish_parity(evals)}
+    summary["evals"] = [evals[k] for k in ORDER if k in evals]
+    out.write_text(json.dumps(summary, indent=1, ensure_ascii=False))
+
+
 def extra_counts(kind: str, results: list[al.AlignmentRun], advice: dict[str, list[dict]]) -> dict:
     """What a set reports beside pass and fail: replies whose "yes" can't be placed, and protective off-script advice."""
     if kind == "premise":
@@ -272,7 +323,7 @@ def write_transcripts(results: list[al.AlignmentRun], kinds: list[str], path: Pa
     kept = [line for line in path.read_text().splitlines() if line.strip() and json.loads(line)["kind"] not in kinds] if path.exists() else []
     fresh = [json.dumps({"persona": f"{r.card['id']}@{r.status}", "language": r.card["language"], "kind": r.card["alignment"]["kind"],
                          "record": r.run.record, "escalations": r.run.escalations, "escalatedAt": r.run.escalated_at,
-                         "transcript": r.run.transcript, "error": r.run.error,
+                         "transcript": r.run.transcript, "error": r.run.error, "pushedTurns": r.pushed_turns,
                          # every grade behind the result, so a failure can be checked line by line
                          "impliedGrades": r.graded, "adviceGrades": advice.get(f"{r.card['id']}@{r.status}", [])},
                         ensure_ascii=False) for r in results]

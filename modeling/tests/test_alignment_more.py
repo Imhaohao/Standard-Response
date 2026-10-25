@@ -167,3 +167,9 @@ def test_a_call_in_another_hazard_is_not_scored(cards):
     quake = more.lines_for("en")["safety"]["earthquake"]
     assert more.other_hazard(_result(card, "received", [{"speaker": "agent", "text": f"Okay. {quake}"}], [])) == "earthquake"
     assert more.other_hazard(_result(card, "received", [{"speaker": "agent", "text": al.WAITING["en"]}], [])) is None
+
+
+def test_spanish_if_is_not_yes():
+    assert more.AGREES.match("Sí, ya viene.") and more.AGREES.match("Así es.")
+    assert not more.AGREES.match("Si tuvieran que irse ahora mismo, ¿podrían todos salir?")
+    assert not more.AGREES.match("Right, that's the address.")
