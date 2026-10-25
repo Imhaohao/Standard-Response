@@ -1,6 +1,10 @@
-import { createProjection, type InkMapData, type Point, terrainHeight } from "../../data";
+import { createProjection, type InkMapData, type Point } from "../../data";
 import type { FireField } from "../../fire-field";
 import { sampleAt, type FloodSeries, type Sample, type Scenario, type SurgeSeries, type TsunamiSeries, type Wind } from "../../scenario";
+import { groundAt } from "./ground";
+import { cellCentre, shoreDistanceAt, shoreFor, type ShoreGrid } from "./shore";
+
+export { groundAt };
 
 // The water's surface over time, in the terrain's own datum, worked out the same way on the CPU (roofs,
 // road closures, the flat map) as in the shader (water/glsl.ts). Depth anywhere is that surface minus
@@ -20,8 +24,9 @@ export type StillWater = { basin: Levels; gauges: Gauge[]; breaches: OpenBreach[
 export type TsunamiWave = { arrival: number; runup: number; period: number; drawdown: number };
 
 // A tsunami: crests that reach `reference` at their arrival minute, travelling `travel` (a unit vector on
-// the map) at `celerity` metres a minute over the sea and slower once they run up onto land.
-export type WaveTrain = { travel: Point; reference: Point; celerity: { sea: number; land: number }; waves: TsunamiWave[] };
+// the map) at `celerity` metres a minute over the sea, and slower once they run up onto land. `inland`
+// is how far a point is from the shore, 0 out on the water.
+export type WaveTrain = { travel: Point; reference: Point; celerity: { sea: number; land: number }; waves: TsunamiWave[]; inland: (point: Point) => number };
 
 export type WaterModel = {
   kind: WaterKind;
@@ -88,9 +93,12 @@ export function waveShape(since: number, wave: TsunamiWave) {
 
 // Minutes after a crest reaches the reference point that it reaches this one: earlier out to sea, later
 // as it runs inland.
-export function crestDelay(train: WaveTrain, [x, y]: Point) {
-  const travelled = (x - train.reference[0]) * train.travel[0] + (y - train.reference[1]) * train.travel[1];
-  return travelled < 0 ? travelled / train.celerity.sea : travelled / train.celerity.land;
+// Over the water a crest moves at the sea's pace; it reaches each stretch of shore in turn and runs
+// inland from there at the land's pace. Mirrored in glsl.ts.
+export function crestDelay(train: WaveTrain, point: Point) {
+  const travelled = (point[0] - train.reference[0]) * train.travel[0] + (point[1] - train.reference[1]) * train.travel[1];
+  const inland = train.inland(point);
+  return (travelled - inland) / train.celerity.sea + inland / train.celerity.land;
 }
 
 export function seaSurface(train: WaveTrain, point: Point, minutes: number) {
@@ -104,8 +112,6 @@ export function surfaceAt(model: WaterModel, point: Point, minutes: number) {
   const basin = basinLevel(model, minutes);
   return model.still ? pouredLevel(model.still, point, minutes, basin) : basin;
 }
-
-export const groundAt = (data: InkMapData, [x, y]: Point) => terrainHeight(data.terrain, x, y) + data.terrain.base;
 
 // Metres of water over the ground at a point, or a negative number where it is dry. Ground the fronts
 // haven't reached by this minute is dry whatever the level, so water never jumps a levee or a ridge.
@@ -137,23 +143,45 @@ function stillWater(series: FloodSeries | SurgeSeries, toLocal: (p: { lat: numbe
 
 const centroid = (points: Point[]): Point => [points.reduce((sum, p) => sum + p[0], 0) / points.length, points.reduce((sum, p) => sum + p[1], 0) / points.length];
 
-// Where a crest's arrival minute is measured: the middle of the shoreline the scenario names, or else the
-// first point of land the first front reaches as the wave comes in.
-function trainReference(series: TsunamiSeries, travel: Point, field: FireField | null, toLocal: (p: { lat: number; lng: number }) => Point): Point {
-  if (series.shoreline?.length) return centroid(series.shoreline.map(toLocal));
-  const ring = field?.fronts[0]?.ring;
-  if (!ring?.length) return [0, 0];
-  return ring.reduce((first, point) => (point[0] * travel[0] + point[1] * travel[1] < first[0] * travel[0] + first[1] * travel[1] ? point : first));
+// The middle of the ground the last front holds, or null when it holds none.
+function floodedMiddle(field: FireField): Point | null {
+  const last = field.fronts[field.fronts.length - 1]?.minutes ?? -Infinity;
+  const sum = [0, 0, 0];
+  field.minutes.forEach((minutes, index) => {
+    if (minutes > last) return;
+    const [x, y] = cellCentre(field, index);
+    sum[0] += x;
+    sum[1] += y;
+    sum[2] += 1;
+  });
+  return sum[2] > 0 ? [sum[0] / sum[2], sum[1] / sum[2]] : null;
 }
 
-function waveTrain(series: TsunamiSeries, field: FireField | null, toLocal: (p: { lat: number; lng: number }) => Point): WaveTrain {
+const metresInland = (shore: ShoreGrid, point: Point) => {
+  const inland = -shoreDistanceAt(shore, point);
+  return Number.isFinite(inland) ? Math.max(0, inland) : 0;
+};
+
+// Where a crest's arrival minute is measured: the middle of the shoreline the scenario names, or else the
+// shore in front of the town it floods, found by stepping back toward the sea from the middle of the
+// flooded ground by its distance inland.
+function trainReference(series: TsunamiSeries, travel: Point, field: FireField | null, shore: ShoreGrid, toLocal: (p: { lat: number; lng: number }) => Point): Point {
+  if (series.shoreline?.length) return centroid(series.shoreline.map(toLocal));
+  const middle = field ? floodedMiddle(field) : null;
+  if (!middle) return [0, 0];
+  const back = metresInland(shore, middle);
+  return [middle[0] - travel[0] * back, middle[1] - travel[1] * back];
+}
+
+function waveTrain(series: TsunamiSeries, field: FireField | null, shore: ShoreGrid, toLocal: (p: { lat: number; lng: number }) => Point): WaveTrain {
   const [fromX, fromY] = bearingVector(series.approachFromDegrees);
   const travel: Point = [-fromX, -fromY];
   return {
     travel,
-    reference: trainReference(series, travel, field, toLocal),
+    reference: trainReference(series, travel, field, shore, toLocal),
     celerity: CELERITY,
     waves: series.waves.map((wave) => ({ arrival: wave.arrivalMinutes, runup: wave.runupMeters, period: wave.periodMinutes, drawdown: drawdownFor(wave.runupMeters) })),
+    inland: (point) => metresInland(shore, point),
   };
 }
 
@@ -201,7 +229,7 @@ export function waterModel(scenario: Scenario | null, data: InkMapData, field: F
   const model: WaterModel = {
     kind,
     still: !isTrain && series ? stillWater(series as FloodSeries, toLocal) : null,
-    train: isTrain ? waveTrain(series as TsunamiSeries, field, toLocal) : null,
+    train: isTrain ? waveTrain(series as TsunamiSeries, field, shoreFor(data, kind), toLocal) : null,
     shift: 0,
     span: scenario ? scenarioSpan(scenario, field) : { from: 0, to: 0 },
   };

@@ -1,6 +1,6 @@
 import { ARRIVAL_GLSL, FULLSCREEN_HEADER, GBUFFER_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
 import type { WaterKind } from "./model";
-import { SHELF } from "./shore";
+import { SHELF, SHORE_METERS_PER_STEP } from "./shore";
 
 // The water, printed like a woodblock: an indigo plate cut into a few flat tints by depth, laid a pixel
 // off the key block's ink lines; the town under it showing through shallow water and fading under deep;
@@ -47,7 +47,7 @@ uniform vec3 uRain;
 const COMMON = `
 const float PI = 3.14159265;
 const float REST_LEVEL = 0.0;
-const float SHORE_METERS_PER_STEP = 4.0;
+const float SHORE_METERS_PER_STEP = ${SHORE_METERS_PER_STEP.toFixed(1)};
 const float NEVER = 1e4;
 
 // Metres on the ground that a number of device pixels cover at the middle of the view, so marks keep
@@ -146,9 +146,14 @@ float waveShape(float since, vec4 wave) {
   return mix(drawdown, crest, smoothstep(-0.6, 0.0, since));
 }
 
+float metresInland(vec2 xy) {
+  return max(0.0, -shoreAt(xy).y);
+}
+
 float crestDelay(vec2 xy) {
   float travelled = dot(xy - uTrain.zw, uTrain.xy);
-  return travelled < 0.0 ? travelled / uCelerity.x : travelled / uCelerity.y;
+  float inland = metresInland(xy);
+  return (travelled - inland) / uCelerity.x + inland / uCelerity.y;
 }
 
 float levelAt(vec2 xy, float standing, float minutes) {
@@ -545,7 +550,7 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   vec2 across = vec2(-travel.y, travel.x);
   float along = dot(key.at, across);
   vec2 crest = latestCrest(key.at);
-  float speed = dot(key.at - uTrain.zw, travel) < 0.0 ? uCelerity.x : uCelerity.y;
+  float speed = metresInland(key.at) > 0.0 ? uCelerity.y : uCelerity.x;
   float behind = crest.x * speed;
   float height = clamp(crest.y / 4.0, 0.25, 1.0);
   float spacing = max(26.0, px(24.0)) * mix(0.8, 1.3, height);

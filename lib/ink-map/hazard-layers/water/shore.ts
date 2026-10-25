@@ -1,6 +1,7 @@
 import { AREA_KIND, type InkMapData, type Point } from "../../data";
 import { distanceTo, frontMask, type Raster } from "../../front-raster";
-import { groundAt, type WaterKind } from "./model";
+import { groundAt } from "./ground";
+import type { WaterKind } from "./model";
 
 // Where water lies before the disaster: the canals, rivers and ponds the map's land use draws as water,
 // and for a coast the sea, filled from the edge of the terrain over ground at or below sea level. The
@@ -109,8 +110,8 @@ export function shoreGrid(data: InkMapData, { sea }: { sea: boolean }): ShoreGri
   return { ...raster, water, distance, onshore: onshoreDirection(raster, water) };
 }
 
-// Metres per step of the distance channel: a byte holds 127 steps either side of the shore.
-export const SHORE_METERS_PER_STEP = 4;
+// Metres per step of the distance channel: a byte holds 127 steps, about a kilometre, either side of the shore.
+export const SHORE_METERS_PER_STEP = 8;
 
 // Two bytes a cell for the shader: red is the water, green the distance to the shore centred on 128.
 export function shoreBytes(grid: ShoreGrid) {

@@ -177,10 +177,13 @@ test("a tsunami crest draws the sea back first, stands at its run-up, then drain
   assert.ok(Math.abs(waveShape(40, bore)) < 1e-9);
 });
 
-test("a crest reaches the sea before the reference and the land after it", () => {
-  const train: WaveTrain = { travel: [0, -1], reference: [0, 0], celerity: { sea: 600, land: 240 }, waves: [bore] };
+test("a crest crosses the sea, reaches each stretch of shore in turn and runs inland from it", () => {
+  // The shore runs east to west along y = 0, with the land to the south; the crest comes from the north.
+  const inland = ([, y]: Point) => Math.max(0, -y);
+  const train: WaveTrain = { travel: [0, -1], reference: [0, 0], celerity: { sea: 600, land: 240 }, waves: [bore], inland };
   assert.equal(crestDelay(train, [0, 600]), -1);
   assert.equal(crestDelay(train, [0, -480]), 2);
+  assert.equal(crestDelay(train, [3000, 0]), 0, "the whole shore square to the crest is reached at once");
   assert.equal(seaSurface(train, [0, 600], 100), 6);
   assert.ok(seaSurface(train, [0, -480], 100) < 0, "the land behind the reference is still drawn back when the crest reaches the bayfront");
   assert.equal(seaSurface(train, [0, -480], 102.5), 6);
