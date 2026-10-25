@@ -566,11 +566,13 @@ vec4 printWetGround(vec4 ink, Water key, vec2 uv) {
 // Seabed the drawn-back sea has laid bare: wet sand stippled in ink, thicker in some places than others,
 // with pools left in the hollows.
 vec4 printBaredBed(vec4 ink, Water key) {
-  float density = 0.08 + 0.2 * valueNoise(key.at / 40.0);
+  float mottle = valueNoise(key.at / 30.0) * 0.6 + valueNoise(key.at / 9.0) * 0.4;
+  vec3 sand = mix(uPaper, mix(uInk, uIndigo, 0.3), 0.1 + 0.08 * mottle);
+  float density = 0.06 + 0.16 * valueNoise(key.at / 40.0);
   float stipple = step(1.0 - density, hash12(floor(gPattern / (2.2 * uPixelRatio))));
   float pools = smoothstep(0.74, 0.8, valueNoise(key.at / 9.0) * 0.75 + valueNoise(key.at / 3.0) * 0.25);
-  ink = over(ink, mix(uPaper, uInk, 0.3), key.bared * 0.3);
-  ink = over(ink, uInk, key.bared * stipple * 0.45);
+  ink = over(ink, sand, key.bared * 0.95);
+  ink = over(ink, uInk, key.bared * stipple * 0.4);
   ink = over(ink, mix(uPaper, uIndigo, 0.35), key.bared * pools * 0.6);
   return ink;
 }
