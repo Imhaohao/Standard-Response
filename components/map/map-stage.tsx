@@ -206,8 +206,10 @@ export function MapStage({
       {value && (
         <StageContext.Provider value={value}>
           {underlay && <OverlayLayer size={value.size}>{underlay}</OverlayLayer>}
-          <OverlayLayer size={value.size}>{children}</OverlayLayer>
+          {/* Smoke covers the ground and the fire's own marks, never the people and vans drawn in
+              `children`: nobody waiting for help may disappear under a plume. */}
           {mode === "ink" && <HazardSmoke hazard={hazard} minutes={minutes} />}
+          <OverlayLayer size={value.size}>{children}</OverlayLayer>
           {controls}
         </StageContext.Provider>
       )}
