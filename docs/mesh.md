@@ -79,20 +79,25 @@ Known limits, stated plainly: there is no defence yet against a phone that flood
 
 ## 3. Langevin dynamics for the flow of people
 
-Each household that can leave is a particle (`lib/crowd/langevin.ts`):
+Each household that can leave is a particle (`lib/crowd/langevin.ts`). Velocity is written in the car's own frame, along its heading e(x) (a) and across it (c):
 
 ```
-dx = v dt
-dv = [ (v_des(x, ρ) e(x) − v) / τ  +  F_rep(x) ] dt  +  sqrt(2 T / τ) dW
+dx   = v dt
+dv_a = [ (v_des − v_a) / τ  +  λ w (v_lead − v)_a  +  F_rep,a ] dt  +  sqrt(2 s T / τ) dW_a
+dv_c = [ −v_c / τ_c  −  k_lane d_c  +  F_rep,c ] dt                  +  sqrt(2 s T_c / τ_c) dW_c
 ```
 
-- **Direction e(x)** points to the next point on the driver's route. Route choice uses a potential over the street graph, φ(n): the fastest drive from intersection n to safety (any street south of 34.152° N), avoiding streets the fire has reached and the streets this driver believes are blocked, at a crawl past streets the fire reaches within 15 minutes. φ is one reverse Dijkstra over 1,851 intersections, under a millisecond, so every driver routes on exactly what its phone knows.
+- **Direction e(x)** points 15 m ahead on the driver's street (pure pursuit), so a car that drifts sideways steers back. Route choice uses a potential over the street graph, φ(n): the fastest drive from intersection n to safety (any street south of 34.152° N), avoiding streets the fire has reached and the streets this driver believes are blocked, at a crawl past streets the fire reaches within 15 minutes. φ is one reverse Dijkstra over 1,851 intersections, under a millisecond, so every driver routes on exactly what its phone knows.
 - **Congestion in route choice.** Drive times in φ are stretched by traffic. Every 5 minutes each street's car count is taken (half the previous count kept, so routes don't all swing at once) and its time multiplied by 1 / (1 − k/k_jam): the Greenshields law the dynamics drive by, with k_jam one car per 7.5 m of lane and a floor of 5% of free speed. Later drivers route around a jam.
 - **Spreading drivers.** At each intersection a driver picks among the fastest street and every street that leads downhill in φ, with logit probabilities ∝ exp(−(drive time + φ at the far end) / 60 s). This is Dial's stochastic assignment: near-equal routes share the cars, and the downhill rule means no route loops.
 - **Speed.** v_des is the street's free-flow speed slowed by the density of the road ahead (Greenshields: v_free (1 − k/k_jam)). k is read from the gap to the nearest car ahead within 20 m that is going the same way: k = 1 / (lanes × gap), against route choice's k_jam of one car per 7.5 m of lane. Past 10 m the gap counts for less, down to free flow at 20 m, so speed never jumps as a car comes into view. Cars on a crossing street, oncoming cars and the cars behind don't slow a driver, so the front of a queue pulls away at speed. (It used to count every car in a 30 m box around the driver, which held a queue's front car to a crawl.)
 - **Repulsion.** F_rep is a soft exponential repulsion between vehicles (Helbing and Molnár's social force), weighted by where the other car is: 1 straight ahead, 0.1 straight behind, (1 + cos φ)/2 between. It is capped at 8 m/s², about the hardest a car brakes. Before this, the car behind pushed the car ahead as hard as it was pushed back, so a long queue shoved its front car past the speed limit (up to 49 m/s in a full-population run).
-- **Noise.** T is the velocity noise variance: hesitation and the spread in how people drive.
-- **Integration** is BAOAB splitting (Leimkuhler and Matthews 2013). The friction-and-noise part is solved exactly, which a test checks: the stationary velocity variance equals T.
+- **Speed matching.** λ = 0.5 s⁻¹ pulls a driver toward the speed of the car ahead (the full velocity difference model, Jiang, Wu and Zhu 2001), weighted by how near it is. Following on the gap alone sets off stop-and-go waves this steep a speed law can't damp.
+- **Right of way and braking.** Where two cars' paths meet, the one further into the other's path goes first, and the other brakes for it; without this, two cars meeting at a corner each brake for the other and neither moves. Braking can bring a car to a stop within a step but never drives it backwards.
+- **Lanes.** Across the heading, velocity relaxes in τ_c = 0.5 s (against τ = 2 s along it), only 30% of the repulsion is kept, and a spring of k_lane = 0.5 s⁻² pulls the car back to its street's line, d_c being how far off it is. That holds a car in its lane even standing still, when steering does nothing.
+- **Noise.** T = 0.6 m²/s² along and T_c = 0.15 m²/s² across are the velocity noise variances for a driver with open road: hesitation and the spread in how people drive. Both scale with the driver's pace s = v_des / v_free, so a car standing in a jam doesn't jitter. When it did, the queue ahead turned that jitter into a ratchet: a jammed car could only wander backwards, and whole queues crept back into the yards.
+- **What that changed.** In a full-population run, cars more than 5 m off their street fell from about 25% to 5% of those moving, and the farthest 1% from 50–70 m to about 10 m. A stopped queue on one lane discharges at 1,800 cars an hour, a city lane's saturation flow; before, followers shoving leaders gave 3,940. Streets jam more, because cars queue in their lane instead of overtaking through the yards.
+- **Integration** is BAOAB splitting (Leimkuhler and Matthews 2013). The friction-and-noise part is solved exactly on each axis, which a test checks: the stationary velocity variance equals T.
 - **Walls.** Blocked streets and burning ground are physical walls. A driver who runs into a blocked street it didn't know about is stopped, learns it, turns back and re-routes. Its phone makes a report.
 - **Departures** follow a drift-diffusion decision, dX = μ(t) dt + σ dW, leaving when X reaches 1. There are two classes, evacuation-keen and evacuation-reluctant, per UC Berkeley's survey of California wildfire evacuees, and the drift rises as the fire nears.
 - **Who stays.** Households that can't leave without help stay put and are shown in red. They are who the core flow is for.

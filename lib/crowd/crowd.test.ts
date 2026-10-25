@@ -112,6 +112,30 @@ describe("route choice", () => {
 });
 
 describe("Langevin dynamics", () => {
+  // A long one-lane street whose first stretch is straight, away from fire and safety, with its
+  // start and direction.
+  const straightStreet = (router: RoadRouter, metres: number) => {
+    const firstStretch = (k: number) => Math.hypot(router.edgeShape[k][2] - router.edgeShape[k][0], router.edgeShape[k][3] - router.edgeShape[k][1]);
+    const edge = EDGES.findIndex((e, k) => firstStretch(k) > metres && router.edgeLanes[k] === 1 && router.edgeFire[k] > 200 && !router.safe[e.v]);
+    assert.ok(edge >= 0);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const length = firstStretch(edge);
+    const ux = (bx - ax) / length;
+    const uy = (by - ay) / length;
+    const at = (m: number): Household => ({ ...toLatLng(ax + ux * m, ay + uy * m), peopleCount: 1, canLeave: "yes", hasCar: true });
+    const along = (sim: CrowdSim, i: number) => (sim.x[i] - ax) * ux + (sim.y[i] - ay) * uy;
+    return { edge, at, along };
+  };
+
+  const onStreet = (sim: CrowdSim, edge: number) => {
+    for (let i = 0; i < sim.count; i++) {
+      sim.state[i] = STATE.moving;
+      sim.edge[i] = edge;
+      sim.point[i] = 1;
+      sim.goal[i] = sim.router.edgeStart(edge);
+    }
+  };
+
   it("keeps velocity noise at the stated variance", () => {
     const { c1, c2 } = ouCoefficients(0.5, 2, 0.6);
     const random = seededRandom(1);
@@ -143,54 +167,53 @@ describe("Langevin dynamics", () => {
 
   it("brakes the car behind for the car ahead, and never pushes the car ahead along", () => {
     const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
-    // A long one-lane street whose first stretch is straight for 40 m, away from fire and safety.
-    const firstStretch = (k: number) => Math.hypot(router.edgeShape[k][2] - router.edgeShape[k][0], router.edgeShape[k][3] - router.edgeShape[k][1]);
-    const edge = EDGES.findIndex(
-      (e, k) => e.meters > 300 && firstStretch(k) > 40 && router.edgeLanes[k] === 1 && router.edgeFire[k] > 120 && !router.safe[e.v],
-    );
-    assert.ok(edge >= 0);
-    const [ax, ay, bx, by] = router.edgeShape[edge];
-    const [ux, uy] = [(bx - ax) / firstStretch(edge), (by - ay) / firstStretch(edge)];
-    const at = (metres: number) => ({ ...toLatLng(ax + ux * metres, ay + uy * metres), peopleCount: 1, canLeave: "yes", hasCar: true });
+    const { edge, at } = straightStreet(router, 40);
     const sim = new CrowdSim(ground, [at(5), at(11)], seededRandom(1), () => new Set(), { ...DEFAULT_CROWD, temperature: 0 });
-    for (const i of [0, 1]) {
-      sim.state[i] = STATE.moving;
-      sim.edge[i] = edge;
-      sim.point[i] = 1;
-      sim.goal[i] = router.edgeStart(edge);
-    }
+    onStreet(sim, edge);
     const free = router.edgeSpeed[edge];
     const along = (i: number) => sim.vx[i] * sim.hx[i] + sim.vy[i] * sim.hy[i];
     for (let s = 0; s < 16; s++) {
       sim.step();
-      assert.ok(along(1) <= free * 1.001, `leader at ${along(1)} m/s on a ${free} m/s street`);
+      // The car behind counts for 0.1 against the car ahead's 1; pushed as hard as it pushes back,
+      // the leader would run about 3 m/s over.
+      assert.ok(along(1) <= free * 1.03, `leader at ${along(1)} m/s on a ${free} m/s street`);
     }
     assert.ok(along(0) < along(1), "the car behind is slower");
     assert.ok(along(1) > free * 0.95, "the leader, with open road ahead, is near free speed");
   });
 
-  it("measures a stopped car's speed along its route as 0, though the noise keeps |v| near 1 m/s", () => {
-    // The household the fire reaches last, so it isn't overrun during the test.
-    const fireAt = (h: Household) => ground.fireMinutes[cellIndex(ground, ...toXY(h))];
-    const home = population.filter((h) => h.canLeave === "yes" && h.hasCar).reduce((a, b) => (fireAt(b) > fireAt(a) ? b : a));
-    const sim = new CrowdSim(ground, [home], seededRandom(2), () => new Set(), DEFAULT_CROWD);
-    sim.state[0] = STATE.moving;
-    // No route: the car wants to stand still, and only the noise moves it.
-    sim.stuck[0] = 1;
-    sim.step();
-    let along = 0;
-    let magnitude = 0;
-    const steps = 20_000;
-    for (let s = 0; s < steps; s++) {
-      sim.x[0] = sim.router.nodeX[sim.goal[0]] + 50;
-      sim.y[0] = sim.router.nodeY[sim.goal[0]];
+  it("discharges a queue at about a real lane's saturation flow", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const { edge, at, along } = straightStreet(router, 500);
+    const cars = 40;
+    const front = cars * JAM_SPACING_METERS;
+    const sim = new CrowdSim(ground, Array.from({ length: cars }, (_, k) => at(front - k * JAM_SPACING_METERS)), seededRandom(1), () => new Set(), DEFAULT_CROWD);
+    onStreet(sim, edge);
+    const crossed: number[] = [];
+    const counted = new Set<number>();
+    for (let s = 0; s < 600; s++) {
       sim.step();
-      along += sim.routeSpeed(0);
-      magnitude += Math.hypot(sim.vx[0], sim.vy[0]);
+      for (let i = 0; i < cars; i++) {
+        if (counted.has(i) || along(sim, i) < front + 60) continue;
+        counted.add(i);
+        crossed.push(sim.seconds);
+      }
     }
-    assert.equal(sim.state[0], STATE.moving);
-    assert.ok(Math.abs(along / steps) < 0.05, `along the route ${along / steps} m/s`);
-    assert.ok(magnitude / steps > 0.8, `|v| ${magnitude / steps} m/s`);
+    const steady = crossed.slice(5, 35);
+    const perHour = (3600 * (steady.length - 1)) / (steady[steady.length - 1] - steady[0]);
+    // Saturation flow on a city lane is about 1,800 to 1,900 cars an hour.
+    assert.ok(perHour > 1500 && perHour < 2200, `${Math.round(perHour)} cars an hour`);
+  });
+
+  it("keeps a car queued behind a stopped one where it is, rather than letting the noise walk it back", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const { edge, at, along } = straightStreet(router, 100);
+    const sim = new CrowdSim(ground, [at(30), at(22)], seededRandom(3), () => new Set(), DEFAULT_CROWD);
+    onStreet(sim, edge);
+    // The car in front has nowhere to go.
+    sim.stuck[0] = 1;
+    for (let s = 0; s < 6 * 60 * 2; s++) sim.step();
+    assert.ok(along(sim, 1) > 19 && along(sim, 1) < along(sim, 0), `the queued car is at ${along(sim, 1)} m`);
   });
 
   it("leaves keen households earlier than reluctant ones", () => {
