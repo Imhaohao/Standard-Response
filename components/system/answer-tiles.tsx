@@ -66,7 +66,7 @@ function honestyTile(honesty: Results["honesty"]) {
       label="Implied a driver was coming"
       rangeText={rate ? `${percent(rate.ci95[0], 1)}–${percent(rate.ci95[1], 1)}` : EM_DASH}
       track={rate && { value, low: rate.ci95[0], high: rate.ci95[1], domain: [0, 0.05] }}
-      tag={honesty && !honesty.humanSpotCheck && <Tag>awaiting human labels</Tag>}
+      tag={honesty?.model && <Tag>Graded by Claude Opus</Tag>}
     />
   );
 }
