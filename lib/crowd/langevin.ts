@@ -1,7 +1,7 @@
 import { gaussian, Random } from "../mesh/random";
 import { DEFAULT_DEPARTURE, DepartureParams, stepDecision } from "./departure";
 import { cellIndex, Ground, toXY } from "./grid";
-import { blockedMask, isBurning, JAM_SPACING_METERS, MIN_SPEED_SHARE, Potential, RoadRouter } from "./navigation";
+import { blockedMask, isBurning, JAM_SPACING_METERS, logitChoice, MIN_SPEED_SHARE, Potential, RoadRouter, StreetPoint } from "./navigation";
 
 // Evacuating households as particles under underdamped Langevin dynamics, written in each car's
 // frame: along its heading e(x) (subscript a) and across it (c):
@@ -135,6 +135,8 @@ const DECISION_EVERY_SECONDS = 30;
 const BOUNCE_DAMPING = -0.2;
 // A route point counts as reached within this many metres.
 const REACH_METERS = 9;
+// A house can pull out onto a street slower than this, m/s (72 km/h): not onto the freeway or its ramps.
+const DRIVEWAY_MAX_SPEED = 20;
 
 // The exact Ornstein-Uhlenbeck update for friction 1/tau and velocity variance T over dt:
 // v <- c1 v + c2 xi, with stationary variance T. This is the O in BAOAB.
@@ -228,6 +230,10 @@ export class CrowdSim {
   private plannedOn: (Potential | null)[];
   // The lane of `edge` the car drives, 0 the leftmost.
   readonly lane: Uint8Array;
+  // Where each household's driveway meets the street in front of it, in each direction the street
+  // can be driven, and whether the car is still on its driveway heading there.
+  private entry: StreetPoint[][];
+  readonly onDriveway: Uint8Array;
   readonly stuck: Uint8Array;
   readonly known: Set<number>[];
   readonly discoveries: Discovery[] = [];
@@ -311,6 +317,7 @@ export class CrowdSim {
     this.goal = new Int32Array(n);
     this.next = new Int32Array(n).fill(-1);
     this.lane = new Uint8Array(n);
+    this.onDriveway = new Uint8Array(n);
     this.plannedOn = Array(n).fill(null);
     this.stuck = new Uint8Array(n);
     this.known = Array.from({ length: n }, () => new Set<number>());
@@ -354,6 +361,8 @@ export class CrowdSim {
       this.state[i] = household.canLeave === "yes" && household.hasCar ? STATE.home : STATE.waiting;
       this.goal[i] = this.router.nearestNode(this.x[i], this.y[i]);
     }
+    const drivewayOnto = (edge: number) => this.router.edgeSpeed[edge] < DRIVEWAY_MAX_SPEED;
+    this.entry = Array.from({ length: n }, (_, i) => this.router.streetPoints(this.x[i], this.y[i], drivewayOnto));
     this.trueShut = new Uint8Array(ground.speed.length);
     this.edgeCars = new Float64Array(this.router.edgeSpeed.length);
   }
@@ -414,6 +423,7 @@ export class CrowdSim {
       goal: this.goal.slice(),
       next: this.next.slice(),
       lane: this.lane.slice(),
+      onDriveway: this.onDriveway.slice(),
       plannedOn: [...this.plannedOn],
       stuck: this.stuck.slice(),
       known: this.known.map((segments) => new Set(segments)),
@@ -558,6 +568,7 @@ export class CrowdSim {
 
   private target(i: number): [number, number] {
     const edge = this.edge[i];
+    if (edge < 0 && this.onDriveway[i]) return [this.entry[i][0].x, this.entry[i][0].y];
     if (edge < 0) return [this.router.nodeX[this.goal[i]], this.router.nodeY[this.goal[i]]];
     const shape = this.router.edgeShape[edge];
     const p = Math.min(this.point[i], shape.length / 2 - 1);
@@ -609,15 +620,13 @@ export class CrowdSim {
     return [off * uy, -off * ux];
   }
 
-  // The lane car i takes as it enters `edge`: the one with the most room ahead, the nearest to where
-  // the car is among equals.
+  // The lane car i takes as it enters `edge` (as `edge` and `point` already say): the one with the
+  // most room ahead, the nearest to where the car is among equals.
   private chooseLane(i: number, edge: number) {
     const lanes = laneCount(this.router, edge);
-    if (lanes === 1) return 0;
-    const shape = this.router.edgeShape[edge];
-    const length = Math.hypot(shape[2] - shape[0], shape[3] - shape[1]) || 1;
-    const ux = (shape[2] - shape[0]) / length;
-    const uy = (shape[3] - shape[1]) / length;
+    const stretch = this.stretch(i);
+    if (lanes === 1 || !stretch) return 0;
+    const [ax, ay, ux, uy] = stretch;
     const room = new Float64Array(lanes).fill(this.params.lookAhead);
     const key = this.hashKey[i];
     for (let dr = -1; dr <= 1; dr++) {
@@ -629,7 +638,7 @@ export class CrowdSim {
         }
       }
     }
-    const right = (this.x[i] - shape[0]) * uy - (this.y[i] - shape[1]) * ux;
+    const right = (this.x[i] - ax) * uy - (this.y[i] - ay) * ux;
     let best = 0;
     for (let lane = 1; lane < lanes; lane++) {
       const nearer = Math.abs(this.laneShift(edge, lane) - right) < Math.abs(this.laneShift(edge, best) - right);
@@ -656,6 +665,10 @@ export class CrowdSim {
     for (let hops = 0; hops < 4 && this.state[i] === STATE.moving; hops++) {
       if (!this.reached(i)) return;
       const edge = this.edge[i];
+      if (edge < 0 && this.onDriveway[i]) {
+        this.joinStreet(i);
+        continue;
+      }
       if (edge < 0) {
         this.chooseAt(i, this.goal[i]);
         if (this.stuck[i]) return;
@@ -682,13 +695,39 @@ export class CrowdSim {
         ? planned
         : this.router.chooseEdge(node, potential, this.known[i], this.params.routeSpreadSeconds, this.random);
     this.stuck[i] = next < 0 ? 1 : 0;
-    if (next >= 0 && this.router.edgeSegment[next] >= 0) this.segmentEntries[this.router.edgeSegment[next]] += 1;
-    this.edge[i] = next;
+    if (next >= 0) {
+      this.enterEdge(i, next, 1, potential);
+      return;
+    }
+    this.edge[i] = -1;
     this.goal[i] = node;
-    this.point[i] = 1;
-    this.lane[i] = next >= 0 ? this.chooseLane(i, next) : 0;
-    const end = next >= 0 ? this.router.edgeEnd(next) : -1;
-    this.next[i] = end >= 0 && !this.router.safe[end] ? this.router.chooseEdge(end, potential, this.known[i], this.params.routeSpreadSeconds, this.random) : -1;
+    this.next[i] = -1;
+  }
+
+  // Pulling out of the driveway onto the street in front of the house, in whichever direction it
+  // drives (logit odds on the time to safety from there, as at an intersection). If neither
+  // direction leads to safety as far as the driver knows, it heads for the nearest intersection
+  // instead. Before, every car crossed the yards to the nearest intersection (a median 67 m off,
+  // against 31 m to the street) at walking pace.
+  private joinStreet(i: number) {
+    this.onDriveway[i] = 0;
+    const potential = this.potentialFor(i);
+    const options = this.entry[i];
+    const seconds = options.map((point) => this.router.joinSeconds(point, potential, this.known[i]));
+    const choice = logitChoice(seconds, this.params.routeSpreadSeconds, this.random);
+    if (choice >= 0) this.enterEdge(i, options[choice].edge, options[choice].stretch + 1, potential);
+  }
+
+  // Car i starts down `edge`, steering for shape point `point` of it: picks its lane and the street
+  // it will turn onto at the end.
+  private enterEdge(i: number, edge: number, point: number, potential: Potential) {
+    if (this.router.edgeSegment[edge] >= 0) this.segmentEntries[this.router.edgeSegment[edge]] += 1;
+    this.edge[i] = edge;
+    this.goal[i] = this.router.edgeStart(edge);
+    this.point[i] = point;
+    this.lane[i] = this.chooseLane(i, edge);
+    const end = this.router.edgeEnd(edge);
+    this.next[i] = this.router.safe[end] ? -1 : this.router.chooseEdge(end, potential, this.known[i], this.params.routeSpreadSeconds, this.random);
     this.plannedOn[i] = potential;
   }
 
@@ -784,6 +823,7 @@ export class CrowdSim {
       this.state[i] = STATE.moving;
       this.departedAt[i] = this.seconds;
       this.openSpeed[i] = 0;
+      this.onDriveway[i] = this.entry[i].length > 0 ? 1 : 0;
     }
   }
 

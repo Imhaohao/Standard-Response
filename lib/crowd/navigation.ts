@@ -121,6 +121,29 @@ export class IndexHeap {
   }
 }
 
+// A point on a street, in one direction it can be driven: the directed edge, the stretch of its
+// shape the point is on (0 the first), how far along the edge it is in metres, and where it is.
+export type StreetPoint = { edge: number; stretch: number; along: number; x: number; y: number };
+
+// Grid cell for finding the street nearest a point, in metres.
+const STRETCH_CELL = 100;
+
+// An option drawn with logit probabilities over drive times to safety, proportional to
+// exp(-seconds / spread): its index, or -1 when none reaches safety. A spread of 0 always takes the
+// fastest.
+export function logitChoice(seconds: number[], spreadSeconds: number, random: Random) {
+  let best = -1;
+  for (let k = 0; k < seconds.length; k++) if (seconds[k] < (best < 0 ? Infinity : seconds[best])) best = k;
+  if (best < 0 || spreadSeconds <= 0) return best;
+  const weights = seconds.map((time) => Math.exp((seconds[best] - time) / spreadSeconds));
+  let draw = random() * weights.reduce((sum, weight) => sum + weight, 0);
+  for (let k = 0; k < weights.length; k++) {
+    draw -= weights[k];
+    if (draw < 0) return k;
+  }
+  return best;
+}
+
 // `delay` is each edge's congestion multiplier on its drive time, or null for free flow.
 export type Potential = { minutes: number; phi: Float64Array; delay: Float64Array | null };
 
@@ -141,8 +164,15 @@ export class RoadRouter {
   // Whether each edge's street is two-way, so its lanes are right of the centreline, not across it.
   readonly edgeTwoWay = new Uint8Array(EDGES.length);
   readonly edgeJamCars = new Float64Array(EDGES.length);
-  // Each edge's shape in metres, as [x0, y0, x1, y1, ...] from its start node to its end node.
+  // Each edge's shape in metres, as [x0, y0, x1, y1, ...] from its start node to its end node, and
+  // its length along that shape.
   readonly edgeShape: Float64Array[];
+  readonly edgeLength = new Float64Array(EDGES.length);
+  // The same street driven the other way, or -1 for a one-way street.
+  readonly edgeReverse = new Int32Array(EDGES.length).fill(-1);
+  // The stretches (edge, stretch index, edge, ...) that pass through each STRETCH_CELL cell, built
+  // on first use.
+  private stretchGrid: Map<string, number[]> | null = null;
   private readonly outgoing: number[][] = Array.from({ length: NODE_COUNT }, () => []);
   private readonly incoming: number[][] = Array.from({ length: NODE_COUNT }, () => []);
 
@@ -172,8 +202,11 @@ export class RoadRouter {
       const mid = Math.floor(shape.length / 4) * 2;
       const cell = cellIndex(ground, shape[mid], shape[mid + 1]);
       this.edgeFire[e] = cell < 0 ? NEVER_BURNS : ground.fireMinutes[cell];
+      for (let p = 2; p < shape.length; p += 2) this.edgeLength[e] += Math.hypot(shape[p] - shape[p - 2], shape[p + 1] - shape[p - 1]);
       return Float64Array.from(shape);
     });
+    const byEnds = new Map(EDGES.map((edge, e) => [`${edge.u}-${edge.v}-${this.edgeSegment[e]}`, e]));
+    EDGES.forEach((edge, e) => (this.edgeReverse[e] = byEnds.get(`${edge.v}-${edge.u}-${this.edgeSegment[e]}`) ?? -1));
   }
 
   // Effective drive time of an edge for a driver, or Infinity if it won't use it.
@@ -241,23 +274,91 @@ export class RoadRouter {
   chooseEdge(node: number, potential: Potential, blocked: ReadonlySet<number>, spreadSeconds: number, random: Random) {
     const best = this.nextEdge(node, potential, blocked);
     if (best < 0 || spreadSeconds <= 0) return best;
-    const bestTime = this.routeSeconds(best, potential, blocked);
-    const candidates: number[] = [];
-    const weights: number[] = [];
-    let total = 0;
-    for (const edge of this.outgoing[node]) {
-      if (edge !== best && !(potential.phi[EDGES[edge].v] < potential.phi[node])) continue;
-      const weight = Math.exp((bestTime - this.routeSeconds(edge, potential, blocked)) / spreadSeconds);
-      candidates.push(edge);
-      weights.push(weight);
-      total += weight;
+    const candidates = this.outgoing[node].filter((edge) => edge === best || potential.phi[EDGES[edge].v] < potential.phi[node]);
+    const choice = logitChoice(
+      candidates.map((edge) => this.routeSeconds(edge, potential, blocked)),
+      spreadSeconds,
+      random,
+    );
+    return choice < 0 ? best : candidates[choice];
+  }
+
+  // Seconds to safety from a point on a street: the rest of its edge, then phi at the edge's end.
+  joinSeconds(point: StreetPoint, potential: Potential, blocked: ReadonlySet<number>) {
+    const seconds = this.edgeSeconds(point.edge, potential.minutes, blocked, potential.delay);
+    const rest = Math.max(0, 1 - point.along / Math.max(this.edgeLength[point.edge], 1e-6));
+    return seconds * rest + potential.phi[EDGES[point.edge].v];
+  }
+
+  // The point on any street `allowed` takes nearest (x, y), in each direction the street can be
+  // driven: one point for a one-way street, two for a two-way one. Empty with none within 1 km.
+  streetPoints(x: number, y: number, allowed: (edge: number) => boolean = () => true): StreetPoint[] {
+    const best = this.nearestStretch(x, y, allowed);
+    if (!best) return [];
+    const reverse = this.edgeReverse[best.edge];
+    if (reverse < 0) return [best];
+    // The same place on the other direction's shape.
+    let back = this.onStretch(reverse, 0, best.x, best.y);
+    for (let stretch = 1; stretch < this.edgeShape[reverse].length / 2 - 1; stretch++) {
+      const point = this.onStretch(reverse, stretch, best.x, best.y);
+      if (Math.hypot(point.x - best.x, point.y - best.y) < Math.hypot(back.x - best.x, back.y - best.y)) back = point;
     }
-    let draw = random() * total;
-    for (const [k, edge] of candidates.entries()) {
-      draw -= weights[k];
-      if (draw < 0) return edge;
+    return [best, back];
+  }
+
+  // The point on a street `allowed` takes nearest (x, y), or null with none within 1 km.
+  private nearestStretch(x: number, y: number, allowed: (edge: number) => boolean): StreetPoint | null {
+    const grid = (this.stretchGrid ??= this.buildStretchGrid());
+    const col = Math.floor(x / STRETCH_CELL);
+    const row = Math.floor(y / STRETCH_CELL);
+    let best: StreetPoint | null = null;
+    let bestDistance = Infinity;
+    // Widen the search ring by ring. After ring r every stretch within r cells of (x, y) has been
+    // seen, so a nearest one found that close is the nearest.
+    for (let ring = 1; ring <= 10; ring++) {
+      for (let r = row - ring; r <= row + ring; r++) {
+        for (let c = col - ring; c <= col + ring; c++) {
+          const stretches = grid.get(`${c},${r}`) ?? [];
+          for (let k = 0; k < stretches.length; k += 2) {
+            if (!allowed(stretches[k])) continue;
+            const point = this.onStretch(stretches[k], stretches[k + 1], x, y);
+            const distance = Math.hypot(point.x - x, point.y - y);
+            if (distance >= bestDistance) continue;
+            best = point;
+            bestDistance = distance;
+          }
+        }
+      }
+      if (best && bestDistance <= ring * STRETCH_CELL) break;
     }
     return best;
+  }
+
+  // The point of stretch `stretch` of `edge` nearest (x, y).
+  private onStretch(edge: number, stretch: number, x: number, y: number): StreetPoint {
+    const shape = this.edgeShape[edge];
+    const [ax, ay, bx, by] = shape.subarray(2 * stretch, 2 * stretch + 4);
+    const length2 = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = length2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / length2)) : 0;
+    let along = t * Math.sqrt(length2);
+    for (let p = 2; p <= 2 * stretch; p += 2) along += Math.hypot(shape[p] - shape[p - 2], shape[p + 1] - shape[p - 1]);
+    return { edge, stretch, along, x: ax + t * (bx - ax), y: ay + t * (by - ay) };
+  }
+
+  private buildStretchGrid() {
+    const grid = new Map<string, number[]>();
+    this.edgeShape.forEach((shape, edge) => {
+      for (let stretch = 0; 2 * stretch + 3 < shape.length; stretch++) {
+        const [ax, ay, bx, by] = shape.subarray(2 * stretch, 2 * stretch + 4);
+        for (let r = Math.floor(Math.min(ay, by) / STRETCH_CELL); r <= Math.floor(Math.max(ay, by) / STRETCH_CELL); r++) {
+          for (let c = Math.floor(Math.min(ax, bx) / STRETCH_CELL); c <= Math.floor(Math.max(ax, bx) / STRETCH_CELL); c++) {
+            const key = `${c},${r}`;
+            grid.set(key, [...(grid.get(key) ?? []), edge, stretch]);
+          }
+        }
+      }
+    });
+    return grid;
   }
 
   edgeEnd(edge: number) {

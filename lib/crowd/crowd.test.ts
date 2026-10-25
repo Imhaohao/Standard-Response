@@ -72,6 +72,32 @@ describe("route choice", () => {
     assert.equal(router.delays(cars)[e], 1 / MIN_SPEED_SHARE);
   });
 
+  it("finds the street nearest a home, in each direction it can be driven", () => {
+    const slow = (edge: number) => router.edgeSpeed[edge] < 20;
+    for (const home of population.filter((_, k) => k % 400 === 0)) {
+      const [x, y] = toXY(home);
+      const points = router.streetPoints(x, y, slow);
+      assert.ok(points.length >= 1 && points.length <= 2);
+      // Against every stretch of every street.
+      let nearest = Infinity;
+      for (const [edge, shape] of router.edgeShape.entries()) {
+        if (!slow(edge)) continue;
+        for (let p = 0; p + 3 < shape.length; p += 2) {
+          const [ax, ay, bx, by] = shape.subarray(p, p + 4);
+          const length2 = (bx - ax) ** 2 + (by - ay) ** 2 || 1;
+          const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / length2));
+          nearest = Math.min(nearest, Math.hypot(ax + t * (bx - ax) - x, ay + t * (by - ay) - y));
+        }
+      }
+      assert.ok(Math.abs(Math.hypot(points[0].x - x, points[0].y - y) - nearest) < 1e-6);
+      if (points.length === 2) {
+        assert.equal(points[1].edge, router.edgeReverse[points[0].edge]);
+        assert.ok(Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y) < 1);
+        assert.ok(Math.abs(points[0].along + points[1].along - router.edgeLength[points[0].edge]) < 1);
+      }
+    }
+  });
+
   it("routes around a jammed street", () => {
     const start = router.nearestNode(...toXY({ lat: 34.19, lng: -118.155 }));
     const open = router.potential(0, new Set());
@@ -457,6 +483,29 @@ describe("Langevin dynamics", () => {
     };
     const mean = (keen: boolean) => Array.from({ length: 200 }, (_, i) => departure(keen, i)).reduce((a, b) => a + b, 0) / 200;
     assert.ok(mean(true) < mean(false));
+  });
+
+  it("pulls out onto the street in front of the house, not the nearest intersection", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const front = (home: Household) => router.streetPoints(...toXY(home), (edge) => router.edgeSpeed[edge] < 20);
+    // Homes within 100 m of a street (some synthetic homes lie past the edge of the road graph).
+    const homes = population.filter((home, k) => {
+      const [x, y] = toXY(home);
+      return k % 300 === 0 && home.canLeave === "yes" && home.hasCar && Math.hypot(front(home)[0].x - x, front(home)[0].y - y) < 100;
+    });
+    const sim = new CrowdSim(ground, homes, seededRandom(1), () => new Set(), DEFAULT_CROWD);
+    const fronts = homes.map((home) => front(home).map((point) => point.edge));
+    for (let i = 0; i < sim.count; i++) {
+      sim.state[i] = STATE.moving;
+      sim.onDriveway[i] = 1;
+    }
+    const joined = new Int32Array(sim.count).fill(-1);
+    for (let s = 0; s < 3 * 60 * 2 && joined.includes(-1); s++) {
+      sim.step();
+      for (let i = 0; i < sim.count; i++) if (joined[i] < 0 && sim.edge[i] >= 0) joined[i] = sim.edge[i];
+    }
+    const inFront = [...joined].filter((edge, i) => fronts[i].includes(edge)).length;
+    assert.ok(inFront >= sim.count - 1, `${inFront} of ${sim.count} took the street in front`);
   });
 
   it("drives households to safety, and blocked streets are found and routed around", () => {
