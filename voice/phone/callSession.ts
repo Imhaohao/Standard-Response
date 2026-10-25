@@ -22,6 +22,7 @@ import type { CallLine, CallVoice } from "./line";
 import { TwilioLine, TwilioStart } from "./twilioLine";
 import { env } from "../env";
 import { SimClock, simTime } from "../../lib/sim-clock";
+import { warmInterpreterFor } from "../interpreterWarmUp";
 
 // One live phone call: the resident's words in, the conversation, the agent's words out, on whichever
 // line carries it (line.ts).
@@ -164,6 +165,7 @@ export class CallSession implements LiveCall {
   }
 
   async begin() {
+    void warmInterpreterFor(this.params.mode);
     if (this.params.mode === "callback") return this.beginCallback();
     if (isOutboundFlowMode(this.params.mode)) return this.beginOutboundFlow();
     const householdId = await this.resolveHousehold();

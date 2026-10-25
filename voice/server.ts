@@ -10,6 +10,7 @@ import { startReadyDialer } from "./readyDialer";
 import { fireAndForget } from "./convex";
 import { env } from "./env";
 import { watchHazard } from "./hazard";
+import { warmEveryInterpreter } from "./interpreterWarmUp";
 import { handleMediaStream } from "./phone/callSession";
 import { endDroppedCalls, reportUnreached } from "./phone/callStatus";
 import { chatSession, handleCartesiaSocket } from "./phone/cartesiaCalls";
@@ -128,6 +129,7 @@ server.listen(env.port, () => {
   console.log(`[voice] listening on :${env.port}, calls on ${env.carrier}`);
   watchHazard();
   void loadApprovedAnswers();
+  void warmEveryInterpreter();
   if (process.env.VOICE_TEXT_ONLY === "true") return;
   fireAndForget("calls.endDropped", endDroppedCalls(bootedAt));
   startDialer();

@@ -8,6 +8,7 @@ import { currentHazard } from "../hazard";
 import { Guidance, guidanceText } from "../knowledge/bank";
 import { recall } from "../knowledge/moss";
 import { withFallback } from "./fallbackModel";
+import { WARM_UP_TEXT, warmer } from "./warmUp";
 import type { ApprovedMatch } from "./approvedAnswers";
 import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
 
@@ -379,13 +380,19 @@ const HEDGED_REQUESTS = Number(process.env.VOICE_HEDGED_REQUESTS ?? 3);
 // at standard speed rather than failing.
 const FAST_MODELS = new Set(["claude-opus-5-5", "claude-opus-5"]);
 
-function request(turn: TurnContext, kind: Hazard, guidance: Guidance | null) {
+const warmers = forEachHazard((kind) => warmer(`${kind} call`, () => request(kind, WARM_UP_TEXT, 1)));
+
+// The warning-call prompt for every hazard, or the operator's current one.
+export const warmCache = (kind?: Hazard) => (kind ? warmers[kind].warm() : Promise.all(HAZARDS.map((each) => warmers[each].warm())).then(() => undefined));
+
+function request(kind: Hazard, content: string, maxTokens = 1024) {
+  warmers[kind].used();
   const params = {
     model: env.anthropicModel,
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     // The prompt is the same on every turn, so caching it cuts each turn's time to first token.
     system: [{ type: "text" as const, text: SYSTEM[kind], cache_control: { type: "ephemeral" as const } }],
-    messages: [{ role: "user" as const, content: promptFor(turn, guidance) }],
+    messages: [{ role: "user" as const, content }],
     output_config: { effort: "low" as const, format: { type: "json_schema" as const, schema: OUTPUT_SCHEMA[kind] } },
   };
   const standard = () =>
@@ -404,7 +411,7 @@ export const interpret = (turn: TurnContext) => interpretFor(turn, currentHazard
 export async function interpretFor(turn: TurnContext, kind: Hazard): Promise<Interpretation> {
   const guidance = await recall(turn.question, turn.utterance, kind, turn.language);
   const claudeText = async () => {
-    const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(turn, kind, guidance)));
+    const response = await Promise.any(Array.from({ length: HEDGED_REQUESTS }, () => request(kind, promptFor(turn, guidance))));
     const text = response.content.find((block) => block.type === "text");
     if (response.stop_reason === "refusal" || !text || text.type !== "text") {
       throw new Error(`Interpreter returned no text (stop_reason ${response.stop_reason})`);

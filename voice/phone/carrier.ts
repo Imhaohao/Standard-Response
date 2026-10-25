@@ -2,10 +2,12 @@ import { env } from "../env";
 import type { StreamParameters } from "./callParameters";
 import { cancelCartesiaCall, placeCartesiaCall } from "./cartesiaCalls";
 import { hangUp, placeCall as placeTwilioCall } from "./twilio";
+import { warmInterpreterFor } from "../interpreterWarmUp";
 
 // The phone system VOICE_CARRIER picks, for everything that places or cancels a call.
 
 export function placeCall(to: string, parameters: StreamParameters) {
+  void warmInterpreterFor(parameters.mode);
   return env.carrier === "cartesia" ? placeCartesiaCall(to, parameters) : placeTwilioCall(to, parameters);
 }
 

@@ -3,6 +3,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { env } from "../env";
 import { Ask, ASK_RULES, ASK_SCHEMA, askFrom, GoalPrompt, goalsText } from "./askLine";
 import { withFallback } from "./fallbackModel";
+import { WARM_UP_TEXT, warmer } from "./warmUp";
 import type { Answer } from "./interpreter";
 import type { Language } from "./script";
 
@@ -224,18 +225,26 @@ function promptFor(turn: ReadyTurnContext) {
     .join("\n\n");
 }
 
+function request(user: string, maxTokens = 512) {
+  warm.used();
+  client ??= new Anthropic();
+  return client.messages.create({
+    model: env.anthropicModel,
+    max_tokens: maxTokens,
+    system: SYSTEM,
+    messages: [{ role: "user", content: user }],
+    output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA } },
+    ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
+  });
+}
+
+const warm = warmer("Ready check", () => request(WARM_UP_TEXT, 1));
+export const warmReadyInterpreter = () => warm.warm();
+
 export const interpretReadyAnswer: ReadyInterpret = async (turn) => {
   const user = promptFor(turn);
   const claudeText = async () => {
-    client ??= new Anthropic();
-    const response = await client.messages.create({
-      model: env.anthropicModel,
-      max_tokens: 512,
-      system: SYSTEM,
-      messages: [{ role: "user", content: user }],
-      output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA } },
-      ...(env.anthropicThinkingOff ? { thinking: { type: "disabled" as const } } : {}),
-    });
+    const response = await request(user);
     const block = response.content.find((item) => item.type === "text");
     if (response.stop_reason === "refusal" || !block || block.type !== "text") {
       throw new Error(`Ready interpreter returned no text (stop_reason ${response.stop_reason})`);
