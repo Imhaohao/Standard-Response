@@ -522,10 +522,23 @@ export class Conversation {
   }
 
   // "Hello?" just after the status is checking the line, not asking for the status again: a real
-  // caller said it twice and heard the same five sentences twice.
+  // caller said it twice and heard the same five sentences twice. Asked again after hearing it in
+  // full twice running, it isn't said a third time: "What was the first question I asked?" was read
+  // as a repeat request and got the whole status four times.
   private repeatOnHold() {
     const checkingTheLine = isLineCheck(this.lastResidentLine()) && this.rideJustSaid();
-    return checkingTheLine ? LINES[this.language].stillThere[STILL_ON_THE_LINE] : this.rideLine();
+    if (checkingTheLine) return LINES[this.language].stillThere[STILL_ON_THE_LINE];
+    return this.rideSaidInLastTurns(2) ? "" : this.rideLine();
+  }
+
+  private rideSaidInLastTurns(turns: number) {
+    const ride = this.rideLine();
+    const recent = this.recentAgentLines(turns);
+    return recent.length === turns && recent.every((line) => line.includes(ride));
+  }
+
+  private recentAgentLines(turns: number) {
+    return this.history.filter((line) => line.speaker === "agent").slice(-turns).map((line) => line.text);
   }
 
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
@@ -1013,8 +1026,7 @@ export class Conversation {
   // Only the full line counts, so asked every few turns the caller still hears it in full now and then.
   private rideJustSaid() {
     const ride = this.rideLine();
-    const recent = this.history.filter((line) => line.speaker === "agent").slice(-RECENT_AGENT_TURNS);
-    return recent.some((line) => line.text.includes(ride));
+    return this.recentAgentLines(RECENT_AGENT_TURNS).some((line) => line.includes(ride));
   }
 
   // Agent turns since the resident last spoke that asked the current question, in either wording.

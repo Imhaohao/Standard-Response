@@ -899,3 +899,23 @@ describe("the 911 screen on a call", () => {
     assert.ok(turn.sentences.includes(SCREEN.route));
   });
 });
+
+// 2493 Altadena, 2026-10-25: "What was the first question I asked you?" three times on hold, read as
+// a repeat request, got the whole status after each one.
+describe("a repeat request on hold", () => {
+  it("doesn't replay the status a third time running", () => {
+    const { conversation } = atHold();
+    const full = conversation.rideLine();
+    const first = conversation.respond("So what was the first question I asked?", heard({ wantsRepeat: true }));
+    assert.ok(first.sentences.includes(full));
+    const second = conversation.respond("What was the first question I asked you?", heard({ wantsRepeat: true }));
+    assert.ok(!second.sentences.includes(full));
+  });
+
+  it("still replays it for a caller who missed it once", () => {
+    const { conversation } = atHold();
+    conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
+    const again = conversation.respond("sorry, say that again?", heard({ wantsRepeat: true }));
+    assert.ok(again.sentences.includes(conversation.rideLine()));
+  });
+});
