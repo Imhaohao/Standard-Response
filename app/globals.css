@@ -2,7 +2,7 @@
 
 /* Faces we have no license to publish: Nexa Rust (a Fontfabric trial) sets the name Standard Response,
    numbers and big display text, and Mustica Pro (Alifinart Studio, free version, one weight) sets the
-   deck's body text. The files are gitignored and live only on the presenting laptop. Without them the name
+   deck's body text. The files are in public/brand-fonts/ (credits in its README). Without them the name
    falls back to Verlag, then League Spartan, the big type to Sofia Sans Condensed and the deck's body to
    Public Sans. Each weight range stops the browser from synthesizing a bolder copy of the one face. */
 @font-face {
