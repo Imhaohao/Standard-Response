@@ -12,7 +12,8 @@ import { Load, UNLOAD_SECONDS } from "./vehicleRun";
 // can reach before their deadline wait until everyone reachable in time is placed, like a
 // dispatcher's triage. A rider with no road to a shelter that has room can't be served. A rider
 // whose driver can no longer reach them was told they're still at the top of the list, so riders
-// being reassigned go first, earliest deadline first among them.
+// being reassigned go first, earliest deadline first among them. An open offer stays on its van
+// unless another gets there 10 minutes sooner, or is the only one there in time.
 
 const LOAD_FIELDS = ["seats", "wheelchairSpaces", "stretcherSpaces"] as const;
 
@@ -119,11 +120,22 @@ function assign(shelters: Shelters, state: VehicleState, request: ProblemRequest
   state.time = option.arrival + request.boardingSeconds;
 }
 
+// A driver may be reading the open offer. Like the solvers' cost for changing one, moving it to
+// another van has to get the rider there this much sooner, or be the only way there in time.
+const CHANGED_OFFER_SECONDS = 600;
+
+function keepsOpenOffer(request: ProblemRequest, kept: Option | undefined, best: Option) {
+  if (!kept) return false;
+  return kept.arrival <= best.arrival + CHANGED_OFFER_SECONDS && (kept.arrival <= request.deadline || best.arrival > request.deadline);
+}
+
 function bestOption(problem: Problem, shelters: Shelters, states: VehicleState[], request: ProblemRequest) {
   const options = request.allowedVehicles
     .map((k) => joinOpenTrip(problem, shelters, states[k], k, request) ?? startNewTrip(problem, shelters, states[k], k, request))
-    .filter((option): option is Option => option !== null && option.arrival <= states[option.vehicle].vehicle.endBy);
-  return options.sort((a, b) => a.arrival - b.arrival)[0];
+    .filter((option): option is Option => option !== null && option.arrival <= states[option.vehicle].vehicle.endBy)
+    .sort((a, b) => a.arrival - b.arrival);
+  const kept = options.find((option) => option.vehicle === request.openOfferVehicle);
+  return options.length > 0 && keepsOpenOffer(request, kept, options[0]) ? kept : options[0];
 }
 
 type Placing = { problem: Problem; shelters: Shelters; states: VehicleState[]; dropped: string[] };

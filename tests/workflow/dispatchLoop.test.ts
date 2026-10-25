@@ -330,3 +330,24 @@ describe("an offer waiting for the dispatcher's approval at fast playback", () =
     expect((await liveFor(t, request._id))[0]._id).not.toBe(proposed._id);
   });
 });
+
+describe("a route of several trips", () => {
+  test("offers its van only the next trip, and plans the rest again next round", async () => {
+    const t = setup();
+    const homes = await night(t);
+    const [first, second] = await Promise.all(homes.map((home) => requestOf(t, home)));
+    const snap = await t.query(internal.dispatchSnapshot.snapshot, {});
+    const world = buildWorld(snap, snap.now);
+    const van = world.vehicles[0]._id;
+    const shelter = snap.shelters[0]._id;
+    const stop = (request: Id<"requests">, kind: "pickup" | "dropoff", minutes: number) => ({ request, kind, shelter: kind === "dropoff" ? shelter : null, arrival: minutes * 60 });
+    const plan = planFromSolution(world, {
+      routes: [{ vehicle: van, stops: [stop(first._id, "pickup", 5), stop(first._id, "dropoff", 25), stop(second._id, "pickup", 40), stop(second._id, "dropoff", 60)] }],
+      dropped: [],
+      solver: "heuristic",
+      solveMs: 1,
+    });
+    expect(plan.offers.map((offer) => offer.requestId)).toEqual([first._id]);
+    expect(plan.escalate).toEqual([]);
+  });
+});

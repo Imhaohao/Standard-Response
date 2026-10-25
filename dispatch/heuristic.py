@@ -9,14 +9,15 @@ The rider goes to the compatible vehicle that reaches them soonest. Riders no ve
 before their deadline wait until everyone reachable in time is placed, like a dispatcher's triage.
 A rider with no road to a shelter that has room can't be served and is dropped. A rider whose
 driver can no longer reach them was told they're still at the top of the list, so riders being
-reassigned go first, earliest deadline first among them.
+reassigned go first, earliest deadline first among them. An open offer stays on its van unless
+another gets there 10 minutes sooner, or is the only one there in time.
 """
 
 from __future__ import annotations
 
 import time
 
-from solver import CAPACITY_FIELDS, UNLOAD_SECONDS
+from solver import CAPACITY_FIELDS, CHANGED_OFFER_COST, UNLOAD_SECONDS
 
 
 def people(request) -> int:
@@ -129,15 +130,27 @@ def _assign(shelters, state, request, option):
     state.time = arrival + request["boardingSeconds"]
 
 
+def _keeps_open_offer(request, kept, best):
+    """A driver may be reading the open offer. Like the solvers' cost for changing one, moving it to
+    another van has to get the rider there CHANGED_OFFER_COST seconds sooner, or be the only way in time."""
+    if kept is None:
+        return False
+    arrival, best_arrival = kept[1][0], best[1][0]
+    in_time = arrival <= request["deadline"] or best_arrival > request["deadline"]
+    return arrival <= best_arrival + CHANGED_OFFER_COST and in_time
+
+
 def _best_option(problem, shelters, states, request):
-    best = None
+    best, kept = None, None
     for k in request["allowedVehicles"]:
         option = _option(problem, shelters, states[k], request)
         if option is None or option[0] > states[k].vehicle["endBy"]:
             continue
         if best is None or option[0] < best[1][0]:
             best = (k, option)
-    return best
+        if k == request.get("openOfferVehicle"):
+            kept = (k, option)
+    return kept if best is not None and _keeps_open_offer(request, kept, best) else best
 
 
 def _place(problem, shelters, states, requests, dropped, late=None):

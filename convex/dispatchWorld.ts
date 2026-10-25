@@ -372,21 +372,41 @@ type Changes = {
   escalate: Id<"households">[];
 };
 
-function planPickup(world: World, changes: Changes, vehicleId: Id<"vehicles">, stop: PlannedStop, sequence: number, shelter?: string) {
+type PlannedPickup = { vehicleId: Id<"vehicles">; stop: PlannedStop; sequence: number; shelter?: string; offerable: boolean };
+
+// An open offer kept on the same van still shows its ETA, and it's the one the rider hears if the
+// driver accepts. When the plan sends the van somewhere first and that slips, the offer is redone.
+// A rider planned past the van's next trip gets no new offer until a later round reaches them.
+function planPickup(world: World, changes: Changes, { vehicleId, stop, sequence, shelter, offerable }: PlannedPickup) {
   const entry = world.riders.get(stop.request);
   if (!entry) return;
   const requestId = entry.request._id;
   const open = world.offers.get(requestId);
   const etaMinutes = Math.max(1, Math.ceil(stop.arrival / 60));
-  // An open offer kept on the same van still shows its ETA, and it's the one the rider hears if the
-  // driver accepts. When the plan sends the van somewhere first and that slips, the offer is redone.
   const kept = open && !open.stale && open.assignment.vehicleId === vehicleId && etaMinutes <= open.assignment.etaMinutes + OFFER_ETA_SLIP_MINUTES;
-  if (!kept) {
-    if (open) changes.replace.push(open.assignment._id);
-    changes.offers.push({ requestId, vehicleId, shelterId: shelter as Id<"shelters"> | undefined, etaMinutes, sequence });
-  }
+  if (!kept && open) changes.replace.push(open.assignment._id);
+  if (!kept && offerable) changes.offers.push({ requestId, vehicleId, shelterId: shelter as Id<"shelters"> | undefined, etaMinutes, sequence });
   const late = world.now + stop.arrival * 1000 > entry.request.deadlineAt;
   if (late && !entry.escalated) changes.escalate.push(entry.request.householdId);
+}
+
+// The riders of a route's next trip: its pickups up to the drop-off that leaves the van empty.
+// Only they are offered. The rest of the route is planned again every round, so a driver isn't
+// handed a chain of pickups an hour out that the next rider to call would reshuffle. The
+// simulator's dispatcher (dispatch/sim/optimizer_policy.py) commits vans the same way.
+function nextTrip(stops: PlannedStop[]) {
+  const trip = new Set<string>();
+  const aboard = new Set<string>();
+  for (const stop of stops) {
+    if (stop.kind === "pickup") {
+      trip.add(stop.request);
+      aboard.add(stop.request);
+      continue;
+    }
+    aboard.delete(stop.request);
+    if (aboard.size === 0) break;
+  }
+  return trip;
 }
 
 function planDropped(world: World, changes: Changes, requestId: string) {
@@ -405,9 +425,11 @@ export function planFromSolution(world: World, solution: Solution, fallbackReaso
     if (!vehicle) continue;
     const shelters = new Map(route.stops.filter((s) => s.kind === "dropoff").map((s) => [s.request, s.shelter ?? undefined]));
     const pickups = route.stops.filter((s) => s.kind === "pickup");
+    const trip = nextTrip(route.stops);
     for (const [sequence, stop] of pickups.entries()) {
       planned.add(stop.request);
-      planPickup(world, changes, vehicle._id, stop, sequence, shelters.get(stop.request));
+      const offerable = trip.has(stop.request);
+      planPickup(world, changes, { vehicleId: vehicle._id, stop, sequence, shelter: shelters.get(stop.request), offerable });
     }
   }
   for (const requestId of world.riders.keys()) {

@@ -29,7 +29,7 @@ def random_problem(rng: random.Random):
         allowed = [k for k, v in enumerate(vehicles) if all(v[f] >= load[f] for f in load)]
         requests.append({"id": f"r{r}", "location": rng.randrange(size - 2), "load": load, "boardingSeconds": rng.choice([120, 600, 1200]),
                          "deadline": rng.randint(300, 4000), "weight": rng.randint(1, 5), "allowedVehicles": allowed,
-                         "openOfferVehicle": None, "maxRideSeconds": rng.choice([None, None, 1500]),
+                         "openOfferVehicle": rng.choice([None, *allowed]) if allowed else None, "maxRideSeconds": rng.choice([None, None, 1500]),
                          "reassigned": rng.random() < 0.2})
     return {"policy": "heuristic", "locations": [{"lat": 0, "lng": 0}] * size, "matrix": matrix, "vehicles": vehicles,
             "requests": requests, "shelters": shelters, "timeLimitSeconds": 1}

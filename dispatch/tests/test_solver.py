@@ -172,3 +172,12 @@ def test_when_only_one_rider_can_be_carried_the_reassigned_one_is_kept():
     p["shelters"] = [{"id": "s", "location": 4, "capacity": 1}]
     for result in [solver.solve(p), alns.solve(p), heuristic.solve(p)]:
         assert result["dropped"] == ["waiting"]
+
+
+def test_heuristic_keeps_an_open_offer_unless_another_van_is_much_sooner():
+    # Van b holds the open offer. Van a reaches the rider 530 s sooner: not worth pulling the offer.
+    held = request("held", 2, [0, 1], openOfferVehicle=1)
+    assert pickups(heuristic.solve(problem([vehicle("a", 0), vehicle("b", 1)], [held])))["b"] == ["held"]
+    # Van b is busy for another 10 minutes, so a is 1,130 s sooner: the offer moves.
+    busy_b = problem([vehicle("a", 0), vehicle("b", 1, availableAt=600)], [held])
+    assert pickups(heuristic.solve(busy_b))["a"] == ["held"]
