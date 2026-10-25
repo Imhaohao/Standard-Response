@@ -476,4 +476,13 @@ describe("lines the caller just heard", () => {
     assert.ok(hold.sentences.includes(EN.statusUnchanged));
     assert.ok(!hold.sentences.includes(conversation.rideLine()));
   });
+
+  it("says the full status, safety lines included, when a caller on hold reports the fire again", () => {
+    const { conversation } = atHold();
+    conversation.respond("the fire is on my street", heard({ emergency: "flames" }));
+    conversation.respond("when are they coming?", heard({ asksAboutRide: true }));
+    const again = conversation.respond("I can see the fire approaching. I'm about to die.", heard({ emergency: "flames", asksAboutRide: true }));
+    assert.ok(again.sentences.includes(conversation.rideLine()));
+    assert.ok(!again.sentences.includes(EN.statusUnchanged));
+  });
 });

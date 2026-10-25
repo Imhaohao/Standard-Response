@@ -325,7 +325,7 @@ export class Conversation {
     const feeling = this.feelingLines(heard, status, urgent);
     // A reply that names the feeling again after the feeling line is scripted sympathy: dropped.
     const repeatsFeeling = feeling.length > 0 && FEELING_WORDS.test(answer.text);
-    const said = answer.blocked ? (this.holding ? [this.rideUpdate()] : []) : repeatsFeeling ? [] : this.freshReply(answer.text);
+    const said = answer.blocked ? (this.holding ? [this.rideUpdate(heard)] : []) : repeatsFeeling ? [] : this.freshReply(answer.text);
     const lines = [...greeting, ...feeling, ...urgent, ...extra, ...this.rideLines(heard), ...this.whatToDoLines(heard), ...said, ...this.nextLines(stalled, givesTime)];
     const sentences = [...new Set(lines)].filter((line) => line !== "");
     const turn = this.say(ack.text, sentences, ack.blocked || answer.blocked);
@@ -378,8 +378,8 @@ export class Conversation {
   // Asked to say it again, they hear the status in full; asked about the ride again, they hear that
   // nothing has changed. A real caller hung up after the full status three times in four turns.
   private rideLines(heard: Interpretation) {
-    if (this.holding && heard.wantsRepeat) return [this.rideLine()];
-    return heard.asksAboutRide ? [this.rideUpdate()] : [];
+    if (this.holding && (heard.wantsRepeat || heard.emergency !== "none")) return [this.rideLine()];
+    return heard.asksAboutRide ? [this.rideUpdate(heard)] : [];
   }
 
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
@@ -728,8 +728,11 @@ export class Conversation {
   }
 
   // The status in full, or that it hasn't changed when they heard it in the last few agent turns.
-  private rideUpdate() {
-    return this.rideJustSaid() ? LINES[this.language].statusUnchanged : this.rideLine();
+  // A life threat always hears the status in full, since its last sentences are what to do if the
+  // hazard reaches them: "I can see the fire approaching" got "Nothing has changed" on a real call.
+  private rideUpdate(heard?: Interpretation) {
+    const lifeThreat = heard !== undefined && heard.emergency !== "none";
+    return this.rideJustSaid() && !lifeThreat ? LINES[this.language].statusUnchanged : this.rideLine();
   }
 
   // Only the full line counts, so asked every few turns the caller still hears it in full now and then.
