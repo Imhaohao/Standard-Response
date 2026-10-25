@@ -5,8 +5,9 @@ import type { FireField } from "./fire-field";
 // Flames as objects standing in the town: rows of licking tongues along every burning edge, and
 // behind it a field of them dying down over the last quarter hour of burned ground. They are real
 // geometry, so they stand up from the hills, hide behind houses and look different from every
-// angle. Each one is a flat card turned along the fire line, with the tongues drawn on it; the set is
-// re-placed only when the fire's minute changes.
+// angle. A flame on the line is a flat card turned along it, with the tongues drawn on it; one behind
+// the line is a cross of two cards, so it reads as fire from any side. The set is re-placed only when
+// the fire's minute changes.
 
 const MOST_FLAMES = 12000;
 const FLAME_SPACING_METERS = 8;
@@ -170,7 +171,7 @@ function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, numbe
 // Flames behind the line: the ground the fire crossed in the last quarter hour is still burning,
 // thickest and tallest just behind the line and thinning out and dying down toward the ash. Each
 // spot is tried a few times per cell; how many survive, and how tall, falls with how long ago the
-// fire passed that exact spot. They turn along the fire line like the flames on it.
+// fire passed that exact spot. Each is placed as one card here and stood up as a cross by `crossed`.
 function flamesBehind(grid: Grid, col: number, row: number, index: number): Flame[] {
   const since = grid.minutes - grid.field.minutes[index];
   if (since < 0 || since > STILL_BURNING_MINUTES + 2) return [];
@@ -182,14 +183,13 @@ function flamesBehind(grid: Grid, col: number, row: number, index: number): Flam
     const y = cy + (hash(seed + 0.5) - 0.5) * grid.cellY;
     const burning = 1 - (grid.minutes - sampleField(grid, x, y)) / STILL_BURNING_MINUTES;
     if (!(burning > 0) || hash(seed + 0.9) > burning ** 1.6 * BEHIND_DENSITY) continue;
-    const [tx, ty] = lineDirection(grid, x, y, [1, 0]);
     flames.push({
       x,
       y,
       width: (6 + hash(seed + 1) * 4) * (0.5 + 0.5 * burning),
       height: (8 + hash(seed + 2) * 14) * (0.25 + 0.75 * burning),
       phase: hash(seed + 3),
-      angle: Math.atan2(ty, tx),
+      angle: hash(seed + 4) * Math.PI,
     });
   }
   return flames;
@@ -225,10 +225,15 @@ function flamesAt(field: FireField, minutes: number, bounds: Bounds): Flame[] {
       if (field.minutes[row * field.width + col] <= minutes) behind.push(...flamesBehind(grid, col, row, row * field.width + col));
     }
   }
-  // The line itself always draws in full; the flames behind it share what the GPU budget leaves.
+  // The line itself always draws in full; the crosses behind it share what the GPU budget leaves,
+  // two cards each.
   const edge = thinTo(onMap(onEdge, bounds), MOST_FLAMES);
-  return [...edge, ...thinTo(onMap(behind, bounds), MOST_FLAMES - edge.length)];
+  const crosses = thinTo(onMap(behind, bounds), Math.floor((MOST_FLAMES - edge.length) / 2));
+  return [...edge, ...crosses.flatMap(crossed)];
 }
+
+// A flame as two cards at right angles, with their tongues out of step.
+const crossed = (flame: Flame): Flame[] => [flame, { ...flame, angle: flame.angle + Math.PI / 2, phase: hash(flame.phase * 31.7) }];
 
 const onMap = (flames: Flame[], bounds: Bounds) => flames.filter((flame) => flame.x >= bounds.x0 && flame.x <= bounds.x1 && flame.y >= bounds.y0 && flame.y <= bounds.y1);
 
