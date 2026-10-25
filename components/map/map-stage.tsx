@@ -224,7 +224,7 @@ export function MapStage({
 // Smoke rises only from a hazard that burns.
 function HazardSmoke({ hazard, minutes = 0 }: { hazard?: Hazard | null; minutes?: number }) {
   if (!hazard || hazard.burns === false) return null;
-  return <SmokeLayer fronts={hazard.field.fronts} minutes={minutes} />;
+  return <SmokeLayer field={hazard.field} minutes={minutes} />;
 }
 
 // One SVG per overlay. They are left to the browser's own layering: forcing each onto a full-screen

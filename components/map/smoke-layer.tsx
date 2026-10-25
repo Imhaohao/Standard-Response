@@ -2,24 +2,29 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { Point } from "@/lib/ink-map/data";
-import { ScenarioFront } from "@/lib/ink-map/fire-field";
+import type { FireField } from "@/lib/ink-map/fire-field";
 import { Project, useMapStage } from "./map-stage";
 
-// Smoke drawn the manga way: round puffs with an ink outline and a halftone shadow, rising in a few
-// plumes spread along the whole burning edge and leaning downwind, thickest where the front runs
-// fastest. Each puff's path is a real line in the air, from the burning ground to a point downwind
-// and high above it, projected through the camera, so the plume keeps its heading at any zoom.
-// It is painted on its own canvas above the map's markers: animating SVG puffs made the browser
-// repaint every marker on the map for every frame of smoke.
+// Smoke drawn the manga way: round puffs with an ink outline and a halftone shadow, rising from all
+// over the ground the fire has reached and leaning downwind. Ground burning now (the last quarter
+// hour behind the front) smokes hardest; ground it crossed earlier smoulders, fainter the longer
+// ago. Sources come from the same arrival field the map shades, spaced evenly over the burn, so the
+// smoke covers the fire wherever the map shows it burning. Each puff's path is a real line in the
+// air, from the burning ground to a point downwind and high above it, projected through the camera,
+// so the plume keeps its heading at any zoom. It is painted on its own canvas above the map's
+// markers: animating SVG puffs made the browser repaint every marker on the map for every frame.
 
-const PUFFS = 72;
 const LIFE_SECONDS = 9;
-const EDGE_SAMPLES = 96;
-const PLUME_EVERY_METERS = 350;
-const INSIDE_HEAT = 0.55;
-const MOST_PLUMES = 8;
-// How hard the ground the last two fronts crossed still smokes, against the burning edge's 1.
-const SMOULDER_HEAT = [0.6, 0.35];
+// Sources sit at least this far apart, and further on a big burn so there are never more than
+// MOST_SOURCES of them.
+const SOURCE_SPACING_METERS = 250;
+const MOST_SOURCES = 48;
+const MOST_BURNING_SOURCES = 32;
+// Ground behind the front burns at full heat for this long, then smoulders down toward nothing.
+const BURNING_MINUTES = 15;
+const SMOULDER_HEAT = 0.55;
+const SMOULDER_MINUTES = 70;
+const FAINTEST_HEAT = 0.12;
 // The scenario's wind carries smoke toward the west-southwest.
 const DOWNWIND: Point = [-0.92, -0.38];
 const DRIFT_METERS = 1000;
@@ -36,61 +41,48 @@ const SMOKE_OPACITY = 0.55;
 
 type Source = { point: Point; strength: number };
 
-function sampleRing(ring: Point[], count: number): Point[] {
-  const step = Math.max(1, Math.floor(ring.length / count));
-  return ring.filter((_, index) => index % step === 0);
+// How hard ground smokes `since` minutes after the fire reached it.
+function heatAfter(since: number) {
+  if (since < 0) return 0;
+  if (since <= BURNING_MINUTES) return 1;
+  return SMOULDER_HEAT * Math.exp(-(since - BURNING_MINUTES) / SMOULDER_MINUTES);
 }
 
-function distanceToRing(ring: Point[], [x, y]: Point) {
-  let best = Infinity;
-  for (const [rx, ry] of ring) best = Math.min(best, Math.hypot(rx - x, ry - y));
-  return best;
+// How many cells apart sources sit: the spacing, widened until the burn holds at most MOST_SOURCES.
+function strideFor(field: FireField, minutes: number) {
+  const cellMeters = (field.region.x1 - field.region.x0) / field.width;
+  let smoking = 0;
+  for (let i = 0; i < field.minutes.length; i++) if (heatAfter(minutes - field.minutes[i]) >= FAINTEST_HEAT) smoking++;
+  const spacing = Math.max(SOURCE_SPACING_METERS, Math.sqrt((smoking * cellMeters * cellMeters) / MOST_SOURCES));
+  return Math.max(1, Math.round(spacing / cellMeters));
 }
 
-function perimeter(ring: Point[]) {
-  let total = 0;
-  for (let i = 1; i < ring.length; i++) total += Math.hypot(ring[i][0] - ring[i - 1][0], ring[i][1] - ring[i - 1][1]);
-  return total;
+// One source per stride of the grid wherever the ground is smoking as `wanted` asks, nudged off the
+// grid so the plumes don't stand in rows.
+function sourcesOnGrid(field: FireField, minutes: number, stride: number, wanted: (heat: number) => boolean): Source[] {
+  const cellX = (field.region.x1 - field.region.x0) / field.width;
+  const cellY = (field.region.y1 - field.region.y0) / field.height;
+  const sources: Source[] = [];
+  for (let row = Math.floor(stride / 2); row < field.height; row += stride) {
+    for (let col = Math.floor(stride / 2); col < field.width; col += stride) {
+      const heat = heatAfter(minutes - field.minutes[row * field.width + col]);
+      if (heat < FAINTEST_HEAT || !wanted(heat)) continue;
+      const nudge = (hash(row * 91.3 + col * 7.1) - 0.5) * stride;
+      const lift = (hash(row * 13.7 + col * 53.9) - 0.5) * stride;
+      sources.push({ point: [field.region.x0 + (col + 0.5 + nudge) * cellX, field.region.y0 + (row + 0.5 + lift) * cellY], strength: heat });
+    }
+  }
+  return sources;
 }
 
-// Plumes spread around one front: the ring is cut into equal stretches and each plume rises where
-// its stretch pushes furthest by the following front. A long push means a hot, fast run.
-function plumesAlong(ring: Point[], nextRing: Point[] | null, plumes: number, heat: number): Source[] {
-  const edge = sampleRing(ring, EDGE_SAMPLES).map((point) => ({ point, strength: nextRing ? distanceToRing(nextRing, point) : 1 }));
-  const stretch = Math.ceil(edge.length / plumes);
-  return Array.from({ length: plumes }, (_, i) => edge.slice(i * stretch, (i + 1) * stretch))
-    .filter((part) => part.length > 0)
-    .map((part) => part.reduce((best, source) => (source.strength > best.strength ? source : best)))
-    .map((source) => ({ ...source, strength: source.strength * heat }));
-}
+const everyNth = <T,>(items: T[], most: number) => (items.length <= most ? items : items.filter((_, i) => i % Math.ceil(items.length / most) === 0));
 
-// Plumes over the burned ground inside a front: points of the ring pulled part of the way to its
-// middle, fainter than the edge's.
-function plumesInside(ring: Point[], count: number): Source[] {
-  const [cx, cy] = ring.reduce(([x, y], [px, py]) => [x + px / ring.length, y + py / ring.length], [0, 0]);
-  return sampleRing(ring, count).map(([x, y], i) => {
-    const pull = 0.3 + 0.4 * hash(i * 4.7 + x);
-    return { point: [x + (cx - x) * pull, y + (cy - y) * pull] as Point, strength: INSIDE_HEAT };
-  });
-}
-
-// A plume for every few hundred metres of burning edge, some over the burned ground inside it, and
-// fainter ones over ground the fire crossed in the last hour or so, which is still smouldering.
-function smokeSources(fronts: ScenarioFront[], minutes: number): Source[] {
-  const index = fronts.findLastIndex((front) => front.minutes <= minutes);
-  if (index < 0) return [];
-  const sampled = (i: number) => (fronts[i] ? sampleRing(fronts[i].ring, EDGE_SAMPLES * 2) : null);
-  const plumes = Math.max(1, Math.min(MOST_PLUMES, Math.round(perimeter(fronts[index].ring) / PLUME_EVERY_METERS)));
-  const sources = [
-    ...plumesAlong(fronts[index].ring, sampled(index + 1), plumes, 1),
-    ...plumesInside(fronts[index].ring, Math.max(1, Math.round(plumes / 2))),
-    ...SMOULDER_HEAT.flatMap((heat, back) => {
-      const older = fronts[index - back - 1];
-      return older ? plumesAlong(older.ring, sampled(index - back), Math.max(1, Math.round(plumes / 2)), heat) : [];
-    }),
-  ];
-  const strongest = Math.max(...sources.map((source) => source.strength)) || 1;
-  return sources.map((source) => ({ ...source, strength: Math.max(0.3, source.strength / strongest) }));
+// The smouldering burn at the even spacing, and the band burning now, which is only a few hundred
+// metres deep, on a grid three times finer so the front always sends up its own plumes.
+function smokeSources(field: FireField, minutes: number): Source[] {
+  const stride = strideFor(field, minutes);
+  const burning = sourcesOnGrid(field, minutes, Math.max(1, Math.round(stride / 3)), (heat) => heat === 1);
+  return [...sourcesOnGrid(field, minutes, stride, (heat) => heat < 1), ...everyNth(burning, MOST_BURNING_SOURCES)];
 }
 
 const hash = (n: number) => {
@@ -98,7 +90,7 @@ const hash = (n: number) => {
   return x - Math.floor(x);
 };
 
-type Puff = { x: number; y: number; r: number; dx: number; dy: number; phase: number };
+type Puff = { x: number; y: number; r: number; dx: number; dy: number; phase: number; strength: number };
 
 const offset = ([x, y]: Point, east: number, north: number): Point => [x + east, y + north];
 
@@ -118,13 +110,14 @@ function puffFrom(project: Project, source: Source, sourceIndex: number, puffInd
     dx: top.x - base.x,
     dy: top.y - base.y,
     phase: hash(sourceIndex * 3.1 + puffIndex * 5.7),
+    strength: source.strength,
   };
 }
 
 // Where a puff is in its life: it swells as it rises and drifts, fades in quickly and out at the end.
 function puffAt(puff: Puff, seconds: number) {
   const t = (seconds / LIFE_SECONDS + puff.phase) % 1;
-  const opacity = Math.min(1, t / 0.08, (1 - t) / 0.14);
+  const opacity = Math.min(1, t / 0.08, (1 - t) / 0.14) * (0.45 + 0.55 * puff.strength);
   return { x: puff.x + puff.dx * t, y: puff.y + puff.dy * t, r: puff.r * (0.35 + 2.05 * t), opacity };
 }
 
@@ -210,11 +203,11 @@ function setUpCanvas(canvas: HTMLCanvasElement, width: number, height: number): 
 
 // Every painted frame projects the puffs through the live camera, so the smoke stays on the fire
 // mid-pan without React re-rendering anything.
+// Hot ground sends up three puffs at a time, smouldering ground one.
 function puffsOnScreen(project: Project, sources: Source[]) {
-  const perSource = Math.ceil(PUFFS / Math.max(1, sources.length));
   const list: Puff[] = [];
   sources.forEach((source, s) => {
-    for (let i = 0; i < perSource; i++) {
+    for (let i = 0; i < 1 + Math.round(source.strength * 2); i++) {
       const puff = puffFrom(project, source, s, i);
       if (puff) list.push(puff);
     }
@@ -258,9 +251,9 @@ function useSmokePainter(canvasRef: React.RefObject<HTMLCanvasElement | null>, s
   }, [canvasRef, hasSmoke, width, height, subscribe]);
 }
 
-export function SmokeLayer({ fronts, minutes }: { fronts: ScenarioFront[]; minutes: number }) {
+export function SmokeLayer({ field, minutes }: { field: FireField; minutes: number }) {
   const { size } = useMapStage();
-  const sources = useMemo(() => smokeSources(fronts, minutes), [fronts, minutes]);
+  const sources = useMemo(() => smokeSources(field, minutes), [field, minutes]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useSmokePainter(canvasRef, sources, size.width, size.height);
   if (sources.length === 0) return null;
