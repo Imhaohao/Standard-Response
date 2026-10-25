@@ -113,6 +113,15 @@ export const callStage = v.union(
   v.literal("close"),
 );
 
+// Who a pickup call is for and why. The same values as `PlanRole` and `PlanPurpose` in voice/agent.
+export const pickupRole = v.union(v.literal("helper"), v.literal("resident"));
+export const pickupPurpose = v.union(v.literal("ask"), v.literal("confirm"), v.literal("notice"));
+
+export const callFlow = v.union(
+  v.object({ kind: v.literal("pickup"), planId: v.id("pickupPlans"), role: pickupRole, purpose: pickupPurpose }),
+  v.object({ kind: v.literal("ready") }),
+);
+
 export const callPhase = v.union(
   v.literal("ringing"),
   v.literal("live"),
@@ -308,6 +317,10 @@ export default defineSchema({
     startedAt: v.number(),
     endedAt: v.optional(v.number()),
     simulated: v.boolean(),
+    // Set on a pickup-check or Ready-check call. It's about `householdId` (for a pickup, the home
+    // being picked up) and shows on the call floor, but it isn't that home's warning call: ending it
+    // leaves the home's call status and retries alone.
+    flow: v.optional(callFlow),
   })
     .index("by_phase", ["phase"])
     .index("by_householdId", ["householdId"]),

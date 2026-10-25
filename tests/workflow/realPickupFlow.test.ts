@@ -49,6 +49,27 @@ describe("real households on the night", () => {
     expect(queued.map((home) => home.address).sort()).toEqual([RESIDENT.address, NEIGHBOR.address]);
   });
 
+  test("a pickup call shows on the call floor, and ending it leaves the home's own call alone", async () => {
+    const t = setup();
+    const { resident } = await signUpBoth(t);
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    const [plan] = await plansFor(t, resident);
+    await t.mutation(api.pickups.startAttempt, { planId: plan._id, role: "helper" });
+    const flow = { kind: "pickup" as const, planId: plan._id, role: "helper" as const, purpose: "ask" as const };
+    const callId = await t.mutation(api.calls.startFlow, { householdId: resident, flow });
+
+    const [listed] = await t.query(api.calls.active, {});
+    expect(listed).toMatchObject({ _id: callId, flow, address: RESIDENT.address, attempt: 1 });
+    expect((await t.query(api.calls.detail, { callId }))?.speakerName).toBe(NEIGHBOR.residentName);
+
+    const before = await t.run(async (ctx) => ctx.db.get("households", resident));
+    await t.mutation(api.calls.end, { callId, answered: false });
+    const after = await t.run(async (ctx) => ctx.db.get("households", resident));
+    expect(await t.query(api.calls.active, {})).toHaveLength(0);
+    expect({ callStatus: after?.callStatus, attempts: after?.attempts }).toEqual({ callStatus: before?.callStatus, attempts: before?.attempts });
+  });
+
   test("the Ready call is given the helper on file until the night's check starts", async () => {
     const t = setup();
     const { resident } = await signUpBoth(t);

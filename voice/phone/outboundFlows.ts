@@ -1,4 +1,5 @@
 import { api } from "../../convex/_generated/api";
+import type { FunctionArgs } from "convex/server";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { CallFlow } from "../agent/callFlow";
 import { minutesUntil, PlanCheck, PlanCheckEffects, PlanPurpose } from "../agent/planCheck";
@@ -10,7 +11,8 @@ import type { CallMode, StreamParameters } from "./twilio";
 import { simTime } from "../../lib/sim-clock";
 
 // The two short outbound calls that aren't the evening survey: the pickup check (plan_check) and the
-// Ready check census (ready). Neither creates a `calls` row; the Convex mutations log to `events`.
+// Ready check census (ready). Each gets a `calls` row marked with its `flow`, so it shows on the call
+// floor without counting against the home's warning call; their results go through their own mutations.
 
 export const isOutboundFlowMode = (mode: CallMode) => mode === "plan_check" || mode === "ready";
 
@@ -41,13 +43,16 @@ function planEffects(planId: Id<"pickupPlans">, role: PlanRole, purpose: PlanPur
   };
 }
 
-async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
+// The flow to run and the call-floor row to open for it.
+export type OutboundFlow = { conversation: CallFlow; call: FunctionArgs<typeof api.calls.startFlow> };
+
+async function planCheckFor(params: StreamParameters): Promise<OutboundFlow> {
   const role = params.role ?? "helper";
   const [plan, control] = await Promise.all([planRow(params.planId ?? ""), convex().query(api.control.get, {})]);
   const purpose = purposeOf(params.purpose);
   const notice = role === "helper" ? plan.helperNotice : plan.residentNotice;
   if (purpose === "notice" && !notice) throw new Error(`Pickup plan ${plan._id} owes the ${role} no update now`);
-  return new PlanCheck({
+  const conversation = new PlanCheck({
     role,
     language: languageOf(plan.language),
     helperName: plan.helperName,
@@ -62,16 +67,17 @@ async function planCheckFor(params: StreamParameters): Promise<CallFlow> {
     notice,
     effects: planEffects(plan._id, role, purpose, plan.householdId),
   });
+  return { conversation, call: { householdId: plan.householdId, flow: { kind: "pickup", planId: plan._id, role, purpose } } };
 }
 
-async function readyCallFor(params: StreamParameters): Promise<CallFlow> {
+async function readyCallFor(params: StreamParameters): Promise<OutboundFlow> {
   const householdId = params.householdId as Id<"households">;
   const [household, helperOnFile] = await Promise.all([
     convex().query(api.voice.household, { householdId }),
     convex().query(api.ready.helperOnFile, { householdId }),
   ]);
   if (!household) throw new Error(`Household ${householdId} not found`);
-  return new ReadyCall({
+  const conversation = new ReadyCall({
     language: languageOf(household.language),
     addressOnFile: hasHouseNumber(household.address) ? household.address : undefined,
     residentName: household.residentName,
@@ -80,8 +86,9 @@ async function readyCallFor(params: StreamParameters): Promise<CallFlow> {
       save: (profile) => fireAndForget("ready.saveFromCall", convex().mutation(api.ready.saveFromCall, { householdId, ...profile })),
     },
   });
+  return { conversation, call: { householdId, flow: { kind: "ready" } } };
 }
 
-export function outboundFlowFor(params: StreamParameters): Promise<CallFlow> {
+export function outboundFlowFor(params: StreamParameters): Promise<OutboundFlow> {
   return params.mode === "plan_check" ? planCheckFor(params) : readyCallFor(params);
 }

@@ -7,7 +7,7 @@ import { resolveFollowUpFor } from "./calls";
 import { askNearbyDriver } from "./neighborPickups";
 import { canDrive, fitsInACar } from "./neighborRules";
 import { syncRequest } from "./requests";
-import { pickupFailure, pickupStatus } from "./schema";
+import { pickupFailure, pickupPurpose, pickupRole, pickupStatus } from "./schema";
 import { simNow } from "./clock";
 
 // The pickup check. When a warning covers a household with a helper on file, or tonight's calls
@@ -37,8 +37,8 @@ export const MAX_NOTICE_ATTEMPTS = 2;
 const DEFAULT_ETA_MINUTES = 15;
 const MAX_ETA_MINUTES = 60;
 
-const role = v.union(v.literal("helper"), v.literal("resident"));
-const purpose = v.optional(v.union(v.literal("ask"), v.literal("confirm"), v.literal("notice")));
+const role = pickupRole;
+const purpose = v.optional(pickupPurpose);
 
 const FAILURE_EVENTS: Record<Failure, (helper: string, place: string) => string> = {
   helper_declined: (helper, place) => `${helper} can't pick up ${place}. Opened a ride request`,

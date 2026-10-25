@@ -119,3 +119,13 @@ Two night-clock bugs in the pickup calls, both in your voice code:
 - `pickupRunner.ts` `tick` compared `lastAttemptAt` and `helperEtaAt` (both night-clock) with `Date.now()`. A missed pickup call was never retried, and the "were you picked up?" call never came due. `now` is now the night's time from the `control.clock` it already subscribes to.
 - `voice/Dockerfile` copies `lib/sim-clock.ts`, the one helper both use.
 - `npm run test:voice` passes (191).
+
+## 2026-10-24 19:35
+
+Contract: `calls` has a new optional field `flow`, which only adds fields. Your table, so please tell me if you'd rather it went another way. Until now, pickup-check and Ready-check calls had no `calls` row, so the call floor never showed them; tonight David's pickup call rang with nothing on screen.
+
+- `flow` is `{ kind: "pickup", planId, role, purpose }` or `{ kind: "ready" }` (validators `callFlow`, `pickupRole`, `pickupPurpose` in `schema.ts`). `householdId` is the home the call is about; for a pickup that's the home being picked up, even on the helper's call.
+- New mutation `calls:startFlow({ householdId, flow })` opens the row as `live`. `callSession.beginOutboundFlow` calls it with what `outboundFlowFor` now returns (`{ conversation, call }`), then logs lines and stages through `calls.say` / `calls.setStage` like any call. A failure to open the row is logged and doesn't stop the call.
+- `endCall` returns early for a `flow` call after setting its phase. The home's `callStatus`, attempts and reach ladder stay as they were, and the pickup and Ready results still go through their own mutations.
+- The call floor labels these rows "Asking helper", "Confirming ride", "Picked up?", "Update to helper/resident" or "Ready check" in place of the stage. `calls:detail` returns `speakerName`, which is the helper's name on a helper's call.
+- `calls:active` now lists these calls too. That means `sim.ts`'s concurrency count and `deploy-guard.ts` see them as well, which is what we want there.

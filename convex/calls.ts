@@ -1,8 +1,9 @@
-import { v } from "convex/values";
-import { query, MutationCtx } from "./_generated/server";
+import { Infer, v } from "convex/values";
+import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
-import { callPhase, callStage, requestStatus } from "./schema";
+import { callFlow, callPhase, callStage, requestStatus } from "./schema";
+import { attemptsOf } from "./pickups";
 import { outcomeFor } from "./model";
 import { simNow } from "./clock";
 import { ladderOnDial, recordMiss, STAND_IN_MAX_VOICE_ATTEMPTS, stopLadder } from "./reachLadder";
@@ -37,10 +38,12 @@ export async function startCall(
 export async function endCall(ctx: MutationCtx, callId: Id<"calls">, answered: boolean) {
   const call = await ctx.db.get("calls", callId);
   if (!call) throw new Error(`Call ${callId} not found`);
-  const household = await ctx.db.get("households", call.householdId);
-  if (!household) throw new Error(`Household ${call.householdId} not found`);
   const now = await simNow(ctx);
   await ctx.db.patch("calls", callId, { phase: answered ? "ended" : "no_answer", endedAt: now });
+  // A pickup or Ready call reports its own result; the home's warning call and retries are untouched.
+  if (call.flow) return;
+  const household = await ctx.db.get("households", call.householdId);
+  if (!household) throw new Error(`Household ${call.householdId} not found`);
   if (answered) return await endAnswered(ctx, household, now);
   // Real riders: the reach ladder workflow owns the retries, the text and the door check.
   if (!household.simulated) return await recordMiss(ctx, household, now);
@@ -84,6 +87,34 @@ export const start = mutation({
   returns: v.id("calls"),
   handler: async (ctx, args) => {
     return await startCall(ctx, { ...args, simulated: false });
+  },
+});
+
+async function flowAttempt(ctx: MutationCtx, household: Doc<"households">, flow: Infer<typeof callFlow>) {
+  if (flow.kind === "ready") return (household.readyMisses ?? 0) + 1;
+  const plan = await ctx.db.get("pickupPlans", flow.planId);
+  return plan ? attemptsOf(plan, flow.role, flow.purpose) : 1;
+}
+
+// Voice server: a pickup-check or Ready-check call connected. It goes on the call floor with the
+// home it's about (for a pickup, the home being picked up) but isn't an attempt at its warning call.
+export const startFlow = mutation({
+  args: { householdId: v.id("households"), flow: callFlow },
+  returns: v.id("calls"),
+  handler: async (ctx, { householdId, flow }) => {
+    const household = await ctx.db.get("households", householdId);
+    if (!household) throw new Error(`Household ${householdId} not found`);
+    return await ctx.db.insert("calls", {
+      householdId,
+      direction: "outbound",
+      phase: "live",
+      stage: "greet",
+      language: household.language,
+      attempt: await flowAttempt(ctx, household, flow),
+      startedAt: await simNow(ctx),
+      simulated: false,
+      flow,
+    });
   },
 });
 
@@ -199,6 +230,12 @@ export const active = query({
   },
 });
 
+// Who is on the other end: the helper on a helper's pickup call, otherwise the home's resident.
+async function speakerName(ctx: QueryCtx, call: Doc<"calls">, household: Doc<"households"> | null) {
+  if (call.flow?.kind === "pickup" && call.flow.role === "helper") return (await ctx.db.get("pickupPlans", call.flow.planId))?.helperName;
+  return household?.residentName;
+}
+
 export const detail = query({
   args: { callId: v.id("calls") },
   handler: async (ctx, { callId }) => {
@@ -209,6 +246,6 @@ export const detail = query({
       .query("transcriptLines")
       .withIndex("by_callId", (q) => q.eq("callId", callId))
       .take(200);
-    return { call, household, lines };
+    return { call, household, lines, speakerName: await speakerName(ctx, call, household) };
   },
 });

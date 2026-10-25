@@ -152,9 +152,15 @@ class CallSession implements LiveCall {
     this.speakTurn(this.conversation.start(), null);
   }
 
-  // The pickup check and the Ready check: short calls with their own state machine and no `calls` row.
+  // The pickup check and the Ready check: short calls with their own state machine. Their `calls`
+  // row is only for the call floor, so a failure to open it doesn't stop the call.
   private async beginOutboundFlow() {
-    this.conversation = await outboundFlowFor(this.params);
+    const { conversation, call } = await outboundFlowFor(this.params);
+    this.conversation = conversation;
+    this.callId = await convex().mutation(api.calls.startFlow, call).catch((error: unknown) => {
+      console.error(`[call ${this.callSid}] could not open its call-floor row`, error);
+      return null;
+    });
     this.language = this.conversation.language;
     this.listen();
     this.speakTurn(this.conversation.start(), null);

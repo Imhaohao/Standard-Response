@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Phone, PhoneCall, PhoneIncoming, PhoneOutgoing } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { languageName, STAGES, stageIndex } from "@/lib/labels";
+import { flowLabel, languageName, STAGES, stageIndex } from "@/lib/labels";
 import { formatElapsed } from "@/lib/time";
 import { useSimNow } from "@/lib/use-sim-now";
 import { Waveform } from "../ui/waveform";
@@ -31,7 +31,7 @@ function LanguageChip({ language }: { language: string }) {
 
 function LineRow({ call, selected, onSelect, now }: { call: ActiveCall; selected: boolean; onSelect: () => void; now: number }) {
   const speaking = call.phase === "live" && call.lastLine !== null && now - call.lastLine.at < SPEAKING_WINDOW_MS;
-  const stageLabel = call.phase === "ringing" ? "Ringing" : STAGES[stageIndex(call.stage)].label;
+  const stageLabel = call.phase === "ringing" ? "Ringing" : call.flow ? flowLabel(call.flow) : STAGES[stageIndex(call.stage)].label;
   return (
     <motion.li
       layout

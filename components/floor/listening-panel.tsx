@@ -7,7 +7,7 @@ import { Headphones, X, PhoneCall, Robot, User } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { PRODUCT_NAME } from "@/lib/brand";
-import { CAN_LEAVE_LABELS, languageName, MOBILITY_LABELS } from "@/lib/labels";
+import { CAN_LEAVE_LABELS, flowLabel, languageName, MOBILITY_LABELS } from "@/lib/labels";
 import { Button } from "../ui/button";
 import { StageTrack } from "../ui/stage-track";
 import { HOME_KINDS, homeKind, HomeMark, PANEL_TONE } from "./household-mark";
@@ -151,7 +151,11 @@ export function ListeningPanel({
             </button>
           </div>
         </div>
-        <StageTrack stage={call.stage} live={call.phase === "live"} showLabel />
+        {call.flow ? (
+          <span className="type-small self-start bg-panel-raised px-2 py-1 font-semibold">{flowLabel(call.flow)}</span>
+        ) : (
+          <StageTrack stage={call.stage} live={call.phase === "live"} showLabel />
+        )}
         {follow && <div className="self-start">{follow}</div>}
       </header>
       <dl className="flex flex-wrap gap-1.5 border-b border-panel-raised p-3">
@@ -159,7 +163,7 @@ export function ListeningPanel({
           <RecordField key={row.key} label={row.label} value={row.value} />
         ))}
       </dl>
-      <Transcript lines={lines} residentName={household.residentName ?? "Resident"} />
+      <Transcript lines={lines} residentName={detail.speakerName ?? "Resident"} />
     </section>
   );
 }

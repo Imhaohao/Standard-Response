@@ -28,6 +28,16 @@ export const STAGES: { key: Stage; label: string }[] = [
 
 export const stageIndex = (stage: Stage) => STAGES.findIndex((s) => s.key === stage);
 
+export type CallFlow = NonNullable<Doc<"calls">["flow"]>;
+
+// A pickup or Ready call has none of the warning call's stages; it shows what it's for instead.
+export function flowLabel(flow: CallFlow) {
+  if (flow.kind === "ready") return "Ready check";
+  if (flow.purpose === "notice") return flow.role === "helper" ? "Update to helper" : "Update to resident";
+  if (flow.role === "helper") return "Asking helper";
+  return flow.purpose === "confirm" ? "Confirming ride" : "Picked up?";
+}
+
 // Each call language as its speakers write it, and in English for a crew reading the house card.
 const LANGUAGES: Record<string, { native: string; english: string }> = {
   en: { native: "English", english: "English" },

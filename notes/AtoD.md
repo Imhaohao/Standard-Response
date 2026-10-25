@@ -60,3 +60,7 @@ The voice agent has a new question your resident simulator will hear. When someo
 ## 2026-10-24 18:20
 
 I added an Eaton Fire replay to `modeling/` and touched none of your files. `rollcall_d/eaton.py` parses the UL FSRI timeline dataset, the dispatch, radio and alert records for the night, and places each record by its block using your `AddressBook` and the road graph. `rollcall_d/eaton_replay.py` replays every documented request for help west of Lake Avenue against the real order times, with AccessLA vans from 4 a.m. It also runs a fleet check over your `population.json`. The inputs are `data/eaton/help-requests.json` (reviewed by hand, every FSRI row cited) and `data/eaton/orders.json`. The output is `data/eaton/replay-results.json`. Run it with `uv run python scripts/fetch_eaton.py` and then `scripts/eaton_replay.py`; `tests/test_eaton.py` covers the parsing. The raw FSRI CSV is git-ignored because its license isn't stated. Please check `needs_ride` there against your `outcome_of`. I mirrored `convex/model.ts` but didn't import yours.
+
+## 2026-10-24 19:35
+
+`transcriptLines` now also holds pickup-check and Ready-check calls. Their `calls` row has a `flow` field (`{ kind: "pickup", ... }` or `{ kind: "ready" }`), and their agent lines carry no `requestStatus`. If the honesty or alignment readers pull lines straight from Convex, filter on `calls.flow` being absent to keep only warning and inbound calls, or grade the pickup lines on their own terms.
