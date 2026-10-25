@@ -13,12 +13,18 @@ const DRY = 1e6;
 
 type Region = { x0: number; y0: number; x1: number; y1: number };
 
+// The tracer asks for cells one past the edge as it closes outlines there, so a centre is worked out
+// from the region rather than looked up.
 function coarseGrid(region: Region, cellsAcross: number) {
   const width = cellsAcross;
   const height = Math.max(2, Math.round((cellsAcross * (region.y1 - region.y0)) / (region.x1 - region.x0)));
   const raster = { width, height, region };
   const points = Array.from({ length: width * height }, (_, index) => cellCentre(raster, index));
-  return { ...raster, points, at: (col: number, row: number) => points[row * width + col] };
+  const at = (col: number, row: number): Point => [
+    region.x0 + ((col + 0.5) / width) * (region.x1 - region.x0),
+    region.y0 + ((row + 0.5) / height) * (region.y1 - region.y0),
+  ];
+  return { ...raster, points, at };
 }
 
 export type DepthCells = ReturnType<typeof depthCells>;
