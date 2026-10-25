@@ -1,9 +1,8 @@
 # Picking up Boris's work
 
-You are working on the interface of a hackathon app. Boris built the map and the rescue map. On
-Saturday 24 Oct around 03:30–04:00 Brendan's Claude finished the rest of the interface from this file: the
-driver page, the call floor, `/system` and `/phone` are all on the new design now. Read "What is
-done" before you change any of them, so you build on that work instead of redoing it.
+You are working on the interface of a hackathon app. Boris built the map and the rescue map. The
+driver page, the call floor, `/system` and `/phone` use the same design. Read "What is done" before
+you change any of them, so you build on that work instead of redoing it.
 
 ## The one thing to get right
 
@@ -34,9 +33,8 @@ Non-negotiable direction:
    The typography, layout and writing rules in there are why the existing screens look the way they
    do. `better-interface` and the other `better-*` skills are subordinate to those files.
 2. `PLAN.md`, the section for the screen you are building.
-3. The notes addressed to Boris: `notes/*-to-boris.md`, `notes/*-to-everyone.md`, and the older
-   `notes/*toA.md` (A was Boris).
-4. Every note Boris wrote: `notes/boris-to-*.md` and the older `notes/Ato*.md`. Do not contradict them.
+3. The notes addressed to Boris: `notes/*-to-boris.md` and `notes/*-to-everyone.md`.
+4. Every note Boris wrote: `notes/boris-to-*.md`. Do not contradict them.
 
 ## How the map works
 
@@ -86,24 +84,22 @@ shown on the map, and it is the most important thing on the screen.
   on calls), right column (plan, fleet, doors to knock, rider upload), bottom toolbar (look / draw
   zone / close a road, 3D–flat) and the fire scrubber.
 
-### Shared pieces added in the takeover (use them, don't fork them)
+### Shared pieces (use them, don't fork them)
 
 - `components/ui/app-bar.tsx` — `<AppBar>` (product mark + screen nav, right-hand slot for controls)
-  and `<WarningClock>`. Every screen uses it; `/map`'s `MapTopBar` is a thin wrapper. `AppNav`,
-  `HeaderBar`, `PageShell` and `ui/section.tsx` are deleted.
+  and `<WarningClock>`. Every screen uses it; `/map`'s `MapTopBar` is a thin wrapper.
 - `components/ui/button.tsx` has an `onPaper` variant (ink on map paper) for controls that sit on a
   paper-coloured card.
-- `.hatch` in `app/globals.css` (components layer) — diagonal hatching in `currentColor`, for "this
-  no longer holds".
+- `.hatch` in `app/globals.css` (components layer) — diagonal hatching in `currentColor`, for a
+  withdrawn offer or anything else that has stopped holding.
 - `<MapStage>` falls back to `mode="paper"` by itself when WebGL cannot start
-  (`InkMapCanvas` takes `onFail`). Before, a machine without WebGL crashed the whole screen.
-- `StageTrack` and `Waveform` in `components/ui` are now drawn for the dark panel.
+  (`InkMapCanvas` takes `onFail`).
+- `StageTrack` and `Waveform` in `components/ui` are drawn for the dark panel.
 
 ### Driver page — `components/driver/`
 
-Boris pushed his own rebuild at 03:00 and a house-marker tweak at 03:20; this version replaced it and
-kept his two best ideas (needs worked out from `stop.rider`, and the red house marker for homes the
-map has no building outline for).
+Needs are worked out from `stop.rider`, and a red house marker stands in for homes the map has no
+building outline for.
 
 ```
 driver-page.tsx   picker + "hold offers" switch in the top bar, the map, the sheet below it
@@ -120,7 +116,7 @@ stops.ts          types, picker order, useDriverBoard (offers / changed / run, w
 Checked live: offer → hold on → offer withdrawn → late Accept rejected → card flips to changed, then
 accept the new offer → run list.
 
-### Call floor — `components/floor/` (`app/page.tsx` renders `floor/call-floor.tsx`)
+### Call floor — `components/floor/` (`app/dashboard/page.tsx` renders `floor/call-floor.tsx`)
 
 ```
 call-floor.tsx       full-bleed map, AppBar with clock + controls, before-warning hero,
@@ -142,8 +138,6 @@ floor-controls.tsx   line stepper, inbound surge, dialer toggle, and the stand-i
                      reset behind one "Stand-ins" popover
 ```
 
-The old call-floor components, `coverage-map.tsx` and `components/map/base-layers.tsx` are deleted.
-
 ### Under the hood — `components/system/`
 
 Paper page, three columns of dark panels: **Right now** (`close-road.tsx`, `live-panels.tsx`:
@@ -151,7 +145,7 @@ re-plan, request flow, callback timing, audit trail), **The calls** (`call-panel
 with intervals, turn latency, honesty by status, red-team change cases), **The dispatch**
 (`dispatch-panels.tsx`: simulator differences, door-check fairness with a scenario picker).
 `range.tsx` has `RangeRow` (dot = value, bar = range, optional zero line), and every result number
-goes through it. `results.ts` types the files, and `/api/results` now also serves
+goes through it. `results.ts` types the files, and `/api/results` serves
 `honesty-results.json`, `door-fairness.json` and `redteam-change-cases.json`. Each team's `label`
 sits under its panel.
 
@@ -161,7 +155,7 @@ isn't routed to that stop (the dispatch stand-in drives straight lines, or the v
 shelter or an earlier pickup first) it closes a short line across the approach 70 m before the house
 instead. Either way it writes a `manual` closure through `roads:addClosures`. Once the van drives
 around the closure, the button comes back for its new way in; closing that too is how the pickup
-becomes unreachable and is revoked. There is no "reopen" mutation yet.
+becomes unreachable and is revoked.
 
 ### `/phone` — `components/phone/phone-panel.tsx`
 
@@ -170,29 +164,8 @@ replies and a free-text reply. The "simulated" label is in the app bar.
 
 ### Backend touches
 
-- `convex/control.ts` `clearTables`: the delete batch is now one read budget shared across tables.
-  Before, reset failed with "Too many reads" once there was a real night's data, and nothing cleared.
-- `convex/estimates.ts` `agentLines` also returns `latencyMs` (note in `notes/AtoD.md`).
-- `convex/offers.ts` is Boris's version (with `riderFacts`); the driver page reads `stop.rider`.
-
-## What is still open
-
-1. **Verify `/map` against a live incident.** Nobody has done this yet:
-
-   ```bash
-   npx convex run control:reset
-   npx convex run control:issueWarning
-   ```
-
-   Then check, in order: red roofs on the buildings where people are waiting; pins for escalations;
-   the "who needs a ride" count matching the pins; a drawn zone; a closed road snapped onto the real
-   street; an offer approved by hand; and the flat surface showing the same thing as the 3D one.
-2. **Flat surface on the new screens.** The driver page and the call floor pass `fronts` so the paper
-   fallback draws the fire, but neither has been looked at in `mode="paper"` yet.
-3. **The demo run end to end** with the driver page on a real phone: Maria accepts Carmen, close the
-   road from `/system`, the revoke and the "This assignment changed" card on Luis's old offer.
-4. `/system` shows "–" for requests and vehicles while the dispatch stand-in is on, because only the real
-   dispatcher fills `requestCount` / `vehicleCount`.
+- `convex/estimates.ts` `agentLines` also returns `latencyMs`.
+- `convex/offers.ts` returns `riderFacts`; the driver page reads `stop.rider`.
 
 ## Working in this checkout
 
@@ -228,8 +201,7 @@ Specifically:
 - Every state has a visible change. "Selected" is a ring, not the word "selected". Disabled is a
   real loss of contrast. A locked thing is hatched, not labelled.
 
-Use Playwright to check. Save screenshots with **absolute paths** — relative names have silently
-not landed in the workspace here before. Verify animation frame by frame rather than trusting the
+Use Playwright to check. Save screenshots with **absolute paths**. Verify animation frame by frame rather than trusting the
 CSS. Close every browser session, tab and page, and stop any dev server you started, before you
 stop for the day.
 
@@ -257,7 +229,3 @@ npx next dev -p 3100    # the app, terminal 2 — http://localhost:3100
 
 Screens: `/dashboard` call floor, `/map` rescue map, `/driver` driver page, `/phone` simulated handset,
 `/system` under the hood, `/lab` the map bench (both surfaces, a fire scrubber, nothing else).
-
-The team also has a shared Convex deployment and a live voice server on Fly. Brendan's note
-`notes/BtoA.md` has the URLs and what to put in `.env.local`. The local deployment is fine while you
-build; switch before the demo.

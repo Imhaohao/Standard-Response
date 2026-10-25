@@ -15,7 +15,7 @@ An issue the crew closed by hand stays closed until the system status changes.
 
 The household id lives in an issue property (`doorCheck`), written in the same call that creates the issue, so a rerun never duplicates. No phone number or resident name ever leaves Convex.
 
-**Privacy.** The issues hold home addresses of people who may need rescue. Make the Jira project private to the field crews and the incident commander, When the incident is closed in the system, the next sync deletes every door-check issue (the app user needs the "Delete issues" project permission). Medical equipment (oxygen, dialysis) is included because a crew needs it at the door.
+**Privacy.** The issues hold home addresses of people who may need rescue. Make the Jira project private to the field crews and the incident commander. When the incident is closed in the system, the next sync deletes every door-check issue (the app user needs the "Delete issues" project permission). Medical equipment (oxygen, dialysis) is included because a crew needs it at the door.
 
 The optional Rovo agent "Door check helper" answers "Which door checks are most urgent near Mariposa St?" from the same route. It needs Rovo on the site.
 

@@ -13,7 +13,7 @@ uv run pytest -q
 ```bash
 uv run python scripts/run_models.py                    # every 5 s against CONVEX_URL or the repo's .env.local
 uv run python scripts/run_models.py --time-scale 10    # a 4-hour night in 24 minutes
-uv run python scripts/run_models.py --scenario ../data/hazard/scenario-spread.geojson   # the older fast-marching variant
+uv run python scripts/run_models.py --scenario ../data/hazard/scenario-spread.geojson   # the fast-marching variant
 ```
 
 Each pass reads `estimates:inputs` once and writes only what changed:

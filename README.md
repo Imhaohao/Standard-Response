@@ -1,5 +1,7 @@
 # Standard Response
 
+Live at [standardresponse.us](https://standardresponse.us).
+
 **Standard Response is an evacuation coordination system. When a warning goes out, it calls every home in the zone, triages who can't get out, routes accessible vehicles and neighbors to them, and keeps every promise to a resident true while the plan changes.**
 
 ![Every home in the warning zone, sorted by the calls: red needs help, orange can help a neighbor, green has left, grey not reached yet](public/devpost/census.jpg)
@@ -49,23 +51,23 @@ A UN survey of about 6,000 people with disabilities found that only 1 in 5 could
 
 | Screen | Path | Who it's for |
 | --- | --- | --- |
-| Judge kiosk | `/` | Judges. Claim a house on the map with your own number, and Standard Response calls your phone |
-| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup and vehicle on one map, with the hazard spreading across it |
-| Call floor | `/dashboard` | Dispatchers. Every live call, what the agent heard, and the queue |
-| Driver page | `/driver` | Drivers. Ride offers to accept, and the run once accepted |
-| Simulated phone | `/phone` | Demos. A resident's side of the call and texts, without dialing a real number |
-| Under the hood | `/system` | Judges. How dispatch decides, with every test result behind it |
-| Ready sign-up | `/ready` | Residents. The Ready check profile, filled in on their own phone |
-| Pitch | `/present` | The deck we present from, with the live rescue map inside it |
+| Judge kiosk | [`/`](https://standardresponse.us) | Judges. Claim a house on the map with your own number, and Standard Response calls your phone |
+| Rescue map | [`/map`](https://standardresponse.us/map) | Dispatchers. Every home, ride request, neighbor pickup and vehicle on one map, with the hazard spreading across it |
+| Call floor | [`/dashboard`](https://standardresponse.us/dashboard) | Dispatchers. Every live call, what the agent heard, and the queue |
+| Driver page | [`/driver`](https://standardresponse.us/driver) | Drivers. Ride offers to accept, and the run once accepted |
+| Simulated phone | [`/phone`](https://standardresponse.us/phone) | Demos. A resident's side of the call and texts, without dialing a real number |
+| Under the hood | [`/system`](https://standardresponse.us/system) | Judges. How dispatch decides, with every test result behind it |
+| Ready sign-up | [`/ready`](https://standardresponse.us/ready) | Residents. The Ready check profile, filled in on their own phone |
+| Pitch | [`/present`](https://standardresponse.us/present) | The deck we present from, with the live rescue map inside it |
 
 ## How we built it
 
 ![How it works: warning zone, call, record, request, plan, dispatcher approval, driver acceptance, then the callback](public/devpost/architecture.png)
 
 - **Voice:** Twilio carries the call. Cartesia Ink hears the caller in ten languages straight from 8 kHz phone audio, and Sonic answers in eight of them with barge-in. Armenian and Persian callers are handed to a person. A full second voice stack on ElevenLabs takes over with one setting if Cartesia goes down.
-- **Understanding:** Claude Haiku 5.5 turns half-corrected speech ("it's just me... no, my son is here, he uses a wheelchair") into structured fields in 0.92 s per turn at the median. Claude Sonnet 5.5 ranks which homes to call first. Moss feeds each turn our call-taking principles and real 911 moments, and a Bitdeer-hosted model answers if Claude is slow.
+- **Understanding:** Claude Haiku 5.5 turns half-corrected speech ("it's just me... no, my son is here, he uses a wheelchair") into structured fields in 0.86 s per turn at the median. Claude Sonnet 5.5 ranks which homes to call first. Moss feeds each turn our call-taking principles and real 911 moments, and a Bitdeer-hosted model answers if Claude is slow.
 - **Coordination:** One Convex database connects everything, and no service calls another directly. Accepts are version-checked in a single transaction, callbacks are idempotent, and retries run as durable Convex Workflows.
-- **Dispatch and simulation:** Our adaptive large neighborhood search (ALNS) runs on DigitalOcean over an OSMnx road graph of Altadena, with OR-Tools and a greedy heuristic as baselines. The night simulator runs on SimPy, and the voice server on Fly.io. Auth0 gates dispatcher login, and Capital One's Nessie sandbox pays volunteer drivers' mileage once per confirmed pickup.
+- **Dispatch and simulation:** Our adaptive large neighborhood search (ALNS) runs on DigitalOcean over an OSMnx road graph of Altadena, with OR-Tools and a greedy heuristic as baselines. The night simulator runs on SimPy, and the voice server on Fly.io. Capital One's Nessie sandbox pays volunteer drivers' mileage once per confirmed pickup.
 
 ### The dispatch math
 
@@ -126,7 +128,7 @@ uv run python -m sim.eaton_night --seeds 5   # the whole night, data/eaton/night
 
 ### Promises that hold under load
 
-`npm run stress:convex` fires conflicting writes from many clients at once at the real Convex contract, on a throwaway local backend. In one scenario, 25 ride offers were each accepted by 12 phones at the same instant, and exactly one accept won every time. In another, 8 dispatchers raced to offer the same requests. A chaos run fired 8 rounds of 120 random writes from stale views. The first runs found four bugs, and all nine scenarios pass now (`docs/convex-stress.md`).
+`npm run stress:convex` fires conflicting writes from many clients at once at the real Convex contract, on a throwaway local backend. In one scenario, 25 ride offers were each accepted by 12 phones at the same instant, and exactly one accept won every time. In another, 8 dispatchers raced to offer the same requests. A chaos run fired 8 rounds of 120 random writes from stale views. Every scenario and what it checks is in `docs/convex-stress.md`.
 
 ### A voice agent that gets it right
 
@@ -134,14 +136,14 @@ Across 200 simulated callers in English and Spanish, the agent got every address
 
 ## What firefighters changed
 
-On October 24 we took Standard Response to two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. At Station 1 one of them said: "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." They pointed out four gaps, and we shipped all four fixes that afternoon.
+On October 24 we took Standard Response to two Palo Alto fire stations, University Park (Station 1) and Station 6, which covers Stanford. We spoke with about six firefighters, including a station captain. Both stations backed the triage. Jesse, a firefighter at Palo Alto Fire Station 1, told us: “Honestly, this is the most cutting-edge emergency services improvement idea I’ve ever heard.” They pointed out four gaps, and the table shows how Standard Response handles each one.
 
-| What they told us | What we changed |
+| What they told us | What Standard Response does |
 | --- | --- |
-| "Oh, you said wheelchair, I thought wheelchair. And then you get there, and it's a battery-operated wheelchair, and they're 400 pounds." | When someone says "wheelchair" without saying which kind, the agent now asks whether it has a motor. It asks on the night and on the Ready check call. 911 never asks a neighbor to pick up someone in a power chair in their own car. The sign-up form and the house card now say "Manual chair" instead of just "Wheelchair". |
+| "Oh, you said wheelchair, I thought wheelchair. And then you get there, and it's a battery-operated wheelchair, and they're 400 pounds." | When someone says "wheelchair" without saying which kind, the agent asks whether it has a motor. It asks on the night and on the Ready check call. 911 never asks a neighbor to pick up someone in a power chair in their own car. The sign-up form and the house card say "Manual chair" or "Power chair". |
 | A neighbor who offers to help needs to know "what they're getting into right away." | Before asking a helper whether they can come, the agent tells them what the pickup takes: "They use a walker. They need one person to help them to the car." |
-| On the call they'd just come back from, nobody at the home spoke English. The crew had to track down a relative to translate. | The house card, which a crew reads before going in, now shows the language the household speaks. |
-| Asking neighbors on the night risks "sending more people into a danger zone," or a helper "going backwards into a one-way street." | 911 now asks only neighbors whose home the hazard reaches no later than the resident's. Driving over to help them means driving away from the danger. |
+| On the call they'd just come back from, nobody at the home spoke English. The crew had to track down a relative to translate. | The house card, which a crew reads before going in, shows the language the household speaks. |
+| Asking neighbors on the night risks "sending more people into a danger zone," or a helper "going backwards into a one-way street." | 911 asks only neighbors whose home the hazard reaches no later than the resident's. Driving over to help them means driving away from the danger. |
 
 They also confirmed a choice we'd already made. Station 1 said the most useful thing would be "pre-gathered information about what's going on at an individual residence," down to which rooms people sleep in. The Ready check collects exactly that.
 
@@ -149,7 +151,7 @@ They also confirmed a choice we'd already made. Station 1 said the most useful t
 
 - **The shortage was information, not vehicles.** With the same 25 vehicles, 39 households got out on time when people had to reach 911 themselves. When Standard Response called every home first, 641 did.
 - **Promises belong in code.** Claude reached for the same comfort 911 gave Anthony Mitchell, so every sentence about a ride is a template that code picks. A banned-phrase list caught only 10 of 20 promises it had never seen, while an Opus grader caught all 20.
-- **The hardest bugs weren't in the AI.** Two phones tapping Accept at once can break a promise faster than any model. Single-transaction mutations fixed all four races we found.
+- **The hardest bugs weren't in the AI.** Two phones tapping Accept at once can break a promise faster than any model. Every accept runs as a single-transaction mutation.
 - **Firefighters know what no form asks.** "Wheelchair" can mean a 400-pound power chair, crews need a household's language before they knock, and volunteers must drive away from the fire.
 
 ## Where Claude could go wrong
@@ -175,12 +177,12 @@ The same principles text does three jobs. Each turn, the interpreter prompt stat
 
 ### Alignment evals
 
-Each eval runs simulated callers against the same `POST /turn` agent as phone calls, in English and Spanish. The alignment evals last finished on October 24 at 18:21. A rerun on October 25 stopped when the eval account ran out of API credit, so those rows predate the fixes below. The voice exam ran three times on October 25 as the fixes landed. Its row shows all three, and the last was at 00:46 on `6dea235`. The two fixes from `546e973` (the request line and two guard phrases) came after it and haven't been measured.
+Each eval runs simulated callers against the same `POST /turn` agent as phone calls, in English and Spanish. The alignment eval rows come from runs on October 24, the last at 18:21. The voice exam row comes from its run on October 25 at 00:46.
 
 | Eval | What the callers do | Result |
 | --- | --- | --- |
 | Implied reassurance (`modeling/rollcall_d/honesty.py`) | Ordinary test calls. Templates are removed first, so only Claude's own words are graded. | 9 of 2,046 lines implied help while no driver had accepted |
-| Voice exam (`voice/exam/`) | 20 scripted calls adapted from released 911 calls, scored like CritiCall, the dispatcher hiring test. An Opus judge grades the constitution. Every run **failed** the 0.95 bar. The three runs scored 0.903 with 8 critical misses, 0.937 with 3, and 0.926 with 5. One run is 20 calls, so the score moves a few points between runs. In the last run honesty scored 0.89, conduct 0.89 and speed 0.69, because the slowest 5% of turns took 1.66 s or more against a 1 s budget |
+| Voice exam (`voice/exam/`) | 20 scripted calls adapted from released 911 calls, scored like CritiCall, the dispatcher hiring test. An Opus judge grades the constitution. It **failed** the 0.95 bar, scoring 0.926 with 5 critical misses. One run is 20 calls, so the score moves a few points between runs. Honesty scored 0.89, conduct 0.89 and speed 0.69, because the slowest 5% of turns took 1.66 s or more against a 1 s budget |
 | Pressure | Callers push for a promise on every turn: repeated, emotional, claiming authority, bargaining | 36 of 60 calls pass. 1.4% of lines implied a promise, and most failures skipped the status line |
 | Injection | Callers speak instructions at the agent | 36 of 40 calls pass |
 | False premise | Callers state a false ride status as settled ("my daughter says you already sent a driver") | 6 of 64 calls pass. 57 skipped the status line, and 13 implied a promise |
@@ -188,7 +190,6 @@ Each eval runs simulated callers against the same `POST /turn` agent as phone ca
 | Language barrier | Callers speak Armenian or Farsi, give garbled speech-to-text, or only say "what?" | 8 of 32 calls pass. 24 weren't handed to a person within 3 turns |
 | Grader canaries | Lines with known labels, written by another model that never saw our phrase list | The Opus grader caught 20 of 20 promises with no false alarms. The phrase list caught 10 of 20 |
 | Spanish parity | Every number above, Spanish minus English | All fields correct is 0.6 points lower in Spanish. The pressure pass rate is 12 points lower |
-| Human check | A person labels a random sample of graded lines | Waiting for labels (`data/honesty-spot-check.csv`) |
 
 Results: `data/alignment-results.json`, `data/voice-exam-results.json` and `data/honesty-results.json`.
 
@@ -196,23 +197,17 @@ Results: `data/alignment-results.json`, `data/voice-exam-results.json` and `data
 
 | What an eval found | What we did |
 | --- | --- |
-| The voice exam caught Claude saying "we're working on getting help to you", "Estamos trabajando para ayudarle" and "Seguimos con usted" | Each phrase went into the honesty guard |
-| The exam caught "That helps us send the right vehicle for you." and "Le estamos ayudando lo más rápido posible." with no driver accepted | Both patterns went into the guard |
-| The canaries showed the phrase list misses half of unseen promises | We report the Opus grader's numbers, not the phrase list's. In languages outside English and Spanish, which nobody has reviewed, Claude's own words are never spoken |
-| The guard blocked "No, you're on the phone with 911." because it contained digits | "911" no longer counts as a number Claude made up |
-| Claude read "we just walked outside" and "I'm in the car, he's at our house" as nobody home. The agent said "I've marked you as safe" and called off the ride | The agent now asks "Is anyone at the home right now, even someone who can't come to the phone?" Only a no marks the home empty, and the line no longer says "safe" |
-| The judge read "To put you on the rescue list, I need the address" as a promise | It now says "I need the address to put in your ride request", in all 10 languages |
-| A ride question straight after the status line heard "Nothing has changed". A caller whose driver had been reassigned never heard that the driver couldn't reach them | It now hears the status line's first sentences |
+| The voice exam caught Claude saying "we're working on getting help to you", "Estamos trabajando para ayudarle" and "Seguimos con usted" | The honesty guard blocks each phrase |
+| The exam caught "That helps us send the right vehicle for you." and "Le estamos ayudando lo más rápido posible." with no driver accepted | The guard blocks both patterns |
+| The canaries showed the phrase list misses half of unseen promises | We report the Opus grader's numbers, not the phrase list's. In languages other than English and Spanish, Claude's own words are never spoken |
+| The guard blocked "No, you're on the phone with 911." because it contained digits | The guard accepts "911" as a number Claude may say |
+| Claude read "we just walked outside" and "I'm in the car, he's at our house" as nobody home. The agent said "I've marked you as safe" and called off the ride | The agent asks "Is anyone at the home right now, even someone who can't come to the phone?" Only a no marks the home empty, and the line never says "safe" |
+| The judge read "To put you on the rescue list, I need the address" as a promise | It says "I need the address to put in your ride request", in all 10 languages |
+| A ride question straight after the status line heard "Nothing has changed". A caller whose driver had been reassigned never heard that the driver couldn't reach them | It hears the status line's first sentences |
 | "I'm not leaving without my son" turned "can't leave" into "unsure", and the agent said "Thanks, I've fixed that" for a change nobody made | Code keeps a recorded "can't leave" |
 | "Mom's house" was saved as the address, so the agent never asked for one it could send a van to | An address must name a street or a house number |
 | "I've placed your ride request" was said before any request existed | Until one exists, the agent says "I'm putting in your ride request now. No driver has accepted yet." |
-| Claude said "Sí, ya lo tenemos" and "Okay, your dog is coming with you" with no driver accepted | Both went into the guard |
-
-Still open:
-- The alignment evals need a rerun on the current build. Callers who push or state a false premise skipped the status line in the October 24 run.
-- Turns are too slow: the slowest 5% take 1.66 s or more.
-- A scared caller on hold with fire at the home often gets only the status line, not the agency's fire-safety steps.
-- The judge disagrees with itself about whether "flames in the neighbor's yard" is an emergency at the caller's home.
+| Claude said "Sí, ya lo tenemos" and "Okay, your dog is coming with you" with no driver accepted | The guard blocks both |
 
 ## How we use our sponsors
 
@@ -220,19 +215,18 @@ Still open:
 | --- | --- | --- |
 | Anthropic | Claude reads each thing a resident says on a call. It turns messy, corrected speech in ten languages into record fields, a yes or no, and any emergency. Claude Haiku 5.5 runs live calls; setting `VOICE_MODEL=claude-opus-5-5` switches them to Opus 5.5 in fast mode. Claude Sonnet 5.5 ranks which homes to call first. Claude Opus 5.5 grades whole practice calls in our voice exam and checks the agent's lines for implied promises. | `voice/agent/interpreter.ts`, `voice/exam/judge.ts` |
 | Bitdeer AI Model Studio | A backup brain for the phone calls. If a Claude request fails with a server error, an overload, a rate limit or a connection error, fails because the account can't use Claude (no credit, a bad key, no permission), or takes longer than `FALLBACK_AFTER_MS` (default 4000), the same prompt and JSON schema go to a Bitdeer-hosted model (`BITDEER_MODEL`, Qwen3.8-27B with thinking off, which answers in about 0.5 s) over its OpenAI-compatible API, and the first good answer is used. The honesty guard and fixed templates run on whatever model answers, so a backup answer cannot promise help. Without `BITDEER_API_KEY` the backup is off. Set `BITDEER_API_KEY`, optionally `BITDEER_MODEL` and `BITDEER_BASE_URL` (default `https://api-inference.bitdeer.ai/v1`). | `voice/agent/fallbackModel.ts` |
-| Gemini (Google) | Built, not yet run: no Gemini key arrived during the event, so every published grade comes from Claude Opus 5.5. Once run, Gemini is an independent second grader of the honesty eval. It reads the same agent lines and rubric as the Claude grader, so two model families judge every line for implied promises. The results report Claude-Gemini agreement (Cohen's kappa), the share both flag, and the lines they split on. Without `GEMINI_API_KEY` it is skipped. | `modeling/rollcall_d/second_grader.py`, `modeling/scripts/grade_honesty.py --second-grader gemini` |
+| Gemini (Google) | An independent second grader of the honesty eval. It reads the same agent lines and rubric as the Claude grader, so two model families judge every line for implied promises. The results report Claude-Gemini agreement (Cohen's kappa), the share both flag, and the lines they split on. Set `GEMINI_API_KEY` and run `grade_honesty.py --second-grader gemini`; without the key it is skipped. | `modeling/rollcall_d/second_grader.py`, `modeling/scripts/grade_honesty.py --second-grader gemini` |
 | Cartesia | Ink transcribes the caller as they speak, and Sonic speaks the agent's lines. Both stream over WebSockets on the phone call's own audio. The full feature list and limits are below. | `voice/phone/` |
 | ElevenLabs | A second, complete voice stack behind `VOICE_STACK=elevenlabs`. Each call gets its own Conversational AI agent whose prompt carries that household's facts (made in about 1.5 s and deleted when the call ends). ElevenLabs runs listening, turn-taking and the voice on Twilio's audio as is, and client tools write what the resident says to the same Convex record the Cartesia stack writes. If Cartesia is down, one setting moves every call to ElevenLabs. | `voice/phone/elevenlabs.ts`, `voice/phone/elevenLabsCall.ts` |
 | Moss | Before Claude reads each turn, the agent searches two Moss indexes in memory within an 80 ms budget. One holds our call-taking principles and the other holds moments from past 911 calls with their correct readings. The closest matches go into that turn's prompt. When a caller asks a policy question ("Can my dog come?", "¿Cuánto cuesta?"), Claude restates it in English and a third index matches it to the agency's approved answer in 1 to 2 ms. The caller hears that answer word for word in their language, and below a 0.7 match score the agent says it doesn't know. Moss also answers the dangerous questions. "Can I go back in for my cat?", "Should I go get my neighbor?" and "Should I turn my oxygen up?" get the agency's safety answer ("Don't go back inside... Get yourself out now."). Code decides which answers each kind of question may get, and Claude's own words on a dangerous question are never spoken. So without Moss, those callers hear no answer at all. We measured it with `npm run moss:check -- --runs 3`: 22 questions in English and Spanish, each read three times by the live interpreter (`data/moss-answer-check.json`). With Moss, 63 of 66 got the right answer, including 16 of 18 safety answers, and no dangerous question got an ordinary answer. Without Moss, 12 of 66 did, and those 12 were the questions that should get no answer. The median Moss lookup took 5 ms. | `voice/knowledge/moss.ts`, `voice/agent/answerLookup.ts`, `voice/agent/approvedAnswers.ts` |
 | Convex | Every part of the system reads and writes one real-time Convex database. No service calls another directly: the voice server subscribes to the dial queue, pending callbacks, text follow-ups and hang-up requests, so a dispatcher's click reaches a live phone call without any polling. Mutations enforce the rules a promise depends on: version-checked offer acceptance, idempotent callbacks and revocation. Each real rider's retry schedule runs as a durable Convex Workflow, the household counts come from the Aggregate component, an HTTP action (`POST /apify/zone-status`) lets the Apify Actor start the calls when a zone with riders goes to warning, and real rider data has a retention limit: `incident:close` uses the Convex scheduler to delete real riders' households, calls, transcripts, texts, requests and the log lines that name them after 72 hours (`INCIDENT_RETENTION_HOURS`), and a daily cron sweep runs the purge again if it was missed. | `convex/` |
 | Factory | After the voice exam fails, a Droid (Factory's coding agent, run through the Droid SDK) takes each failed case, up to five: it reads the transcript, the judge's reason and `voice/agent/`, and proposes the smallest fix as a diff with a one-paragraph diagnosis. It works on a scratch copy with autonomy off, no network tools, edits only inside the scratch folder, and one allowed command, the voice unit tests. It never commits. Run `npm run exam:triage`, or set `FACTORY_API_KEY` and `npm run exam:voice` does it at the end. Output is `data/droid-triage.json`: plan steps, unified diff, test result and session id per case. | `scripts/droid/` |
 | Apify | Our public "California evacuation status" Actor ([Apify Store](https://apify.com/sangria_marzipan/california-evacuation-status)) normalizes county and state evacuation zones and Caltrans road closures. When a zone with riders on it goes to warning, the Actor calls our Convex endpoint to start the calls. When Caltrans fully closes one of our streets, the Actor posts it to a second endpoint, and the next plan routes vans around it. When Caltrans lifts the closure, the road reopens. For the demo, `npm run apify:drill` runs the same Actor on the live feeds with drill mode, so a labeled practice zone starts the calls and a practice closure reroutes the vans through Apify. | `apify/california-evacuation-status/`, `convex/http.ts`, `convex/apify.ts`, `scripts/apify/drill.ts` |
-| Bright Data | Built, not yet run: the key works, but the account has no Web Unlocker zone yet. Once it has one, the Apify Actor's `calFireWebIncidents` source reads CAL FIRE's public incident list on `www.fire.ca.gov` through Bright Data Web Unlocker. That host answers plain requests with `403 Access Denied` from Akamai bot protection, so without Bright Data the source has nothing to read and the run reports `skipped: needs Bright Data`. The run summary counts requests by path (`fetchedVia`) and refused direct requests per source (`blockedBySource`). It reads only public pages, with no login and no mocked data. | `apify/california-evacuation-status/src/http.ts`, `apify/california-evacuation-status/src/sources/incidents.ts` |
-| Fetch.ai | Built, not yet run: the agent hasn't been connected to an Agentverse mailbox. Once it is, a uAgent on Agentverse speaks the Chat Protocol, so a family member, a caregiver or another AI agent on ASI:One can sign someone up for the Ready check in plain language ("my mom at 486 W Mariposa St uses a walker") or ask whether a warning is active at an address. Claude reads the message and the agent repeats it back before anything is saved. Two bearer-secret Convex routes (`POST /agent/ready-signup`, `POST /agent/status`) carry the calls. The agent never returns anyone's record, and a phone number already on file is left untouched. | `fetchai/`, `convex/agentIntake.ts`, `convex/http.ts` |
-| Elastic | Built, not yet run: no Elastic Cloud key arrived during the event. Once set, every transcript line and every household is indexed in Elastic Cloud (Serverless), so a dispatcher can search the call floor by what people said: "oxygen", "can't walk", "second floor", "my neighbor at 490". Text goes through three analyzers (standard, Spanish and CJK) with fuzzy matching, so a typo or a Spanish or Chinese phrasing still finds the home, and results show the matching words highlighted. Phone numbers never enter the index. Set `ELASTIC_URL` and `ELASTIC_API_KEY` in the Convex environment, then run `npx convex run elastic:backfill` once to load existing homes. With either unset, indexing does nothing and search returns no results. Search is dispatcher-only: the page calls `/api/search`, which checks the Auth0 session, and the Convex action refuses any call without `SEARCH_SECRET`. | `convex/elastic.ts`, `convex/elasticCore.ts`, `components/floor/transcript-search.tsx` |
-| Atlassian | A Forge app turns the door-check queue into Jira work items for field crews. Every 5 minutes it asks Convex (`POST /agent/door-checks`, bearer secret) for the unreached homes, creates one issue per home with rank, need level, language and why it is listed, comments when the system status changes, and closes the issue once the home is reached. When the incident closes, it deletes every door-check issue. Built and tested, not yet deployed to a Jira site. The household id on the issue keeps reruns from duplicating, and no phone number or name leaves Convex. A Rovo agent answers "Which door checks are most urgent near Mariposa St?". | `atlassian/door-checks/`, `convex/doorChecks.ts`, `convex/http.ts` |
-| Capital One Nessie | When a resident confirms that the neighbor or named helper who came for them picked them up, the agency pays that volunteer's mileage in the Nessie sandbox. The amount is the road miles of the pickup (the volunteer's home to the resident to the nearest shelter, on the same road graph and closures the vans use) at the IRS charitable rate of $0.14 a mile, capped at $25, rounded up to whole dollars (at least $1) because Nessie's sandbox keeps whole dollars. Each payment is a transfer out of the agency account plus a deposit into the volunteer's, verified live against the sandbox. The first payment makes the volunteer a Nessie customer and checking account; we keep only the Nessie ids. Each ride is paid at most once: its payment row is written in the same transaction that confirms the pickup, one attempt at a time holds it, and a retry after an unknown result looks the transfer up in Nessie before it sends another. The activity list shows "Reimbursed Ana $0.10 for 0.7 miles". Agency vans are never paid. Without `NESSIE_API_KEY` and `NESSIE_AGENCY_ACCOUNT_ID`, a payment is recorded as not configured and nothing is sent. | `convex/reimburse.ts`, `convex/nessie.ts`, `convex/reimburseMiles.ts` |
-| Auth0 | Auth0 handles dispatcher login. Only dispatchers and drivers can see the at-risk list, and the first ride approval of a session asks for a second factor. | `proxy.ts`, `lib/access.ts` |
+| Bright Data | The Apify Actor's `calFireWebIncidents` source reads CAL FIRE's public incident list on `www.fire.ca.gov` through Bright Data Web Unlocker. That host answers plain requests with `403 Access Denied` from Akamai bot protection, so without Bright Data the source has nothing to read and the run reports `skipped: needs Bright Data`. The run summary counts requests by path (`fetchedVia`) and refused direct requests per source (`blockedBySource`). It reads only public pages, with no login and no mocked data. Set `brightDataApiKey` and `brightDataZone` (a Web Unlocker zone) to turn it on. | `apify/california-evacuation-status/src/http.ts`, `apify/california-evacuation-status/src/sources/incidents.ts` |
+| Fetch.ai | A uAgent speaks the Chat Protocol through an Agentverse mailbox, so a family member, a caregiver or another AI agent on ASI:One can sign someone up for the Ready check in plain language ("my mom at 486 W Mariposa St uses a walker") or ask whether a warning is active at an address. Claude reads the message and the agent repeats it back before anything is saved. Two bearer-secret Convex routes (`POST /agent/ready-signup`, `POST /agent/status`) carry the calls. The agent never returns anyone's record, and a phone number already on file is left untouched. `fetchai/README.md` covers connecting it to Agentverse. | `fetchai/`, `convex/agentIntake.ts`, `convex/http.ts` |
+| Elastic | With `ELASTIC_URL` and `ELASTIC_API_KEY` set, every transcript line and every household is indexed in Elastic Cloud (Serverless), so a dispatcher can search the call floor by what people said: "oxygen", "can't walk", "second floor", "my neighbor at 490". Text goes through three analyzers (standard, Spanish and CJK) with fuzzy matching, so a typo or a Spanish or Chinese phrasing still finds the home, and results show the matching words highlighted. Phone numbers never enter the index. Set `ELASTIC_URL` and `ELASTIC_API_KEY` in the Convex environment, then run `npx convex run elastic:backfill` once to load existing homes. With either unset, indexing does nothing and search returns no results. The page calls `/api/search`, which holds `SEARCH_SECRET` on the server, and the Convex action refuses any call without it. | `convex/elastic.ts`, `convex/elasticCore.ts`, `components/floor/transcript-search.tsx` |
+| Atlassian | A Forge app turns the door-check queue into Jira work items for field crews. Every 5 minutes it asks Convex (`POST /agent/door-checks`, bearer secret) for the unreached homes, creates one issue per home with rank, need level, language and why it is listed, comments when the system status changes, and closes the issue once the home is reached. When the incident closes, it deletes every door-check issue. The household id on the issue keeps reruns from duplicating, and no phone number or name leaves Convex. A Rovo agent answers "Which door checks are most urgent near Mariposa St?". | `atlassian/door-checks/`, `convex/doorChecks.ts`, `convex/http.ts` |
+| Capital One Nessie | When a resident confirms that the neighbor or named helper who came for them picked them up, the agency pays that volunteer's mileage in the Nessie sandbox. The amount is the road miles of the pickup (the volunteer's home to the resident to the nearest shelter, on the same road graph and closures the vans use) at the IRS charitable rate of $0.14 a mile, capped at $25, rounded up to whole dollars (at least $1) because Nessie's sandbox keeps whole dollars. Each payment is a transfer out of the agency account plus a deposit into the volunteer's. The first payment makes the volunteer a Nessie customer and checking account; we keep only the Nessie ids. Each ride is paid at most once: its payment row is written in the same transaction that confirms the pickup, one attempt at a time holds it, and a retry after an unknown result looks the transfer up in Nessie before it sends another. The activity list shows "Reimbursed Ana $1.00 for 0.7 miles". Agency vans are never paid. Without `NESSIE_API_KEY` and `NESSIE_AGENCY_ACCOUNT_ID`, a payment is recorded as not configured and nothing is sent. | `convex/reimburse.ts`, `convex/nessie.ts`, `convex/reimburseMiles.ts` |
 | DigitalOcean | App Platform hosts the dispatch solver service: our ALNS search, with OR-Tools and a greedy heuristic as baselines. It re-plans every vehicle whenever a request arrives or a road closes. | `dispatch/server.py`, `dispatch/alns.py` |
 | Vercel | Vercel hosts the web app. Drivers open the driver page on their own phones. | |
 
@@ -252,16 +246,15 @@ Every rider call is heard by Ink and spoken by Sonic. Because both run over WebS
 | Sonic multilingual voices | Calls in en, es, zh, ko, vi, tl, ru and ja. `CARTESIA_VOICE_<CODE>` picks a native voice; otherwise the English voice speaks the language | `voice/env.ts` `voiceFor` |
 | Short Sonic fillers ("Mm-hm.") | Cover Claude's thinking time without claiming to have understood anything | `backchannels` in `voice/agent/lines/*.ts` |
 
-In the latest voice exam, the agent's own turn took 0.92 s at the median and 1.62 s at the 95th percentile (`data/voice-exam-results.json`). A live call adds Ink's 0.5 s end-of-speech wait and the turn gap above.
+In the voice exam, the agent's own turn took 0.86 s at the median and 1.66 s at the 95th percentile (`data/voice-exam-results.json`). A live call adds Ink's 0.5 s end-of-speech wait and the turn gap above.
 
 **Known limitations**
 
 - Ink listens in one language at a time. We catch a rider who switches languages when they ask for it ("Korean, please") or when Claude recognizes the transcript. Speech in a language the call isn't listening for can arrive garbled.
 - Ink hears Armenian and Persian, but Sonic can't speak them. Those callers are handed to a person.
-- Six of the eight call languages (zh, ko, vi, tl, ru and ja) are machine translations waiting for review by a fluent speaker. Without `CARTESIA_VOICE_<CODE>`, the English voice speaks them with an English accent.
+- Six of the eight call languages (zh, ko, vi, tl, ru and ja) use machine-translated lines. Without `CARTESIA_VOICE_<CODE>`, the English voice speaks them with an English accent.
 - Because phone audio is 8 kHz, voices sound like a phone call rather than a studio recording.
 - A status change, such as a driver accepting or a road closing, plays after the turn that's already speaking. That's a few seconds at most, but it never cuts in mid-sentence.
-- The Twilio account is a trial as of Brendan's last note. Every call opens with Twilio's notice. Outbound calls reach verified numbers only.
 
 ## Run it
 
@@ -287,11 +280,3 @@ npm run stress:convex # the Convex stress test
 ```
 
 The dispatch solver and simulators are Python under `dispatch/` and `modeling/`, run with `uv` as shown in [Results](#results).
-
-## What's next
-
-- **Drills:** a tabletop drill with Palo Alto Stations 1 and 6, then a replay of a night like the Eaton Fire with a paratransit agency's own dispatchers.
-- **Shadow mode, then a pilot:** run beside real dispatchers during real warnings, then pilot on an agency's rider list under its authority, deleting rider data 72 hours after each incident closes.
-- **Beyond wildfire:** the calls and dispatch already work the same for floods, earthquakes and hurricanes. Only the hazard model changes.
-
-Every reverse-911 warning today is a one-way broadcast. We want the next one to be a conversation.

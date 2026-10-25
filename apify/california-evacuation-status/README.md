@@ -101,6 +101,6 @@ A closure counts as lifted only when the feed it came from was read on this run.
 
 Set `drill: true` and give `drillPolygon` (a ring of `[longitude, latitude]` pairs) to add one synthetic zone in `warning` status. It has `source: "drill"` and `drill: true` and is posted to the webhook like any zone, so receivers can tell it from real data. Real records are never changed. Leave it off outside exercises.
 
-## Use with Rider Check
+## Use with Standard Response
 
-Rider Check is a voice agent that phones every paratransit rider inside a warning area. Its Convex backend exposes `POST /apify/zone-status` and checks the bearer token against `APIFY_WEBHOOK_SECRET`. When a posted zone covers loaded riders, it records the zone and starts the calls. Posting the same zone and status again does nothing. Its `POST /apify/road-closures` takes the closure webhook. It writes a closure only where it runs along a street on the agency's road graph, so dispatch routes around it, and it reopens the road when the closure is lifted.
+Standard Response is an evacuation coordination system that phones every home inside a warning area. Its Convex backend exposes `POST /apify/zone-status` and checks the bearer token against `APIFY_WEBHOOK_SECRET`. When a posted zone covers loaded riders, it records the zone and starts the calls. Posting the same zone and status again does nothing. Its `POST /apify/road-closures` takes the closure webhook. It writes a closure only where it runs along a street on the agency's road graph, so dispatch routes around it, and it reopens the road when the closure is lifted.
