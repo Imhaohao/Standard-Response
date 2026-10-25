@@ -17,6 +17,7 @@ primary_region = "sjc"
     path = "/health"
     timeout = "2s"
 
+# The three Moss indexes hold about 720 MB between them; 512 MB was OOM-killed on Oct 24.
 [[vm]]
-  memory = "512mb"
+  memory = "2gb"
   cpus = 1
