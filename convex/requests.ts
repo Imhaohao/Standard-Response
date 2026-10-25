@@ -3,7 +3,7 @@ import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc, Id } from "./_generated/dataModel";
 import { auditKind, escalation, requestStatus } from "./schema";
-import { deadlineFor, rideNeedFor, vehicleCanServe } from "./model";
+import { deadlineFor, PartyNeed, RideParty, rideNeedFor, ridePartiesFor, vehicleCanServe } from "./model";
 import { closeAssignmentsFor, liveAssignmentsFor, replaceAssignment, revokeAssignment } from "./offers";
 import { helperCovers } from "./pickupCover";
 import { simNow } from "./clock";
@@ -54,18 +54,23 @@ export async function releaseRequest(ctx: MutationCtx, requestId: Id<"requests">
   if (request?.status === "approved") await transitionRequest(ctx, requestId, "received");
 }
 
-// By status, so a home whose rider changed their mind many times still finds its open request.
-export async function openRequestFor(ctx: QueryCtx, householdId: Id<"households">) {
-  const open = await Promise.all(
+// By status, so a home whose rider changed their mind many times still finds its open requests.
+export async function openRequestsFor(ctx: QueryCtx, householdId: Id<"households">) {
+  const byStatus = await Promise.all(
     OPEN_STATUSES.map((status) =>
       ctx.db
         .query("requests")
         .withIndex("by_householdId_and_status", (q) => q.eq("householdId", householdId).eq("status", status))
-        .first(),
+        .take(5),
     ),
   );
-  const found = open.filter((r) => r !== null);
-  return found.sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
+  return byStatus.flat().sort((a, b) => a._creationTime - b._creationTime);
+}
+
+// The patient's ride when a home rides in two parties: it's the one a caller asks about.
+export async function openRequestFor(ctx: QueryCtx, householdId: Id<"households">) {
+  const open = await openRequestsFor(ctx, householdId);
+  return open.find((r) => r.party !== "companions") ?? open[0] ?? null;
 }
 
 async function closeRequest(ctx: MutationCtx, request: Doc<"requests">) {
@@ -82,26 +87,38 @@ async function dropIncompatibleAssignments(ctx: MutationCtx, request: Doc<"reque
   }
 }
 
-// Keeps the ride request in step with the household record. Called after every record change,
+// A whole-home ride and the patient's ride are the same request, so a split or a merge keeps its van.
+const partyKey = (party?: RideParty) => (party === "companions" ? "companions" : "main");
+
+async function syncParty(ctx: MutationCtx, householdId: Id<"households">, open: Doc<"requests">[], shared: { deadlineAt: number; updatedAt: number }, { party, need }: PartyNeed) {
+  const existing = open.find((r) => partyKey(r.party) === partyKey(party));
+  if (!existing) {
+    await ctx.db.insert("requests", { householdId, status: "received", ...need, ...shared, ...(party ? { party } : {}) });
+    return;
+  }
+  const fields = { ...need, ...shared, party };
+  await ctx.db.patch("requests", existing._id, fields);
+  await dropIncompatibleAssignments(ctx, { ...existing, ...fields });
+}
+
+// Keeps the ride requests in step with the household record. Called after every record change,
 // so a correction on a call reaches any open offer.
 export async function syncRequest(ctx: MutationCtx, householdId: Id<"households">) {
   const household = await ctx.db.get("households", householdId);
   if (!household) return;
   const need = rideNeedFor(household);
-  const open = await openRequestFor(ctx, householdId);
+  const open = await openRequestsFor(ctx, householdId);
   if (!need) {
-    if (open) await closeRequest(ctx, open);
+    for (const request of open) await closeRequest(ctx, request);
     return;
   }
-  const fields = { ...need, deadlineAt: deadlineFor(household.fireArrivalAt), updatedAt: await simNow(ctx) };
   // A neighbor on the way means no van yet; a ride already open keeps its van.
-  if (!open && (await helperCovers(ctx, householdId))) return;
-  if (!open) {
-    await ctx.db.insert("requests", { householdId, status: "received", ...fields });
-    return;
-  }
-  await ctx.db.patch("requests", open._id, fields);
-  await dropIncompatibleAssignments(ctx, { ...open, ...fields });
+  if (open.length === 0 && (await helperCovers(ctx, householdId))) return;
+  const parties = ridePartiesFor(need, await ctx.db.query("vehicles").take(500));
+  const shared = { deadlineAt: deadlineFor(household.fireArrivalAt), updatedAt: await simNow(ctx) };
+  for (const party of parties) await syncParty(ctx, householdId, open, shared, party);
+  const kept = new Set(parties.map((p) => partyKey(p.party)));
+  for (const request of open) if (!kept.has(partyKey(request.party))) await closeRequest(ctx, request);
 }
 
 export const forHousehold = query({

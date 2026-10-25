@@ -109,6 +109,36 @@ export function vehicleCanServe(vehicle: VehicleFit, need: NeedFit) {
   );
 }
 
+export type RideParty = "patient" | "companions";
+export type PartyNeed = { party?: RideParty; need: RideNeed };
+
+const COMPANION_BOARDING_MINUTES = 2;
+
+function companionsNeed(seats: number): RideNeed {
+  return {
+    load: { seats, wheelchairSpaces: 0, stretcherSpaces: 0 },
+    crewNeeded: 1,
+    needsLift: false,
+    boardingMinutes: COMPANION_BOARDING_MINUTES,
+    weight: 1,
+  };
+}
+
+// A home no one vehicle can carry rides as two parties: the person in the stretcher or wheelchair
+// space with as many of the household as that vehicle seats, then everyone else in any vehicle.
+// Mirrors parties_for in dispatch/sim/population.py.
+export function ridePartiesFor(need: RideNeed, fleet: VehicleFit[]): PartyNeed[] {
+  if (fleet.length === 0 || fleet.some((vehicle) => vehicleCanServe(vehicle, need))) return [{ need }];
+  const patientAlone = { ...need, load: { ...need.load, seats: 0 } };
+  const carriers = fleet.filter((vehicle) => vehicleCanServe(vehicle, patientAlone));
+  if (carriers.length === 0) return [{ need }];
+  const ridingAlong = Math.min(need.load.seats, Math.max(...carriers.map((vehicle) => vehicle.seats)));
+  return [
+    { party: "patient", need: { ...need, load: { ...need.load, seats: ridingAlong } } },
+    { party: "companions", need: companionsNeed(need.load.seats - ridingAlong) },
+  ];
+}
+
 // How long a driver has to answer an offer before it expires.
 export const OFFER_TTL_MS = 2 * 60_000;
 

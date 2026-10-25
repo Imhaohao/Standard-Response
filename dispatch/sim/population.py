@@ -1,14 +1,14 @@
 """Households, ride needs and the fleet.
 
 The stand-in population mirrors convex/seed.ts (block vulnerability, ages, mobility, persona draws).
-If data/population.json exists it is used instead. `ride_need_for` and `vehicle_can_serve` are ports of
-convex/model.ts and must stay in step with it.
+If data/population.json exists it is used instead. `ride_need_for`, `vehicle_can_serve` and `parties_for`
+are ports of convex/model.ts and must stay in step with it.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -101,6 +101,23 @@ def vehicle_can_serve(vehicle: VehicleSpec, need: RideNeed) -> bool:
         and vehicle.crew_size >= need.crew_needed
         and (vehicle.lift_capable or not need.needs_lift)
     )
+
+
+def parties_for(need: RideNeed, fleet: list[VehicleSpec]) -> list[RideNeed]:
+    """A household no single vehicle can carry rides as two parties: the person in the stretcher or
+    wheelchair space with as many of the household as that vehicle seats, then everyone else in any
+    vehicle. Mirrors ridePartiesFor in convex/model.ts."""
+    if any(vehicle_can_serve(vehicle, need) for vehicle in fleet):
+        return [need]
+    carriers = [vehicle for vehicle in fleet if vehicle_can_serve(vehicle, replace(need, seats=0))]
+    if not carriers:
+        return [need]
+    riding_along = min(need.seats, max(vehicle.seats for vehicle in carriers))
+    companions = RideNeed(
+        seats=need.seats - riding_along, wheelchair_spaces=0, stretcher_spaces=0, crew_needed=1, needs_lift=False,
+        boarding_s=boarding_seconds("walks", "none"), weight=1, oxygen=False, accessible=False,
+    )
+    return [replace(need, seats=riding_along), companions]
 
 
 def boarding_seconds(mobility: str, assistance: str) -> float:
@@ -234,7 +251,7 @@ def file_population(seed: int, net: RoadNetwork, config: Config) -> list[Househo
 
 def population_source() -> str:
     if POPULATION_FILE.exists():
-        return "data/population.json (Track D synthetic population; each seed samples a subset)"
+        return "data/population.json (synthetic population; each seed samples a subset)"
     return "stand-in generated from convex/seed.ts distributions"
 
 

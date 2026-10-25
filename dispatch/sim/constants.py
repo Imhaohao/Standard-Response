@@ -92,7 +92,7 @@ def assumptions_table(config: Config) -> list[dict]:
         ("Retries after no answer", "2 min after the first miss, then 3 min after that (5 min total)", "the plan says retry at 2 and 5 minutes"),
         ("Text reply", f"about 45% of households can reply; delay is lognormal with median {TEXT_DELAY_MEDIAN_S / 60:.0f} min; text gives up after {TEXT_WAIT_S / 60:.0f} min", "stand-in; the door-check queue takes everyone left"),
         ("Door checks", f"{DOOR_TEAMS} teams, deadline-first, travel on the road graph plus {DOOR_VISIT_S[0] / 60:.0f} to {DOOR_VISIT_S[1] / 60:.0f} min per visit", "from the plan (about 8 min a visit)"),
-        ("Call accuracy", "a reached household reports its true need", "perfect accuracy is optimistic; call accuracy is evaluated separately by Track D"),
+        ("Call accuracy", "a reached household reports its true need", "perfect accuracy is optimistic; call accuracy is evaluated separately by the persona eval"),
         ("Answer probability", "per-household answersPhone, scaled by the answer-rate setting", "stand-in persona draw as in convex/seed.ts"),
         ("911 callers", f"{PROB_911_CALL:.0%} of households that need a ride call 911", "assumption for today's process; the Eaton Fire case shows long gaps before calls"),
         ("911 call timing", f"fire arrival minus a lognormal lead (median {CALL_911_LEAD_MEDIAN_S / 60:.0f} min, clipped {CALL_911_LEAD_CLIP_S[0] / 60:.0f} to {CALL_911_LEAD_CLIP_S[1] / 60:.0f} min)", "people call when the fire is visibly near; assumption"),

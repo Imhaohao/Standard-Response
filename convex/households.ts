@@ -7,7 +7,7 @@ import { callPriorityFor, deadlineFor, located, outcomeFor } from "./model";
 import { askNearbyDriver, askNewDriver } from "./neighborPickups";
 import { busyHelpers } from "./neighborRules";
 import { neighborCallsDue } from "./neighborCalls";
-import { openRequestFor, syncRequest } from "./requests";
+import { openRequestsFor, syncRequest } from "./requests";
 import { reviewPickups } from "./pickups";
 import { countHouseholds } from "./householdCounts";
 import { simNow } from "./clock";
@@ -88,7 +88,7 @@ export const update = mutation({
   },
 });
 
-// Track D: need estimate and hazard arrival. Send any subset of households, as often as you like.
+// The model runner: need estimate and hazard arrival. Send any subset of households, as often as you like.
 export const setEstimates = mutation({
   args: {
     estimates: v.array(
@@ -111,8 +111,9 @@ export const setEstimates = mutation({
         fireArrivalAt,
         callPriority: callPriorityFor(estimate.needProbability, fireArrivalAt, now),
       });
-      const request = await openRequestFor(ctx, household._id);
-      if (request) await ctx.db.patch("requests", request._id, { deadlineAt: deadlineFor(fireArrivalAt) });
+      for (const request of await openRequestsFor(ctx, household._id)) {
+        await ctx.db.patch("requests", request._id, { deadlineAt: deadlineFor(fireArrivalAt) });
+      }
     }
     return null;
   },
@@ -188,7 +189,7 @@ export const coverage = query({
       outcome,
       callStatus,
       needProbability: v.number(),
-      // Track A: the Ready check, for the rescue map's census panel.
+      // The Ready check, for the rescue map's census panel.
       exitPlan: v.optional(exitPlan),
       readyMisses: v.number(),
       mobility: v.optional(mobility),
@@ -256,7 +257,7 @@ export const counts = query({
   },
 });
 
-// Voice track: an inbound caller. Unknown numbers get a household with no location until
+// Voice server: an inbound caller. Unknown numbers get a household with no location until
 // the address is matched; the dispatcher sees it flagged.
 export const findOrCreateByPhone = mutation({
   args: { callbackNumber: v.string(), language: v.optional(v.string()) },
@@ -286,7 +287,7 @@ export const findOrCreateByPhone = mutation({
   },
 });
 
-// Track D: an address was matched to a point (inbound callers, nominations).
+// Address matching: an address was matched to a point (inbound callers, nominations).
 export const setLocation = mutation({
   args: { householdId: v.id("households"), address: v.string(), lat: v.number(), lng: v.number() },
   returns: v.null(),

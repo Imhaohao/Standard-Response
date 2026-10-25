@@ -32,34 +32,46 @@ def mean_or_nan(values: list[float]) -> float:
     return sum(values) / len(values) if values else math.nan
 
 
-def expected_deaths(night: Night) -> float:
-    picked = {r.household.index: r for r in night.requests.values() if r.status == "picked"}
+def boarded_at(night: Night) -> dict[int, float]:
+    """When each household's last party finished boarding, for households whose every party boarded."""
+    parties: dict[int, list[Request]] = {}
+    for request in night.requests.values():
+        parties.setdefault(request.household.index, []).append(request)
+    return {
+        index: max(r.picked_at for r in requests)
+        for index, requests in parties.items()
+        if all(r.status == "picked" for r in requests)
+    }
+
+
+def expected_deaths(night: Night, boarded: dict[int, float]) -> float:
     total = 0.0
     for household in night.world.needers:
         need = household.need
         people = need.seats + need.wheelchair_spaces + need.stretcher_spaces
-        request = picked.get(household.index)
-        late = None if request is None else request.picked_at - household.deadline_s
+        at = boarded.get(household.index)
+        late = None if at is None else at - household.deadline_s
         total += fatality.expected_deaths(need.weight, people, late)
     return total
 
 
 def run_metrics(night: Night) -> dict:
     needers = night.world.needers
+    boarded = boarded_at(night)
+    on_time = [h for h in needers if h.index in boarded and boarded[h.index] <= h.deadline_s]
     picked = [r for r in night.requests.values() if r.status == "picked"]
-    on_time = [r for r in picked if r.picked_at <= r.household.deadline_s]
     wait_list = waits(night, picked)
-    accessible = [w for r, w in wait_list if r.household.need.accessible]
+    accessible = [w for r, w in wait_list if r.need.accessible]
     return {
         "needers": len(needers),
-        "requests": len(night.requests),
+        "requests": len({r.household.index for r in night.requests.values()}),
         "pickupsOnTime": len(on_time),
-        "pickupsLate": len(picked) - len(on_time),
-        "ridersNeverPickedUp": len(needers) - len(picked),
+        "pickupsLate": len(boarded) - len(on_time),
+        "ridersNeverPickedUp": len(needers) - len(boarded),
         "worstWaitMinutes": max((w for _, w in wait_list), default=0.0),
         "accessibleWaitMinutes": mean_or_nan(accessible),
         "vehicleMinutes": sum(v.busy_seconds for v in night.vehicles) / MINUTE,
-        "expectedDeaths": expected_deaths(night),
+        "expectedDeaths": expected_deaths(night, boarded),
     }
 
 
@@ -67,5 +79,5 @@ def compatibility_violations(night: Night) -> int:
     vehicles = {v.spec.index: v.spec for v in night.vehicles}
     return sum(
         1 for entry in night.pickup_log
-        if not vehicle_can_serve(vehicles[entry["vehicle"]], night.world.households[entry["household"]].need)
+        if not vehicle_can_serve(vehicles[entry["vehicle"]], night.requests[entry["request"]].need)
     )

@@ -8,7 +8,7 @@ from sim import run as sim_run
 from sim.constants import Config
 from sim.engine import POLICIES, run_policies
 from sim.exploration import explore_seed
-from sim.population import RideNeed, VehicleSpec, fleet_of_size, ride_need_for, vehicle_can_serve
+from sim.population import RideNeed, VehicleSpec, fleet_of_size, parties_for, ride_need_for, vehicle_can_serve
 from sim.streams import emergency_stream, outreach_stream, stream_digest
 from sim.world import build_world
 
@@ -104,6 +104,24 @@ def test_bedbound_rider_needs_two_crew_and_a_stretcher():
     assert isinstance(need, RideNeed) and need.crew_needed == 2 and need.stretcher_spaces == 1
     allowed = [v.label for v in fleet_of_size(8) if vehicle_can_serve(v, need)]
     assert allowed == ["Medic 41"]
+
+
+def test_bedbound_rider_with_family_rides_in_two_parties():
+    truth = {"canLeave": "no", "peopleCount": 4, "mobility": "bedbound", "assistanceRequired": "two_person_lift",
+             "medical": [], "hasCar": False}
+    fleet = fleet_of_size(8)
+    patient, family = parties_for(ride_need_for(truth), fleet)
+    assert [v.label for v in fleet if vehicle_can_serve(v, patient)] == ["Medic 41"]
+    assert patient.seats == 1 and patient.stretcher_spaces == 1
+    assert family.seats == 2 and family.stretcher_spaces == 0 and not family.needs_lift
+    assert any(vehicle_can_serve(v, family) for v in fleet)
+
+
+def test_household_one_vehicle_can_carry_stays_whole():
+    truth = {"canLeave": "no", "peopleCount": 3, "mobility": "manual_wheelchair", "assistanceRequired": "none",
+             "medical": [], "hasCar": False}
+    need = ride_need_for(truth)
+    assert parties_for(need, fleet_of_size(8)) == [need]
 
 
 def test_fleet_sizes():

@@ -62,7 +62,7 @@ class TodayPolicy:
             return
         yield night.env.timeout(seconds)
         vehicle.node = household.node
-        if not vehicle_can_serve(vehicle.spec, household.need) or night.env.now >= household.fire_arrival_s:
+        if not vehicle_can_serve(vehicle.spec, request.need) or night.env.now >= household.fire_arrival_s:
             request.tried_vehicles.add(vehicle.spec.index)
             night.release(request)
             return
@@ -70,7 +70,7 @@ class TodayPolicy:
 
     def load_and_deliver(self, vehicle: Vehicle, request: Request):
         night = self.night
-        yield night.env.timeout(request.household.need.boarding_s)
+        yield night.env.timeout(request.need.boarding_s)
         if night.env.now > request.household.fire_arrival_s:
             request.status = "expired"
             return

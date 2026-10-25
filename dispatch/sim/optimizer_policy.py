@@ -14,7 +14,7 @@ Solve = Callable[[dict], dict]
 
 
 def request_entry(request: Request, now: float, allowed: list[int], location: int) -> dict:
-    need = request.household.need
+    need = request.need
     return {
         "id": request.index,
         "location": location,
@@ -83,7 +83,7 @@ def trip_load_fits(night: Night, vehicle: Vehicle, trip: list[dict]) -> bool:
     limits = (spec.seats, spec.wheelchair_spaces, spec.stretcher_spaces)
     onboard = [0, 0, 0]
     for stop in trip:
-        need = night.requests[stop["request"]].household.need
+        need = night.requests[stop["request"]].need
         sign = 1 if stop["kind"] == "pickup" else -1
         amounts = (need.seats, need.wheelchair_spaces, need.stretcher_spaces)
         onboard = [have + sign * amount for have, amount in zip(onboard, amounts)]
@@ -129,7 +129,7 @@ def visit_pickup(night: Night, vehicle: Vehicle, request: Request, aboard: set):
         return
     yield night.env.timeout(seconds)
     vehicle.node = request.household.node
-    yield night.env.timeout(request.household.need.boarding_s)
+    yield night.env.timeout(request.need.boarding_s)
     if night.env.now > request.household.fire_arrival_s:
         request.status = "expired"
         return
@@ -154,7 +154,7 @@ def estimate_run_seconds(night: Night, vehicle: Vehicle, stops: list[dict]) -> f
         target = night.requests[stop["request"]].household.node if pickup else night.world.shelter_node
         seconds = night.travel(node, target)
         total += seconds if math.isfinite(seconds) else 0.0
-        total += night.requests[stop["request"]].household.need.boarding_s if pickup else UNLOAD_S
+        total += night.requests[stop["request"]].need.boarding_s if pickup else UNLOAD_S
         node, at_shelter = target, not pickup
     return total
 

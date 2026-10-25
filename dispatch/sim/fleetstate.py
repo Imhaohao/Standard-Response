@@ -7,14 +7,19 @@ from dataclasses import dataclass, field
 
 import simpy
 
-from .population import Household, VehicleSpec, vehicle_can_serve
+from .population import Household, RideNeed, VehicleSpec, parties_for, vehicle_can_serve
 from .world import World
+
+# A household's second party (everyone the patient's vehicle cannot seat) gets its own request id.
+PARTY_ID_STRIDE = 1_000_000
 
 
 @dataclass
 class Request:
     household: Household
+    need: RideNeed
     surfaced_at: float
+    party: int = 0
     status: str = "pending"  # pending | committed | picked | expired | unservable
     picked_at: float | None = None
     attempts: int = 0
@@ -23,7 +28,7 @@ class Request:
 
     @property
     def index(self) -> int:
-        return self.household.index
+        return self.household.index + self.party * PARTY_ID_STRIDE
 
 
 @dataclass
@@ -57,7 +62,9 @@ class Night:
             self.vehicles.append(Vehicle(spec, node))
 
     def surface(self, household: Household):
-        self.requests[household.index] = Request(household, self.env.now)
+        for party, need in enumerate(parties_for(household.need, self.world.fleet)):
+            request = Request(household, need, self.env.now, party)
+            self.requests[request.index] = request
         if self.new_request_since is None:
             self.new_request_since = self.env.now
 
@@ -71,8 +78,7 @@ class Night:
         return sorted((r for r in self.requests.values() if r.status == "pending"), key=lambda r: r.index)
 
     def compatible_vehicles(self, request: Request) -> list[int]:
-        need = request.household.need
-        return [v.spec.index for v in self.vehicles if vehicle_can_serve(v.spec, need)]
+        return [v.spec.index for v in self.vehicles if vehicle_can_serve(v.spec, request.need)]
 
     def travel(self, a: int, b: int) -> float:
         return self.world.travel.seconds(a, b, self.env.now)
@@ -81,7 +87,7 @@ class Night:
         request.status = "picked"
         request.picked_at = self.env.now
         request.picked_by = vehicle.spec.index
-        self.pickup_log.append({"household": request.index, "vehicle": vehicle.spec.index, "at": self.env.now})
+        self.pickup_log.append({"request": request.index, "vehicle": vehicle.spec.index, "at": self.env.now})
 
     def release(self, request: Request):
         request.status = "pending"

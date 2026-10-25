@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { hazard } from "./hazards";
 
-// The shared contract. Every track reads and writes these tables.
+// The shared contract. Every part of the system reads and writes these tables.
 // The owner column in PLAN.md "Contract" says who may change each table.
 
 export const canLeave = v.union(v.literal("yes"), v.literal("no"), v.literal("unsure"));
@@ -166,7 +166,7 @@ export const closureSource = v.union(
   v.literal("apify"),
 );
 
-// Ready check (Track A): what a household told us before any disaster.
+// Ready check: what a household told us before any disaster.
 export const bedroomFloor = v.union(v.literal("ground"), v.literal("upstairs"), v.literal("basement"));
 export const bedroomSide = v.union(v.literal("front"), v.literal("back"));
 export const careNeed = v.union(
@@ -218,6 +218,8 @@ export const helperNotice = v.union(v.literal("resident_ready"), v.literal("call
 export const residentNotice = v.literal("helper_cancelled");
 
 export const point = v.object({ lat: v.number(), lng: v.number() });
+
+export const rideParty = v.union(v.literal("patient"), v.literal("companions"));
 
 export const load = v.object({
   seats: v.number(),
@@ -276,24 +278,24 @@ export default defineSchema({
     inZone: v.boolean(),
     attempts: v.number(),
     lastAttemptAt: v.optional(v.number()),
-    // Census base rate (Track D). Public data, never ground truth.
+    // Census base rate. Public data, never ground truth.
     needPrior: v.number(),
-    // Track D. Probability 0-1 that this home needs help.
+    // Need model. Probability 0-1 that this home needs help.
     needProbability: v.number(),
-    // Track D hazard. Epoch ms when the hazard scenario reaches this home.
+    // Hazard runner. Epoch ms when the hazard scenario reaches this home.
     fireArrivalAt: v.number(),
     // Higher is called sooner. Derived from the two fields above.
     callPriority: v.number(),
-    // Track D door-check score. Higher is knocked on sooner.
+    // Door-check score. Higher is knocked on sooner.
     doorPriority: v.optional(v.number()),
-    // Track A: the Ready check profile, filled before any warning.
+    // The Ready check profile, filled before any warning.
     ready: v.optional(readyProfile),
-    // Track A: Ready check calls nobody answered.
+    // Ready check calls nobody answered.
     readyMisses: v.optional(v.number()),
-    // Track A: how far 911 is looking for a neighbor to drive this home out, and since when (night
+    // How far 911 is looking for a neighbor to drive this home out, and since when (night
     // clock) nobody in that circle is being asked. Three quiet minutes widen the circle.
     neighborSearch: v.optional(v.object({ reachMeters: v.number(), idleSince: v.optional(v.number()) })),
-    // Track B: the reach ladder workflow for a real rider nobody has reached yet.
+    // The reach ladder workflow for a real rider nobody has reached yet.
     ladder: v.optional(reachLadder),
     simulated: v.boolean(),
   })
@@ -301,7 +303,7 @@ export default defineSchema({
     .index("by_outcome", ["outcome"])
     .index("by_callbackNumber", ["callbackNumber"]),
 
-  // Track B: the call order Claude chose for one warning, most urgent first (convex/callPlans.ts).
+  // The call order Claude chose for one warning, most urgent first (convex/callPlans.ts).
   callPlans: defineTable({
     warningIssuedAt: v.number(),
     model: v.string(),
@@ -365,6 +367,8 @@ export default defineSchema({
   requests: defineTable({
     householdId: v.id("households"),
     status: requestStatus,
+    // Set when no one vehicle can carry the whole home: the patient's ride, or everyone else's.
+    party: v.optional(rideParty),
     load,
     crewNeeded: v.number(),
     needsLift: v.boolean(),
@@ -399,7 +403,7 @@ export default defineSchema({
     lat: v.number(),
     lng: v.number(),
     capacity: v.number(),
-    // Track C: people dropped off here so far.
+    // People dropped off here so far.
     occupied: v.optional(v.number()),
   }),
 
@@ -407,7 +411,7 @@ export default defineSchema({
     version: v.number(),
     solver: v.union(v.literal("stand_in"), v.literal("heuristic"), v.literal("ortools"), v.literal("alns")),
     solveMs: v.number(),
-    // Track C: the size of the problem this plan solved, for the solver panel.
+    // The size of the problem this plan solved, for the solver panel.
     requestCount: v.optional(v.number()),
     vehicleCount: v.optional(v.number()),
     // Why the heuristic ran instead of the solver service ("solver service unreachable"), when it did.
@@ -435,7 +439,7 @@ export default defineSchema({
     proposedAt: v.number(),
     offeredAt: v.optional(v.number()),
     respondedAt: v.optional(v.number()),
-    // When Track C last recomputed etaMinutes from the vehicle's position.
+    // When the dispatcher last recomputed etaMinutes from the vehicle's position.
     etaUpdatedAt: v.optional(v.number()),
   })
     .index("by_requestId", ["requestId"])
@@ -443,7 +447,7 @@ export default defineSchema({
     .index("by_requestId_and_status", ["requestId", "status"])
     .index("by_vehicleId", ["vehicleId"])
     .index("by_status", ["status"])
-    // Track C: a vehicle's accepted run in stop order, without reading its whole history.
+    // A vehicle's accepted run in stop order, without reading its whole history.
     .index("by_vehicleId_and_status_and_stopOrder", ["vehicleId", "status", "stopOrder"]),
 
   // One row per thing the resident must be told. The key makes a repeated event a no-op.
@@ -462,9 +466,9 @@ export default defineSchema({
     .index("by_state", ["state"]),
 
   roadClosures: defineTable({
-    // OSM edge id as "u-v-key" once Track C snaps the path to the road graph.
+    // OSM edge id as "u-v-key" once the dispatcher snaps the path to the road graph.
     edgeKey: v.optional(v.string()),
-    // Every directed edge this closure shuts, both directions, once Track C has snapped it.
+    // Every directed edge this closure shuts, both directions, once the dispatcher has snapped it.
     edgeKeys: v.optional(v.array(v.string())),
     streets: v.optional(v.array(v.string())),
     path: v.array(point),
@@ -483,7 +487,7 @@ export default defineSchema({
     spokenAddress: v.string(),
     status: v.union(v.literal("open"), v.literal("matched"), v.literal("unmatched")),
     matchedHouseholdId: v.optional(v.id("households")),
-    // Track D: why a nomination couldn't be matched ("no house number", "two streets match"), for the dispatcher.
+    // Why a nomination couldn't be matched ("no house number", "two streets match"), for the dispatcher.
     note: v.optional(v.string()),
     at: v.number(),
   }).index("by_status", ["status"]),
@@ -534,7 +538,7 @@ export default defineSchema({
     correction: v.optional(v.object({ field: v.string(), firstSays: v.string() })),
   }).index("by_householdId", ["householdId"]),
 
-  // Track D singleton. The on-screen smoothing toggle, plus what the model runner last did.
+  // Singleton. The on-screen smoothing toggle, plus what the model runner last did.
   modelState: defineTable({
     // Spatial smoothing of need estimates from answered neighbors. Toggled on screen.
     smoothing: v.boolean(),
@@ -549,7 +553,7 @@ export default defineSchema({
     stats: v.optional(v.record(v.string(), v.number())),
   }),
 
-  // Track C singleton: the re-planner's lock and what its last run did.
+  // Singleton: the re-planner's lock and what its last run did.
   dispatchState: defineTable({
     replanStartedAt: v.optional(v.number()),
     lastReplanAt: v.number(),
@@ -562,7 +566,7 @@ export default defineSchema({
     replans: v.number(),
   }),
 
-  // Track C: the road path each vehicle is driving now. The rescue map can draw these.
+  // The road path each vehicle is driving now. The rescue map can draw these.
   vehicleRoutes: defineTable({
     vehicleId: v.id("vehicles"),
     target: v.union(
@@ -582,13 +586,13 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_vehicleId", ["vehicleId"]),
 
-  // Track C: riders on board each vehicle, kept by the movement tick so it never rescans history.
+  // Riders on board each vehicle, kept by the movement tick so it never rescans history.
   vehicleLoads: defineTable({
     vehicleId: v.id("vehicles"),
     riders: v.array(v.object({ requestId: v.id("requests"), shelterId: v.optional(v.id("shelters")), load })),
   }).index("by_vehicleId", ["vehicleId"]),
 
-  // Track A: a helper who agreed ahead of time to pick a household up. The pickup check calls them
+  // A helper who agreed ahead of time to pick a household up. The pickup check calls them
   // the moment a warning covers the household, and a broken promise becomes a ride request.
   pickupPlans: defineTable({
     householdId: v.id("households"),
@@ -655,11 +659,11 @@ export default defineSchema({
     hazard: v.optional(hazard),
     // Set once householdCounts:backfill has filled the call-floor count aggregates.
     householdCountsReadyAt: v.optional(v.number()),
-    // Track A: the Ready check campaign, before any warning. Bumping the generation stops a run.
+    // The Ready check campaign, before any warning. Bumping the generation stops a run.
     readyCheckStartedAt: v.optional(v.number()),
     readyCheckRunning: v.optional(v.boolean()),
     readyCheckGeneration: v.optional(v.number()),
-    // Track A: the night's clock (lib/sim-clock.ts). Absent means it reads the wall clock.
+    // The night's clock (lib/sim-clock.ts). Absent means it reads the wall clock.
     clock: v.optional(v.object({ speed: v.number(), realAt: v.number(), simAt: v.number(), ranMs: v.number() })),
     // Track A: set while a rewind or reset copies the night into `nightRuns`; nothing new starts until it's done.
     archivingRunId: v.optional(v.id("nightRuns")),
