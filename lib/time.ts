@@ -32,3 +32,10 @@ export function formatCountdown(ms: number) {
 export function formatClock(at: number) {
   return new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
+
+// Time since the warning, the one way the app writes it: "45m", "1h 8m".
+export function formatSinceWarning(minutes: number) {
+  const whole = Math.max(0, Math.floor(minutes));
+  const hours = Math.floor(whole / 60);
+  return hours > 0 ? `${hours}h ${whole % 60}m` : `${whole}m`;
+}

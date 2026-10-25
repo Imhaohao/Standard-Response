@@ -7,7 +7,8 @@ const BUTTON =
   "grid size-10 place-items-center text-on-panel hover:bg-panel-raised focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink disabled:opacity-40";
 
 // Zoom buttons for people who don't use a wheel or a pinch. Home appears once the view has moved.
-export function ZoomControls({ className = "" }: { className?: string }) {
+// `resetLabel` names where the reset button goes back to, which is the map's starting view.
+export function ZoomControls({ className = "", resetLabel = "Show the whole town" }: { className?: string; resetLabel?: string }) {
   const { zoomBy, resetView, zoomLevel } = useMapStage();
   useCameraVersion();
   const zoomed = zoomLevel() > 1.01;
@@ -20,7 +21,7 @@ export function ZoomControls({ className = "" }: { className?: string }) {
         <Minus weight="bold" className="size-4" />
       </button>
       {zoomed && (
-        <button type="button" aria-label="Show the whole town" className={BUTTON} onClick={resetView}>
+        <button type="button" aria-label={resetLabel} title={resetLabel} className={BUTTON} onClick={resetView}>
           <ArrowsIn weight="bold" className="size-4" />
         </button>
       )}

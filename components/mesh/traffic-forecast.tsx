@@ -35,6 +35,11 @@ const clockAt = (forecast: Forecast, minute: number) =>
 
 const shortClock = (at: number) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
+// Darker is a bigger slowdown, wider is more car-minutes lost on that street.
+export function forecastStroke(slowdown: number, weight: number) {
+  return { stroke: INK, strokeOpacity: 0.12 + 0.5 * slowdown, strokeWidth: 5 + 9 * weight };
+}
+
 export function ForecastStreets({ forecast, windowIndex }: { forecast: Forecast; windowIndex: number }) {
   const span = forecast.windows[windowIndex];
   if (!span) return null;
@@ -46,7 +51,7 @@ export function ForecastStreets({ forecast, windowIndex }: { forecast: Forecast;
         if (!path) return null;
         const slowdown = segment.slowdown.median ?? 0;
         const weight = Math.sqrt((segment.lostCarMinutes.median ?? 0) / most);
-        return <GeoLine key={segment.key} route={path} stroke={INK} strokeOpacity={0.12 + 0.5 * slowdown} strokeWidth={5 + 9 * weight} />;
+        return <GeoLine key={segment.key} route={path} {...forecastStroke(slowdown, weight)} />;
       })}
     </g>
   );
@@ -182,7 +187,7 @@ export function TrafficPanel({
     <Panel title="Traffic, next hour" className="shrink-0">
       <TechTags uses={["langevin", "departure"]} />
       {forecast === undefined && <PanelEmpty>Loading…</PanelEmpty>}
-      {forecast === null && <PanelEmpty>{warningIssued ? "No forecast yet. Start it with npm run forecast:traffic." : "No warning issued."}</PanelEmpty>}
+      {forecast === null && <PanelEmpty>{warningIssued ? "Streets likely to slow down in the next hour show up here a few minutes after the warning. The forecast updates every 5 minutes." : "Forecasts start once a warning goes out."}</PanelEmpty>}
       {forecast && <ForecastBody forecast={forecast} windowIndex={windowIndex} onWindow={onWindow} />}
       <HowItWorks tech="langevin">
         Here: {forecast?.members ?? "Several"} runs of this crowd model follow tonight from the warning. Every 5 minutes each is copied and run an hour ahead, and the

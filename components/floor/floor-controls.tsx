@@ -45,7 +45,7 @@ function LineStepper({ value }: { value: number }) {
       <Button variant="onPanelQuiet" size="sm" square aria-label="Close two lines" onClick={() => void setMax({ value: value - 2 })}>
         <Minus weight="bold" className="size-4" />
       </Button>
-      <span className="flex w-16 items-baseline justify-center gap-1">
+      <span className="flex w-14 items-baseline justify-center gap-1">
         <AnimatedNumber value={value} className="type-figure text-lg" />
         <span className="type-small text-on-panel-muted">lines</span>
       </span>
@@ -134,12 +134,25 @@ function StandIns({ control }: { control: ControlState }) {
   const real = STAND_INS.filter((entry) => control[entry.key] === false).length;
   return (
     <div ref={ref} className="relative">
-      <Button variant="onPanelQuiet" size="sm" aria-label="Stand-ins" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <Button variant="onPanelQuiet" size="sm" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen(!open)}>
         <SlidersHorizontal weight="bold" className="size-4" />
-        <span className="tabular-nums">{real}/{STAND_INS.length} real</span>
+        <span className="sm:hidden">Settings</span>
+        <span className="max-sm:hidden">Simulation settings</span>
       </Button>
+      {/* On a phone the button can sit mid-bar, so the menu spans the bar instead: the bar's backdrop blur
+          makes it the containing block for `fixed`. */}
       {open && (
-        <div className="absolute top-full right-0 z-30 mt-2 flex w-80 flex-col bg-panel text-on-panel shadow-popover">
+        <div
+          role="dialog"
+          aria-label="Simulation settings"
+          className="absolute top-full right-0 z-30 mt-2 flex w-80 flex-col bg-panel text-on-panel shadow-popover max-sm:fixed max-sm:inset-x-4 max-sm:w-auto"
+        >
+          <p className="type-small border-b border-panel-raised px-3 py-2.5 text-on-panel-muted">
+            <span className="font-semibold text-on-panel tabular-nums">
+              {real} of {STAND_INS.length}
+            </span>{" "}
+            parts run for real. Switch one off to use its stand-in.
+          </p>
           {STAND_INS.map((entry) => (
             <Switch
               key={entry.key}
@@ -182,16 +195,20 @@ export function FloorControls({ control }: { control: ControlState | undefined }
       </>
     );
   }
+  // On a phone the bar wraps: settings sits beside the warning clock, the call controls get the row below.
   return (
     <>
-      <div className="flex items-center gap-2 bg-panel-raised/60 pr-2">
+      <div className="flex items-center gap-2 bg-panel-raised/60 pr-2 max-sm:order-1">
         <LineStepper value={control.maxConcurrentCalls} />
         <Button variant="onPanelQuiet" size="sm" onClick={() => void surge({})}>
           <PhoneIncoming weight="bold" className="size-4" />
-          Inbound surge
+          <span className="sm:hidden">Surge</span>
+          <span className="max-sm:hidden">Inbound surge</span>
         </Button>
       </div>
-      <DialerToggle running={control.dialerRunning} />
+      <div className="max-sm:order-1">
+        <DialerToggle running={control.dialerRunning} />
+      </div>
       <StandIns control={control} />
     </>
   );

@@ -28,7 +28,7 @@ export function SystemScreen() {
             <CloseRoadPanel />
             <RequestPipeline />
           </div>
-          <Tag>Vehicle movement is simulated, 4x</Tag>
+          <Tag>Simulated vans drive at city speed (7 m/s), sped up by the rescue map&apos;s playback speed</Tag>
         </section>
         <ArchitectureDisclosure />
         <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-2">

@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
@@ -14,10 +14,11 @@ import { Panel, PanelEmpty } from "@/components/ui/panel";
 import { LatLng } from "@/lib/geo";
 import { createProjection, Point } from "@/lib/ink-map/data";
 import { ROUND_MASS } from "@/lib/mesh/rounds";
-import { AreaShape, areaLabel } from "@/lib/prepare/areas";
+import { AreaShape, areaLabel, blockGroupNumber } from "@/lib/prepare/areas";
 import { Estimate, TALLY_ITEMS, TallyItemId } from "@/lib/prepare/tally";
 import { oddsRatio, TASK_IDS, TASKS, TaskId } from "@/lib/prepare/tasks";
 import { Figure, Figures } from "../mesh/figures";
+import { KEY_SAMPLE, KeyEntry, MapKey } from "../mesh/map-key";
 import { SurveyHowItWorks, SurveyTags } from "./technology";
 import { useAreaShapes } from "./use-survey-phone";
 
@@ -46,16 +47,32 @@ function areasFrame(shapes: AreaShape[], toLocal: (point: LatLng) => Point): Fra
   return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
 }
 
+const AREA_OUTLINE = { stroke: INK, strokeOpacity: 0.35, strokeWidth: 1 };
+const SELECTED_OUTLINE = { stroke: INK, strokeOpacity: 0.95, strokeWidth: 3 };
+const LIGHTEST_TONE = 0.06;
+const DARKEST_TONE = 0.56;
+
+const isReadable = (estimate: Estimate | undefined): estimate is Estimate & { share: number } =>
+  estimate !== undefined && estimate.answered >= MIN_ANSWERS && estimate.share !== null;
+
+// The share the darkest block group stands for: the highest readable share on the map.
+function topShare(counts: Counts | undefined, item: TallyItemId) {
+  const shares = counts?.areas.map((a) => a.estimates[item]).filter(isReadable).map((e) => e.share) ?? [];
+  return Math.max(0.05, ...shares);
+}
+
+const toneFor = (share: number, top: number) => LIGHTEST_TONE + (DARKEST_TONE - LIGHTEST_TONE) * (share / top);
+
+
 // Each block group's tone is its estimated share; the darkest is the highest share on the map.
 function AreaShading({ shapes, counts, item, selected }: { shapes: AreaShape[]; counts: Counts | undefined; item: TallyItemId; selected: string | null }) {
   const byId = new Map<string, Estimate>(counts?.areas.map((a) => [a.id, a.estimates[item]]) ?? []);
-  const top = Math.max(0.05, ...[...byId.values()].map((e) => (e.answered >= MIN_ANSWERS ? (e.share ?? 0) : 0)));
+  const top = topShare(counts, item);
   return (
     <g>
       {shapes.map((shape) => {
         const estimate = byId.get(shape.id);
-        const readable = estimate && estimate.answered >= MIN_ANSWERS && estimate.share !== null;
-        const tone = readable ? 0.06 + 0.5 * (estimate.share! / top) : 0;
+        const tone = isReadable(estimate) ? toneFor(estimate.share, top) : 0;
         return shape.rings.map((ring, i) => (
           <GeoLine
             key={`${shape.id}-${i}`}
@@ -63,9 +80,7 @@ function AreaShading({ shapes, counts, item, selected }: { shapes: AreaShape[]; 
             close
             fill={INK}
             fillOpacity={tone}
-            stroke={INK}
-            strokeOpacity={shape.id === selected ? 0.95 : 0.35}
-            strokeWidth={shape.id === selected ? 3 : 1}
+            {...(shape.id === selected ? SELECTED_OUTLINE : AREA_OUTLINE)}
           />
         ));
       })}
@@ -124,7 +139,7 @@ function CountsPanel({ counts, item, onItem, selected, onSelect }: { counts: Cou
             {areas.map((area) => (
               <li key={area.id}>
                 <button type="button" onClick={() => onSelect(area.id === selected ? null : area.id)} className={`flex w-full items-center justify-between gap-3 px-3 py-1 text-left ${area.id === selected ? "bg-panel-raised" : "hover:bg-panel-raised/50"}`}>
-                  <span className="type-small min-w-0 truncate">{areaLabel(area.id)}</span>
+                  <span className="type-small tabular-nums">{blockGroupNumber(area.id)}</span>
                   <Interval estimate={area.estimates[item]} />
                 </button>
               </li>
@@ -202,6 +217,34 @@ function ModelsPanel() {
   );
 }
 
+const KEY_SWATCH = { x: 4, y: 3, height: KEY_SAMPLE.height - 6 };
+
+function ShareRamp() {
+  const gradient = useId();
+  return (
+    <>
+      <defs>
+        <linearGradient id={gradient}>
+          <stop offset="0" stopColor={INK} stopOpacity={LIGHTEST_TONE} />
+          <stop offset="1" stopColor={INK} stopOpacity={DARKEST_TONE} />
+        </linearGradient>
+      </defs>
+      <rect {...KEY_SWATCH} width={KEY_SAMPLE.width - 8} fill={`url(#${gradient})`} {...AREA_OUTLINE} />
+    </>
+  );
+}
+
+function CountyMapKey({ itemLabel, top }: { itemLabel: string; top: number }) {
+  return (
+    <MapKey>
+      <KeyEntry sample={<ShareRamp />}>
+        <span className="tabular-nums">0 to {pct(top)}</span> say &ldquo;{itemLabel.toLowerCase()}&rdquo;
+      </KeyEntry>
+      <KeyEntry sample={<rect {...KEY_SWATCH} width={KEY_SAMPLE.width - 8} fill="none" {...AREA_OUTLINE} />}>Under {MIN_ANSWERS} answers</KeyEntry>
+    </MapKey>
+  );
+}
+
 function UploadsPanel({ counts }: { counts: Counts | undefined }) {
   return (
     <Panel title="Uploads" className="shrink-0">
@@ -214,6 +257,10 @@ function UploadsPanel({ counts }: { counts: Counts | undefined }) {
     </Panel>
   );
 }
+
+// Columns run the full height between the bar and the key and scroll when their panels don't fit.
+// Only the panels catch the pointer, so the map stays draggable in the gaps.
+const PANEL_COLUMN = "pointer-events-none flex flex-col gap-3 overflow-y-auto *:pointer-events-auto *:shrink-0";
 
 export function CountyView() {
   const data = useInkMapData();
@@ -240,11 +287,11 @@ export function CountyView() {
             A household&apos;s phone
           </Link>
         </AppBar>
-        <div className="flex min-h-0 flex-1 items-start justify-between gap-3 p-3">
-          <div className="pointer-events-auto flex max-h-full w-[22rem] max-w-[46vw] flex-col gap-3 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 justify-between gap-3 p-3">
+          <div className={`w-[22rem] max-w-[46vw] ${PANEL_COLUMN}`}>
             <CountsPanel counts={counts} item={item} onItem={setItem} selected={selected} onSelect={setSelected} />
           </div>
-          <div className="pointer-events-auto flex max-h-full w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+          <div className={`w-[20rem] max-w-[44vw] ${PANEL_COLUMN}`}>
             {selected && <AreaPanel counts={counts} area={selected} />}
             <ModelsPanel />
             <UploadsPanel counts={counts} />
@@ -252,9 +299,7 @@ export function CountyView() {
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
-            <span className="type-small">
-              Darker block group: more households say &ldquo;{itemLabel.toLowerCase()}&rdquo;. Empty: fewer than {MIN_ANSWERS} answers.
-            </span>
+            <CountyMapKey itemLabel={itemLabel} top={topShare(counts, item)} />
             <MapViewControl mode={mode} onMode={setMode} />
           </ChromeSurface>
         </div>

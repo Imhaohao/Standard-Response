@@ -7,7 +7,7 @@ type Home = Pick<Doc<"households">, "outcome" | "callStatus">;
 export type HomeKind = "needs_accessible" | "needs_ride" | "on_phone" | "leaving" | "unreachable" | "waiting";
 
 export const HOME_KINDS: { kind: HomeKind; label: string }[] = [
-  { kind: "needs_accessible", label: "Accessible van" },
+  { kind: "needs_accessible", label: "Needs accessible van" },
   { kind: "needs_ride", label: "Needs a ride" },
   { kind: "on_phone", label: "On the phone now" },
   { kind: "leaving", label: "Leaving on their own" },

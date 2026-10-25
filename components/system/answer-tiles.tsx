@@ -15,6 +15,15 @@ type AnswerTileProps = {
   tag?: ReactNode;
 };
 
+function EmptyAnswerTile({ label, waitingFor }: { label: string; waitingFor: string }) {
+  return (
+    <li className="flex min-w-0 flex-col gap-3 card p-5">
+      <p className="type-title flex min-h-15 items-end text-on-panel-muted">{waitingFor}</p>
+      <h2 className="type-heading">{label}</h2>
+    </li>
+  );
+}
+
 function AnswerTile({ figure, unit, label, rangeText, track, tag }: AnswerTileProps) {
   return (
     <li className="flex min-w-0 flex-col gap-3 card p-5" title={`Range ${rangeText}`}>
@@ -62,14 +71,17 @@ function honestyTile(honesty: Results["honesty"]) {
   );
 }
 
+const CALLBACK_LABEL = "Median wait until rider told";
+
 function callbackTile(spread: CallbackSpread | null) {
+  if (!spread) return <EmptyAnswerTile label={CALLBACK_LABEL} waitingFor="No rider has been told yet" />;
   return (
     <AnswerTile
-      figure={spread ? asSeconds(spread.medianMs) : EM_DASH}
-      unit={spread ? "s" : undefined}
-      label="Median wait until rider told"
-      rangeText={spread ? `${asSeconds(spread.minMs)}–${asSeconds(spread.maxMs)} s` : EM_DASH}
-      track={spread && { value: spread.medianMs, low: spread.minMs, high: spread.maxMs, domain: [0, Math.max(spread.maxMs * 1.1, 1)] }}
+      figure={asSeconds(spread.medianMs)}
+      unit="s"
+      label={CALLBACK_LABEL}
+      rangeText={`${asSeconds(spread.minMs)}–${asSeconds(spread.maxMs)} s`}
+      track={{ value: spread.medianMs, low: spread.minMs, high: spread.maxMs, domain: [0, Math.max(spread.maxMs * 1.1, 1)] }}
     />
   );
 }

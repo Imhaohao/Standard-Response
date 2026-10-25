@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
+import { Van as VanIcon } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { useInkMapData } from "@/components/ink-map/ink-map-canvas";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
@@ -17,8 +18,6 @@ const PAPER = "var(--map-paper)";
 const INK = "var(--map-ink)";
 const SIGNAL = "var(--signal)";
 const CLOSEUP_RADIUS = 120;
-
-const LABEL = { fill: INK, stroke: PAPER, strokeWidth: 3.5, paintOrder: "stroke" as const, fontSize: 13, fontWeight: 800 };
 
 // The house, drawn as a house: most homes in the burn scar have no footprint left in the map data,
 // so the marker has to say "a building, here" on its own. Run stops carry their number on a flag.
@@ -43,14 +42,18 @@ function PickupPin({ at, order, focused }: { at: LatLng; order?: number; focused
   );
 }
 
+// The driver's own van, as the same chip the dispatcher's map draws for a van on a run.
 function VanMark({ vehicle }: { vehicle: Vehicle }) {
+  const width = vehicle.label.length * 7.6 + 34;
   return (
     <GeoAnchor at={{ lat: vehicle.lat, lng: vehicle.lng }}>
-      <rect x={-13} y={-9} width={26} height={18} fill={PAPER} />
-      <rect x={-11.5} y={-7.5} width={23} height={15} fill={INK} />
-      <text x={18} y={5} {...LABEL}>
-        {vehicle.label}
-      </text>
+      <g transform={`translate(${-width / 2} -13)`}>
+        <rect width={width} height={26} rx={7} fill={INK} stroke={PAPER} strokeWidth={2.5} />
+        <VanIcon x={7} y={4} size={18} weight="fill" color={PAPER} />
+        <text x={29} y={17.5} fontSize={13} fontWeight={800} fill={PAPER}>
+          {vehicle.label}
+        </text>
+      </g>
     </GeoAnchor>
   );
 }

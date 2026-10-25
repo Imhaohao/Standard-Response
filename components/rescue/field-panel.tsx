@@ -2,7 +2,8 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { formatClock } from "@/lib/time";
+import { formatSinceWarning } from "@/lib/time";
+import { useSimNow } from "@/lib/use-sim-now";
 import { Panel, PanelEmpty } from "../ui/panel";
 
 const VISIBLE_DOORS = 5;
@@ -64,6 +65,7 @@ export function NominationPanel({ className = "" }: { className?: string }) {
   const open = useQuery(api.nominations.open);
   const flagged = useQuery(api.nominations.flagged);
   const rows = [...(flagged ?? []), ...(open ?? [])];
+  const now = useSimNow(15_000);
   if (rows.length === 0) return null;
 
   return (
@@ -72,13 +74,24 @@ export function NominationPanel({ className = "" }: { className?: string }) {
         {rows.map((nomination) => (
           <li key={nomination._id} className="flex items-center gap-2 px-4 py-1" title={nomination.note ?? undefined}>
             <span className="type-small min-w-0 flex-1 truncate font-semibold">
-              {nomination.spokenAddress}
+              <SpokenAddress spoken={nomination.spokenAddress} />
               {nomination.note && <span className="font-normal text-on-panel-muted"> {nomination.note}</span>}
             </span>
-            <span className="type-small shrink-0 tabular-nums text-on-panel-muted">{formatClock(nomination.at)}</span>
+            <span className="type-small shrink-0 tabular-nums text-on-panel-muted">{formatSinceWarning((now - nomination.at) / 60_000)} ago</span>
           </li>
         ))}
       </ul>
     </Panel>
+  );
+}
+
+// What the caller said, as they said it. A street number with no street ("30") can't be found on
+// the map, so it is marked as incomplete rather than shown as if it were an address.
+function SpokenAddress({ spoken }: { spoken: string }) {
+  if (/[a-z]/i.test(spoken)) return <>{spoken}</>;
+  return (
+    <>
+      “{spoken}” <span className="font-normal text-signal">address incomplete</span>
+    </>
   );
 }

@@ -36,15 +36,17 @@ function ReachChart({ counts, total }: { counts: Map<HomeKind, number>; total: n
   );
 }
 
+// Each count says what it counts: the chart above uses the same marks, so this doubles as its key.
 function Legend({ counts }: { counts: Map<HomeKind, number> }) {
   return (
-    <ul className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
       {HOME_KINDS.map(({ kind, label }) => (
-        <li key={kind} className="flex items-center gap-1.5" title={label}>
-          <svg viewBox="-7 -7 14 14" className="size-4 shrink-0" role="img" aria-label={label}>
+        <li key={kind} className="flex items-center gap-2">
+          <svg viewBox="-7 -7 14 14" className="size-4 shrink-0" aria-hidden>
             <HomeMark kind={kind} r={5} tone={PANEL_TONE} />
           </svg>
-          <AnimatedNumber value={counts.get(kind) ?? 0} className="type-heading tabular-nums" />
+          <AnimatedNumber value={counts.get(kind) ?? 0} className="type-heading w-6 shrink-0 tabular-nums" />
+          <span className="type-small min-w-0 text-on-panel-muted">{label}</span>
         </li>
       ))}
     </ul>
@@ -52,7 +54,7 @@ function Legend({ counts }: { counts: Map<HomeKind, number> }) {
 }
 
 const LADDER = [
-  { status: "no_answer", label: "Redial", Icon: PhoneSlash },
+  { status: "no_answer", label: "To redial", Icon: PhoneSlash },
   { status: "texted", label: "Texted", Icon: ChatText },
   { status: "door_check", label: "Door check", Icon: DoorOpen },
 ] as const;
@@ -62,24 +64,29 @@ const LADDER = [
 function RetryLadder({ onOpen }: { onOpen: () => void }) {
   const counts = useQuery(api.households.counts);
   return (
-    <ol className="flex items-center justify-between gap-1" aria-label="Unanswered homes">
-      {LADDER.map(({ status, label, Icon }, index) => (
-        <Fragment key={status}>
-          <li>
-            <button
-              type="button"
-              onClick={onOpen}
-              title={label}
-              className="flex items-center gap-2 bg-panel-raised px-2.5 py-1.5 hover:bg-panel-raised/70 focus-visible:outline-2 focus-visible:outline-on-panel"
-            >
-              <Icon weight="bold" className="size-4 shrink-0" aria-label={label} />
-              <AnimatedNumber value={counts?.callStatus[status] ?? 0} className="type-figure text-xl" />
-            </button>
-          </li>
-          {index < LADDER.length - 1 && <ArrowRight weight="bold" className="size-3 text-on-panel-muted" aria-hidden />}
-        </Fragment>
-      ))}
-    </ol>
+    <div className="flex flex-col gap-1.5">
+      <h3 className="type-small font-semibold text-on-panel-muted">Homes that didn&apos;t answer</h3>
+      <ol className="flex items-center gap-1">
+        {LADDER.map(({ status, label, Icon }, index) => (
+          <Fragment key={status}>
+            <li className="flex min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onOpen}
+                className="flex min-w-0 flex-1 flex-col items-start gap-1 bg-panel-raised px-2.5 py-1.5 text-left hover:bg-panel-raised/70 focus-visible:outline-2 focus-visible:outline-on-panel"
+              >
+                <span className="flex items-center gap-2">
+                  <Icon weight="bold" className="size-4 shrink-0" aria-hidden />
+                  <AnimatedNumber value={counts?.callStatus[status] ?? 0} className="type-figure text-xl" />
+                </span>
+                <span className="type-caption">{label}</span>
+              </button>
+            </li>
+            {index < LADDER.length - 1 && <ArrowRight weight="bold" className="size-3 shrink-0 text-on-panel-muted" aria-hidden />}
+          </Fragment>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -90,7 +97,7 @@ export function ReachPanel({ onOpenLadder }: { onOpenLadder: () => void }) {
     <section aria-label="Households reached" className="flex flex-col gap-3 bg-panel/96 p-3 text-on-panel backdrop-blur-md">
       <p className="flex items-baseline gap-2">
         <AnimatedNumber value={answered} className="type-figure text-5xl" />
-        <span className="type-heading text-on-panel-muted" aria-label={`of ${total} households answered`}>/ {total}</span>
+        <span className="type-heading text-on-panel-muted">of {total} homes answered</span>
       </p>
       <ReachChart counts={counts} total={total} />
       <Legend counts={counts} />

@@ -21,13 +21,23 @@ import { formatClock, useNow } from "@/lib/time";
 import { useSimNow } from "@/lib/use-sim-now";
 import { Figure, Figures } from "./figures";
 import { HowItWorks, TechTags } from "./technology";
-import { ForecastStreets, TrafficPanel, useTrafficForecast } from "./traffic-forecast";
+import { KeyEntry, KeyLine, MapKey } from "./map-key";
+import { ForecastStreets, forecastStroke, TrafficPanel, useTrafficForecast } from "./traffic-forecast";
 
 const INK = "var(--map-ink)";
 const PAPER = "var(--map-paper)";
 const VIEW = { kind: "overview", fit: TOWN_FRAME } as const;
+// Panels keep their full height and the column scrolls; the gaps between them let the map be dragged.
+const PANEL_COLUMN = "pointer-events-none flex flex-col gap-3 overflow-y-auto *:pointer-events-auto *:shrink-0";
+
 // Streets the shared model rates at least this likely to be blocked are drawn as estimates.
 const ESTIMATE_THRESHOLD = 0.5;
+
+const BLOCKED_HALO = { stroke: PAPER, strokeWidth: 7 };
+const BLOCKED = { stroke: INK, strokeWidth: 5, strokeDasharray: "3 2" };
+const OPEN = { stroke: INK, strokeWidth: 2.5 };
+const ESTIMATE = { stroke: INK, strokeWidth: 3, strokeDasharray: "1 3", strokeLinecap: "round" } as const;
+const estimateOpacity = (probability: number) => 0.25 + 0.6 * probability;
 
 type Roads = NonNullable<ReturnType<typeof useRoads>>;
 
@@ -78,11 +88,11 @@ function ReportedStreets({ roads }: { roads: Roads }) {
         if (s.status === "blocked")
           return (
             <g key={s.segment}>
-              <GeoLine route={path} stroke={PAPER} strokeWidth={7} />
-              <GeoLine route={path} stroke={INK} strokeWidth={5} strokeDasharray="3 2" />
+              <GeoLine route={path} {...BLOCKED_HALO} />
+              <GeoLine route={path} {...BLOCKED} />
             </g>
           );
-        return s.status === "clear" ? <GeoLine key={s.segment} route={path} stroke={INK} strokeWidth={2.5} /> : null;
+        return s.status === "clear" ? <GeoLine key={s.segment} route={path} {...OPEN} /> : null;
       })}
     </g>
   );
@@ -92,9 +102,42 @@ function EstimatedStreets({ estimates }: { estimates: { index: number; probabili
   return (
     <g fill="none">
       {estimates.map(({ index, probability }) => (
-        <GeoLine key={index} route={SEGMENT_LIST[index].path} stroke={INK} strokeOpacity={0.25 + 0.6 * probability} strokeWidth={3} strokeDasharray="1 3" strokeLinecap="round" />
+        <GeoLine key={index} route={SEGMENT_LIST[index].path} {...ESTIMATE} strokeOpacity={estimateOpacity(probability)} />
       ))}
     </g>
+  );
+}
+
+// The forecast band runs light to dark, the way a street reads as its slowdown grows.
+const FORECAST_SAMPLE = [
+  { x1: 2, x2: 12, slowdown: 0.2, weight: 0 },
+  { x1: 12, x2: 22, slowdown: 0.6, weight: 0.3 },
+  { x1: 22, x2: 30, slowdown: 1, weight: 0.6 },
+];
+
+function AgencyMapKey() {
+  return (
+    <MapKey>
+      <KeyEntry
+        sample={
+          <>
+            <KeyLine {...BLOCKED_HALO} />
+            <KeyLine {...BLOCKED} />
+          </>
+        }
+      >
+        Reported blocked
+      </KeyEntry>
+      <KeyEntry sample={<KeyLine {...OPEN} />}>Reported open</KeyEntry>
+      <KeyEntry sample={<KeyLine {...ESTIMATE} strokeOpacity={estimateOpacity(0.75)} />}>Likely blocked, unreported</KeyEntry>
+      <KeyEntry
+        sample={FORECAST_SAMPLE.map(({ x1, x2, slowdown, weight }) => (
+          <KeyLine key={x1} x1={x1} x2={x2} {...forecastStroke(slowdown, weight)} />
+        ))}
+      >
+        Slow traffic, next hour
+      </KeyEntry>
+    </MapKey>
   );
 }
 
@@ -183,18 +226,18 @@ export function AgencyView() {
             Simulated night
           </Link>
         </AppBar>
-        <div className="flex min-h-0 flex-1 items-start justify-between gap-3 p-3">
-          <div className="pointer-events-auto flex w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 items-stretch justify-between gap-3 p-3">
+          <div className={`w-[20rem] max-w-[44vw] ${PANEL_COLUMN}`}>
             <UploadsPanel roads={roads} />
           </div>
-          <div className="pointer-events-auto flex max-h-full w-[20rem] max-w-[44vw] flex-col gap-3 overflow-y-auto">
+          <div className={`w-[20rem] max-w-[44vw] ${PANEL_COLUMN}`}>
             <TrafficPanel forecast={forecast} warningIssued={control?.warningIssuedAt !== undefined} windowIndex={forecastWindow} onWindow={setForecastWindow} />
             <ModelPanel />
           </div>
         </div>
         <div className="pointer-events-auto flex items-center gap-3 self-start p-3">
           <ChromeSurface className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
-            <span className="type-small">Heavy broken line: reported blocked (phone mesh). Thin line: reported open. Dotted: estimate, nobody has reported it (federated learning). Wide soft band: forecast slow traffic, darker is slower (Langevin dynamics).</span>
+            <AgencyMapKey />
             <MapViewControl mode={mode} onMode={setMode} />
           </ChromeSurface>
         </div>

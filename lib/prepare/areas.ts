@@ -44,9 +44,14 @@ export const AREA_COUNT = AREA_IDS.length;
 export const AREA_INDEX = new Map<string, number>(AREA_IDS.map((id, i) => [id, i]));
 
 // "Block group 4603.02-2": census tract 4603.02, block group 2.
-export function areaLabel(geoid: string) {
+// "4602.01-2": the census tract and the block group within it.
+export function blockGroupNumber(geoid: string) {
   const tract = geoid.slice(5, 11);
-  return `Block group ${Number(tract.slice(0, 4))}.${tract.slice(4)}-${geoid.slice(11)}`;
+  return `${Number(tract.slice(0, 4))}.${tract.slice(4)}-${geoid.slice(11)}`;
+}
+
+export function areaLabel(geoid: string) {
+  return `Block group ${blockGroupNumber(geoid)}`;
 }
 
 export type AreaShape = { id: string; households: number; rings: LatLng[][] };

@@ -108,9 +108,19 @@ function Followed({ home, address }: { home: Home; address: string }) {
   );
 }
 
+// Docked in the corner of the map the operator can see: left of the listening panel while it is open.
+const ZOOM_BESIDE_PANEL = "absolute right-[calc(min(27rem,40vw)+1.5rem)] bottom-3";
+const ZOOM_IN_CORNER = "absolute right-3 bottom-3";
+
 // The calling area on the real map. Every simulated household is a mark on its own roof, so the map
 // is the reach chart: red where someone needs a ride, ink where the agents are still working.
-export function FloorMap({ followed }: { followed: { householdId: Id<"households">; address: string } | null }) {
+export function FloorMap({
+  followed,
+  listeningPanelOpen,
+}: {
+  followed: { householdId: Id<"households">; address: string } | null;
+  listeningPanelOpen?: boolean;
+}) {
   const data = useInkMapData();
   const hazard = useHazard(data?.origin);
   const control = useQuery(api.control.get);
@@ -120,11 +130,12 @@ export function FloorMap({ followed }: { followed: { householdId: Id<"households
   const highlights = useRedRoofs(data, homes ?? EMPTY);
   const homeById = useMemo(() => new Map((homes ?? []).map((home) => [home._id, home])), [homes]);
   const followedHome = followed ? homeById.get(followed.householdId) : undefined;
+  const besidePanel = listeningPanelOpen ?? false;
 
   if (!data || !view) return <div className="absolute inset-0 bg-map-paper" aria-hidden />;
 
   return (
-    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className="absolute right-[calc(min(27rem,40vw)+1.5rem)] bottom-4" />}>
+    <MapStage data={data} view={view} hazard={hazard} minutes={clock.minutes} highlights={highlights} className="absolute inset-0" controls={<ZoomControls className={besidePanel ? ZOOM_BESIDE_PANEL : ZOOM_IN_CORNER} />}>
       <HomeMarks homes={homes ?? EMPTY} />
       <QueueFlags homeById={homeById} />
       {followed && followedHome && <Followed home={followedHome} address={followed.address} />}

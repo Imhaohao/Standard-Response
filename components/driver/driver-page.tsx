@@ -3,10 +3,9 @@
 import { useQuery } from "convex/react";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
-import { CaretDown, Gear, Users, Van, Wheelchair } from "@phosphor-icons/react";
+import { Bed, CaretDown, Gear, Users, Van, Wheelchair, type Icon } from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { capacitySummary } from "@/lib/labels";
 import { Switch } from "../ui/switch";
 import { DriverMap } from "./driver-map";
 import { ChangedCard, OfferCard } from "./offer-cards";
@@ -24,20 +23,28 @@ function useSelectedVehicle(vehicles: Vehicles | undefined) {
   return [selected, setSelected] as const;
 }
 
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+function capacityItems(vehicle: Vehicle): { key: string; text: string; Icon: Icon }[] {
+  const items = [
+    { key: "seats", text: plural(vehicle.seats, "seat", "seats"), Icon: Users, count: vehicle.seats },
+    { key: "wheelchair", text: plural(vehicle.wheelchairSpaces, "wheelchair space", "wheelchair spaces"), Icon: Wheelchair, count: vehicle.wheelchairSpaces },
+    { key: "stretcher", text: plural(vehicle.stretcherSpaces, "stretcher", "stretchers"), Icon: Bed, count: vehicle.stretcherSpaces },
+  ];
+  return items.filter((item) => item.count > 0);
+}
+
+// What the van can carry, so a driver can sanity-check an offer against the room they have.
 function Capacity({ vehicle }: { vehicle: Vehicle }) {
   return (
-    <span className="flex shrink-0 items-center gap-2 text-on-panel-muted" aria-label={capacitySummary(vehicle)}>
-      {vehicle.wheelchairSpaces > 0 && (
-        <span className="flex items-center gap-0.5">
-          <Wheelchair weight="bold" className="size-4" />
-          <span className="type-small font-bold">{vehicle.wheelchairSpaces}</span>
-        </span>
-      )}
-      <span className="flex items-center gap-0.5">
-        <Users weight="bold" className="size-4" />
-        <span className="type-small font-bold">{vehicle.seats}</span>
-      </span>
-    </span>
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 pr-3 pb-2.5 pl-14 text-on-panel-muted" aria-label="Room in your van">
+      {capacityItems(vehicle).map(({ key, text, Icon }) => (
+        <li key={key} className="type-small flex items-center gap-1.5 font-semibold">
+          <Icon weight="bold" className="size-4 shrink-0" />
+          {text}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -52,17 +59,19 @@ function DriverPicker({
   onSelect: (id: Id<"vehicles">) => void;
 }) {
   return (
-    <label className="relative flex min-h-12 items-center gap-3 px-3 hover:bg-panel-raised focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-on-panel">
+    <label className="group relative flex min-h-14 items-center gap-3 px-3 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-on-panel">
       <span className="sr-only">Driving as</span>
-      <span className="grid size-8 shrink-0 place-items-center bg-on-panel text-panel">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-on-panel text-panel">
         <Van weight="fill" className="size-5" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="type-heading truncate">{vehicle?.driverName ?? "Pick a driver"}</span>
         <span className="type-small text-on-panel-muted">{vehicle?.label}</span>
       </span>
-      {vehicle && <Capacity vehicle={vehicle} />}
-      <CaretDown weight="bold" className="size-4 shrink-0" />
+      <span className="type-small flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-panel-raised px-3 font-bold group-hover:bg-line" aria-hidden>
+        Switch driver
+        <CaretDown weight="bold" className="size-3.5" />
+      </span>
       <select
         className="absolute inset-0 cursor-pointer opacity-0"
         value={vehicle?._id ?? ""}
@@ -102,14 +111,19 @@ function DemoSettings({ hold, onHoldChange }: { hold: boolean; onHoldChange: (ho
   );
 }
 
+// Nothing to drive yet. The pulse says the page is live and listening, so a quiet screen isn't
+// mistaken for a broken one.
 function EmptyBoard() {
   return (
-    <div className="flex items-center justify-center gap-3 bg-panel px-4 py-5 text-on-panel-muted" role="status">
-      <span className="relative grid size-3 place-items-center" aria-hidden>
-        <span className="absolute size-3 rounded-full bg-on-panel-muted animate-ping motion-reduce:hidden" />
-        <span className="size-2 rounded-full bg-on-panel" />
+    <div className="flex items-center gap-3 bg-panel px-4 py-4" role="status">
+      <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-panel-raised" aria-hidden>
+        <span className="absolute size-10 rounded-full bg-on-panel-muted/30 animate-ping motion-reduce:hidden" />
+        <Van weight="bold" className="size-5" />
       </span>
-      <Van weight="bold" className="size-6" aria-label="Waiting for an offer" />
+      <span className="flex min-w-0 flex-col">
+        <span className="type-heading">Waiting for your next pickup</span>
+        <span className="type-small text-on-panel-muted">Keep this page open. New offers show up here.</span>
+      </span>
     </div>
   );
 }
@@ -163,11 +177,14 @@ export function DriverPage() {
     <PhoneScreen fitScreen>
       <div className="z-10 flex flex-col divide-y divide-panel-raised bg-panel/96 backdrop-blur-md">
         {vehicles && vehicles.length > 0 ? (
-          <div className="flex items-center">
-            <div className="min-w-0 flex-1">
-              <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
+          <div className="flex flex-col">
+            <div className="flex items-center">
+              <div className="min-w-0 flex-1">
+                <DriverPicker vehicles={vehicles} vehicle={vehicle} onSelect={setSelected} />
+              </div>
+              <DemoSettings hold={hold} onHoldChange={setHold} />
             </div>
-            <DemoSettings hold={hold} onHoldChange={setHold} />
+            {vehicle && <Capacity vehicle={vehicle} />}
           </div>
         ) : (
           <Van weight="bold" className="mx-4 my-4 size-6 text-on-panel-muted" aria-label="No vans yet" />

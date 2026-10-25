@@ -146,9 +146,10 @@ type TabsProps = {
 
 function ListTabs({ tab, onTab, warned, lines, open, onToggle }: TabsProps) {
   return (
-    <div role="tablist" aria-label="Call floor lists" className="flex border-b border-panel-raised">
+    <div role="tablist" aria-label="Call floor lists" className="flex overflow-x-auto border-b border-panel-raised">
       <TabButton active={tab === "lines"} onClick={() => onTab("lines")}>
-        On the phone <span className="tabular-nums text-on-panel-muted">{lines}</span>
+        <span className="sm:hidden">Calls</span>
+        <span className="max-sm:hidden">On the phone</span> <span className="tabular-nums text-on-panel-muted">{lines}</span>
       </TabButton>
       {warned && (
         <TabButton active={tab === "queue"} onClick={() => onTab("queue")}>
@@ -187,7 +188,7 @@ function WorkColumn({ floor, warned }: { floor: ReturnType<typeof useFollowedCal
     setOpen(true);
   };
   return (
-    <div className="pointer-events-auto flex min-h-0 w-[23rem] max-w-[40vw] shrink-0 flex-col gap-3">
+    <div className="pointer-events-auto flex min-h-0 w-full max-w-[23rem] shrink-0 flex-col gap-3 sm:w-[23rem] sm:max-w-[40vw]">
       {warned && <ReachPanel onOpenLadder={openLadder} />}
       <section className={`flex min-h-0 flex-col overflow-hidden card ${open ? "flex-1" : ""}`}>
         <ListTabs
@@ -217,7 +218,7 @@ export function CallFloor() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-map-paper">
-      <FloorMap followed={followed} />
+      <FloorMap followed={followed} listeningPanelOpen={Boolean(issuedAt) && floor.listening && floor.shownId !== null} />
       <div className="pointer-events-none absolute inset-0 flex flex-col">
         <AppBar>
           {issuedAt && <WarningClock issuedAt={issuedAt} />}
@@ -227,7 +228,7 @@ export function CallFloor() {
           <div className="flex min-h-0 flex-1 items-stretch gap-3 p-3">
             <WorkColumn floor={floor} warned={Boolean(issuedAt)} />
             <div className="grid min-w-0 flex-1 place-items-center">{!issuedAt && <BeforeWarning />}</div>
-            <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col">
+            <div className="pointer-events-auto flex min-h-0 w-[27rem] max-w-[40vw] shrink-0 flex-col max-sm:hidden">
               {floor.listening && (
                 <ListeningPanel callId={floor.shownId} pinned={floor.pinned} onFollowLive={() => floor.pin(null)} onClose={floor.close} />
               )}

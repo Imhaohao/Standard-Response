@@ -81,16 +81,16 @@ export function RequestPipeline() {
         </span>
       }
     >
-      <ol className="flex gap-1 px-4 pb-4">
+      <ol className="flex flex-wrap gap-1 px-4 pb-4 sm:flex-nowrap">
         {PIPELINE.map(({ status, label, fill }) => (
           <li
             key={status}
             title={REQUEST_STATUS_LABELS[status]}
-            className={`flex min-w-16 flex-col gap-1 px-3 py-3 transition-[flex-grow] duration-500 first:rounded-l-xl last:rounded-r-xl ${fill}`}
+            className={`flex min-w-24 flex-col gap-1 rounded-lg px-3 py-3 transition-[flex-grow] duration-500 sm:min-w-16 sm:rounded-none sm:first:rounded-l-xl sm:last:rounded-r-xl ${fill}`}
             style={{ flexGrow: 2 + Math.sqrt(count(status)) }}
           >
             <AnimatedNumber value={count(status)} className="type-figure text-5xl" />
-            <span className="type-small truncate font-semibold">{label}</span>
+            <span className="type-small font-semibold">{label}</span>
           </li>
         ))}
       </ol>

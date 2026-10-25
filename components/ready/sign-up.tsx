@@ -53,7 +53,7 @@ const START: Answers = {
 
 type StepProps = { answers: Answers; set: (patch: Partial<Answers>) => void };
 
-const INPUT = "type-body h-12 w-full rounded-xl border border-line-strong bg-surface px-3 text-ink placeholder:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink";
+const INPUT = "type-body h-12 w-full rounded-xl border border-line-strong bg-surface px-3 text-ink placeholder:text-ink-muted/70 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -86,15 +86,15 @@ function WhereStep({ answers, set }: StepProps) {
   return (
     <div className="flex flex-col gap-4">
       <Field label="Your address">
-        <input className={INPUT} value={answers.address} onChange={(event) => set({ address: event.target.value })} placeholder="1182 Mariposa St" autoComplete="street-address" />
-      </Field>
-      <Field label="Phone number we can call">
-        <input className={INPUT} value={answers.phone} onChange={(event) => set({ phone: event.target.value })} placeholder="(626) 555-0142" inputMode="tel" autoComplete="tel" />
+        <input className={INPUT} value={answers.address} onChange={(event) => set({ address: event.target.value })} placeholder="e.g. 1182 Mariposa St" autoComplete="street-address" />
       </Field>
       <div className="flex flex-col gap-1.5">
         <span className="type-small font-semibold">Tap your home</span>
-        <HomePicker value={answers.at} onPick={(at) => set({ at })} />
+        <HomePicker address={answers.address} value={answers.at} onPick={(at) => set({ at })} />
       </div>
+      <Field label="Phone number we can call">
+        <input className={INPUT} value={answers.phone} onChange={(event) => set({ phone: event.target.value })} placeholder="e.g. (626) 555-0142" inputMode="tel" autoComplete="tel" />
+      </Field>
       <div className="grid grid-cols-2 gap-2" role="group" aria-label="Language for calls">
         <Tile selected={answers.language === "en"} onClick={() => set({ language: "en" })} glyph="En" label="English" />
         <Tile selected={answers.language === "es"} onClick={() => set({ language: "es" })} glyph="Es" label="Español" />
@@ -108,7 +108,7 @@ function PeopleStep({ answers, set }: StepProps) {
   return (
     <div className="flex flex-col gap-5">
       <Field label="Name of the person who might need help">
-        <input className={INPUT} value={answers.residentName} onChange={(event) => set({ residentName: event.target.value })} placeholder="Walter" autoComplete="name" />
+        <input className={INPUT} value={answers.residentName} onChange={(event) => set({ residentName: event.target.value })} placeholder="e.g. Walter" autoComplete="name" />
       </Field>
       <div className="flex flex-col gap-1.5">
         <span className="type-small font-semibold">People living here</span>
@@ -196,18 +196,18 @@ function PlanStep({ answers, set }: StepProps) {
       {answers.exitPlan === "helper" && (
         <div className="flex flex-col gap-3 rounded-2xl bg-surface-sunk p-3">
           <Field label="Their name">
-            <input className={INPUT} value={answers.helperName} onChange={(event) => set({ helperName: event.target.value })} placeholder="Ana" />
+            <input className={INPUT} value={answers.helperName} onChange={(event) => set({ helperName: event.target.value })} placeholder="e.g. Ana" />
           </Field>
           <Field label="Their phone">
-            <input className={INPUT} value={answers.helperPhone} onChange={(event) => set({ helperPhone: event.target.value })} placeholder="(626) 555-0199" inputMode="tel" />
+            <input className={INPUT} value={answers.helperPhone} onChange={(event) => set({ helperPhone: event.target.value })} placeholder="e.g. (626) 555-0199" inputMode="tel" />
           </Field>
           <Field label="Who they are to you">
-            <input className={INPUT} value={answers.helperRelation} onChange={(event) => set({ helperRelation: event.target.value })} placeholder="Neighbor, daughter, friend from church" />
+            <input className={INPUT} value={answers.helperRelation} onChange={(event) => set({ helperRelation: event.target.value })} placeholder="e.g. neighbor, daughter, friend from church" />
           </Field>
         </div>
       )}
       <Field label="Anything a crew should know (optional)">
-        <textarea className={`${INPUT} h-24 resize-none py-2`} value={answers.note} onChange={(event) => set({ note: event.target.value })} placeholder="Key under the planter, gate code, the dog is friendly" />
+        <textarea className={`${INPUT} h-24 resize-none py-2`} value={answers.note} onChange={(event) => set({ note: event.target.value })} placeholder="e.g. key under the planter, gate code, the dog is friendly" />
       </Field>
     </div>
   );
@@ -307,7 +307,7 @@ export function ReadySignUp() {
             <Progress step={step} />
             <h1 className="type-title text-2xl">{current.title}</h1>
           </header>
-          <div className="flex-1 px-5 pb-28">
+          <div className="px-5 pb-2">
             <current.Body answers={answers} set={set} />
           </div>
           {error && <p role="alert" className="type-small px-5 pb-2 text-signal">{error}</p>}

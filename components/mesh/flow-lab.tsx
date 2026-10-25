@@ -8,6 +8,7 @@ import { ChromeSurface, MapViewControl } from "@/components/map/map-bar";
 import { MapStage, SurfaceMode } from "@/components/map/map-stage";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { TOWN_FRAME } from "@/components/map/projection";
+import { scenarioClock } from "@/components/rescue/map-chrome";
 import { AppBar } from "@/components/ui/app-bar";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
@@ -32,7 +33,9 @@ const END_MINUTES = 300;
 const CHECKPOINT_MINUTES = 10;
 const FRAME_BUDGET_MS = 24;
 const RENDER_EVERY_MS = 100;
-const SPEEDS = [1, 3, 8].map((times) => ({ value: String(times), label: `${times}×` }));
+// Times the wall clock, the unit the rescue map's playback speeds use. This night runs in the
+// browser, so it goes faster than the shared night can.
+const SPEEDS = [60, 180, 480].map((times) => ({ value: String(times), label: `${times}×` }));
 
 type Comparison = { meshOn: Range; meshOff: Range; difference: Range };
 type FlowResults = { label: string; seeds: number; householdsPerRun: number; results: Record<string, Comparison> };
@@ -72,7 +75,7 @@ function useRunner(world: FlowWorld | null, playing: boolean, speed: number) {
       const elapsed = Math.min(t - last, 250);
       last = t;
       if (playing && world.minutes < END_MINUTES) {
-        debt = Math.min(debt + ((elapsed / 1000) * speed * 60) / world.params.crowd.dt, 600);
+        debt = Math.min(debt + ((elapsed / 1000) * speed) / world.params.crowd.dt, 600);
         const start = performance.now();
         while (debt >= 1 && performance.now() - start < FRAME_BUDGET_MS) {
           world.step();
@@ -240,11 +243,13 @@ function Controls(props: {
   const { world, playing, speed, mesh, mode } = props;
   return (
     <ChromeSurface className="flex flex-wrap items-center gap-2 p-1.5">
-      <Button variant="onPanel" size="sm" square onClick={() => props.onPlaying(!playing)} aria-label={playing ? "Pause" : "Play"}>
-        {playing ? <Pause weight="fill" className="size-4" /> : <Play weight="fill" className="size-4" />}
+      <Button variant="onPanel" size="sm" square onClick={() => props.onPlaying(!playing)} aria-label={playing ? "Pause" : "Play"} title={playing ? "Pause" : "Play"}>
+        {playing ? <Pause weight="fill" className="size-4" /> : <Play weight="fill" className="size-4 translate-x-px" />}
       </Button>
-      <span className="type-figure w-28 text-center text-lg tabular-nums">{Math.floor(world.minutes)} min</span>
       <SegmentedControl options={SPEEDS} value={String(speed)} onChange={(next) => props.onSpeed(Number(next))} ariaLabel="Playback speed" />
+      <span className="type-small w-16 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
+        {scenarioClock(Math.floor(world.minutes))}
+      </span>
       <div className="w-52">
         <Switch checked={mesh} onChange={props.onMesh} label="Phones share with each other" />
       </div>
@@ -264,7 +269,7 @@ export function FlowLab() {
   const [mesh, setMesh] = useState(true);
   const [seed, setSeed] = useState(1);
   const [playing, setPlaying] = useState(true);
-  const [speed, setSpeed] = useState<number>(3);
+  const [speed, setSpeed] = useState<number>(180);
   const [mode, setMode] = useState<SurfaceMode>("ink");
   const world = useMemo(() => (ground && inputs ? makeWorld(ground, inputs.households, mesh, seed) : null), [ground, inputs, mesh, seed]);
   const checkpoint = useRunner(world, playing, speed);

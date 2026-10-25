@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { AccountChip } from "../account/account-chip";
-import { formatElapsed } from "@/lib/time";
+import { formatSinceWarning } from "@/lib/time";
 import { useSimNow } from "@/lib/use-sim-now";
 
 type Screen = { href: string; label: string; also?: string[] };
@@ -55,7 +55,7 @@ export function WarningClock({ issuedAt }: { issuedAt: number }) {
   return (
     <div className="flex items-baseline gap-2">
       <span className="type-small text-ink-muted">Since the warning</span>
-      <span className="type-figure text-lg tabular-nums">{formatElapsed(now - issuedAt)}</span>
+      <span className="type-figure text-lg tabular-nums">{formatSinceWarning((now - issuedAt) / 60_000)}</span>
     </div>
   );
 }

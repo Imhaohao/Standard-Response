@@ -1,5 +1,6 @@
 "use client";
 
+import { formatSinceWarning } from "@/lib/time";
 import { ArrowCounterClockwise, Check, Cursor, Fire, FireExtinguisher, Icon, Path, Pause, Play, RoadHorizon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { ReactNode, useState } from "react";
@@ -149,11 +150,7 @@ export function SimulatedFireHint({
   );
 }
 
-export const scenarioClock = (minutes: number) => {
-  const whole = Math.max(0, Math.round(minutes));
-  const hours = Math.floor(whole / 60);
-  return hours > 0 ? `${hours}h ${whole % 60}m` : `${whole}m`;
-};
+export const scenarioClock = formatSinceWarning;
 
 const SPEED_OPTIONS = PLAYBACK_SPEEDS.map((speed) => ({ value: String(speed), label: `${speed}×` }));
 
@@ -171,7 +168,7 @@ export function PlaybackBar({ clock, children }: { clock: FireClock; children?: 
         <SegmentedControl options={SPEED_OPTIONS} value={String(playback.speed)} onChange={(value) => playback.setSpeed(Number(value))} ariaLabel="Playback speed" />
         <FireProgress clock={clock} paused={playback.paused} />
         <span className="type-small w-16 shrink-0 text-right font-semibold tabular-nums" title="After the warning">
-          +{scenarioClock(clock.minutes)}
+          {scenarioClock(clock.minutes)}
         </span>
       </div>
       {children && <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-line pt-1.5">{children}</div>}

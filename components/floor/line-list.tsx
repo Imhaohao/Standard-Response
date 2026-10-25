@@ -65,8 +65,10 @@ function LineRow({ call, selected, onSelect, now }: { call: ActiveCall; selected
 
 function Empty() {
   return (
-    <div className="grid place-items-center py-8 text-on-panel-muted" role="status" aria-label="No calls in progress">
-      <Phone weight="bold" className="size-8" />
+    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-8 text-center" role="status">
+      <Phone weight="bold" className="size-8 text-on-panel-muted" aria-hidden />
+      <p className="type-heading">Nobody is on a call right now</p>
+      <p className="type-small text-pretty text-on-panel-muted">Each call shows up here as it rings. Pick one to listen in.</p>
     </div>
   );
 }
