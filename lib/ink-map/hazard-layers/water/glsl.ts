@@ -272,6 +272,8 @@ Water waterAt(vec2 uv) {
   float standing = smoothstep(-12.0, 12.0, shore.y);
 #ifdef FLOOD
   float seaward = standing;
+#elif defined(SURGE)
+  float seaward = smoothstep(-160.0, -120.0, shore.y);
 #else
   float seaward = smoothstep(-60.0, -20.0, shore.y);
 #endif
@@ -413,13 +415,17 @@ float flowStrokes(vec2 xy, vec2 dir, float strength, float density, float reach,
       float period = 3.0 + 4.0 * hash12(id + seed + 4.4);
       float life = fract(uTime / period + h * 13.0);
       vec2 anchor = (id + 0.25 + 0.5 * vec2(hash12(id + seed + 1.3), hash12(id + seed + 7.9))) * cell;
-      vec2 centre = anchor + dir * (life - 0.5) * cell * 0.08;
-      float len = cell * (0.3 + 0.32 * hash12(id + seed + 2.2)) * clamp(reach, 0.4, 1.3);
+      float turn = (hash12(id + seed + 3.3) - 0.5) * 0.5;
+      vec2 own = vec2(dir.x * cos(turn) - dir.y * sin(turn), dir.x * sin(turn) + dir.y * cos(turn));
+      vec2 ownAcross = vec2(-own.y, own.x);
+      vec2 centre = anchor + own * (life - 0.5) * cell * 0.08;
+      float spread = hash12(id + seed + 2.2);
+      float len = cell * (0.14 + 0.48 * spread * spread) * clamp(reach, 0.4, 1.3);
       vec2 d = xy - centre;
-      float t = dot(d, dir) / len + 0.5;
+      float t = dot(d, own) / len + 0.5;
       float weight = px(0.3 + 0.8 * hash12(id + seed + 6.6) * hash12(id + seed + 8.1)) * (0.7 + 0.7 * strength);
       float halfWidth = weight * pow(sin(PI * clamp(t, 0.0, 1.0)), 0.7);
-      float stroke = filled(halfWidth - abs(dot(d, across))) * step(0.0, t) * step(t, 1.0);
+      float stroke = filled(halfWidth - abs(dot(d, ownAcross))) * step(0.0, t) * step(t, 1.0);
       ink = max(ink, stroke * step(h, density) * sin(PI * life));
     }
   }
@@ -659,7 +665,7 @@ vec4 printFlow(vec4 ink, Water key, vec2 uv) {
   ink = over(ink, uPaper, spray(key.at, blown, 0.12 * presentNext * (1.0 - smoothstep(0.0, wavelength * 0.35, ahead)), crestAhead) * key.cover * 0.9);
 
   float open = key.standing * (1.0 - breaking);
-  ink = over(ink, mix(uIndigo, uInk, 0.45), flowStrokes(key.at, across, 0.5, 0.12, 1.1, 41.0) * open * key.cover * 0.55);
+  ink = over(ink, mix(uIndigo, uInk, 0.45), flowStrokes(key.at, across, 0.5, 0.08, 1.2, 41.0) * open * key.cover * 0.45);
 
   vec4 flow = flowAt(key);
   ink = printCurrent(ink, key, flow, (0.05 + 0.2 * flow.z) * (1.0 - key.standing), 1.0, 11.0);
@@ -680,14 +686,14 @@ vec4 printRain(vec4 ink) {
     float spacing = mix(9.0, 6.0, near) * uPixelRatio;
     float lanePos = dot(gl_FragCoord.xy, across) / spacing;
     float lane = floor(lanePos);
-    float lengthPx = mix(18.0, 40.0, near) * uPixelRatio * (0.5 + hash12(vec2(lane, 3.0 + near)));
+    float lengthPx = mix(14.0, 34.0, near) * uPixelRatio * (0.35 + 1.25 * hash12(vec2(lane, 3.0 + near)));
     float along = dot(gl_FragCoord.xy, dir) - uTime * mix(700.0, 1100.0, near) * uPixelRatio;
     float t = fract(along / (lengthPx * 4.0) + hash12(vec2(lane, 9.0 + near)));
     float drop = floor(along / (lengthPx * 4.0));
     float weight = (0.25 + 0.55 * hash12(vec2(lane, drop + 17.0))) * uPixelRatio;
     float line = 1.0 - smoothstep(weight, weight + 0.6 * uPixelRatio, abs(fract(lanePos) - 0.5) * spacing);
     float falling = step(t, 0.25) * step(1.0 - uRain.z * squall * mix(0.3, 0.5, near), hash12(vec2(lane, drop + near * 31.0)));
-    streaks = max(streaks, line * falling * sin(PI * t * 4.0) * mix(0.12, 0.2, near));
+    streaks = max(streaks, line * falling * sin(PI * t * 4.0) * mix(0.07, 0.13, near));
   }
   return over(ink, uInk, streaks);
 }

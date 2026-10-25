@@ -49,6 +49,8 @@ function breachAxes(model: WaterModel, field: FireField) {
 }
 
 const RAIN_FALL_METERS_PER_SECOND = 9;
+// The share of the wind's speed the drops are drawn drifting with: enough to slant them, not to lay them flat.
+const RAIN_DRIFT = 0.35;
 const REGISTRATION_PIXELS = new THREE.Vector2(1.3, -0.9);
 const CLOSED_BREACH = -1000;
 
@@ -169,7 +171,8 @@ export class WaterLayer implements HazardLayer {
     const x = (bounds.x0 + bounds.x1) / 2;
     const y = (bounds.y0 + bounds.y1) / 2;
     const from = new THREE.Vector3(x, terrainHeight(data.terrain, x, y) + 30, -y);
-    const to = from.clone().add(new THREE.Vector3(this.wind.toward[0] * this.wind.speed, -RAIN_FALL_METERS_PER_SECOND, -this.wind.toward[1] * this.wind.speed));
+    const drift = this.wind.speed * RAIN_DRIFT;
+    const to = from.clone().add(new THREE.Vector3(this.wind.toward[0] * drift, -RAIN_FALL_METERS_PER_SECOND, -this.wind.toward[1] * drift));
     from.project(camera);
     to.project(camera);
     const dx = (to.x - from.x) * viewport.width;
