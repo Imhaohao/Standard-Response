@@ -5,6 +5,8 @@ import { cityById } from "../../../cities";
 import type { Building, InkMapData, Point, Road } from "../../data";
 import type { Scenario } from "../../scenario";
 import { footprintMask, maskShape } from "./footprints";
+import { geometryBytes, GpuBudget, MOST_GPU_BYTES } from "./gpu-budget";
+import { streetRibbons } from "./streets";
 import { buildNetwork, closureBarriers, closureRules, closureStateKey, impactAt, roadWindows, streetName } from "./roads";
 import { blizzardWeather, type BlizzardSeriesWithPower, daylightFromElevation, sunElevationDegrees, whiteoutFromVisibility } from "./weather";
 
@@ -162,6 +164,20 @@ describe("blizzard footprint mask", () => {
     assert.equal(mask.cells.reduce((sum, cell) => sum + (cell > 0 ? 1 : 0), 0), 100);
     assert.equal(mask.cells[5 * mask.width + 5], 255);
     assert.equal(mask.cells[15 * mask.width + 15], 0);
+  });
+
+  it("keeps the GPU budget and refuses past its limit", () => {
+    const budget = new GpuBudget().add("mask", 3 * 1024 ** 2).add("ribbons", 5 * 1024 ** 2);
+    assert.equal(budget.total, 8 * 1024 ** 2);
+    budget.assertWithin();
+    assert.throws(() => budget.add("runaway", MOST_GPU_BYTES).assertWithin(), /Blizzard would need 136 MB/);
+  });
+
+  it("measures a street ribbon's buffers", () => {
+    const data = town();
+    const ribbons = streetRibbons(data, roadWindows(data, closureRules(buffalo, data)), data.extent);
+    const index = ribbons.index!;
+    assert.equal(geometryBytes(ribbons), ribbons.attributes.position.count * (3 + 4 + 1) * 4 + index.count * (index.array as Uint16Array | Uint32Array).BYTES_PER_ELEMENT);
   });
 
   it("keeps a large region inside its cell budget", () => {

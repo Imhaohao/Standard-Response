@@ -5,6 +5,7 @@ import type { FullscreenPass, HazardFrame, HazardImpact, HazardLayer, HazardLaye
 import { barrierCards } from "./barrier-cards";
 import { flakeMesh, MID_FLAKES, NEAR_FLAKES } from "./flakes";
 import { footprintMask, type Region } from "./footprints";
+import { geometryBytes, GpuBudget } from "./gpu-budget";
 import { ATMOSPHERE_FRAGMENT, GLOW_MASK_FRAGMENT, SNOW_COVER_FRAGMENT } from "./glsl";
 import { windowLights } from "./lights";
 import { buildNetwork, closureBarriers, closureRules, closureStateKey, impactAt, roadWindows, type Network } from "./roads";
@@ -25,6 +26,9 @@ const GLOW_SCALE = 4;
 const SLANT_PER_MPS = 1 / 4.5;
 const MOST_SLANT = 2.6;
 const LONGEST_FRAME_SECONDS = 0.1;
+// The renderer keeps its screen targets under 2.5 million pixels (MAX_TARGET_PIXELS in renderer.ts).
+const MOST_SCREEN_PIXELS = 2_500_000;
+const HALF_FLOAT_RGBA_BYTES = 8;
 
 const intersect = (a: Region, b: Region): Region => ({ x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1) });
 const grow = (box: Region, by: number): Region => ({ x0: box.x0 - by, y0: box.y0 - by, x1: box.x1 + by, y1: box.y1 + by });
@@ -89,6 +93,7 @@ class BlizzardLayer implements HazardLayer {
   private lights: THREE.Mesh;
   private flakes: ReturnType<typeof flakeMesh>[];
   private lastSeconds: number | null = null;
+  readonly gpu: GpuBudget;
 
   constructor(private context: HazardLayerContext) {
     const { data, scenario, bounds, shared } = context;
@@ -97,19 +102,36 @@ class BlizzardLayer implements HazardLayer {
     this.rules = closureRules(scenario, data);
     this.windows = roadWindows(data, this.rules);
     const town = intersect(bounds, grow(data.detail, TOWN_MARGIN_METERS));
+    // Everything below is built in ordinary memory first; nothing reaches the GPU until the budget passes.
     this.footprints = maskTexture(context, town);
-    this.snow = this.snowPass();
-    this.glowMask = context.fullscreen(GLOW_MASK_FRAGMENT, { tId: shared.tId, tBuildingState: shared.tBuildingState, uResolution: shared.uResolution });
-    this.blur = context.fullscreen(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
-    this.storm.tGlow.value = this.glowTargets[2].texture;
-    this.atmosphere = this.atmospherePass();
     this.buildBaseScene(town);
     this.lights = windowLights(data, bounds, { ...this.pick("tDepth", "uResolution", "uPixelRatio"), ...this.ownUniforms("uNear", "uFar", "uPowerOut", "uNight", "uLamp", "uWhiteout") });
+    this.lights.name = "window lights";
     this.flakes = [MID_FLAKES, NEAR_FLAKES].map((layer) =>
       flakeMesh(layer, { ...this.pick("uResolution", "uTime", "uPaper", "uInk", "uPixelRatio"), ...this.ownUniforms("uSlant", "uGust"), uTravel: this.storm.uFallTravel }),
     );
     this.frontScene.add(this.lights, ...this.flakes.map((flake) => flake.mesh));
     this.flakes.forEach((flake, i) => (flake.mesh.renderOrder = i + 1));
+    this.gpu = this.countGpuBytes();
+    this.gpu.assertWithin();
+    this.snow = this.snowPass();
+    this.glowMask = context.fullscreen(GLOW_MASK_FRAGMENT, { tId: shared.tId, tBuildingState: shared.tBuildingState, uResolution: shared.uResolution });
+    this.blur = context.fullscreen(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
+    this.storm.tGlow.value = this.glowTargets[2].texture;
+    this.atmosphere = this.atmospherePass();
+  }
+
+  // The terrain heights are the host's, but this layer is what makes it build them.
+  private countGpuBytes() {
+    const { terrain } = this.context.data;
+    const budget = new GpuBudget()
+      .add("footprint mask", this.footprints.texture.image.data?.byteLength ?? 0)
+      .add("terrain heights", terrain.cols * terrain.rows * 4)
+      .add("red glow", this.glowTargets.length * Math.ceil(MOST_SCREEN_PIXELS / GLOW_SCALE ** 2) * HALF_FLOAT_RGBA_BYTES);
+    for (const mesh of [...this.baseScene.children, ...this.frontScene.children]) {
+      if (mesh instanceof THREE.Mesh) budget.add(mesh.name || "flakes", geometryBytes(mesh.geometry));
+    }
+    return budget;
   }
 
   // The renderer's shared uniforms, by reference, so palette, camera and pattern stay in step.
@@ -150,6 +172,8 @@ class BlizzardLayer implements HazardLayer {
     const streets = new THREE.Mesh(streetRibbons(data, this.windows, town), streetMaterial(baseUniforms));
     const barriers = barrierCards(data, closureBarriers(data, this.windows).filter((barrier) => within(town, barrier.at)), baseUniforms);
     streets.frustumCulled = false;
+    streets.name = "street ribbons";
+    barriers.name = "barriers";
     barriers.renderOrder = 1;
     this.baseScene.add(streets, barriers);
   }
