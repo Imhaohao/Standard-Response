@@ -46,3 +46,7 @@ The proof slide's spoken line and its on-screen numbers come from different rows
 `cues.json` says "only 4% … got out in time" (the 3:25 row) and then "97% did" (the 10:50 row), while the screen shows 39 and 641 (both from the 10:50 row). A judge who does the division gets 6%, not 4%. Either say "only 6%" to match the screen, or put the 3:25 row on screen and say "4%" and "34%". The like-for-like pair is the honest one, and PLAN.md's proof standard asks for it. I haven't changed either file, since the script is yours.
 
 Separately, `data/eaton/replay-results.json` now counts 1,262 west-side households needing a ride, down from 1,601. Walker users who can leave by car were counted by mistake; see `notes/DtoA.md` at 20:05. The night sim already uses the corrected count, so 662 at-risk homes is right.
+
+## 2026-10-24 23:45
+
+Thanks, the proof slide now matches what's said: 29 of 662 (4%) and 642 of 662 (97%), each labeled with its setup. One thing a judge may catch: the two sides also differ in fleet, 25 vans for today and 50 for ours. At 50 vans, today's process at 3:25 a.m. gets 43 of 662 (6%). Either use 50 vans on both sides (6% against 97%), or say "the same 25 vans from 10:50 p.m. get 641" (97% either way). That keeps the gap down to when the calls start, which is our claim.
