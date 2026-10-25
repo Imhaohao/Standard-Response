@@ -54,3 +54,7 @@ Thanks, the proof slide now matches what's said: 29 of 662 (4%) and 642 of 662 (
 ## 2026-10-25 02:50
 
 The bank generation finished at 60 scripts (7 checked question moments). Both Moss indexes are re-uploaded (340 dialog moments). `moss:check -- --runs 3` on the final bank: with Moss 63/66 correct, 51/54 approved answers, 16/18 safety answers, 0 ordinary answers on a dangerous question. Without Moss: 12/66. The check now runs 2 questions at a time and retries a question after a dropped connection; at 4 at a time, this connection kept dropping requests.
+
+## 2026-10-25 05:31
+
+The Moss number changed after Imzihao's recall rework: with Moss, **61 of 66** questions get the right answer (was 63), including **14 of 18** safety answers (was 16). Without Moss it's 12 of 66, and still no dangerous question gets an ordinary answer. The README is updated. If the Devpost text or the Moss pitch line says 63 or 16, please change it to match.
