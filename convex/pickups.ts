@@ -9,6 +9,7 @@ import { canDrive, fitsInACar } from "./neighborRules";
 import { syncRequest } from "./requests";
 import { pickupFailure, pickupPurpose, pickupRole, pickupStatus } from "./schema";
 import { simNow } from "./clock";
+import { isSmallDemoPair } from "./demoNeighbors";
 import { openRequestFor } from "./requests";
 import { nearestNode, shortestPathsFrom } from "./roadGraph";
 import { scheduleReimbursement } from "./reimburse";
@@ -240,12 +241,12 @@ async function livePlansWithHelper(ctx: MutationCtx, helperHouseholdId: Id<"hous
 // A neighbor we found tonight was asked because the resident couldn't get out in a car of their
 // own; a later answer can undo either half. A helper arranged ahead of time is the family's plan,
 // and only the resident's "picked up?" answer ends it.
-function residentChange(plan: Plan, resident: Doc<"households">): Failure | null {
+async function residentChange(ctx: MutationCtx, plan: Plan, resident: Doc<"households">): Promise<Failure | null> {
   // Nobody is home to pick up, whoever arranged the ride.
   if (resident.away) return "not_needed";
   if (!plan.recruited) return null;
   if (resident.outcome === "leaving") return "not_needed";
-  return fitsInACar(resident) ? null : "needs_changed";
+  return fitsInACar(resident) || await isSmallDemoPair(ctx, plan) ? null : "needs_changed";
 }
 
 // A record change reaches every pickup it touches, as a correction reaches an open offer.
@@ -253,7 +254,7 @@ export async function reviewPickups(ctx: MutationCtx, before: Doc<"households">)
   const after = await ctx.db.get("households", before._id);
   if (!after) return;
   for (const plan of await livePlansFor(ctx, after._id)) {
-    const reason = residentChange(plan, after);
+    const reason = await residentChange(ctx, plan, after);
     if (reason) await fellThrough(ctx, plan, reason);
   }
   if (!canDrive(before) || canDrive(after)) return;

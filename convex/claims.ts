@@ -7,6 +7,10 @@ import { located, outcomeFor } from "./model";
 import { openRequestsFor } from "./requests";
 import { dialableNumber, putRealNumber, takeRealNumberOff } from "./riders";
 import { isFictionalNumber } from "../lib/phone-number";
+import { demoProfileFor } from "../lib/demo-profile";
+import { pairSmallDemo } from "./demoNeighbors";
+import { simNow } from "./clock";
+import { fellThrough } from "./pickups";
 
 // The judges' kiosk at `/`. A judge signs in with their own phone number (typed on the big screen,
 // or sent from their phone through the QR code at /join), picks a demo house nobody has taken, and
@@ -192,43 +196,19 @@ export const homes = query({
   },
 });
 
-// The picked house's address and a starting record: what the house already says, else the fictional
-// resident the demo town was seeded with. The name starts empty, because the judge names the person they play.
+// Registration order supplies the fictional role. The judge supplies the name
+// and can change the language before taking the house.
 export const draft = query({
   args: { householdId: v.id("households") },
-  returns: v.union(v.null(), v.object({ address: v.string(), record: claimRecord })),
+  returns: v.union(v.null(), v.object({ address: v.string(), record: claimRecord, position: v.number() })),
   handler: async (ctx, { householdId }) => {
     const home = await ctx.db.get("households", householdId);
     if (!home || !isDemoHouse(home)) return null;
-    const persona = await ctx.db
-      .query("personas")
-      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
-      .first();
-    return { address: home.address, record: startingRecord(home, persona) };
+    const position = (await ctx.db.query("claims").take(MAX_CLAIMS)).length;
+    const language = KIOSK_LANGUAGES.has(home.language) ? home.language : "en";
+    return { address: home.address, record: { ...demoProfileFor(position), residentName: "", language }, position };
   },
 });
-
-const NOBODY_ON_FILE: Omit<ClaimRecord, "residentName" | "language"> = {
-  canLeave: "unsure",
-  peopleCount: 1,
-  mobility: "walks",
-  assistanceRequired: "none",
-  medical: [],
-  pets: false,
-  hasCar: false,
-};
-
-// Fields the house already has win over the seeded resident, who wins over nobody.
-function startingRecord(home: Doc<"households">, persona: Doc<"personas"> | null): ClaimRecord {
-  const onFile = Object.fromEntries(Object.entries(home).filter(([key, value]) => key in NOBODY_ON_FILE && value !== undefined));
-  return {
-    ...NOBODY_ON_FILE,
-    ...persona?.truth,
-    ...onFile,
-    residentName: "",
-    language: KIOSK_LANGUAGES.has(home.language) ? home.language : "en",
-  };
-}
 
 function cleanRecord(record: ClaimRecord): ClaimRecord {
   const residentName = record.residentName.trim();
@@ -266,27 +246,40 @@ const editableFields = (source: Doc<"claims">["record"] | Doc<"households">): Do
   pets: source.pets,
   hasCar: source.hasCar,
   outcome: source.outcome,
+  ready: source.ready,
+  helperDeclinedAt: source.helperDeclinedAt,
 });
 
 // The judge takes the house. Convex runs every check and write here in one transaction, so two
 // judges picking the same house at once can't both get it: the second one is told to pick another.
 export const claim = mutation({
-  args: { code: v.string(), householdId: v.id("households"), record: claimRecord },
+  args: { code: v.string(), householdId: v.id("households"), record: claimRecord, position: v.optional(v.number()) },
   returns: v.object({ address: v.string() }),
-  handler: async (ctx, { code, householdId, record }) => {
-    const answers = cleanRecord(record);
+  handler: async (ctx, { code, householdId, record, position: expectedPosition }) => {
+    const cleaned = cleanRecord(record);
     const found = await openSession(ctx, code);
     if (!found.phone) throw new ConvexError("Add your phone number first");
-    if ((await ctx.db.query("claims").take(MAX_CLAIMS)).length >= MAX_CLAIMS) throw new ConvexError("Every demo house is taken for now.");
+    const position = (await ctx.db.query("claims").take(MAX_CLAIMS)).length;
+    if (position >= MAX_CLAIMS) throw new ConvexError("Every demo house is taken for now.");
+    if (expectedPosition !== undefined && expectedPosition !== position) throw new ConvexError("Another person registered. Review the updated demo role and try again.");
+    const answers = { ...cleaned, ...demoProfileFor(position) };
     const home = await takeableHome(ctx, householdId);
     await putRealNumber(ctx, householdId, found.phone, answers.residentName);
     const { residentName, ...fields } = answers;
     const outcome = outcomeFor({ ...fields, callStatus: "not_called", away: undefined });
     // The judge's resident is home: an earlier "nobody's home" belonged to the demo resident.
-    await ctx.db.patch("households", householdId, { residentName, ...fields, outcome, away: undefined });
+    await ctx.db.patch("households", householdId, {
+      residentName, ...fields, outcome, away: undefined, helperDeclinedAt: undefined,
+      ready: {
+        at: await simNow(ctx), via: "form", verified: false, care: [],
+        exitPlan: answers.hasCar ? "own_car" : "needs_ride",
+        note: answers.hasCar ? "Demo profile: has a van and can help a neighbor." : "Demo profile: bedridden and needs a helper.",
+      },
+    });
     const now = Date.now();
     await ctx.db.insert("claims", { householdId, phone: found.phone, claimedAt: now, statusToken: newCode(STATUS_TOKEN_LENGTH), record: editableFields(home) });
     await ctx.db.patch("kioskSessions", found._id, { householdId, claimedAt: now });
+    await pairSmallDemo(ctx);
     return { address: home.address };
   },
 });
@@ -300,7 +293,20 @@ async function releaseClaim(ctx: MutationCtx, claim: Doc<"claims">) {
     await ctx.db.patch("households", home._id, editableFields(claim.record));
   }
   await ctx.db.delete("claims", claim._id);
+  await releasePairings(ctx, claim.householdId);
+  await pairSmallDemo(ctx);
   return true;
+}
+
+async function releasePairings(ctx: MutationCtx, householdId: Id<"households">) {
+  for (const status of ["arranged", "checking", "coming"] as const) {
+    const plans = await ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", status)).take(500);
+    for (const plan of plans) {
+      if (!plan.recruited || (plan.householdId !== householdId && plan.helperHouseholdId !== householdId)) continue;
+      if (plan.status === "arranged") await ctx.db.delete("pickupPlans", plan._id);
+      else await fellThrough(ctx, plan, plan.householdId === householdId ? "not_needed" : "helper_declined");
+    }
+  }
 }
 
 // After the event, or between demo rounds: every judge's number comes off its house, the house goes

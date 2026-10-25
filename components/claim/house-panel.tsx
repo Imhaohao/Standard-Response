@@ -18,6 +18,7 @@ export function HousePanel({
   householdId,
   address,
   record,
+  position,
   stillOpen,
   onChange,
   onClose,
@@ -27,6 +28,7 @@ export function HousePanel({
   householdId: Id<"households">;
   address: string;
   record: HouseRecord | null;
+  position: number | null;
   stillOpen: boolean;
   onChange: (record: HouseRecord) => void;
   onClose: () => void;
@@ -37,11 +39,11 @@ export function HousePanel({
   const [saving, setSaving] = useState(false);
 
   async function take() {
-    if (!record) return;
+    if (!record || position === null) return;
     setSaving(true);
     setError(null);
     try {
-      const { address: taken } = await claim({ code, householdId, record });
+      const { address: taken } = await claim({ code, householdId, record, position });
       onClaimed({ address: taken, residentName: record.residentName.trim() });
     } catch (failure) {
       setError(failureText(failure, "Couldn't take the house. Try again."));
@@ -57,7 +59,7 @@ export function HousePanel({
           <h2 id="house-heading" className="type-title">
             {address}
           </h2>
-          <p className="type-small mt-1 text-on-panel-muted">Make up who lives here. You&apos;ll play them on the call.</p>
+          <p className="type-small mt-1 text-on-panel-muted">Demo roles alternate between a van helper and a bedridden resident. You&apos;ll play this person on the call.</p>
         </div>
         <Button variant="onPanelQuiet" size="md" square aria-label="Close this house" onClick={onClose}>
           <X weight="bold" className="size-4" />

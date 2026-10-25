@@ -577,6 +577,8 @@ export default defineSchema({
       pets: v.optional(v.boolean()),
       hasCar: v.optional(v.boolean()),
       outcome,
+      ready: v.optional(readyProfile),
+      helperDeclinedAt: v.optional(v.number()),
     }),
   })
     .index("by_householdId", ["householdId"])

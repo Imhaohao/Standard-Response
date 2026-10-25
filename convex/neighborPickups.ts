@@ -4,6 +4,7 @@ import { located, metersBetween } from "./model";
 import { simNow } from "./clock";
 import { callDriversNear, callRidersNear } from "./neighborCalls";
 import { awayFromTheFire, busyHelpers, canDrive, fitsInACar, Household, Located, REACH_METERS, reachOf, waitingForANeighbor } from "./neighborRules";
+import { isSmallDemoPair, pairSmallDemo } from "./demoNeighbors";
 
 // When tonight's call hears that someone can't get out and nobody agreed ahead of time to come for
 // them, 911 calls the nearest neighbor with a car straight away and asks them to pick the person up,
@@ -135,7 +136,8 @@ async function startPairedAsk(ctx: MutationCtx, resident: Located, plans: Doc<"p
   const helper = paired.helperHouseholdId ? await ctx.db.get("households", paired.helperHouseholdId) : null;
   const now = await simNow(ctx);
   const free = helper !== null && !(await busyHelpers(ctx)).has(helper._id);
-  if (helper && free && canDrive(helper) && awayFromTheFire(helper, resident)) {
+  const directionAllowed = helper && (awayFromTheFire(helper, resident) || await isSmallDemoPair(ctx, paired));
+  if (helper && free && canDrive(helper) && directionAllowed) {
     await ctx.db.patch("pickupPlans", paired._id, { status: "checking", checkStartedAt: now, updatedAt: now });
     await ctx.db.patch("households", resident._id, { neighborSearch: { reachMeters: reachOf(resident) } });
     await ctx.db.insert("events", {
@@ -158,12 +160,16 @@ async function startPairedAsk(ctx: MutationCtx, resident: Located, plans: Doc<"p
 
 // The warning: start the Ready check's pairing for this home, if it has one and the home fits in a car.
 export async function startPairedAskFor(ctx: MutationCtx, resident: Household) {
-  if (!located(resident) || !fitsInACar(resident)) return;
-  await startPairedAsk(ctx, resident, await plansFor(ctx, resident._id));
+  if (!located(resident)) return;
+  const plans = await plansFor(ctx, resident._id);
+  const paired = plans.find((plan) => plan.status === "arranged" && plan.recruited);
+  if (!fitsInACar(resident) && !(paired && await isSmallDemoPair(ctx, paired))) return;
+  await startPairedAsk(ctx, resident, plans);
 }
 
 export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"households">) {
   const resident = await ctx.db.get("households", householdId);
+  if (resident && !resident.simulated) await pairSmallDemo(ctx);
   if (!waitingForANeighbor(resident)) return;
   let plans = await plansFor(ctx, householdId);
   const paired = await startPairedAsk(ctx, resident, plans);
@@ -202,6 +208,7 @@ async function waitingNear(ctx: QueryCtx, driver: Located) {
 export async function askNewDriver(ctx: MutationCtx, before: Household) {
   const driver = await ctx.db.get("households", before._id);
   if (canDrive(before) || !driver || !canDrive(driver) || !located(driver)) return;
+  await pairSmallDemo(ctx);
   if ((await busyHelpers(ctx)).has(driver._id)) return;
   const now = await simNow(ctx);
   for (const resident of await waitingNear(ctx, driver)) {

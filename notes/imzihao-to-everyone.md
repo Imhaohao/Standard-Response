@@ -233,3 +233,9 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - **Numbers keep one writer:** changes go through `putRealNumber` / `takeRealNumberOff`. A judge's house (any `claims` row) and a house holding a Real phones number refuse number changes, and a Real phones number can't be typed onto another house; the kiosk and Real phones stay their owners. Language still edits on those houses.
 - **Languages:** `convex/languages.ts` now exports `FILE_LANGUAGES` (the 10 spoken plus Armenian and Persian, which go to a person), `isFileLanguage`, `isHeardOnlyLanguage`, and the language names. `lib/labels.ts` re-exports `languageName` / `languageInEnglish` from there, so call sites are unchanged.
 - **Map UI:** `HouseCard` renders in a portal above the side panels and takes an optional `sideRoom` (from `besidePanels`) to sit between them when there's room. `PhoneOnFile` became `components/rescue/home-contact.tsx`. The call floor's empty listening column no longer swallows map clicks.
+
+## 2026-10-25 05:34
+
+Demo kiosk registrations alternate a mobile van helper and a bedbound resident, starting with the helper. The role is assigned in the claim transaction. `claims:draft` adds the registration position; existing inputs remain supported. Claim restoration also saves the prior optional Ready profile.
+
+For fewer than 10 active kiosk claims, claimed residents can be paired with claimed helpers regardless of mobility, distance or fire timing. These remain recruited pickup plans: helpers must agree, residents must confirm, and van requests stay open. Ordinary Ready sign-ups and vehicle compatibility keep their existing rules. Clearing a claim removes its demo pairings.

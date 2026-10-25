@@ -12,6 +12,7 @@ import { HouseRecord } from "./house-form";
 import { PickGuide } from "./pick-guide";
 import { SignInCard } from "./sign-in-card";
 import { useKioskSession } from "./use-kiosk-session";
+import { demoProfileFor } from "@/lib/demo-profile";
 
 type Claimed = { address: string; residentName: string; phoneEnding: string | null };
 type Edits = { householdId: Id<"households">; record: HouseRecord };
@@ -49,7 +50,8 @@ function useSelection(homes: KioskHome[]) {
   const [flyTo, setFlyTo] = useState<FlyToHome | null>(null);
   const selected = homes.find((home) => home._id === selectedId) ?? null;
   const draft = useQuery(api.claims.draft, selectedId ? { householdId: selectedId } : "skip");
-  const record = edits?.householdId === selectedId ? edits.record : (draft?.record ?? null);
+  const edited = edits?.householdId === selectedId ? edits.record : draft?.record;
+  const record = edited && draft ? { ...edited, ...demoProfileFor(draft.position) } : null;
 
   const select = useCallback((home: KioskHome) => setSelectedId(home._id), []);
   const surprise = useCallback(() => {
@@ -64,7 +66,7 @@ function useSelection(homes: KioskHome[]) {
     setEdits(null);
   }, []);
   const edit = useCallback((next: HouseRecord) => selectedId && setEdits({ householdId: selectedId, record: next }), [selectedId]);
-  return { selected, selectedId, address: draft?.address ?? selected?.address ?? null, record, flyTo, select, surprise, clear, edit };
+  return { selected, selectedId, address: draft?.address ?? selected?.address ?? null, position: draft?.position ?? null, record, flyTo, select, surprise, clear, edit };
 }
 
 // Step two and three over the live map: the key in one corner, the picked house's panel at the edge.
@@ -85,6 +87,7 @@ function PickLayer({ code, phoneEnding, openCount, selection, onStartOver, onCla
               householdId={selected._id}
               address={address}
               record={selection.record}
+              position={selection.position}
               stillOpen={selected.state === "open"}
               onChange={selection.edit}
               onClose={selection.clear}

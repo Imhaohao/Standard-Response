@@ -64,7 +64,7 @@ describe("judge kiosk claims", () => {
 
     expect(await t.mutation(api.claims.claim, { code, householdId, record: RECORD })).toEqual({ address: "12 Oak St" });
     const home = await t.run(async (ctx) => ctx.db.get("households", householdId));
-    expect(home).toMatchObject({ callbackNumber: "+14152230142", simulated: false, residentName: "Carmen", mobility: "manual_wheelchair", outcome: "needs_accessible", callStatus: "not_called" });
+    expect(home).toMatchObject({ callbackNumber: "+14152230142", simulated: false, residentName: "Carmen", mobility: "walks", hasCar: true, outcome: "leaving", callStatus: "not_called" });
     expect(await t.query(api.claims.session, { code })).toMatchObject({ claimedAddress: "12 Oak St" });
     expect((await t.query(api.claims.homes, {}))[0]).toMatchObject({ _id: householdId, state: "taken", address: null });
     const dialQueue = await t.query(api.voice.dialQueue, { limit: 5 });
