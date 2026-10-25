@@ -6,6 +6,9 @@ import { guardAcknowledgment } from "./honesty";
 const CAUGHT = [
   ["en", "We hear you, and we are working on getting help to you."],
   ["en", "Your dog's needs will be part of the plan, so the crew knows to bring what's needed."],
+  ["es", "Sí, ya lo tenemos."],
+  ["en", "Okay, your dog is coming with you."],
+  ["en", "We've got you."],
   ["en", "Your dad is trying to fight the fire, and I want to make sure the right help gets to you."],
   ["en", "Yes, your address is on the list, and the dispatchers can see that."],
   ["es", "Estamos trabajando para ayudarle."],

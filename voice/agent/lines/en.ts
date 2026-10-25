@@ -92,6 +92,7 @@ export const EN: Lines = {
     "911, Altadena evacuation: an evacuation warning covers your street. Reply 1 if you can leave on your own, 2 if you need a ride, 3 if you need a wheelchair-accessible vehicle. You can also write who is with you.",
   textThanks: "Thank you. We have your answer.",
   backchannels: ["Mm-hm.", "Mm.", "Alright.", "Let me see."],
+  waitingForRequest: "I'm putting in your ride request now. No driver has accepted yet. I'll call you back the moment one does.",
   waiting:
     "I've placed your ride request, and the dispatchers are working on it now. I'll call you back the moment a driver accepts. If you can leave safely, leave now.",
   reassigning:

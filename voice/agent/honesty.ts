@@ -14,6 +14,10 @@ const HELP_ON_THE_WAY = [
   /(trabajando|enviar|mandar|equipo|la ayuda (va|llega|adecuada)|seguimos con usted|estamos con usted|estamos ayudando|lo m[aá]s r[aá]pido|estoy aqu[ií] con usted|cu[aá]ndo (lleg|vien)|lleg(a|ue) (la )?ayuda|el c[oó]digo|el sistema|^s[ií],? est[aá] bien|despachadores? (ya )?(tienen|saben|ven))/i,
 ];
 
+// "Sí, ya lo tenemos." to "Por favor, ayúdenos." and "Okay, your dog is coming with you.": the voice
+// exam heard both while no driver had accepted. An approved answer may still say a pet can come.
+const HANDLED = [/\bwe'?ve got (it|you|this)\b|\b(is|are|can) (coming|come) with you\b/i, /\b(ya )?lo tenemos\b/i];
+
 // Advice the agent can't stand behind: it sees no fire, roads or officers. The fixed lines carry the
 // only advice ("If you can leave safely, leave now").
 const INVENTED_ADVICE = [
@@ -47,7 +51,7 @@ export type GuardResult = { text: string; blocked: boolean };
 // A blocked acknowledgment is dropped, not replaced: a stock "Okay." on every turn sounds robotic.
 const blocked: GuardResult = { text: "", blocked: true };
 
-const CLAUDE_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY];
+const CLAUDE_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...HANDLED, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY];
 // An approved answer is the agency's own advice (approvedAnswers.ts), so the advice Claude can't
 // stand behind is allowed there ("close every window"); a promise of help or false comfort is not.
 const APPROVED_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...SYMPATHY];

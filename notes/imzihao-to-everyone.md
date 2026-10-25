@@ -172,3 +172,7 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - **It's a playback.** It's planned in the browser (`lib/ink-map/fire-crews.ts`, `components/rescue/use-fire-crews.ts`) from each home's place, fire arrival and mobility only, so the same night always plays the same way. It never writes to a household, so the "Doors to knock" queue and call outcomes are untouched. It follows whichever fire the map draws: the scenario, a lit rehearsal fire, or the drill's clock while a drill is stored.
 - **Contract:** `convex/model.ts` now exports `boardingMinutesFor`. Nothing else changed.
 - Tests: `npm run test:map` (`lib/ink-map/fire-crews.test.ts`).
+
+## 2026-10-25 01:13
+
+**Voice: new fixed line `waitingForRequest`** ("I'm putting in your ride request now. No driver has accepted yet. I'll call you back the moment one does." plus the safety line), in all 10 languages. `rideLine` uses it when the ride need is known but no request has reached the call yet; before, it said the `received` template ("I've placed your ride request"), and the exam judge called that an invented fact. Graders that strip every fixed line from `voice/agent/lines` pick it up on their own. The honesty guard also drops "we've got you", "your dog is coming with you" and "ya lo tenemos" from Claude's words while no driver has accepted (approved answers can still say a pet may come).

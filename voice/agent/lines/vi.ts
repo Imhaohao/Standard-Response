@@ -93,6 +93,7 @@ export const VI: Lines = {
     "911, sơ tán ở Altadena: phố của quý vị đang có cảnh báo sơ tán. Trả lời 1 nếu quý vị có thể tự rời đi, 2 nếu cần xe đưa đi, 3 nếu cần xe có chỗ cho xe lăn. Quý vị cũng có thể ghi rõ những ai đang ở cùng quý vị.",
   textThanks: "Cảm ơn quý vị. Chúng tôi đã nhận được câu trả lời.",
   backchannels: ["Vâng.", "Dạ.", "Để tôi xem."],
+  waitingForRequest: "Tôi đang gửi yêu cầu xe đón cho quý vị. Chưa có tài xế nào nhận. Ngay khi có tài xế nhận, tôi sẽ gọi lại cho quý vị.",
   waiting:
     "Tôi đã gửi yêu cầu đón quý vị, và nhân viên điều phối đang xử lý ngay bây giờ. Khi có tài xế nhận chuyến, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   reassigning:

@@ -1066,7 +1066,8 @@ export class Conversation {
     // Before any address there is no request to talk about, only what's needed to make one.
     if (!this.record.address && !this.knownAddress) return lines.needAddress;
     if (!needsRide(this.record)) return lines.leaveNow;
-    return statusLine({ status: "received", driver: null }, this.language) ?? lines.leaveNow;
+    // No request exists yet. "I've placed your ride request" here was said before any request was.
+    return withSafety(lines.waitingForRequest, this.language);
   }
 
   // Someone coming off hold already heard where their ride stands.

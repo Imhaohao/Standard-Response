@@ -98,6 +98,7 @@ export const FR: Lines = {
     "911, évacuation d'Altadena : un avertissement d'évacuation concerne votre rue. Répondez 1 si vous pouvez partir par vos propres moyens, 2 si vous avez besoin d'un transport, 3 si vous avez besoin d'un véhicule adapté aux fauteuils roulants. Vous pouvez aussi écrire qui est avec vous.",
   textThanks: "Merci. Nous avons bien reçu votre réponse.",
   backchannels: ["Mm-hm.", "Mm.", "D'accord.", "Voyons."],
+  waitingForRequest: "Je fais votre demande de transport maintenant. Aucun chauffeur n'a encore accepté. Je vous rappelle dès qu'un chauffeur accepte.",
   waiting:
     "J'ai enregistré votre demande de transport, et les régulateurs s'en occupent en ce moment. Je vous rappelle dès qu'un conducteur accepte. Si vous pouvez partir en sécurité, partez maintenant.",
   reassigning:

@@ -123,6 +123,9 @@ export type Lines = {
   // (or a dog barked), so it must not claim to have understood anything: no "got it".
   backchannels: string[];
   // Replaces an acknowledgment the honesty guard blocks.
+  // The ride need is known but no request exists yet (the call is still writing it), so nothing
+  // claims one was placed.
+  waitingForRequest: string;
   waiting: string;
   reassigning: string;
   // What to do if the hazard reaches the home before a driver does.

@@ -93,6 +93,7 @@ export const TL: Lines = {
     "911, evacuation sa Altadena: may evacuation warning sa kalye ninyo. Sumagot ng 1 kung makakaalis kayo nang kusa, 2 kung kailangan ninyo ng sasakyan, 3 kung kailangan ninyo ng sasakyang accessible sa wheelchair. Maaari rin ninyong isulat kung sino ang kasama ninyo.",
   textThanks: "Salamat po. Natanggap na namin ang sagot ninyo.",
   backchannels: ["Opo.", "Mm-hm, opo.", "Sandali lang po."],
+  waitingForRequest: "Ipinapasok ko na po ang hiling ninyong masasakyan. Wala pa pong drayber na tumanggap. Tatawagan ko po kayo agad kapag may tumanggap na.",
   waiting:
     "Naipasa ko na po ang inyong request para sa sasakyan, at inaasikaso na po ito ng mga dispatcher ngayon. Tatawagan ko po kayo agad kapag may driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   reassigning:
