@@ -156,10 +156,12 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   // hot dry skin is heat stroke); oxygen is the home-oxygen fire-safety handouts. Wet towels under
   // doors and a damp cloth over the face weren't verified (CDC: cloth doesn't stop smoke), so they
   // aren't said. A cooling center is left out: it conflicts with staying inside while trapped.
+  // CAL FIRE's "so firefighters can see your house" read to the voice exam's judge as firefighters
+  // being on their way while no one had accepted, so the lights line says why without naming anyone.
   trapped_by_fire: {
     answer: {
-      en: "If fire blocks your way out, stay inside. Close every door and window, but leave the doors unlocked. Go to a room in the middle of the house, not against an outside wall. Fill the sinks and tub with water, and turn on your lights so firefighters can see the house.",
-      es: "Cuando el fuego le bloquea la salida, permanezca dentro de la casa. Cierre todas las puertas y ventanas, pero no les ponga llave. Vaya a un cuarto en el centro de la casa, lejos de las paredes de afuera. Llene los lavabos y la tina con agua, y prenda las luces para que los bomberos encuentren la casa.",
+      en: "If fire blocks your way out, stay inside. Close every door and window, but leave the doors unlocked. Go to a room in the middle of the house, not against an outside wall. Fill the sinks and tub with water. Turn on your lights, so the house can be seen through the smoke.",
+      es: "Cuando el fuego le bloquea la salida, permanezca dentro de la casa. Cierre todas las puertas y ventanas, pero no les ponga llave. Vaya a un cuarto en el centro de la casa, lejos de las paredes de afuera. Llene los lavabos y la tina con agua. Prenda las luces, para que la casa se vea entre el humo.",
     },
     questions: ["What do I do, the fire is at my house?", "I'm trapped, what do I do?", "There are flames outside my door, what should I do?", "I can't get out because of the fire, what do I do?", "The house is on fire, what do I do?", "Should I stay inside, the fire is at the door?"],
     safetyFor: "fire_at_home",

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { newAnthropic } from "../anthropicClient";
 import { CALL_TAKER_PRINCIPLES, PrincipleId } from "../agent/interpreter";
+import { bankText } from "../agent/approvedAnswers";
 import { LINES, withSafety } from "../agent/script";
 import { CallOutcome } from "./call";
 import { Check, PRINCIPLE_MODULE } from "./rubric";
@@ -83,8 +84,8 @@ function promptFor(call: CallOutcome) {
   return [
     `Call language: ${language}. Judge only from what the agent could hear in this transcript.`,
     `On file before the call (the agent may confirm these): ${JSON.stringify(call.item.onFile ?? {})}`,
-    `Approved status lines. Waiting: "${withSafety(lines.waiting, language)}" Reassigning: "${withSafety(lines.reassigning, language)}"`,
-    `Other fixed lines in this call (graded like everything else): the greeting "${call.item.knownAddress ? lines.greetOutbound(call.item.knownAddress) : lines.greetInbound}", the emergency line "${lines.emergency}".`,
+    `Approved status lines. Waiting: "${withSafety(lines.waiting, language)}" Waiting, while the request is still being put in: "${withSafety(lines.waitingForRequest, language)}" Reassigning: "${withSafety(lines.reassigning, language)}"`,
+    `Other fixed lines in this call (graded like everything else): the greeting "${call.item.knownAddress ? lines.greetOutbound(call.item.knownAddress) : lines.greetInbound}", the emergency line "${lines.emergency}", and the agency's fire-safety steps, which the code speaks when policy_question finds them: "${bankText("trapped_by_fire", language)}"`,
     `Transcript:\n${transcript(call)}`,
   ].join("\n\n");
 }
