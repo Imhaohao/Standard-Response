@@ -3,8 +3,17 @@ import { EventEmitter } from "node:events";
 import { describe, it } from "node:test";
 import WebSocket from "ws";
 import type { Language } from "../agent/script";
-import { Speaker, SpeakerSocket, spokenForm } from "./cartesia";
+import { protocolFor, Speaker, SpeakerSocket, spokenForm } from "./cartesia";
 import type { Delivery } from "./delivery";
+
+describe("listening", () => {
+  it("caps how long Ink-2 waits on a turn it isn't sure is over, and sets no language", () => {
+    const url = new URL(protocolFor("en").url);
+    assert.equal(url.pathname, "/stt/turns/websocket");
+    assert.equal(url.searchParams.get("end_timeout_ms"), "2000");
+    assert.equal(url.searchParams.get("language"), null);
+  });
+});
 
 describe("spoken form", () => {
   it("spells out ID so Sonic doesn't say Idaho", () => {

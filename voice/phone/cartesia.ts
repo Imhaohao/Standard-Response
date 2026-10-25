@@ -17,6 +17,11 @@ const END_OF_SPEECH_SILENCE_SECS = 0.5;
 // who switches between them is transcribed in the language they spoke. The rest stay on
 // ink-whisper, which only hears the one language it was opened in.
 const INK_2_LANGUAGES = new Set<Language>(["en", "es", "ja", "fr", "hi"]);
+// Ink-2 waits this long after the resident stops before ending a turn it isn't sure is over. Its
+// 5600 ms default left a caller saying "beta" (heard as "Data. Data.") five seconds for a reply. A
+// complete sentence still ends on Ink-2's own reading; this only caps the unsure ones, at the same
+// 2 s of quiet the call already waits after the goodbye.
+const UNSURE_TURN_END_MS = 2000;
 // Rare words residents say that a bad line blurs ("bed bound", "air"). Common words stay out:
 // "wheelchair" here turned "needs assistance" into "needs a wheelchair".
 const KEYTERMS = ["Altadena", "evacuation", "oxygen", "bedbound", "bedridden"];
@@ -42,14 +47,14 @@ type Heard = { text: string; isFinal: boolean };
 // turn so far on every update, then once more on turn.end.
 type SttProtocol = { url: string; closeMessage: string; read: (message: SttMessage) => Heard | null };
 
-function protocolFor(language: Language): SttProtocol {
+export function protocolFor(language: Language): SttProtocol {
   const common = {
     encoding: PHONE_AUDIO.encoding,
     sample_rate: String(PHONE_AUDIO.sample_rate),
     cartesia_version: env.cartesia.version,
   };
   if (env.cartesia.sttModel === "ink-2" && INK_2_LANGUAGES.has(language)) {
-    const params = new URLSearchParams({ model: "ink-2", ...common });
+    const params = new URLSearchParams({ model: "ink-2", ...common, end_timeout_ms: String(UNSURE_TURN_END_MS) });
     for (const term of KEYTERMS) params.append("keyterm", term);
     return { url: `wss://api.cartesia.ai/stt/turns/websocket?${params}`, closeMessage: JSON.stringify({ type: "close" }), read: readTurn };
   }
