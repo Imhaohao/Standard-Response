@@ -2,22 +2,25 @@ import { useId, useMemo } from "react";
 import { ROAD_WIDTH, type InkMapData, type Point } from "../../data";
 import type { Scenario } from "../../scenario";
 import type { PaperHazardProps } from "../types";
-import { closedUnder, closureBarriers, closureRules, closureStateKey, isClosed, isStreet, roadRules, roadWindows, type Barrier } from "./roads";
+import { closureRules, isClosed, MOST_STREET_CLASS, roadWindows, type ClosureWindow } from "./roads";
 import { blizzardWeather } from "./weather";
 
-// The blizzard on the flat map: snow stippled over the whole town and a paper veil that buries the
-// streets as it deepens and thickens in the whiteout, the paper dimming after dark, closed streets
-// hatched through with a barrier at each mouth, open and ploughed streets as firm ink, and flakes
-// drifting across the map with the wind.
+// The blizzard on the flat map, drawn the way the 3D map draws it: by taking ink away. As the snow
+// deepens the area tints and minor paths fade into the paper; every street is overdrawn, open ones as
+// a dark double line of ruts and closed ones erased into the white over the hour and a half after they
+// shut. A light veil comes and goes with visibility, and a few ink-ringed flakes drift with the wind.
 
 type Project = PaperHazardProps["project"];
 
+const ERASE_MINUTES = 90;
+const MOST_VEIL = 0.22;
+
 const fmt = (n: number) => n.toFixed(1);
 
-function pathOf(project: Project, path: Point[]) {
+function pathOf(project: Project, path: Point[], closed = false) {
   const points = path.map((point) => project(point));
   if (!points.some((point) => point.visible)) return "";
-  return points.map((point, i) => `${i === 0 ? "M" : "L"}${fmt(point.x)} ${fmt(point.y)}`).join("");
+  return points.map((point, i) => `${i === 0 ? "M" : "L"}${fmt(point.x)} ${fmt(point.y)}`).join("") + (closed ? "Z" : "");
 }
 
 // Pixels per metre on the flat map, measured off the projection itself.
@@ -27,111 +30,96 @@ function pixelsPerMeter(project: Project) {
   return Math.hypot(b.x - a.x, b.y - a.y) / 100;
 }
 
-type StreetPath = { key: string; d: string; width: number };
-type StreetPaths = { closed: StreetPath[]; open: StreetPath[] };
+type StreetGroup = { key: string; d: string; width: number; window: ClosureWindow };
 
-// Streets grouped by class and by whether the storm has them shut, one path each.
-function streetPaths(data: InkMapData, rulesByRoad: number[][], stateKey: string, project: Project): StreetPaths {
+// Streets in one path per class and closure window, so each group fades on its own clock.
+function streetGroups(data: InkMapData, windows: ClosureWindow[], project: Project): StreetGroup[] {
   const scale = pixelsPerMeter(project);
-  const groups = new Map<string, { closed: boolean; roadClass: number; parts: string[] }>();
+  const groups = new Map<string, StreetGroup>();
   data.roads.forEach((road, index) => {
-    if (!isStreet(road)) return;
+    if (road.tunnel || road.roadClass > MOST_STREET_CLASS || road.path.length < 2) return;
     const d = pathOf(project, road.path);
     if (!d) return;
-    const closed = closedUnder(rulesByRoad[index], stateKey);
-    const key = `${closed}-${road.roadClass}`;
-    const group = groups.get(key) ?? { closed, roadClass: road.roadClass, parts: [] };
-    group.parts.push(d);
+    const window = windows[index];
+    const key = `${road.roadClass}:${window.closedAt}:${window.reopensAt}`;
+    const group = groups.get(key) ?? { key, d: "", width: Math.max(1, ROAD_WIDTH[road.roadClass] * scale), window };
+    group.d += d;
     groups.set(key, group);
   });
-  const paths: StreetPaths = { closed: [], open: [] };
-  for (const [key, group] of groups) {
-    const width = Math.max(1, ROAD_WIDTH[group.roadClass] * scale);
-    (group.closed ? paths.closed : paths.open).push({ key, d: group.parts.join(""), width });
-  }
-  return paths;
+  return [...groups.values()];
 }
 
-function useClosures(data: InkMapData, scenario: Scenario | null) {
-  return useMemo(() => {
-    const rules = closureRules(scenario, data);
-    const windows = roadWindows(data, rules);
-    return { rules, rulesByRoad: roadRules(data, rules), barriers: closureBarriers(data, windows) };
-  }, [data, scenario]);
+function minorPaths(data: InkMapData, project: Project) {
+  return data.roads
+    .filter((road) => road.roadClass > MOST_STREET_CLASS && road.path.length >= 2)
+    .map((road) => pathOf(project, road.path))
+    .join("");
 }
 
-// Deterministic speck positions in a 24 px tile.
-const SPECKS = Array.from({ length: 14 }, (_, i) => {
-  const hash = (n: number) => {
-    const x = Math.sin(n * 91.7 + 13.1) * 43758.5453;
-    return x - Math.floor(x);
-  };
-  return { x: hash(i) * 24, y: hash(i + 0.37) * 24, r: 0.5 + hash(i + 0.71) * 0.5 };
-});
+function areaPaths(data: InkMapData, project: Project) {
+  return data.areas.map((area) => pathOf(project, area.ring, true)).join("");
+}
 
-const FLAKES = SPECKS.slice(0, 5).map((speck, i) => ({ x: (speck.x * 2.3) % 48, y: (speck.y * 1.9 + i * 9) % 48, r: 1.3 + speck.r * 1.2 }));
+function useSnowPaths(data: InkMapData, scenario: Scenario | null, project: Project) {
+  const windows = useMemo(() => roadWindows(data, closureRules(scenario, data)), [data, scenario]);
+  return useMemo(
+    () => ({ streets: streetGroups(data, windows, project), minor: minorPaths(data, project), areas: areaPaths(data, project), scale: pixelsPerMeter(project) }),
+    [data, windows, project],
+  );
+}
 
-function BarrierMark({ barrier, project, hatch }: { barrier: Barrier; project: Project; hatch: string }) {
-  const at = project(barrier.at);
-  if (!at.visible) return null;
-  const ahead = project([barrier.at[0] + Math.cos(barrier.angle), barrier.at[1] + Math.sin(barrier.angle)]);
-  const degrees = (Math.atan2(ahead.y - at.y, ahead.x - at.x) * 180) / Math.PI + 90;
+// How far a street has gone under: nothing while open, all of it an hour and a half after it closes.
+function erasedBy(window: ClosureWindow, minutes: number) {
+  if (!isClosed(window, minutes)) return 0;
+  return Math.min(1, (minutes - window.closedAt) / ERASE_MINUTES);
+}
+
+function Street({ street, minutes }: { street: StreetGroup; minutes: number }) {
+  const shown = 1 - erasedBy(street.window, minutes);
+  const rutWidth = Math.max(1.2, street.width * 0.8);
   return (
-    <g transform={`translate(${fmt(at.x)} ${fmt(at.y)}) rotate(${fmt(degrees)})`}>
-      <rect x={-5} y={-2} width={10} height={4} fill="var(--map-paper)" />
-      <rect x={-5} y={-2} width={10} height={4} fill={`url(#${hatch})`} stroke="var(--map-ink)" strokeWidth={1} />
+    <g>
+      <path d={street.d} fill="none" stroke="var(--map-paper)" strokeWidth={street.width + 2} strokeLinecap="round" />
+      {shown > 0 && <path d={street.d} fill="none" stroke="var(--map-ink)" strokeOpacity={0.8 * shown} strokeWidth={rutWidth} strokeLinecap="round" />}
+      {shown > 0 && rutWidth > 3.5 && <path d={street.d} fill="none" stroke="var(--map-paper)" strokeWidth={rutWidth - 1.6} strokeLinecap="round" />}
     </g>
   );
 }
 
 // The flakes' tile slides a whole number of tiles each loop, so the drift never jumps.
-function driftTo(windToward: [number, number], tiles: number) {
-  const [east, north] = windToward;
-  return `${Math.round(east * tiles) * 48} ${Math.round(-north * tiles) * 48}`;
+const FLAKE_TILE = 180;
+const FLAKES = [
+  { x: 23, y: 41, r: 2.6 },
+  { x: 118, y: 17, r: 1.5 },
+  { x: 71, y: 112, r: 1.9 },
+  { x: 152, y: 139, r: 1.3 },
+];
+
+function driftTo([east, north]: [number, number]) {
+  return `${Math.round(east * 2) * FLAKE_TILE} ${Math.round(-north * 2) * FLAKE_TILE}`;
 }
 
 export function BlizzardPaper({ data, scenario, minutes, project }: PaperHazardProps) {
   const id = useId().replace(/:/g, "");
   const weather = blizzardWeather(scenario, minutes, data.origin);
-  const { rules, rulesByRoad, barriers } = useClosures(data, scenario);
-  const stateKey = closureStateKey(rules, minutes);
-  const streets = useMemo(() => streetPaths(data, rulesByRoad, stateKey, project), [data, rulesByRoad, stateKey, project]);
-  const presence = Math.min(1, weather.depthMeters / 0.05);
-  const veil = Math.min(0.85, presence * 0.5 + weather.whiteout * 0.3);
-  const night = 1 - weather.daylight;
-  const ids = { hatch: `${id}-hatch`, specks: `${id}-specks`, flakes: `${id}-flakes` };
+  const paths = useSnowPaths(data, scenario, project);
+  const buried = Math.min(1, Math.max(0, (weather.depthMeters - 0.02) / 0.28));
+  const snowy = weather.depthMeters > 0.01;
   return (
     <g>
       <defs>
-        <pattern id={ids.hatch} width={4} height={4} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1={0} y1={0} x2={0} y2={4} stroke="var(--map-ink)" strokeWidth={1.3} />
-        </pattern>
-        <pattern id={ids.specks} width={24} height={24} patternUnits="userSpaceOnUse">
-          {SPECKS.map((speck, i) => (
-            <circle key={i} cx={speck.x} cy={speck.y} r={speck.r} fill="var(--map-ink)" />
-          ))}
-        </pattern>
-        <pattern id={ids.flakes} width={48} height={48} patternUnits="userSpaceOnUse">
+        <pattern id={`${id}-flakes`} width={FLAKE_TILE} height={FLAKE_TILE} patternUnits="userSpaceOnUse">
           {FLAKES.map((flake, i) => (
-            <circle key={i} cx={flake.x} cy={flake.y} r={flake.r} fill="var(--map-paper)" stroke="var(--map-ink)" strokeWidth={0.8} />
+            <circle key={i} cx={flake.x} cy={flake.y} r={flake.r} fill="var(--map-paper)" stroke="var(--map-ink)" strokeWidth={0.6} />
           ))}
-          <animateTransform attributeName="patternTransform" type="translate" from="0 0" to={driftTo(weather.windToward, 3)} dur="6s" repeatCount="indefinite" />
+          <animateTransform attributeName="patternTransform" type="translate" from="0 0" to={driftTo(weather.windToward)} dur="9s" repeatCount="indefinite" />
         </pattern>
       </defs>
-      <rect x={-10000} y={-10000} width={30000} height={30000} fill="var(--map-paper)" opacity={veil} />
-      <rect x={-10000} y={-10000} width={30000} height={30000} fill={`url(#${ids.specks})`} opacity={0.32 * presence} />
-      {presence > 0.2 &&
-        streets.open.map((street) => <path key={street.key} d={street.d} fill="none" stroke="var(--map-ink)" strokeOpacity={0.7} strokeWidth={Math.max(1, street.width * 0.5)} strokeLinecap="round" />)}
-      {streets.closed.map((street) => (
-        <path key={street.key} d={street.d} fill="none" stroke={`url(#${ids.hatch})`} strokeOpacity={0.5} strokeWidth={Math.max(3, street.width)} strokeLinecap="butt" />
-      ))}
-      {barriers
-        .filter((barrier) => isClosed(barrier.window, minutes))
-        .map((barrier, i) => (
-          <BarrierMark key={i} barrier={barrier} project={project} hatch={ids.hatch} />
-        ))}
-      <rect x={-10000} y={-10000} width={30000} height={30000} fill="var(--map-ink)" opacity={night * 0.3} />
-      <rect x={-10000} y={-10000} width={30000} height={30000} fill={`url(#${ids.flakes})`} opacity={weather.snowfall} />
+      <path d={paths.areas} fill="var(--map-paper)" fillOpacity={0.9 * buried} />
+      <path d={paths.minor} fill="none" stroke="var(--map-paper)" strokeOpacity={buried} strokeWidth={Math.max(2, 4 * paths.scale)} />
+      {snowy && paths.streets.map((street) => <Street key={street.key} street={street} minutes={minutes} />)}
+      <rect x={-10000} y={-10000} width={30000} height={30000} fill="var(--map-paper)" opacity={MOST_VEIL * weather.whiteout} />
+      <rect x={-10000} y={-10000} width={30000} height={30000} fill={`url(#${id}-flakes)`} opacity={weather.snowfall} />
     </g>
   );
 }

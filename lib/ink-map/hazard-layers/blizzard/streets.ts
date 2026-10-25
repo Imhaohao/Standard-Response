@@ -3,10 +3,11 @@ import { InkMapData, Point, ROAD_WIDTH, terrainHeight } from "../../data";
 import { NOISE_GLSL } from "../glsl";
 import { MOST_STREET_CLASS, type ClosureWindow } from "./roads";
 
-// Every street the snow can bury, as a ribbon just above the town's own: while a street is open (or
-// once it is ploughed) the ribbon draws the dark slush and tyre ruts of traffic between two white
-// banks; when it closes, the ruts fill in over the next three quarters of an hour and the snow the
-// cover pass laid over the street shows instead. Drawn into the cached map, so it never costs a frame.
+// Every street the snow can bury, as a ribbon just above the town's own. Once snow lies, an open (or
+// ploughed) street is two dark tyre ruts on white, a single dark line when the street is only a pixel
+// or two across; a street the scenario closes is erased into the white over the hour and a half after
+// it shuts. At the overview the network thinning to a few dark lines is the story of a town cut off.
+// Drawn into the cached map, so it never costs a frame.
 
 const LIFT_METERS = 0.45;
 const SAMPLE_METERS = 8;
@@ -39,6 +40,7 @@ const finite = (minutes: number) => (Number.isFinite(minutes) ? minutes : FAR_MI
 
 class RibbonWriter {
   positions: number[] = [];
+  sides: number[] = [];
   streets: number[] = [];
   halves: number[] = [];
   indices: number[] = [];
@@ -51,7 +53,8 @@ class RibbonWriter {
       const [nx, ny] = sideNormal(points, i);
       const height = terrainHeight(data.terrain, point[0], point[1]) + LIFT_METERS;
       for (const side of [-1, 1]) {
-        this.positions.push(point[0] + nx * half * side, height, -(point[1] + ny * half * side));
+        this.positions.push(point[0], height, -point[1]);
+        this.sides.push(nx, -ny);
         this.streets.push(side, along, finite(window.closedAt), finite(window.reopensAt));
         this.halves.push(half);
       }
@@ -64,6 +67,7 @@ class RibbonWriter {
   build() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(this.positions, 3));
+    geometry.setAttribute("aSide", new THREE.Float32BufferAttribute(this.sides, 2));
     geometry.setAttribute("aStreet", new THREE.Float32BufferAttribute(this.streets, 4));
     geometry.setAttribute("aHalf", new THREE.Float32BufferAttribute(this.halves, 1));
     geometry.setIndex(this.indices);
@@ -95,24 +99,31 @@ float sceneDistance() {
 
 bool hiddenByTown(float viewDepth) {
   float scene = sceneDistance();
-  return viewDepth > scene + 0.8 + scene * 0.0025;
+  return viewDepth > scene + 0.8 + scene * 0.0004;
 }
 `;
 
+// The centreline point moves out to its side by half the street's width, and never less than about
+// a pixel, so a narrow street stays one unbroken line at the overview instead of breaking into dashes.
 const STREET_VERTEX = `
 precision highp float;
 in vec3 position;
+in vec2 aSide;
 in vec4 aStreet;
 in float aHalf;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
+uniform vec2 uResolution;
 out vec4 vStreet;
 out float vHalf;
 out float vViewDepth;
 void main() {
-  vec4 view = viewMatrix * vec4(position, 1.0);
+  float centreDepth = -(viewMatrix * vec4(position, 1.0)).z;
+  float metersPerPixel = centreDepth * 2.0 / (projectionMatrix[1][1] * uResolution.y);
+  float halfWidth = max(aHalf, metersPerPixel * 1.1);
+  vec4 view = viewMatrix * vec4(position + vec3(aSide.x, 0.0, aSide.y) * aStreet.x * halfWidth, 1.0);
   vStreet = aStreet;
-  vHalf = aHalf;
+  vHalf = halfWidth;
   vViewDepth = -view.z;
   gl_Position = projectionMatrix * view;
 }
@@ -133,33 +144,30 @@ uniform vec3 uPaper;
 uniform vec3 uInk;
 uniform float uInkStrength;
 
-// Two tyre tracks a lane, wandering a little as cars do.
+// Two tyre tracks, wandering a little as cars do.
 float ruts(float across, float along, float metersPerPixel) {
-  float wander = (valueNoise(vec2(along * 0.07, 3.0)) - 0.5) * 0.5;
+  float wander = (valueNoise(vec2(along * 0.07, 3.0)) - 0.5) * 0.4;
   float rut = 0.0;
-  for (int i = 0; i < 4; i++) {
-    float centre = (i < 2 ? -1.0 : 1.0) * (i == 0 || i == 3 ? 0.62 : 0.28) * vHalf;
-    float d = abs(across - centre - wander);
-    rut = max(rut, 1.0 - smoothstep(0.16, 0.16 + metersPerPixel, d));
+  for (int i = 0; i < 2; i++) {
+    float d = abs(across - (i == 0 ? -0.38 : 0.38) * vHalf - wander);
+    rut = max(rut, 1.0 - smoothstep(0.2, 0.2 + metersPerPixel, d));
   }
   return rut;
 }
 
 void main() {
   if (hiddenByTown(vViewDepth)) discard;
+  float snowy = smoothstep(0.008, 0.03, uDepth);
+  if (snowy < 0.01) discard;
   float closed = step(vStreet.z, uMinutes) * (1.0 - step(vStreet.w, uMinutes));
-  float traffic = mix(1.0, 1.0 - smoothstep(0.0, 45.0, uMinutes - vStreet.z), closed);
-  float shown = traffic * smoothstep(0.008, 0.03, uDepth);
-  if (shown < 0.01) discard;
+  float erased = closed * smoothstep(0.0, 90.0, uMinutes - vStreet.z);
   float a = vStreet.x;
   float w = max(fwidth(a), 1e-4);
   float metersPerPixel = w * vHalf;
-  float fine = 1.0 - smoothstep(0.35, 0.8, metersPerPixel);
-  float between = 1.0 - smoothstep(0.78 - w, 0.78 + w, abs(a));
-  float bank = 1.0 - smoothstep(0.5, 1.5, abs(abs(a) - 0.8) / w);
-  float detailed = max(max(ruts(a * vHalf, vStreet.y, metersPerPixel) * 0.85, 0.16 * between), bank * 0.55);
-  float ink = mix(0.42 * between, detailed, fine);
-  fragColor = vec4(mix(uPaper, uInk, ink * uInkStrength), shown * max(between, bank * fine));
+  float fine = 1.0 - smoothstep(0.4, 0.9, metersPerPixel);
+  float line = 1.0 - smoothstep(0.6 - w, 0.6 + w, abs(a));
+  float ink = mix(0.6 * line, 0.9 * ruts(a * vHalf, vStreet.y, metersPerPixel), fine) * (1.0 - erased);
+  fragColor = vec4(mix(uPaper, uInk, ink * uInkStrength), snowy);
 }
 `;
 

@@ -193,7 +193,11 @@ function streetGrid(data: InkMapData) {
 
 // ---- Barriers ----
 
-export type Barrier = { at: Point; angle: number; width: number; window: ClosureWindow };
+// `window` is when the barrier's own street is shut; `crossing` when the street it opens onto is. A
+// barrier stands only while its street is shut and the other is open: the edge of the open network.
+export type Barrier = { at: Point; angle: number; width: number; window: ClosureWindow; crossing: ClosureWindow };
+
+export const barrierStands = (barrier: Barrier, minutes: number) => isClosed(barrier.window, minutes) && !isClosed(barrier.crossing, minutes);
 
 const MOST_BARRIERS = 4000;
 const BARRIER_SPACING_METERS = 18;
@@ -242,7 +246,7 @@ function barrierAt(data: InkMapData, windows: ClosureWindow[], mouth: Mouth): Ba
   const setback = ROAD_WIDTH[data.roads[mouth.crossing].roadClass] / 2 + BARRIER_SETBACK_METERS;
   if (pathLength(mouth.path) < setback * 2) return null;
   const place = alongPath(mouth.path, setback);
-  return place && { at: place.at, angle: place.angle, width: ROAD_WIDTH[road.roadClass] * 0.9, window: windows[mouth.road] };
+  return place && { at: place.at, angle: place.angle, width: ROAD_WIDTH[road.roadClass] * 0.9, window: windows[mouth.road], crossing: windows[mouth.crossing] };
 }
 
 export function closureBarriers(data: InkMapData, windows: ClosureWindow[]): Barrier[] {

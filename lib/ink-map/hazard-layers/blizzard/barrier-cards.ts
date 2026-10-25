@@ -3,9 +3,10 @@ import { InkMapData, terrainHeight } from "../../data";
 import type { Barrier } from "./roads";
 import { keepTargetAlpha, SCENE_DEPTH_GLSL } from "./streets";
 
-// The barriers across closed streets: a striped board on two legs, standing upright across the
-// street, never smaller than a few pixels so the overview can still read it. Each shows only while its
-// street is shut, and once the snow is deep it wears a cap of it.
+// The barriers across closed streets where they meet an open one: one small hatched bar on two stubs,
+// standing across the closed street's mouth, springing up when the closed street shuts or the other
+// reopens (barrierStands in roads.ts). They belong to the close-ups; at the overview the erased
+// streets say it, so the bars fade out as the view pulls back.
 
 const FAR_MINUTES = 1e9;
 const finite = (minutes: number) => (Number.isFinite(minutes) ? minutes : FAR_MINUTES);
@@ -18,6 +19,7 @@ in vec3 aAt;
 in vec2 aAcross;
 in float aWidth;
 in vec2 aWindow;
+in vec2 aCrossing;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 uniform vec2 uResolution;
@@ -32,12 +34,16 @@ float popIn(float since) {
 }
 
 void main() {
-  float shown = popIn(uMinutes - aWindow.x) * (1.0 - step(aWindow.y, uMinutes));
   vec4 anchor = viewMatrix * vec4(aAt, 1.0);
   float metersPerPixel = -anchor.z * 2.0 / (projectionMatrix[1][1] * uResolution.y);
-  float width = max(aWidth, 9.0 * uPixelRatio * metersPerPixel) * shown;
+  float closeUp = 1.0 - smoothstep(0.9, 1.4, metersPerPixel);
+  float crossingOpen = 1.0 - step(aCrossing.x, uMinutes) * (1.0 - step(aCrossing.y, uMinutes));
+  float crossingReopened = aCrossing.y <= uMinutes ? aCrossing.y : -1e9;
+  float since = uMinutes - max(aWindow.x, crossingReopened);
+  float shown = popIn(since) * (1.0 - step(aWindow.y, uMinutes)) * step(aWindow.x, uMinutes) * crossingOpen * closeUp;
+  float width = max(aWidth, 10.0 * uPixelRatio * metersPerPixel) * shown;
   vec3 across = vec3(aAcross.x, 0.0, -aAcross.y);
-  vec3 world = aAt + across * position.x * width + vec3(0.0, position.y * width * 0.5, 0.0);
+  vec3 world = aAt + across * position.x * width + vec3(0.0, position.y * width * 0.32, 0.0);
   vec4 view = viewMatrix * vec4(world, 1.0);
   vUv = uv;
   vViewDepth = -view.z;
@@ -54,7 +60,6 @@ out vec4 fragColor;
 ${SCENE_DEPTH_GLSL}
 uniform vec3 uPaper;
 uniform vec3 uInk;
-uniform float uDepth;
 
 float box(vec2 p, vec2 lo, vec2 hi) {
   vec2 d = max(lo - p, p - hi);
@@ -63,19 +68,15 @@ float box(vec2 p, vec2 lo, vec2 hi) {
 
 void main() {
   if (hiddenByTown(vViewDepth)) discard;
-  // Card units: x across 0..1, y up 0..0.5.
-  vec2 p = vec2(vUv.x, vUv.y * 0.5);
+  // Card units: x across 0..1, y up 0..0.32.
+  vec2 p = vec2(vUv.x, vUv.y * 0.32);
   float px = max(fwidth(p.x), 1e-4);
-  float board = box(p, vec2(0.04, 0.2), vec2(0.96, 0.44));
-  float legs = min(box(p, vec2(0.12, 0.0), vec2(0.19, 0.2)), box(p, vec2(0.81, 0.0), vec2(0.88, 0.2)));
-  float capTop = 0.44 + clamp(uDepth * 0.14, 0.0, 0.06);
-  float cap = uDepth > 0.08 ? box(p, vec2(0.02, 0.43), vec2(0.98, capTop)) : 1.0;
-  float shape = min(min(board, legs), cap);
-  if (shape > px * 0.5) discard;
-  float stripes = step(0.5, fract((p.x + p.y) * 6.0));
-  float frame = step(-px * 1.3, board);
-  vec3 color = board < 0.0 ? mix(uPaper, uInk, max(stripes, frame)) : uInk;
-  if (cap <= 0.0 && board > -px * 0.2) color = mix(uPaper, uInk, step(-px * 1.1, cap));
+  float bar = box(p, vec2(0.02, 0.09), vec2(0.98, 0.31));
+  float stubs = min(box(p, vec2(0.14, 0.0), vec2(0.2, 0.09)), box(p, vec2(0.8, 0.0), vec2(0.86, 0.09)));
+  if (min(bar, stubs) > px * 0.5) discard;
+  float stripes = step(0.55, fract((p.x + p.y) * 5.0));
+  float frame = step(-px * 0.9, bar);
+  vec3 color = bar < 0.0 ? mix(uPaper, uInk, max(stripes, frame) * 0.9) : uInk;
   fragColor = vec4(color, 1.0);
 }
 `;
@@ -94,17 +95,20 @@ export function barrierCards(data: InkMapData, barriers: Barrier[], uniforms: Re
   const across = new Float32Array(barriers.length * 2);
   const widths = new Float32Array(barriers.length);
   const windows = new Float32Array(barriers.length * 2);
+  const crossings = new Float32Array(barriers.length * 2);
   barriers.forEach((barrier, i) => {
     const [x, y] = barrier.at;
     at.set([x, terrainHeight(data.terrain, x, y) + 0.3, -y], i * 3);
     across.set([-Math.sin(barrier.angle), Math.cos(barrier.angle)], i * 2);
     widths[i] = barrier.width;
     windows.set([finite(barrier.window.closedAt), finite(barrier.window.reopensAt)], i * 2);
+    crossings.set([finite(barrier.crossing.closedAt), finite(barrier.crossing.reopensAt)], i * 2);
   });
   geometry.setAttribute("aAt", new THREE.InstancedBufferAttribute(at, 3));
   geometry.setAttribute("aAcross", new THREE.InstancedBufferAttribute(across, 2));
   geometry.setAttribute("aWidth", new THREE.InstancedBufferAttribute(widths, 1));
   geometry.setAttribute("aWindow", new THREE.InstancedBufferAttribute(windows, 2));
+  geometry.setAttribute("aCrossing", new THREE.InstancedBufferAttribute(crossings, 2));
   geometry.instanceCount = barriers.length;
   const material = keepTargetAlpha(
     new THREE.RawShaderMaterial({ vertexShader: CARD_VERTEX, fragmentShader: CARD_FRAGMENT, uniforms, glslVersion: THREE.GLSL3, side: THREE.DoubleSide }),

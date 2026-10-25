@@ -7,7 +7,7 @@ import type { Scenario } from "../../scenario";
 import { footprintMask, maskShape } from "./footprints";
 import { geometryBytes, GpuBudget, MOST_GPU_BYTES } from "./gpu-budget";
 import { streetRibbons } from "./streets";
-import { buildNetwork, closureBarriers, closureRules, closureStateKey, impactAt, roadWindows, streetName } from "./roads";
+import { barrierStands, buildNetwork, closureBarriers, closureRules, closureStateKey, impactAt, roadWindows, streetName } from "./roads";
 import { blizzardWeather, type BlizzardSeriesWithPower, daylightFromElevation, sunElevationDegrees, whiteoutFromVisibility } from "./weather";
 
 const buffalo = JSON.parse(readFileSync(new URL("../../../../public/scenarios/buffalo.json", import.meta.url), "utf8")) as Scenario<"blizzard">;
@@ -132,6 +132,16 @@ describe("blizzard road closures", () => {
     assert.ok(barriers.some((barrier) => barrier.at[0] === 0 && barrier.window.closedAt === -210));
   });
 
+  it("stands a barrier only between a shut street and an open one", () => {
+    const barriers = closureBarriers(data, windows);
+    const standing = (minutes: number) => barriers.filter((barrier) => barrierStands(barrier, minutes)).length;
+    // Before the whiteout only the ramp is shut, onto an open Main St; then everything is; once Main
+    // St is ploughed the three side streets and the ramp stand barred off it again.
+    assert.equal(standing(100), 1);
+    assert.equal(standing(400), 0);
+    assert.equal(standing(2730), 4);
+  });
+
   it("cuts off every home once the streets close, and frees the ones on Main St when it is ploughed", () => {
     const network = buildNetwork(data, windows);
     assert.deepEqual(impactAt(data, windows, network, 100).buildings, []);
@@ -177,7 +187,7 @@ describe("blizzard footprint mask", () => {
     const data = town();
     const ribbons = streetRibbons(data, roadWindows(data, closureRules(buffalo, data)), data.extent);
     const index = ribbons.index!;
-    assert.equal(geometryBytes(ribbons), ribbons.attributes.position.count * (3 + 4 + 1) * 4 + index.count * (index.array as Uint16Array | Uint32Array).BYTES_PER_ELEMENT);
+    assert.equal(geometryBytes(ribbons), ribbons.attributes.position.count * (3 + 2 + 4 + 1) * 4 + index.count * (index.array as Uint16Array | Uint32Array).BYTES_PER_ELEMENT);
   });
 
   it("keeps a large region inside its cell budget", () => {

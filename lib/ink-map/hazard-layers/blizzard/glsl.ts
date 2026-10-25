@@ -1,58 +1,10 @@
 import { FULLSCREEN_HEADER, GBUFFER_GLSL, NOISE_GLSL, TERRAIN_GLSL } from "../glsl";
 
-// The blizzard's shaders. Snow is paper with thin ink edges, shaded with the composite's own dot
-// screen; nothing in them adds a hue. Red belongs to the homes where someone needs help.
-
-// Tone printed on the town in the camera's right and up directions, measured in metres, exactly as
-// the composite lays it (placePattern in shaders.ts), so snow shading and the town's tone share one grid.
-export const PATTERN_GLSL = `
-uniform float uPatternScale;
-uniform float uPatternBlend;
-uniform float uPixelRatio;
-uniform vec3 uCamRight;
-uniform vec3 uCamUp;
-
-vec2 gPattern;
-float gPatternWidth;
-
-void placePattern(vec3 world) {
-  gPattern = vec2(dot(world, uCamRight), dot(world, uCamUp)) * uPatternScale;
-  vec2 width = fwidth(gPattern);
-  gPatternWidth = max(width.x, width.y);
-}
-
-const mat2 ROT45 = mat2(0.7071, -0.7071, 0.7071, 0.7071);
-const float OCTAVE_MIDDLE = 1.4142;
-const float DOT_CELL = 3.4;
-
-float dotsAt(vec2 p, float coverage, float cell, float width) {
-  vec2 f = fract(ROT45 * p / cell) - 0.5;
-  float r = sqrt(coverage / 3.14159);
-  float aa = max(0.75 * width / cell, 1e-3);
-  float dots = 1.0 - smoothstep(r - aa, r + aa, length(f));
-  return mix(dots, coverage, smoothstep(0.45, 0.8, width / cell));
-}
-
-float screentone(float coverage) {
-  if (coverage <= 0.001) return 0.0;
-  float cell = DOT_CELL * uPixelRatio * OCTAVE_MIDDLE;
-  return mix(dotsAt(gPattern, coverage, cell, gPatternWidth), dotsAt(gPattern * 0.5, coverage, cell, gPatternWidth * 0.5), uPatternBlend);
-}
-
-float specksAt(vec2 p, float density, float width) {
-  float cell = 2.6 * uPixelRatio * OCTAVE_MIDDLE;
-  vec2 id = floor(p / cell);
-  vec2 centre = (id + 0.25 + 0.5 * vec2(hash12(id + 11.0), hash12(id + 23.0))) * cell;
-  float radius = cell * 0.22;
-  float speck = 1.0 - smoothstep(radius - width * 0.6, radius + width * 0.6, length(p - centre));
-  return step(1.0 - density, hash12(id)) * speck;
-}
-
-float stipple(float density) {
-  if (density <= 0.001) return 0.0;
-  return mix(specksAt(gPattern, density, gPatternWidth), specksAt(gPattern * 0.5 + 97.0, density, gPatternWidth * 0.5), uPatternBlend);
-}
-`;
+// The blizzard's shaders. On a paper map snow can't be added as white: the paper is already white.
+// It shows the way a woodblock printer shows it, by what disappears. As the snow deepens the fine
+// ink goes (lawn and area tints, trees, paths, minor street lines), roofs take a clean white cap, and
+// the dark walls are left to carve the white. Nothing here adds a hue: red belongs to the homes where
+// someone needs help.
 
 // Who is in a home, from the renderer's building-state texture: r how red (needs a ride), g pulsing,
 // b occupancy (1 still home, 0.5 left). Needs tId declared.
@@ -76,29 +28,40 @@ float marked(vec4 home) {
 }
 `;
 
-// Drawn into the cached map once per minute: snow lying on the town. Its alpha is how much snow lies
-// on a pixel; the blend keeps the map's own alpha, which carries the roofs' breathing.
+// Drawn into the cached map once per minute. Its alpha is how much of the map's own drawing the snow
+// takes away at a pixel; the blend keeps the map's alpha, which carries the red roofs' breathing.
 export const SNOW_COVER_FRAGMENT = `
 ${FULLSCREEN_HEADER}
 ${GBUFFER_GLSL}
 ${TERRAIN_GLSL}
 ${NOISE_GLSL}
-${PATTERN_GLSL}
 ${HOME_STATE_GLSL}
 uniform sampler2D tNormal;
 uniform sampler2D tFootprints;
 uniform vec4 uFootprintRegion;
 uniform vec2 uResolution;
+uniform float uPixelRatio;
 uniform vec3 uPaper;
 uniform vec3 uInk;
 uniform float uInkStrength;
 uniform float uViewMpp;
 uniform float uDepth;
 uniform vec2 uWindToward;
+// Downwind on the screen, a unit vector with y up.
+uniform vec2 uWindScreen;
 uniform float uWindSpeed;
 
 float detailAt() {
   return 1.0 - smoothstep(1.4, 4.5, uViewMpp);
+}
+
+// How much of the town's fine ink the snow has taken, and how far the roofs' caps have formed.
+float buried() {
+  return smoothstep(0.02, 0.3, uDepth);
+}
+
+float capped() {
+  return smoothstep(0.03, 0.15, uDepth);
 }
 
 float viewDepth(vec2 uv) {
@@ -125,103 +88,42 @@ float windwardDrift(vec2 p, float reach) {
   return drift;
 }
 
-// The lee of a house upwind, where the wind combs the snow into streaks.
-float leeShelter(vec2 p, float reach) {
-  float lee = 0.0;
-  for (int i = 1; i <= 5; i++) {
-    float d = float(i) / 5.0;
-    lee = max(lee, footprintAt(p - uWindToward * reach * d) * (1.0 - d));
-  }
-  return lee;
+// A few soft hatch curves along a drift's slope, broken so they read as strokes, not contours.
+float driftHatch(float drift, vec2 mapXY) {
+  if (drift < 0.05) return 0.0;
+  float d = drift + (valueNoise(mapXY * 0.7) - 0.5) * 0.08;
+  float w = max(fwidth(d), 1e-3);
+  float outer = 1.0 - smoothstep(0.6, 1.6, abs(d - 0.32) / w);
+  float inner = (1.0 - smoothstep(0.6, 1.6, abs(d - 0.62) / w)) * 0.7;
+  return max(outer, inner) * step(0.42, valueNoise(mapXY * 0.35 + 3.0));
 }
 
-// Flat ground and gentle roofs hold all the snow that falls, steep roofs shed it, trees hold it on
-// top of the crown, walls hold none.
-float snowCatch(float surface, float up) {
-  if (surface == SURFACE_WALL) return 0.0;
-  if (surface == SURFACE_ROOF) return smoothstep(0.3, 0.62, up);
-  if (surface == SURFACE_TREE) return smoothstep(0.15, 0.75, up) * 0.9;
-  if (surface == SURFACE_WATER_AREA) return 0.6;
-  return 1.0;
-}
-
-// Patchy for the first centimetres, whole once a few lie.
-float laid(vec2 mapXY) {
-  float presence = smoothstep(0.004, 0.05, uDepth);
-  float patches = fbm(mapXY * 0.08);
-  return smoothstep(0.0, 0.15, presence * 1.25 - (1.0 - patches) * 0.55);
-}
-
-// Lines stay where one object ends and another begins. Ground, streets and land use meet under the
-// snow without one: the street's edge is buried.
-float edgeWeight(float idC, float idN, float surfaceC, float surfaceN) {
-  float detail = detailAt();
-  if (idC < 0.5 || idN < 0.5) return 0.0;
-  bool buildingC = idC > 999.5 && idC < 99999.5;
-  bool buildingN = idN > 999.5 && idN < 99999.5;
-  if (idC == idN) return buildingC && surfaceC != surfaceN ? 0.75 * detail : 0.0;
-  if (buildingC || buildingN) return mix(0.2, 0.85, detail);
-  if (idC > 99999.5 || idN > 99999.5) return 0.45 * detail;
-  return 0.0;
-}
-
-// The snow's own outlines, drawn a little unsteadily: as the snow deepens they soften, waver and
-// break, the way contours go under a deep fall.
-float snowLines(vec2 uv, vec2 mapXY, float idC, float surfaceC) {
-  float soft = smoothstep(0.05, 0.6, uDepth);
-  vec2 wobble = (vec2(valueNoise(mapXY * 0.4), valueNoise(mapXY * 0.4 + 7.3)) - 0.5) * soft * 1.6;
-  vec2 px = (vec2(max(1.0, uPixelRatio * 0.8)) + wobble) / uResolution;
+// A snow-capped roof covers the map's own outline, so the cap draws it again: firm all round, and
+// heavier on the downwind side, where the snow overhangs the eave.
+float roofOutline(vec2 uv, float idC) {
+  vec2 px = vec2(max(1.0, uPixelRatio * 0.8)) / uResolution;
   float depthC = viewDepth(uv);
   float line = 0.0;
   for (int i = 0; i < 4; i++) {
     vec2 dir = i == 0 ? vec2(1.0, 0.0) : i == 1 ? vec2(-1.0, 0.0) : i == 2 ? vec2(0.0, 1.0) : vec2(0.0, -1.0);
     vec2 uvN = uv + dir * px;
     if (depthC > viewDepth(uvN) * 1.0015) continue;
-    line = max(line, edgeWeight(idC, objectId(uvN), surfaceC, surfaceAt(uvN)));
+    float edge = objectId(uvN) != idC ? 1.0 : surfaceAt(uvN) != SURFACE_ROOF ? 0.8 : 0.0;
+    line = max(line, edge);
   }
-  float broken = mix(1.0, smoothstep(0.3, 0.55, valueNoise(mapXY * 0.9)), soft * 0.6);
-  return line * mix(1.0, 0.6, soft) * broken;
-}
-
-// Two wavering contour lines around each drift, like the bands Hiroshige cut into banked snow.
-float driftCrest(float drift, vec2 mapXY) {
-  float d = drift + (valueNoise(mapXY * 0.7) - 0.5) * 0.08;
-  float w = max(fwidth(d), 1e-3);
-  float outer = 1.0 - smoothstep(0.6, 1.6, abs(d - 0.3) / w);
-  float inner = 1.0 - smoothstep(0.6, 1.6, abs(d - 0.65) / w);
-  return max(outer, inner * 0.6) * step(0.05, drift);
-}
-
-// Ripples the wind combs across open snow, running across the wind and broken into dashes.
-float windRipples(vec2 mapXY) {
-  vec2 across = vec2(-uWindToward.y, uWindToward.x);
-  float u = dot(mapXY, uWindToward) / 2.2 + (valueNoise(mapXY * 0.06) - 0.5) * 2.5;
-  float w = max(fwidth(u), 1e-3);
-  float line = 1.0 - smoothstep(0.6, 1.6, abs(fract(u + 0.5) - 0.5) / w);
-  return line * step(0.5, valueNoise(vec2(dot(mapXY, across) * 0.15, floor(u))));
-}
-
-vec4 groundSnow(vec2 uv, vec2 mapXY, float surface, float up, float idC) {
-  float cover = laid(mapXY) * snowCatch(surface, up);
+  float overhang = objectId(uv + uWindScreen * px * 2.0) != idC ? 1.0 : 0.0;
   float detail = detailAt();
-  float windy = smoothstep(4.0, 14.0, uWindSpeed);
-  bool open = surface == SURFACE_TERRAIN || surface == SURFACE_ROAD || surface > 9.5;
-  float drift = open ? windwardDrift(mapXY, 3.0 + uDepth * 10.0) * windy * smoothstep(0.03, 0.2, uDepth) : 0.0;
-  float lee = open ? leeShelter(mapXY, 6.0 + uDepth * 22.0) * windy : 0.0;
-  float shade = texture(tShade, uv).r;
-  float tone = screentone(shade < 0.3 ? 0.12 : shade < 0.55 ? 0.05 : 0.0) * mix(0.5, 1.0, detail);
-  float streak = stipple(0.16 * lee) * 0.8;
-  float lines = snowLines(uv, mapXY, idC, surface);
-  float crest = driftCrest(drift, mapXY) * detail;
-  float ripples = open ? windRipples(mapXY) * windy * smoothstep(0.06, 0.25, uDepth) * (1.0 - smoothstep(0.5, 1.6, uViewMpp)) * (1.0 - drift) : 0.0;
-  float ink = max(max(tone * 0.85, streak), max(lines, max(crest * 0.7, ripples * 0.3)));
-  return vec4(mix(uPaper, uInk, ink * uInkStrength), cover);
+  return max(line * mix(0.3, 0.85, detail), overhang * 0.9 * detail);
+}
+
+vec4 roofCap(vec2 uv, float idC, float up) {
+  float cap = capped() * smoothstep(0.3, 0.62, up);
+  return vec4(mix(uPaper, uInk, roofOutline(uv, idC) * uInkStrength), cap);
 }
 
 // Walls hold no snow, but the drift banks up the ones facing the wind, with a wavering ink line along
-// its top. Above it the wall darkens a little, so each house keeps its shape under a white roof.
+// its top. Above it the wall darkens a touch as the white grows around it.
 vec4 wallSnow(vec2 uv, vec3 n, vec2 mapXY) {
-  float presence = smoothstep(0.004, 0.05, uDepth);
   float windy = smoothstep(4.0, 14.0, uWindSpeed);
   vec2 facing = normalize(vec2(n.x, -n.z) + vec2(1e-5));
   float windward = max(0.0, dot(facing, -uWindToward));
@@ -229,11 +131,22 @@ vec4 wallSnow(vec2 uv, vec3 n, vec2 mapXY) {
   float along = dot(mapXY, vec2(-facing.y, facing.x));
   float top = uDepth * (0.7 + 2.4 * windward * windy) * (0.7 + 0.6 * valueNoise(vec2(along * 0.4, 1.7)));
   float aa = max(fwidth(height), 0.01);
-  float buried = 1.0 - smoothstep(top - aa * 0.5, top + aa * 0.5, height);
-  float rim = (1.0 - smoothstep(0.4, 1.4, abs(height - top) / aa)) * step(0.02, top) * detailAt();
-  float snow = max(buried, rim);
+  float detail = detailAt();
+  float banked = (1.0 - smoothstep(top - aa * 0.5, top + aa * 0.5, height)) * detail;
+  float rim = (1.0 - smoothstep(0.4, 1.4, abs(height - top) / aa)) * step(0.02, top) * detail;
+  float snow = max(banked, rim);
   if (snow > 0.01) return vec4(mix(uPaper, uInk, rim * 0.75 * uInkStrength), snow);
-  return vec4(uInk, 0.13 * presence);
+  return vec4(uInk, 0.1 * buried());
+}
+
+// Open ground, streets, paths and area tints fade into the white; only a few drift strokes stay,
+// against the walls that face the wind, and only close up.
+vec4 groundSnow(vec2 mapXY, float surface) {
+  float fade = buried() * (surface == SURFACE_WATER_AREA ? 0.6 : 1.0);
+  float windy = smoothstep(4.0, 14.0, uWindSpeed);
+  float drift = windwardDrift(mapXY, 3.0 + uDepth * 10.0) * windy * smoothstep(0.08, 0.3, uDepth);
+  float hatch = driftHatch(drift, mapXY) * smoothstep(0.3, 0.8, detailAt());
+  return vec4(mix(uPaper, uInk, hatch * 0.6 * uInkStrength), max(fade, hatch));
 }
 
 void main() {
@@ -241,17 +154,19 @@ void main() {
     fragColor = vec4(0.0);
     return;
   }
-  vec3 world = worldPosition(vUv, texture(tDepth, vUv).r);
-  vec2 mapXY = vec2(world.x, -world.z);
-  placePattern(world);
   float idC = objectId(vUv);
   if (marked(homeState(idC)) > 0.5) {
     fragColor = vec4(0.0);
     return;
   }
+  vec3 world = worldPosition(vUv, texture(tDepth, vUv).r);
+  vec2 mapXY = vec2(world.x, -world.z);
   float surface = surfaceAt(vUv);
   vec3 n = normalize(texture(tNormal, vUv).xyz * 2.0 - 1.0);
-  fragColor = surface == SURFACE_WALL ? wallSnow(vUv, n, mapXY) : groundSnow(vUv, mapXY, surface, n.y, idC);
+  if (surface == SURFACE_ROOF) fragColor = roofCap(vUv, idC, n.y);
+  else if (surface == SURFACE_WALL) fragColor = wallSnow(vUv, n, mapXY);
+  else if (surface == SURFACE_TREE) fragColor = vec4(uPaper, buried() * 0.85);
+  else fragColor = groundSnow(mapXY, surface);
 }
 `;
 
@@ -275,116 +190,59 @@ void main() {
 }
 `;
 
-// Every frame, full resolution, in place of the canvas: the cached map breathing as the fire pass
-// would, dimmed toward night, fading toward paper in the whiteout with veils of blown snow sweeping
-// through, the red homes glowing through it all, and the finest falling snow as a moving grain screen
-// with wind streaks.
+// Every frame, full resolution, in place of the canvas: the cached map, breathing as the fire pass
+// would; blown snow as an uneven veil toward paper that sweeps through in gusts and never takes more
+// than a quarter of the town; after dark only the far edge of the view darkening, like the night sky
+// over Hiroshige's snow; and the red homes glowing.
 export const ATMOSPHERE_FRAGMENT = `
 ${FULLSCREEN_HEADER}
 ${NOISE_GLSL}
 uniform sampler2D tBase;
-uniform sampler2D tDepth;
 uniform sampler2D tId;
 ${HOME_STATE_GLSL}
 uniform sampler2D tGlow;
-uniform mat4 uInvProjection;
 uniform vec2 uResolution;
-uniform float uPixelRatio;
-uniform float uTime;
 uniform vec3 uPaper;
 uniform vec3 uInk;
 uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
 uniform float uWhiteout;
-uniform float uSnowfall;
 uniform float uDaylight;
-uniform float uWindSpeed;
-uniform float uSlant;
-uniform float uCenterDistance;
-// How far the snow has travelled, summed frame by frame on the CPU (see BlizzardLayer.travel), so a
-// change in the wind turns the snow instead of throwing it across the screen.
-uniform vec2 uFallTravel;
-uniform float uStreakTravel;
+// How far the gusts have travelled, summed frame by frame on the CPU, so a change in the wind turns
+// them instead of throwing them across the screen.
 uniform vec2 uVeilTravel;
 
-const float NIGHT_PAPER = 0.5;
-const float NIGHT_FOG = 0.58;
+const float MOST_VEIL = 0.25;
+const float NIGHT_SKY = 0.28;
 
 vec3 breathe(vec4 base) {
   return mix(base.rgb, uPaper, base.a * 0.3 * (1.0 - uPulse));
 }
 
-float distanceAt(vec2 uv) {
-  float d = texture(tDepth, uv).r;
-  if (d >= 1.0) return uCenterDistance * 2.0;
-  vec4 v = uInvProjection * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
-  return length(v.xyz / v.w);
-}
-
-// Whiteout: the farther ground goes first, and veils of blown snow sweep across in the wind.
-float whiteout(vec2 uv) {
-  float far = smoothstep(0.55, 1.5, distanceAt(uv) / uCenterDistance);
+float veil() {
   vec2 screen = gl_FragCoord.xy / uResolution.y;
-  float veils = fbm(screen * 2.4 - uVeilTravel);
-  float gusts = fbm(screen * 0.8 - uVeilTravel * 0.45 + 13.0);
-  return clamp(uWhiteout * mix(0.42, 0.86, far) * (0.6 + 0.5 * veils + 0.3 * gusts), 0.0, 0.93);
+  float gusts = fbm(screen * 1.6 - uVeilTravel);
+  float sheets = fbm(screen * 4.0 - uVeilTravel * 1.7 + 7.0);
+  return uWhiteout * MOST_VEIL * smoothstep(0.3, 0.75, gusts * 0.7 + sheets * 0.3);
 }
 
-// One layer of falling grain: a speck in some cells of a grid that slides along the fall.
-float grainLayer(vec2 frag, float cell, float speed, float density, float seed) {
-  vec2 p = (frag - uFallTravel * speed) / cell;
-  vec2 id = floor(p);
-  if (hash12(id + seed) > density) return 0.0;
-  vec2 centre = vec2(hash12(id + seed + 3.1), hash12(id + seed + 7.7)) * 0.6 + 0.2;
-  float radius = 0.16 + 0.1 * hash12(id + seed + 11.0);
-  return 1.0 - smoothstep(radius - 0.12, radius + 0.04, length(fract(p) - centre));
-}
-
-// Wind streaks: hairlines in lanes along the fall, each a short dash racing down its lane.
-float streaks(vec2 frag, float density) {
-  vec2 fall = normalize(vec2(uSlant, -1.0));
-  vec2 across = vec2(-fall.y, fall.x);
-  float laneWidth = 11.0 * uPixelRatio;
-  float lane = floor(dot(frag, across) / laneWidth);
-  float offset = abs(fract(dot(frag, across) / laneWidth) - 0.5) * laneWidth;
-  float period = 520.0 * uPixelRatio;
-  float along = (dot(frag, fall) - uStreakTravel * (900.0 + 500.0 * hash12(vec2(lane, 2.0))) * uPixelRatio) / period + hash12(vec2(lane, 9.0)) * 13.0;
-  float dash = fract(along);
-  float dashLength = 0.06 + 0.08 * hash12(vec2(lane, floor(along)));
-  float on = step(hash12(vec2(lane * 1.7, floor(along))), density);
-  float ends = smoothstep(0.0, 0.01, dash) * (1.0 - smoothstep(dashLength - 0.02, dashLength, dash));
-  return on * ends * (1.0 - smoothstep(0.25 * uPixelRatio, 0.75 * uPixelRatio, offset));
-}
-
-// Falling snow shows against whatever is behind it: grey grain over the white, white over the dark.
-vec3 fallingSnow(vec3 color) {
-  if (uSnowfall < 0.01) return color;
-  vec2 frag = gl_FragCoord.xy;
-  float grain = max(grainLayer(frag, 6.0 * uPixelRatio, 70.0 * uPixelRatio, 0.45 * uSnowfall, 1.0), grainLayer(frag, 9.0 * uPixelRatio, 120.0 * uPixelRatio, 0.3 * uSnowfall, 5.0));
-  float streak = streaks(frag, smoothstep(6.0, 18.0, uWindSpeed) * 0.35 * uSnowfall);
-  float light = dot(color, vec3(0.3, 0.59, 0.11));
-  vec3 speck = light > 0.55 ? mix(color, uInk, 0.42) : vec3(0.97);
-  color = mix(color, speck, grain * 0.85);
-  return mix(color, light > 0.55 ? mix(color, uInk, 0.3) : vec3(0.92), streak * 0.7);
+float nightSky() {
+  return (1.0 - uDaylight) * smoothstep(0.78, 1.0, vUv.y) * NIGHT_SKY;
 }
 
 void main() {
   vec3 color = breathe(texture(tBase, vUv));
   vec4 home = homeState(objectId(vUv));
   float red = home.r;
-  float charcoal = step(0.75, home.b) * (1.0 - step(0.001, home.r));
-  float night = 1.0 - uDaylight;
-  float fog = whiteout(vUv) * (1.0 - 0.85 * red - 0.45 * charcoal);
-  vec3 dimmed = mix(color * mix(1.0, NIGHT_PAPER, night), color * mix(1.0, 0.85, night), red);
-  color = mix(dimmed, uPaper * mix(1.0, NIGHT_FOG, night), fog);
+  float charcoal = step(0.75, home.b) * (1.0 - step(0.001, red));
+  color = mix(color, uPaper, veil() * (1.0 - red) * (1.0 - 0.5 * charcoal));
+  color = mix(color, uInk, nightSky() * (1.0 - red));
   // Two blurs spread one house's mask to a few hundredths, so the glow answers exponentially: a
   // single home still glows, and a street of them doesn't turn into a red sea.
   vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 28.0);
-  float halo = glow.r * (0.22 + 0.4 * uWhiteout + 0.3 * night) * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
-  vec3 warm = mix(uRed, uEmber, 0.22);
-  color = mix(color, warm, halo * (1.0 - 0.6 * red));
-  color += warm * halo * night * 0.18;
-  fragColor = vec4(min(fallingSnow(color), vec3(1.0)), 1.0);
+  float halo = glow.r * 0.4 * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
+  color = mix(color, mix(uRed, uEmber, 0.22), halo * (1.0 - 0.6 * red));
+  fragColor = vec4(color, 1.0);
 }
 `;

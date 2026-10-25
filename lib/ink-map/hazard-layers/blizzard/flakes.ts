@@ -19,8 +19,10 @@ export type FlakeLayer = {
   seed: number;
 };
 
-export const NEAR_FLAKES: FlakeLayer = { count: 260, size: 5.5, speed: 520, outline: 1.2, opacity: 0.95, seed: 1 };
-export const MID_FLAKES: FlakeLayer = { count: 1400, size: 2.4, speed: 300, outline: 0.9, opacity: 0.85, seed: 2 };
+// A few hundred flakes on screen at the very worst: motion carries "snowing", so a still stays the town.
+export const NEAR_FLAKES: FlakeLayer = { count: 50, size: 4.6, speed: 560, outline: 0.9, opacity: 0.95, seed: 1 };
+export const MID_FLAKES: FlakeLayer = { count: 130, size: 2.6, speed: 330, outline: 0.7, opacity: 0.9, seed: 2 };
+export const FAR_FLAKES: FlakeLayer = { count: 220, size: 1.5, speed: 190, outline: 0.55, opacity: 0.8, seed: 3 };
 
 const FLAKE_VERTEX = `
 precision highp float;
