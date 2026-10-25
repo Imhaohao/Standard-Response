@@ -147,6 +147,57 @@ describe("night runs", () => {
     expect((await saved(t, run._id, "households")).map((row) => row.docId).sort()).toHaveLength(2);
   });
 
+  test("a rewind to the warning keeps the Ready check's results and pairing, and can still go back to before the Ready check", async () => {
+    const t = setup();
+    const { resident, neighbor } = await signUp(t);
+    const beforeReadyCheck = await home(t, resident);
+    await t.mutation(api.ready.start, {});
+    await t.mutation(api.ready.saveFromCall, { householdId: resident, exitPlan: "needs_ride", care: [], peopleCount: 3, mobility: "walker" });
+    const afterReadyCheck = await home(t, resident);
+    const [pairing] = await t.run(async (ctx) => ctx.db.query("pickupPlans").collect());
+    expect(pairing).toMatchObject({ householdId: resident, helperHouseholdId: neighbor, status: "arranged", recruited: true });
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    expect((await t.run(async (ctx) => ctx.db.get("pickupPlans", pairing._id)))?.status).toBe("checking");
+
+    await t.mutation(api.control.rewind, { to: "warning" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await home(t, resident)).toEqual(afterReadyCheck);
+    const plans = await t.run(async (ctx) => ctx.db.query("pickupPlans").collect());
+    expect(plans.map((plan) => ({ helper: plan.helperHouseholdId, status: plan.status }))).toEqual([{ helper: neighbor, status: "arranged" }]);
+    const control = await t.run(async (ctx) => ctx.db.query("control").first());
+    expect(control?.warningIssuedAt).toBeUndefined();
+    expect(control?.readyCheckStartedAt).toBeDefined();
+    const [current, archived] = await runs(t);
+    expect([current.status, archived.status]).toEqual(["current", "archived"]);
+
+    // The night runs again from the warning, and a rewind to the start still finds the homes before the Ready check.
+    await t.mutation(api.control.issueWarning, {});
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    await rewind(t);
+    expect(await home(t, resident)).toEqual(beforeReadyCheck);
+  });
+
+  test("a rewind to the warning on a night with no warning checkpoint keeps each home's Ready check profile", async () => {
+    const t = setup();
+    const { resident } = await signUp(t);
+    await t.mutation(api.ready.saveFromCall, { householdId: resident, exitPlan: "needs_ride", care: [], peopleCount: 3 });
+    // As if the warning went out before warning checkpoints were saved.
+    await t.run(async (ctx) => {
+      const control = await ctx.db.query("control").first();
+      await ctx.db.patch("control", control!._id, { warningIssuedAt: 1, dialerRunning: true });
+    });
+    const callId = await t.mutation(api.calls.start, { householdId: resident, direction: "outbound" });
+    await t.mutation(api.households.update, { householdId: resident, patch: { canLeave: "no" } });
+    await t.mutation(api.calls.end, { callId, answered: true });
+
+    await t.mutation(api.control.rewind, { to: "warning" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const back = (await home(t, resident))!;
+    expect(back).toMatchObject({ peopleCount: 3, outcome: "unknown", callStatus: "not_called", attempts: 0, ready: { exitPlan: "needs_ride", via: "call" } });
+    expect(back.canLeave).toBeUndefined();
+  });
+
   test("a rewind waits for a real call to finish", async () => {
     const t = setup();
     const { resident } = await signUp(t);

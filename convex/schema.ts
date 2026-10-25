@@ -671,7 +671,8 @@ export default defineSchema({
 
   // Track A: every night, kept when it is rewound or reset (convex/nightRuns.ts). A run starts at the
   // first Ready check or warning after the last rewind. Its `start` rows are the homes and arranged
-  // pickups as they were then, which a rewind puts back; its `end` rows are everything the night left.
+  // pickups as they were then, and its `warning` rows the same just before the warning; a rewind puts
+  // back either. Its `end` rows are everything the night left.
   // Times here are on the wall clock: they say when the run happened, not where the night's clock was.
   nightRuns: defineTable({
     startedAt: v.number(),
@@ -687,7 +688,7 @@ export default defineSchema({
   // One saved document. `doc` is the row without its system fields, which are `docId` and `createdAt`.
   nightRunRows: defineTable({
     runId: v.id("nightRuns"),
-    kind: v.union(v.literal("start"), v.literal("end")),
+    kind: v.union(v.literal("start"), v.literal("warning"), v.literal("end")),
     table: v.string(),
     docId: v.string(),
     createdAt: v.number(),

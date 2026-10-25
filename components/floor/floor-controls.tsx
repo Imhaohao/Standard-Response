@@ -100,7 +100,8 @@ function EndNightButtons() {
   const reset = useMutation(api.control.reset);
   return (
     <div className="flex flex-col gap-2">
-      <EndNightButton end={() => rewind({})} label="Rewind to before the Ready check" armedLabel="Click again: save the night, keep the homes" />
+      <EndNightButton end={() => rewind({ to: "warning" })} label="Rewind to before the warning" armedLabel="Click again: save the night, keep the Ready check" />
+      <EndNightButton end={() => rewind({ to: "start" })} label="Rewind to before the Ready check" armedLabel="Click again: save the night, keep the homes" />
       <EndNightButton end={() => reset({})} label="Reset the simulation" armedLabel="Click again: save the night, clear every home" />
     </div>
   );

@@ -48,6 +48,7 @@ import type * as plans from "../plans.js";
 import type * as prepare from "../prepare.js";
 import type * as reachLadder from "../reachLadder.js";
 import type * as ready from "../ready.js";
+import type * as readyPairing from "../readyPairing.js";
 import type * as readyProfile from "../readyProfile.js";
 import type * as readySim from "../readySim.js";
 import type * as requests from "../requests.js";
@@ -111,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   prepare: typeof prepare;
   reachLadder: typeof reachLadder;
   ready: typeof ready;
+  readyPairing: typeof readyPairing;
   readyProfile: typeof readyProfile;
   readySim: typeof readySim;
   requests: typeof requests;

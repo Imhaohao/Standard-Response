@@ -11,7 +11,7 @@ import { MAX_RUN_MS, TICK_MS } from "./sim";
 import { simNow } from "./clock";
 import { clockAtSpeed, PLAYBACK_SPEEDS, runningMs } from "../lib/sim-clock";
 import { DEFAULT_HAZARD, hazard } from "./hazards";
-import { archiveNight, startRunIfNone } from "./nightRuns";
+import { archiveNight, Checkpoint, checkpoint, saveWarningCheckpoint } from "./nightRuns";
 import { hangUpStandInReadyCalls } from "./ready";
 
 const DEFAULTS = {
@@ -61,8 +61,8 @@ export const issueWarning = mutation({
     const now = clock.simAt;
     const empty = !(await ctx.db.query("households").first());
     if (empty) await seedSimulatedArea(ctx, now);
-    // Before the warning changes any home: this is what a rewind puts back, unless the Ready check started the run.
-    await startRunIfNone(ctx);
+    // Before the warning changes any home: the Ready check's results, which a rewind to the warning puts back.
+    await saveWarningCheckpoint(ctx);
     if (!empty) await retimeArea(ctx, now);
     await coverAreaIfNoZone(ctx);
     // Simulated drivers drive only in a simulated town. Real households get the driver-page vans.
@@ -200,24 +200,27 @@ async function liveRealCall(ctx: MutationCtx) {
   return false;
 }
 
-async function endNight(ctx: MutationCtx, mode: "rewind" | "reset") {
+async function endNight(ctx: MutationCtx, mode: "rewind" | "reset", to: Checkpoint = "start") {
   const control = await controlRow(ctx);
   if (control.archivingRunId) throw new ConvexError("The last night is still being saved. Try again in a moment");
   if (await liveRealCall(ctx)) throw new ConvexError("A real call is still live. Let it finish first");
   const stopLoops = { tickGeneration: control.tickGeneration + 1, readyCheckGeneration: (control.readyCheckGeneration ?? 0) + 1 };
-  const runId = await archiveNight(ctx, control, mode);
+  const runId = await archiveNight(ctx, control, mode, to);
   // A reset also puts the stand-in switches back; a rewind keeps how the night was set up.
   const settings = mode === "reset" ? DEFAULTS : {};
-  await ctx.db.patch("control", control._id, { ...settings, ...NIGHT_OVER, ...stopLoops, archivingRunId: runId });
+  // Back at the warning, the Ready check has already run.
+  const readyCheck = to === "warning" ? { readyCheckStartedAt: control.readyCheckStartedAt } : {};
+  await ctx.db.patch("control", control._id, { ...settings, ...NIGHT_OVER, ...readyCheck, ...stopLoops, archivingRunId: runId });
 }
 
-// Back to before the Ready check, on the same homes: the night is saved in `nightRuns`, then cleared,
-// and every home and arranged pickup is put back as it was when the run started (convex/nightRuns.ts).
+// Back on the same homes, after saving the night in `nightRuns` and clearing it (convex/nightRuns.ts).
+// `to: "start"` (the default) goes back to before the Ready check; `to: "warning"` goes back to just
+// before the warning, with the Ready check's results and pairings in place.
 export const rewind = mutation({
-  args: {},
+  args: { to: v.optional(checkpoint) },
   returns: v.null(),
-  handler: async (ctx) => {
-    await endNight(ctx, "rewind");
+  handler: async (ctx, { to }) => {
+    await endNight(ctx, "rewind", to);
     return null;
   },
 });
