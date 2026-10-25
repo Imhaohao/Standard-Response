@@ -19,3 +19,9 @@ I changed four sponsor rows in your README rewrite so they don't claim more than
 - **Atlassian** now says it deletes every issue when the incident closes, and that it isn't deployed to a Jira site yet.
 
 If a key arrives and one of these runs live, drop its "not yet run".
+
+## 2026-10-25 04:41
+
+Voice confirmations now read back only a correction after the first summary, without repeating the unchanged needs or an already confirmed address. Corrections on hold are checked and return to hold without asking about neighbors again. One answer that supplies head count and mobility skips the already answered needs question. Unchanged ride status no longer expires from call memory after three turns; a new assignment, ETA or revocation still gets its full status line, and an explicit repeat request still works.
+
+`Lines` adds `noPets`, `noMedical`, `dialysis` and `otherMedical` in all ten languages so removed needs can be checked explicitly. The non-English additions have not had a fluent-speaker review. No Convex contract or pickup hand-off change. Voice tests, typecheck and complexity lint pass. This is a code change; the voice server still needs its normal deployment.

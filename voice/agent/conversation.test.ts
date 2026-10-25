@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Conversation, Escalation } from "./conversation";
 import type { Interpretation } from "./interpreter";
-import { Language, LINES, readback } from "./script";
+import { Language, LINES, readback, readbackChanges, RideStatus } from "./script";
 
 // The state machine on its own: each turn hands respond() what Claude would have read, so these
 // run offline. Lines are compared against the English templates.
@@ -124,7 +124,7 @@ describe("answers that don't answer", () => {
     conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
     conversation.respond("is my street closed?", heard({ reply: "I don't know whether streets are closed." }));
     const later = conversation.respond("are they coming yet?", heard({ reply: "They'll be there soon." }));
-    assert.deepEqual(later.sentences, [conversation.rideLine()]);
+    assert.deepEqual(later.sentences, [conversation.rideAnswer()]);
   });
 
   it("never leaves a caller on hold with only an acknowledgment, or a reply it already gave", () => {
@@ -473,6 +473,126 @@ describe("nobody can understand each other", () => {
   });
 });
 
+describe("confirming only what changed", () => {
+  const profile = { peopleCount: 2, mobility: "walker", assistanceRequired: "one_person_assist", pets: true, medical: ["oxygen"] } as const;
+  const spoken = (turn: { acknowledgment: string; sentences: string[] }) => [turn.acknowledgment, ...turn.sentences].join(" ");
+
+  function atReadback() {
+    const conversation = new Conversation({
+      language: "en",
+      knownAddress: ADDRESS,
+      onFile: { ...profile, medical: [...profile.medical] },
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => null },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("no", heard({ updates: { canLeave: "no" } }));
+    assert.equal(conversation.step, "readback");
+    return conversation;
+  }
+
+  it("checks a correction without saying the other facts again or echoing it twice", () => {
+    const conversation = atReadback();
+    const turn = conversation.respond("Actually, three of us.", heard({ updates: { peopleCount: 3 } }));
+    assert.equal(conversation.step, "readback");
+    assert.deepEqual(turn.sentences, [EN.readbackFixed, `3 people. ${EN.readbackQuestion}`]);
+    assert.equal(turn.acknowledgment, "");
+    for (const old of [ADDRESS, EN.mobility.walker, EN.pets, EN.oxygen]) assert.ok(!spoken(turn).includes(old));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    assert.equal(conversation.step, "neighbor");
+  });
+
+  it("leaves an already confirmed address out of the first read-back", () => {
+    const conversation = atReadback();
+    assert.ok(!conversation.question().includes(ADDRESS));
+    const changed = conversation.respond("Actually, 102 Terrace St.", heard({ updates: { address: "102 Terrace St" } }));
+    assert.ok(spoken(changed).includes("102 Terrace St"));
+    assert.ok(!spoken(changed).includes(EN.mobility.walker));
+  });
+
+  it("keeps each successive correction open for confirmation", () => {
+    const conversation = atReadback();
+    for (const peopleCount of [3, 4, 5, 6]) {
+      const turn = conversation.respond(`Actually, ${peopleCount}.`, heard({ updates: { peopleCount } }));
+      assert.equal(conversation.step, "readback");
+      assert.match(spoken(turn), new RegExp(`${peopleCount} people`));
+      assert.ok(!spoken(turn).includes(EN.mobility.walker));
+    }
+  });
+
+  it("asks for the unresolved correction after no, and checks only the supplied fix", () => {
+    const conversation = atReadback();
+    const no = conversation.respond("no", heard({ answer: "no" }));
+    assert.equal(conversation.step, "fix");
+    assert.ok(!spoken(no).includes(EN.mobility.walker));
+    const turn = conversation.respond("There are three people.", heard({ updates: { peopleCount: 3 } }));
+    assert.equal(conversation.step, "readback");
+    assert.deepEqual(turn.sentences, [EN.readbackFixed, `3 people. ${EN.readbackQuestion}`]);
+  });
+
+  it("doesn't lose a new correction after an unclear confirmation", () => {
+    const conversation = atReadback();
+    conversation.respond("hmm", heard({ answer: "unclear" }));
+    const turn = conversation.respond("Actually, three.", heard({ updates: { peopleCount: 3 } }));
+    assert.ok(spoken(turn).includes("3 people"));
+    assert.equal(conversation.step, "readback");
+  });
+
+  it("repeats the pending correction when explicitly asked", () => {
+    const conversation = atReadback();
+    const correction = conversation.respond("Actually, three.", heard({ updates: { peopleCount: 3 } }));
+    const again = conversation.respond("say that again", heard({ wantsRepeat: true }));
+    assert.deepEqual(again.sentences, [correction.sentences.at(-1)]);
+    assert.equal(conversation.step, "readback");
+  });
+
+  it("still repeats the first read-back when explicitly asked", () => {
+    const conversation = atReadback();
+    const again = conversation.respond("say that again", heard({ wantsRepeat: true }));
+    assert.ok(spoken(again).includes(EN.mobility.walker));
+    assert.ok(spoken(again).includes("2 people"));
+  });
+
+  it("checks a correction on hold and resumes waiting without the neighbor question again", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("My wife is here too.", heard({ updates: { peopleCount: 2 } }));
+    assert.equal(conversation.step, "readback");
+    assert.deepEqual(turn.sentences, [EN.readbackFixed, `2 people. ${EN.readbackQuestion}`]);
+    const confirmed = conversation.respond("yes", heard({ answer: "yes" }));
+    assert.equal(conversation.step, "hold");
+    assert.ok(!spoken(confirmed).includes(EN.askNeighbor));
+    assert.ok(!spoken(confirmed).includes(conversation.rideLine()));
+  });
+
+  it("asks only the missing help question when mobility and head count arrive together", () => {
+    const { conversation } = atCanLeave();
+    conversation.respond("no", heard({ updates: { canLeave: "no" } }));
+    const turn = conversation.respond("Two of us, and I use a walker.", heard({ updates: { peopleCount: 2, mobility: "walker", pets: false, medical: [] } }));
+    assert.equal(conversation.step, "assistance");
+    assert.equal(turn.sentences.at(-1), EN.askAssistance);
+    assert.ok(!turn.sentences.includes(EN.askOxygen));
+    assert.ok(!turn.sentences.includes(EN.askNeeds));
+  });
+
+  it("reads explicit removals and all medical needs in every supported language", () => {
+    for (const language of Object.keys(LINES) as Language[]) {
+      const lines = LINES[language];
+      const removed = readbackChanges({ pets: false, medical: [], assistanceRequired: "none", hasCar: false }, language);
+      for (const fact of [lines.noPets, lines.noMedical, lines.assistance.none, lines.noCar, lines.readbackQuestion]) assert.ok(removed.toLowerCase().includes(fact.toLowerCase()), `${language}: ${fact}`);
+      const medical = readbackChanges({ medical: ["oxygen", "dialysis", "other"] }, language);
+      for (const fact of [lines.oxygen, lines.dialysis, lines.otherMedical]) assert.ok(medical.toLowerCase().includes(fact.toLowerCase()));
+    }
+  });
+
+  it("checks the removal of oxygen and pets without repeating old needs", () => {
+    const conversation = atReadback();
+    const turn = conversation.respond("No pets or oxygen now.", heard({ updates: { pets: false, medical: [] } }));
+    for (const fact of [EN.noPets, EN.noMedical, EN.readbackQuestion]) assert.ok(spoken(turn).toLowerCase().includes(fact.toLowerCase()));
+    assert.ok(!spoken(turn).includes(EN.oxygen));
+    assert.ok(!spoken(turn).includes(EN.mobility.walker));
+  });
+});
+
 describe("the read-back's address", () => {
   it("says where someone leaving on their own leaves from, and where someone waiting is", () => {
     assert.match(readback({ canLeave: "yes", hasCar: true, peopleCount: 2, address: ADDRESS }, "en"), /by car, 2 people, from 100 Terrace St/);
@@ -670,6 +790,36 @@ describe("which kind of wheelchair", () => {
 
 // Each case is a line real callers heard over and over on robust-penguin-834, 2026-10-24.
 describe("lines the caller just heard", () => {
+  it("remembers an unchanged ride across a long conversation and announces each new status", () => {
+    let ride: RideStatus = { status: "received", driver: null };
+    const conversation = new Conversation({
+      language: "en",
+      knownAddress: ADDRESS,
+      onFile: { peopleCount: 1, mobility: "walks" },
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: () => {}, rideStatus: () => ride },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("no", heard({ updates: { canLeave: "no" } }));
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("no", heard({ answer: "no" }));
+    const original = conversation.rideLine();
+    for (let turn = 0; turn < 8; turn += 1) conversation.respond(`Thanks for listening ${turn}.`, heard({ reply: "I'm listening." }));
+    const unchanged = conversation.respond("Are they coming?", heard({ asksAboutRide: true }));
+    assert.ok(!unchanged.sentences.includes(original));
+    const driver = { name: "Maria", vehicleType: "paratransit", crewSize: 2, wheelchairSpaces: 1, stretcherSpaces: 0, etaMinutes: 6 } as const;
+    ride = { status: "driver_accepted", driver };
+    assert.ok(conversation.respond("Any news?", heard({ asksAboutRide: true })).sentences.includes(conversation.rideLine()));
+    ride = { status: "driver_accepted", driver: { ...driver, etaMinutes: 4 } };
+    assert.ok(conversation.respond("Any news?", heard({ asksAboutRide: true })).sentences.includes(conversation.rideLine()));
+    ride = { status: "reassigning", driver: null };
+    const revoked = conversation.respond("Is Maria still coming?", heard({ asksAboutRide: true }));
+    assert.ok(revoked.sentences.includes(conversation.rideLine()));
+    assert.ok(!revoked.sentences.includes(EN.statusUnchanged));
+    ride = { status: "received", driver: null };
+    assert.ok(conversation.respond("Any news?", heard({ asksAboutRide: true })).sentences.includes(original));
+  });
+
   it("answers a second ride question with where it stands instead of the whole status again", () => {
     const { conversation } = atHold();
     const full = conversation.rideLine();
@@ -770,7 +920,7 @@ describe("lines the caller just heard", () => {
     assert.ok(!hold.sentences.includes(conversation.rideLine()));
   });
 
-  it("never answers a life threat on hold with no change, and says the full status once it isn't fresh", () => {
+  it("never answers a life threat with no change or replays an unchanged status after other turns", () => {
     const { conversation } = atHold();
     const soon = conversation.respond("I can see the fire approaching. I'm about to die.", heard({ emergency: "flames", asksAboutRide: true }));
     assert.ok(!soon.sentences.includes(EN.statusUnchanged));
@@ -778,7 +928,9 @@ describe("lines the caller just heard", () => {
     conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
     conversation.respond("is my street closed?", heard({ reply: "I don't know whether streets are closed." }));
     const later = conversation.respond("I'm burning, I'm burning.", heard({ emergency: "flames" }));
-    assert.ok(later.sentences.includes(conversation.rideLine()));
+    assert.ok(!later.sentences.includes(conversation.rideLine()));
+    assert.ok(!later.sentences.includes(EN.statusUnchanged));
+    assert.ok([later.acknowledgment, ...later.sentences].some(Boolean));
   });
 
   // Jerry at 3060 Olive Avenue: seven full status lines and five "Nothing has changed" in six minutes.

@@ -69,6 +69,7 @@ export const ZH: Lines = {
   voicemail:
     "这里是911，来电是关于阿尔塔迪纳的撤离。您所在的街道已发布撤离警告。我们两分钟后会再打电话。如果您需要车辆出去，请回拨这个号码。",
   people: (count) => (count === 1 ? "一个人" : `${count}个人`),
+  noPets: "没有宠物",
   pets: "带着宠物",
   leaveEcho: { yes: "您可以自行离开", no: "您无法自行离开", unsure: "您不确定能否离开" },
   hasCarEcho: "您有车",
@@ -87,6 +88,9 @@ export const ZH: Lines = {
     one_person_assist: "需要一个人帮忙",
     two_person_lift: "需要两个人抬",
   },
+  dialysis: "需要透析",
+  otherMedical: "其他医疗需求",
+  noMedical: "没有记录的医疗需求",
   oxygen: "在吸氧",
   atAddress: (address) => `在${address}`,
   fromAddress: (address) => `从${address}`,

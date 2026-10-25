@@ -44,9 +44,9 @@ function readbackParts(record: AgentRecord, lines: Lines) {
     leaving && record.hasCar ? lines.byCar : undefined,
     record.peopleCount !== undefined ? lines.people(record.peopleCount) : undefined,
     record.mobility ? lines.mobility[record.mobility] : undefined,
-    record.medical?.includes("oxygen") ? lines.oxygen : undefined,
-    record.assistanceRequired && record.assistanceRequired !== "none" ? lines.assistance[record.assistanceRequired] : undefined,
-    record.pets ? lines.pets : undefined,
+    medicalEcho(record.medical, lines),
+    record.assistanceRequired ? lines.assistance[record.assistanceRequired] : undefined,
+    record.pets === undefined ? undefined : record.pets ? lines.pets : lines.noPets,
     record.hasCar === false ? lines.noCar : undefined,
     addressPart(record.address, leaving, lines),
   ].filter((part): part is string => part !== undefined);
@@ -67,11 +67,18 @@ const ECHO_CLAUSES: EchoPart[] = [
 const ECHO_FACTS: EchoPart[] = [
   (changed, lines) => (changed.peopleCount !== undefined ? lines.people(changed.peopleCount) : undefined),
   (changed, lines) => (changed.mobility ? lines.mobility[changed.mobility] : undefined),
-  (changed, lines) => (changed.medical?.includes("oxygen") ? lines.oxygen : undefined),
+  (changed, lines) => medicalEcho(changed.medical, lines),
   (changed, lines) => (changed.assistanceRequired ? lines.assistance[changed.assistanceRequired] : undefined),
-  (changed, lines) => (changed.pets ? lines.pets : undefined),
+  (changed, lines) => (changed.pets === undefined ? undefined : changed.pets ? lines.pets : lines.noPets),
   (changed, lines) => (changed.hasCar === false ? lines.noCar : undefined),
 ];
+
+function medicalEcho(medical: AgentRecord["medical"], lines: Lines) {
+  if (medical === undefined) return undefined;
+  if (medical.length === 0) return lines.noMedical;
+  const needs = { oxygen: lines.oxygen, dialysis: lines.dialysis, other: lines.otherMedical };
+  return medical.map((need) => needs[need]).join(lines.listSeparator);
+}
 
 const said = (parts: EchoPart[], changed: AgentRecord, lines: Lines) =>
   parts.map((part) => part(changed, lines)).filter((part): part is string => part !== undefined);
@@ -83,6 +90,14 @@ export function echo(changed: AgentRecord, language: Language) {
   const facts = said(ECHO_FACTS, changed, lines);
   const sentences = [...said(ECHO_CLAUSES, changed, lines), ...(facts.length ? [facts.join(lines.listSeparator)] : [])];
   return sentences.map((text) => sentence(text, lines)).join(lines.sentenceGap ?? " ");
+}
+
+// A correction is checked on its own. Explicit removals (no pets, no medical needs, no lift)
+// must be spoken too, so a delta can never become an empty or misleading confirmation.
+export function readbackChanges(changed: AgentRecord, language: Language) {
+  const lines = LINES[language];
+  const facts = [echo(changed, language), changed.address ? sentence(lines.atAddress(changed.address), lines) : ""].filter(Boolean);
+  return [...facts, lines.readbackQuestion].join(lines.sentenceGap ?? " ");
 }
 
 // `fromFile`: everything it says came from the Ready check, so it opens by saying so.

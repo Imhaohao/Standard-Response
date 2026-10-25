@@ -68,6 +68,7 @@ export const EN: Lines = {
   voicemail:
     "This is 911 calling about the evacuation in Altadena. An evacuation warning covers your street. We'll call back in two minutes. If you need a ride out, call this number back.",
   people: (count) => (count === 1 ? "one person" : `${count} people`),
+  noPets: "no pets",
   pets: "with pets",
   leaveEcho: { yes: "you can leave on your own", no: "you can't leave on your own", unsure: "you're not sure you can leave" },
   hasCarEcho: "you have a car",
@@ -86,6 +87,9 @@ export const EN: Lines = {
     one_person_assist: "needs one person to help",
     two_person_lift: "needs two people to lift",
   },
+  dialysis: "needs dialysis",
+  otherMedical: "other medical needs",
+  noMedical: "no medical needs recorded",
   oxygen: "on oxygen",
   atAddress: (address) => `at ${address}`,
   fromAddress: (address) => `from ${address}`,

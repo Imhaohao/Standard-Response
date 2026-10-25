@@ -69,6 +69,7 @@ export const TL: Lines = {
   voicemail:
     "Ito po ang 911, tumatawag tungkol sa evacuation sa Altadena. May evacuation warning po sa kalye ninyo. Tatawag po kaming muli sa loob ng dalawang minuto. Kung kailangan po ninyo ng sasakyan palabas, tawagan po ninyo ulit ang numerong ito.",
   people: (count) => (count === 1 ? "isang tao" : `${count} katao`),
+  noPets: "walang alagang hayop",
   pets: "may alagang hayop",
   leaveEcho: { yes: "kaya ninyong umalis nang mag-isa", no: "hindi kayo makakaalis nang mag-isa", unsure: "hindi kayo sigurado kung makakaalis kayo" },
   hasCarEcho: "may sasakyan kayo",
@@ -87,6 +88,9 @@ export const TL: Lines = {
     one_person_assist: "kailangan ng isang taong aalalay",
     two_person_lift: "kailangan ng dalawang tao para magbuhat",
   },
+  dialysis: "kailangan ng dialysis",
+  otherMedical: "iba pang pangangailangang medikal",
+  noMedical: "walang naitalang pangangailangang medikal",
   oxygen: "gumagamit ng oxygen",
   atAddress: (address) => `sa ${address}`,
   fromAddress: (address) => `mula sa ${address}`,

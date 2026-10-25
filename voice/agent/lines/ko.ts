@@ -69,6 +69,7 @@ export const KO: Lines = {
   voicemail:
     "911입니다. 알타디나 대피와 관련해 전화드렸습니다. 고객님이 계신 거리에 대피 경보가 내려졌습니다. 2분 뒤에 다시 전화드리겠습니다. 차량이 필요하시면 이 번호로 전화해 주십시오.",
   people: (count) => (count === 1 ? "한 명" : `${count}명`),
+  noPets: "반려동물 없음",
   pets: "반려동물과 함께",
   leaveEcho: { yes: "스스로 나가실 수 있습니다", no: "스스로 나가실 수 없습니다", unsure: "나가실 수 있을지 확실하지 않습니다" },
   hasCarEcho: "차가 있습니다",
@@ -87,6 +88,9 @@ export const KO: Lines = {
     one_person_assist: "한 사람의 도움이 필요함",
     two_person_lift: "두 사람이 들어 올려야 함",
   },
+  dialysis: "투석 필요",
+  otherMedical: "기타 의료 지원 필요",
+  noMedical: "기록된 의료 지원 필요 없음",
   oxygen: "산소 사용",
   atAddress: (address) => `${address}에`,
   fromAddress: (address) => `${address}에서`,

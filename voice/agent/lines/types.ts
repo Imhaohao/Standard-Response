@@ -103,6 +103,7 @@ export type Lines = {
   voicemail: string;
   people: (count: number) => string;
   pets: string;
+  noPets: string;
   // Said back when an answer gives can-leave or a car, like the other fact echoes.
   leaveEcho: Record<"yes" | "no" | "unsure", string>;
   hasCarEcho: string;
@@ -112,6 +113,9 @@ export type Lines = {
   mobility: Record<Mobility, string>;
   assistance: Record<Assistance, string>;
   oxygen: string;
+  dialysis: string;
+  otherMedical: string;
+  noMedical: string;
   atAddress: (address: string) => string;
   // Someone leaving on their own may already be on the road, so the read-back says where they leave from.
   fromAddress: (address: string) => string;

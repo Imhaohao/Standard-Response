@@ -69,6 +69,7 @@ export const VI: Lines = {
   voicemail:
     "Đây là 911, gọi về việc sơ tán ở Altadena. Phố của quý vị đang có cảnh báo sơ tán. Chúng tôi sẽ gọi lại sau hai phút. Nếu quý vị cần xe để đi ra ngoài, xin gọi lại số này.",
   people: (count) => (count === 1 ? "một người" : `${count} người`),
+  noPets: "không có thú cưng",
   pets: "có thú cưng",
   leaveEcho: { yes: "quý vị có thể tự rời đi", no: "quý vị không thể tự rời đi", unsure: "quý vị không chắc có thể rời đi" },
   hasCarEcho: "quý vị có xe",
@@ -87,6 +88,9 @@ export const VI: Lines = {
     one_person_assist: "cần một người giúp",
     two_person_lift: "cần hai người nhấc lên",
   },
+  dialysis: "cần chạy thận",
+  otherMedical: "nhu cầu y tế khác",
+  noMedical: "không có nhu cầu y tế được ghi nhận",
   oxygen: "đang thở oxy",
   atAddress: (address) => `tại ${address}`,
   fromAddress: (address) => `từ ${address}`,

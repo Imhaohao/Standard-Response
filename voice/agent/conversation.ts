@@ -8,7 +8,7 @@ import { guardAcknowledgment, GuardResult } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, Rehearing, TurnContext } from "./interpreter";
 import { quickReading } from "./quickAnswer";
 import { AgentRecord, changedFields, Confidence, hasLimitedMobility, isEmpty, needsRide } from "./record";
-import { echo, Language, LINES, readback, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
+import { echo, Language, LINES, readback, readbackChanges, RequestStatus, RideStatus, statusLine, withSafety } from "./script";
 
 // The deterministic half of the agent. It decides what to ask next and what may be said about a
 // ride. Claude (interpreter.ts) reads the resident's words, writes a short acknowledgment, and may
@@ -166,6 +166,7 @@ export class Conversation {
   private readonly onFile: AgentRecord;
   // The resident said they aren't at the address on file, so it isn't theirs to flag.
   private knownAddressDenied = false;
+  private confirmedAddress?: string;
   private lastFeeling = "";
   // The resident spoke about mobility on this call, so the file's version needs no confirming.
   private mobilityHeard = false;
@@ -205,6 +206,13 @@ export class Conversation {
   private quietOnHold = 0;
   // After an unclear reply to the read-back, ask "Is that right?" rather than read it all again.
   private shortReadback = false;
+  // Keep what was read out across the whole call. A correction checks only the difference;
+  // unchanged facts stay covered by the same confirmation, even after the recent history moves on.
+  private lastReadback: AgentRecord | null = null;
+  private readbackPatch: AgentRecord | null = null;
+  private fullReadback = true;
+  private neighborChecked = false;
+  private lastRideLine = "";
   private reachedHold = false;
   private quietCheckIns = 0;
   // Nobody can understand each other; nothing said after the hand-off changes the call.
@@ -520,7 +528,7 @@ export class Conversation {
   // Boris Nezlobin.", so the caller heard two thanks for one answer: the passed-on line stands alone.
   private acknowledgmentFor(heard: Interpretation, status: RequestStatus | "none", silent: boolean, passedOn: boolean) {
     const guarded = guardAcknowledgment(heard.acknowledgment, status, this.language);
-    if (silent) return { text: "", blocked: guarded.blocked, isEcho: false };
+    if (silent || (this.step === "readback" && !this.shortReadback)) return { text: "", blocked: guarded.blocked, isEcho: false };
     const heardBack = echo(this.changesThisTurn, this.language);
     if (heardBack !== "") return { text: heardBack, blocked: false, isEcho: true };
     if (passedOn) return { text: "", blocked: guarded.blocked, isEcho: false };
@@ -688,6 +696,9 @@ export class Conversation {
 
   private say(acknowledgment: string, sentences: string[], guardBlocked: boolean): AgentTurn {
     const text = [acknowledgment, ...sentences].filter(Boolean).join(" ");
+    if (this.step === "readback" && sentences.includes(this.readbackQuestion())) this.lastReadback = { ...this.record };
+    const ride = this.rideLine();
+    if (text.includes(ride)) this.lastRideLine = ride;
     if (text !== "") this.history.push({ speaker: "agent", text });
     return { acknowledgment, sentences, stage: this.stage, done: this.done, guardBlocked, ignored: false };
   }
@@ -806,6 +817,8 @@ export class Conversation {
     const changed = changedFields(this.record, keepCantLeave(this.record, updates));
     if (isEmpty(changed)) return;
     this.record = { ...this.record, ...changed };
+    this.readbackPatch = null;
+    this.shortReadback = false;
     this.changesThisTurn = { ...this.changesThisTurn, ...changed };
     this.changedThisTurn = true;
     this.effects.updateRecord(changed, confidence);
@@ -880,6 +893,7 @@ export class Conversation {
   confirmAddress(heard: Interpretation): Transition {
     if (heard.answer === "yes") {
       if (!this.record.address && this.knownAddress) this.applyUpdates({ address: this.knownAddress }, { address: 0.95 });
+      this.confirmedAddress = this.record.address;
       return { step: "can_leave" };
     }
     if (heard.answer === "no") this.knownAddressDenied = true;
@@ -945,7 +959,7 @@ export class Conversation {
   }
 
   household(): Transition {
-    if (this.record.peopleCount !== undefined) return { step: "needs" };
+    if (this.record.peopleCount !== undefined) return { step: this.nextMissing() };
     return this.retryOr("needs");
   }
 
@@ -987,24 +1001,33 @@ export class Conversation {
   }
 
   readback(heard: Interpretation): Transition {
+    if (this.changedThisTurn) {
+      this.readbacks = 0;
+      return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
+    }
     this.readbacks += 1;
-    if (this.readbacks >= MAX_READBACKS) return { step: "neighbor" };
+    if (this.readbacks >= MAX_READBACKS) return this.afterReadback();
     this.shortReadback = false;
-    if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
-    if (heard.answer === "yes" || restated(heard)) return { step: "neighbor" };
+    if (heard.answer === "yes" || restated(heard)) return this.afterReadback();
     if (heard.answer === "no") return { step: "fix" };
     this.shortReadback = true;
     return { step: "readback" };
   }
 
   fix(heard: Interpretation): Transition {
-    if (!this.changedThisTurn) return restated(heard) ? { step: "neighbor" } : this.retryOr("neighbor");
+    if (!this.changedThisTurn) return restated(heard) ? this.afterReadback() : this.retryOr(this.afterReadback().step);
     return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
+  }
+
+  private afterReadback(): Transition {
+    if (!this.neighborChecked) return { step: "neighbor" };
+    return { step: needsRide(this.record) ? "hold" : "done" };
   }
 
   // "Yes, there's someone" with no address yet gets asked for it once.
   // "Yes, the house across the street" is asked once for the house number, so a field team can find it.
   neighbor(heard: Interpretation): Transition {
+    if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
     const named = heard.answer === "yes" || heard.neighborAddresses.length > 0;
     const found = heard.neighborAddresses.some((place) => /^\s*\d/.test(place) || this.neighborOnFile(place) !== undefined);
     const owesAddress = named && !found && !heard.neighborInDanger;
@@ -1014,6 +1037,7 @@ export class Conversation {
 
   // Anyone waiting for a ride stays on the line instead of being hung up on.
   private afterNeighbor(): Transition {
+    this.neighborChecked = true;
     if (!needsRide(this.record)) return { step: "done" };
     this.reachedHold = true;
     return { step: "hold", lines: [this.rideUpdate()] };
@@ -1026,7 +1050,7 @@ export class Conversation {
   hold(heard: Interpretation): Transition {
     this.holdTurns += 1;
     if (heard.wantsToEnd && !this.stillListening()) return { step: "done" };
-    if (this.changedThisTurn) return { step: "hold", lines: [LINES[this.language].readbackFixed] };
+    if (this.changedThisTurn) return { step: this.nextMissing(), lines: [LINES[this.language].readbackFixed] };
     const urgent = heard.emergency !== "none" || heard.neighborAddresses.length > 0;
     const answered = urgent || heard.asksAboutRide || heard.asksWhatToDo || this.replyWillPlay(heard);
     return { step: "hold", lines: answered || this.brief(heard) ? [] : [this.holdAnswer()] };
@@ -1083,10 +1107,10 @@ export class Conversation {
     return this.effects.rideStatus() !== null || (needsRide(this.record) && Boolean(this.record.address ?? this.knownAddress));
   }
 
-  // Only the full line counts, so asked every few turns the caller still hears it in full now and then.
+  // An unchanged status stays heard for the whole call, rather than expiring after a few turns.
+  // A new assignment, ETA or status changes the template and is always spoken in full.
   private rideJustSaid() {
-    const ride = this.rideLine();
-    return this.recentAgentLines(RECENT_AGENT_TURNS).some((line) => line.includes(ride));
+    return this.lastRideLine === this.rideLine();
   }
 
   // Agent turns since the resident last spoke that asked the current question, in either wording.
@@ -1169,7 +1193,15 @@ export class Conversation {
 
   readbackQuestion() {
     if (this.shortReadback) return LINES[this.language].readbackQuestion;
-    return readback(this.record, this.language, this.readbackIsOnFile());
+    if (this.readbackPatch === null) {
+      this.fullReadback = this.lastReadback === null;
+      this.readbackPatch = this.lastReadback ? changedFields(this.lastReadback, this.record) : {
+        ...this.record,
+        address: this.record.address === this.confirmedAddress ? undefined : this.record.address,
+      };
+    }
+    if (this.fullReadback) return readback(this.readbackPatch, this.language, this.readbackIsOnFile());
+    return readbackChanges(this.readbackPatch, this.language);
   }
 
   // Anyone who needs a ride hears exactly the status template, never improvised reassurance.
@@ -1196,9 +1228,6 @@ const ON_FILE_FIELDS = ["peopleCount", "mobility", "medical", "assistanceRequire
 
 const BRIEF_ACKNOWLEDGMENT_WORDS = 3;
 const FEELING_WORDS = /(frighten|scar(y|ed)|terrif|afraid|worried|fear|asustad|miedo|aterr|preocupad)/i;
-// How far back a status line still counts as just heard. Reaching hold three turns after a
-// status change replayed the whole reassigning line twenty seconds after the first.
-const RECENT_AGENT_TURNS = 3;
 export const RIDE_ANSWER_SENTENCES = 2;
 const ASKS_WHETHER_TO_WAIT = /\b(wait|stay)\b|\besper(o|ar|amos|ase|en)\b|\bqued(o|arme|arnos|amos)\b/i;
 // Speech-to-text punctuates a question, in every language the line speaks.

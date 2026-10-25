@@ -70,6 +70,7 @@ export const FR: Lines = {
   voicemail:
     "Ici le 911, au sujet de l'évacuation à Altadena. Un avertissement d'évacuation concerne votre rue. Nous rappelons dans deux minutes. Si vous avez besoin d'un transport, rappelez ce numéro.",
   people: (count) => (count === 1 ? "une personne" : `${count} personnes`),
+  noPets: "sans animaux",
   pets: "avec des animaux",
   leaveEcho: {
     yes: "vous pouvez partir par vos propres moyens",
@@ -92,6 +93,9 @@ export const FR: Lines = {
     one_person_assist: "a besoin d'une personne pour l'aider",
     two_person_lift: "a besoin de deux personnes pour le porter",
   },
+  dialysis: "a besoin de dialyse",
+  otherMedical: "autres besoins médicaux",
+  noMedical: "aucun besoin médical enregistré",
   oxygen: "sous oxygène",
   atAddress: (address) => `au ${address}`,
   fromAddress: (address) => `depuis le ${address}`,
