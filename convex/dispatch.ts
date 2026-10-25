@@ -92,6 +92,9 @@ export const commitArgs = {
   escalate: v.array(v.id("households")),
   closureEdges: v.array(v.object({ closureId: v.id("roadClosures"), edgeKeys: v.array(v.string()), streets: v.array(v.string()) })),
   closuresSeen: v.number(),
+  // The night's time the snapshot was read at: every ETA in this plan counts from then, not from
+  // when the solver finished, which at fast playback is minutes later.
+  plannedAt: v.number(),
   solver: v.union(v.literal("heuristic"), v.literal("ortools"), v.literal("alns")),
   solveMs: v.number(),
   requestCount: v.number(),
@@ -157,10 +160,10 @@ async function validOffers(ctx: MutationCtx, offers: OfferArg[], ending: Set<Id<
   return kept;
 }
 
-async function applyEtaUpdates(ctx: MutationCtx, updates: CommitArgs["etaUpdates"], now: number) {
+async function applyEtaUpdates(ctx: MutationCtx, updates: CommitArgs["etaUpdates"], plannedAt: number) {
   for (const { assignmentId, etaMinutes } of updates) {
     const assignment = await ctx.db.get("assignments", assignmentId);
-    if (assignment?.status === "accepted") await ctx.db.patch("assignments", assignmentId, { etaMinutes, etaUpdatedAt: now });
+    if (assignment?.status === "accepted") await ctx.db.patch("assignments", assignmentId, { etaMinutes, etaUpdatedAt: plannedAt });
   }
 }
 
@@ -190,7 +193,6 @@ export const commit = internalMutation({
   args: commitArgs,
   returns: v.null(),
   handler: async (ctx, args) => {
-    const now = await simNow(ctx);
     await saveClosureEdges(ctx, args.closureEdges);
     const revoke = await stillAccepted(ctx, args.revoke);
     const replace = await stillOpen(ctx, args.replace);
@@ -214,7 +216,7 @@ export const commit = internalMutation({
         control?.autoApprove ?? false,
       );
     }
-    await applyEtaUpdates(ctx, args.etaUpdates, now);
+    await applyEtaUpdates(ctx, args.etaUpdates, args.plannedAt);
     await escalateUnservable(ctx, args.escalate);
     const state = await stateRow(ctx);
     await ctx.db.patch("dispatchState", state._id, {

@@ -222,6 +222,7 @@ function staleCommit(rows: Row[], vehicleId: Id<"vehicles">): Commit {
     escalate: [],
     closureEdges: [],
     closuresSeen: 0,
+    plannedAt: Date.now(),
     solver: "heuristic",
     solveMs: 1,
     requestCount: rows.length,

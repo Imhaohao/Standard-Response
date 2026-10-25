@@ -413,6 +413,7 @@ export function planFromSolution(world: World, solution: Solution, fallbackReaso
     etaUpdates: world.etaUpdates,
     closureEdges: world.closureEdges,
     closuresSeen: world.closuresSeen,
+    plannedAt: world.now,
     solver: solution.solver,
     solveMs: solution.solveMs,
     requestCount: world.problem.requests.length,

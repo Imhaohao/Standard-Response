@@ -6,6 +6,7 @@ import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import schema from "../../convex/schema";
 import { EDGES, nearestNode, nodePoint } from "../../convex/roadGraph";
+import { buildWorld, planFromSolution, solve } from "../../convex/dispatchWorld";
 import { registerHouseholdCounts } from "./householdCounts";
 
 // Run with: npx vitest run tests/workflow/dispatchLoop.test.ts --environment edge-runtime
@@ -213,5 +214,26 @@ describe("an offer nobody answered", () => {
     const [again] = await liveFor(t, request._id);
     expect(again?.status).toBe("offered");
     expect(vans.has(again.vehicleId)).toBe(true);
+  });
+});
+
+describe("a solve that takes a while at fast playback", () => {
+  test("counts each refreshed ETA from the snapshot it was priced on, not from when the plan landed", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: offer._id });
+    vi.advanceTimersByTime(2 * 60_000);
+
+    const snap = await t.query(internal.dispatchSnapshot.snapshot, {});
+    const world = buildWorld(snap, snap.now);
+    const { solution } = await solve(world.problem);
+    vi.advanceTimersByTime(3 * 60_000);
+    await t.mutation(internal.dispatch.commit, planFromSolution(world, solution));
+
+    const [after] = await liveFor(t, request._id);
+    expect(after.etaUpdatedAt).toBe(snap.now);
   });
 });
