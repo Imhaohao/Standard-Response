@@ -3,13 +3,18 @@
   addresses.json    every address point (nodes and building centroids) in the study area
   buildings.json    residential building footprint centroids, for placing the synthetic population
   facilities.json   senior housing, nursing homes and assisted living, for clustering
+  nonresidential.geojson  land that isn't homes (research campuses, schools, commercial and industrial land),
+                    so an untagged building there (`building=yes`) isn't taken for a house
   drive.graphml     the drivable road graph (OSMnx, simplified), for travel times and closures
 
-Run once: `uv run python scripts/fetch_osm.py`. The outputs are committed so nobody needs the network.
+Run once: `uv run python scripts/fetch_osm.py` (or `--only nonresidential` for one file). The outputs are
+committed so nobody needs the network.
 """
 
+import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 import osmnx as ox
@@ -22,12 +27,18 @@ from rollcall_d.paths import OSM  # noqa: E402
 OVERPASS = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "rollcall-calhacks/0.1 (evacuation coordination research)", "Accept": "application/json"}
 BOX = f"{SOUTH},{WEST},{NORTH},{EAST}"
+RETRY_STATUSES = {429, 502, 503, 504}
 
 
-def overpass(query: str) -> list[dict]:
-    response = requests.post(OVERPASS, data={"data": f"[out:json][timeout:180];{query}"}, timeout=240, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()["elements"]
+def overpass(query: str, attempts: int = 4) -> list[dict]:
+    """Run an Overpass query, retrying the gateway errors and rate limits the public server returns when busy."""
+    for attempt in range(attempts):
+        response = requests.post(OVERPASS, data={"data": f"[out:json][timeout:180];{query}"}, timeout=240, headers=HEADERS)
+        if response.status_code not in RETRY_STATUSES or attempt == attempts - 1:
+            response.raise_for_status()
+            return response.json()["elements"]
+        time.sleep(15 * (attempt + 1))
+    raise AssertionError("unreachable")
 
 
 def center(element: dict) -> tuple[float, float] | None:
@@ -104,12 +115,46 @@ def fetch_facilities() -> list[dict]:
     return rows
 
 
+NONRESIDENTIAL_LANDUSE = "commercial|industrial|retail|military|institutional|education|religious|cemetery"
+NONRESIDENTIAL_AMENITY = "research_institute|university|college|school|hospital|place_of_worship|prison"
+
+
+def fetch_nonresidential() -> dict:
+    """Closed outlines of land that isn't homes, as a GeoJSON FeatureCollection. A multipolygon's outer ways
+    each become one polygon; its holes are left out, which only ever keeps a building out, never puts one in."""
+    query = (f'(way["landuse"~"^({NONRESIDENTIAL_LANDUSE})$"]({BOX});way["amenity"~"^({NONRESIDENTIAL_AMENITY})$"]({BOX});'
+             f'relation["landuse"~"^({NONRESIDENTIAL_LANDUSE})$"]({BOX});relation["amenity"~"^({NONRESIDENTIAL_AMENITY})$"]({BOX}););out geom tags;')
+    features = []
+    for element in overpass(query):
+        tags = element.get("tags", {})
+        ways = [element.get("geometry", [])] if element["type"] == "way" else [m.get("geometry", []) for m in element.get("members", []) if m.get("role") == "outer"]
+        for points in ways:
+            ring = [[round(p["lon"], 6), round(p["lat"], 6)] for p in points]
+            if len(ring) < 4 or ring[0] != ring[-1]:
+                continue  # an open way, or an outer ring split across ways
+            features.append({"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [ring]},
+                             "properties": {"osmId": f"{element['type']}/{element['id']}", "name": tags.get("name", ""),
+                                            "kind": tags.get("amenity") or tags.get("landuse", "")}})
+    return {"type": "FeatureCollection", "features": features}
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--only", choices=["addresses", "buildings", "facilities", "nonresidential", "graph"])
+    only = parser.parse_args().only
     OSM.mkdir(parents=True, exist_ok=True)
     for name, fetch in [("addresses", fetch_addresses), ("buildings", fetch_buildings), ("facilities", fetch_facilities)]:
+        if only not in (None, name):
+            continue
         rows = fetch()
         (OSM / f"{name}.json").write_text(json.dumps(rows, separators=(",", ":")))
         print(f"{name}: {len(rows)}")
+    if only in (None, "nonresidential"):
+        land = fetch_nonresidential()
+        (OSM / "nonresidential.geojson").write_text(json.dumps(land, separators=(",", ":")))
+        print(f"nonresidential: {len(land['features'])} outlines")
+    if only not in (None, "graph"):
+        return
     graph = ox.graph_from_bbox(BBOX, network_type="drive", simplify=True)
     graph = ox.add_edge_speeds(graph)
     graph = ox.add_edge_travel_times(graph)

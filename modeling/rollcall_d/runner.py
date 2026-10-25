@@ -26,6 +26,10 @@ ARRIVAL_EPSILON_MS = 15_000
 DOOR_EPSILON = 1e-4
 CLOSURE_BATCH = 50
 UNCONFIRMED_ADDRESS = "Address not confirmed"
+# Engines holding the line stretch every minute of the uncontained wildfire scenario by this many times,
+# on the map and in the deadlines. Matches WILDFIRE_LINE_HOLD in lib/ink-map/fire-field.ts, which
+# convex/fireArrival.ts applies, so the deadlines the runner writes are the ones Convex gives.
+LINE_HOLD = {"wildfire": 8.0}
 
 
 @dataclass
@@ -50,8 +54,9 @@ class PassResult:
 class HazardTiming:
     """When one scenario's fronts reach each home and each street segment."""
 
-    def __init__(self, scenario: Scenario, roads: RoadGraph, config: RunnerConfig):
+    def __init__(self, scenario: Scenario, roads: RoadGraph, config: RunnerConfig, hold: float = 1.0):
         self.scenario = scenario
+        self.hold = hold  # live minutes per scenario minute (LINE_HOLD)
         self._arrival_cache: dict[tuple[float, float], float] = {}
         self.edge_close_minutes = self._edge_close_minutes(roads, config.closure_margin_meters) if config.closures else {}
 
@@ -88,10 +93,11 @@ class ModelRunner:
     # ---- hazard -------------------------------------------------------------------------------
 
     def timing(self, inputs: dict) -> HazardTiming | None:
-        key = "pinned" if self.pinned else inputs.get("hazard") or DEFAULT_HAZARD
+        hazard = inputs.get("hazard") or DEFAULT_HAZARD
+        key = f"pinned-{hazard}" if self.pinned else hazard
         if key not in self._timings:
-            scenario = self.pinned or Scenario.for_hazard(key)
-            self._timings[key] = HazardTiming(scenario, self.roads, self.config) if scenario else None
+            scenario = self.pinned or Scenario.for_hazard(hazard)
+            self._timings[key] = HazardTiming(scenario, self.roads, self.config, LINE_HOLD.get(hazard, 1.0)) if scenario else None
         return self._timings[key]
 
     def anchor_ms(self, inputs: dict) -> float:
@@ -103,13 +109,15 @@ class ModelRunner:
         return self.started_at_ms
 
     def scenario_minutes_now(self, inputs: dict) -> float:
-        return (inputs["now"] - self.anchor_ms(inputs)) / MINUTE_MS * self.config.time_scale
+        timing = self.timing(inputs)
+        hold = timing.hold if timing else 1.0
+        return (inputs["now"] - self.anchor_ms(inputs)) / MINUTE_MS * self.config.time_scale / hold
 
     def arrival_ms(self, inputs: dict, lat: float, lng: float) -> float | None:
         timing = self.timing(inputs)
         if timing is None:
             return None
-        return self.anchor_ms(inputs) + timing.arrival_minutes(lat, lng) * MINUTE_MS / self.config.time_scale
+        return self.anchor_ms(inputs) + timing.arrival_minutes(lat, lng) * timing.hold * MINUTE_MS / self.config.time_scale
 
     def due_closures(self, inputs: dict) -> list[dict]:
         timing = self.timing(inputs)

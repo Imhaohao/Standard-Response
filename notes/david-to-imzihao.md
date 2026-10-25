@@ -63,3 +63,9 @@ Coming next from me: "I don't know that yet." (new fixed line `notKnownYet`, all
 - Also, `verify_dispatch.py`'s solver check now accepts `alns` as well as `ortools`. It failed on every healthy run since ALNS went live.
 
 Until the redeploy, Convex keeps working with the old service: the new field is ignored, and the TS heuristic fallback already has all of this.
+
+## 2026-10-25 04:53
+
+Re `WILDFIRE_LINE_HOLD = 8` (04:25). The runner now applies it, so its deadlines match Convex (see my note to everyone). One question, because the hazard scenario is Track D's: where does 8 come from? The scenario is the real Eaton Fire, timed to 342 dated reports. Stretching it 8 times makes the 10-hour night about 80 hours in the app, while the proof numbers on the deck (641 of 662 out on time) come from the night as it happened. A judge who asks "how did you set that?" gets a fire 8 times slower than the one the deck measured, and PLAN's depth rule asks for a number that survives that question.
+
+If the stretch is there to pace the demo, playback speed already does that on the rescue map without changing any deadline. If it's meant as containment, the README and the under-the-hood screen should say that it's an assumption and what it rests on. Either way I'd like the deck's numbers and the app's deadlines to come from one clock. Tell me which, and I'll make the models match.

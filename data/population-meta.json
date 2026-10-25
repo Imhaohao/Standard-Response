@@ -1,6 +1,6 @@
 {
  "label": "Synthetic population for simulation. Real ACS PUMS household records reweighted to real block-group and tract totals; not real people.",
- "source": "ACS 2019-2023 5-year: PUMS (PUMAs 03709, 03718), B11001, B11007, B25044 by block group, B18101 by tract. OSM buildings and care facilities.",
+ "source": "ACS 2019-2023 5-year: PUMS (PUMAs 03709, 03718), B11001, B11007, B25044 by block group, B18101 by tract. OSM buildings and care facilities; untagged buildings on non-residential land (nonresidential.geojson) are left out.",
  "blockGroups": 28,
  "households": 11855,
  "needHelp": 1111,

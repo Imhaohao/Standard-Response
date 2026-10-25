@@ -1,3 +1,4 @@
+import pytest
 """The live runner against a fake Convex: what it writes for a small world."""
 
 import time
@@ -82,3 +83,18 @@ def test_the_runner_follows_the_hazard_switch():
     earthquake = runner.arrival_ms({**inputs, "hazard": "earthquake"}, home["lat"], home["lng"])
     assert wildfire is not None and earthquake is not None and wildfire != earthquake
     assert runner.arrival_ms({**inputs, "hazard": "hurricane"}, home["lat"], home["lng"]) is None
+
+
+def test_wildfire_deadlines_carry_the_line_hold_convex_applies():
+    from rollcall_d.runner import LINE_HOLD
+
+    now = time.time() * 1000
+    inputs = {**world(now, now - 30 * 60_000), "openNominations": []}
+    runner = ModelRunner(FakeConvex(inputs), RunnerConfig(closures=False), roads=RoadGraph.load())
+    home = inputs["households"][0]
+    timing = runner.timing({**inputs, "hazard": "wildfire"})
+    minutes = timing.scenario.arrival_minutes(home["lat"], home["lng"])
+    arrival = runner.arrival_ms({**inputs, "hazard": "wildfire"}, home["lat"], home["lng"])
+    assert arrival == pytest.approx(inputs["warningIssuedAt"] + minutes * LINE_HOLD["wildfire"] * 60_000)
+    assert runner.scenario_minutes_now({**inputs, "hazard": "wildfire"}) == pytest.approx(30 / LINE_HOLD["wildfire"])
+    assert runner.scenario_minutes_now({**inputs, "hazard": "earthquake"}) == pytest.approx(30)
