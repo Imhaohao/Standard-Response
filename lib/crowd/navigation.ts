@@ -138,6 +138,8 @@ export class RoadRouter {
   readonly edgeSpeed = new Float64Array(EDGES.length);
   // Lanes in each edge's direction, and the cars that fill it bumper to bumper.
   readonly edgeLanes = new Float64Array(EDGES.length);
+  // Whether each edge's street is two-way, so its lanes are right of the centreline, not across it.
+  readonly edgeTwoWay = new Uint8Array(EDGES.length);
   readonly edgeJamCars = new Float64Array(EDGES.length);
   // Each edge's shape in metres, as [x0, y0, x1, y1, ...] from its start node to its end node.
   readonly edgeShape: Float64Array[];
@@ -161,7 +163,8 @@ export class RoadRouter {
       this.edgeSegment[e] = segmentIndex.get(segmentKeyOf(edge.key)) ?? -1;
       this.edgeSpeed[e] = freeSpeedOf(e);
       // A two-way street's lane count covers both directions.
-      this.edgeLanes[e] = directed.has(`${edge.v}-${edge.u}`) ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
+      this.edgeTwoWay[e] = directed.has(`${edge.v}-${edge.u}`) ? 1 : 0;
+      this.edgeLanes[e] = this.edgeTwoWay[e] ? Math.max(1, Math.floor(edge.lanes / 2)) : edge.lanes;
       this.edgeJamCars[e] = Math.max(1, (edge.meters * this.edgeLanes[e]) / JAM_SPACING_METERS);
       const shape = (edge.geometry ?? [[nodePoint(edge.u).lat, nodePoint(edge.u).lng], [nodePoint(edge.v).lat, nodePoint(edge.v).lng]]).flatMap(
         ([lat, lng]) => toXY({ lat, lng }),

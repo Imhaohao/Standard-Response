@@ -151,15 +151,14 @@ describe("Langevin dynamics", () => {
 
   it("slows a driver by the gap ahead, to a standstill at the route choice's jam spacing", () => {
     const { lookAhead } = DEFAULT_CROWD;
-    assert.equal(speedShare(Infinity, 1, lookAhead), 1);
-    assert.equal(speedShare(lookAhead, 1, lookAhead), 1);
-    assert.equal(speedShare(JAM_SPACING_METERS, 1, lookAhead), MIN_SPEED_SHARE);
-    // Within half the look-ahead it is Greenshields with k = 1 / (lanes gap).
-    assert.ok(Math.abs(speedShare(10, 1, lookAhead) - (1 - JAM_SPACING_METERS / 10)) < 1e-12);
-    assert.ok(speedShare(10, 2, lookAhead) > speedShare(10, 1, lookAhead));
+    assert.equal(speedShare(Infinity, lookAhead), 1);
+    assert.equal(speedShare(lookAhead, lookAhead), 1);
+    assert.equal(speedShare(JAM_SPACING_METERS, lookAhead), MIN_SPEED_SHARE);
+    // Within half the look-ahead it is Greenshields with k = 1 / gap in the lane.
+    assert.ok(Math.abs(speedShare(10, lookAhead) - (1 - JAM_SPACING_METERS / 10)) < 1e-12);
     let previous = 0;
     for (let gap = 0.5; gap <= lookAhead + 1; gap += 0.25) {
-      const share = speedShare(gap, 1, lookAhead);
+      const share = speedShare(gap, lookAhead);
       assert.ok(share >= previous && share - previous < 0.1, `jump at ${gap} m`);
       previous = share;
     }
@@ -290,6 +289,60 @@ describe("Langevin dynamics", () => {
     const lost = sim.segmentLostSeconds.reduce((a, b) => a + b, 0);
     assert.ok(samples >= 5, `${samples} samples`);
     assert.ok(lost < 0.05 * 30 * samples, `${lost.toFixed(0)} s lost of ${30 * samples} s driven`);
+  });
+
+  it("queues in single file in its lane, not two abreast", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const { edge, at, along } = straightStreet(router, 200);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const length = Math.hypot(bx - ax, by - ay);
+    const right = (sim: CrowdSim, i: number) => ((sim.x[i] - ax) * (by - ay) - (sim.y[i] - ay) * (bx - ax)) / length;
+    // Twenty cars two abreast, 2.5 m apart across the street and 6 m apart along it, room for one
+    // file, behind a car that can't move.
+    const homes = Array.from({ length: 21 }, (_, k) => {
+      const home = at(150 - 6 * k);
+      const [x, y] = toXY(home);
+      const side = k === 0 ? 0 : k % 2 ? 1.25 : -1.25;
+      return { ...home, ...toLatLng(x + ((by - ay) / length) * side, y - ((bx - ax) / length) * side) };
+    });
+    const sim = new CrowdSim(ground, homes, seededRandom(2), () => new Set(), DEFAULT_CROWD);
+    onStreet(sim, edge);
+    sim.stuck[0] = 1;
+    for (let s = 0; s < 3 * 60 * 2; s++) sim.step();
+    const sides = Array.from({ length: sim.count }, (_, i) => right(sim, i));
+    assert.ok(Math.max(...sides) - Math.min(...sides) < 1.5, `spread ${(Math.max(...sides) - Math.min(...sides)).toFixed(1)} m across the lane`);
+    const order = Array.from({ length: sim.count }, (_, i) => along(sim, i)).sort((a, b) => b - a);
+    for (let k = 1; k < order.length; k++) assert.ok(order[k - 1] - order[k] > 4, `cars ${(order[k - 1] - order[k]).toFixed(1)} m apart in the queue`);
+  });
+
+  it("drives right of the centreline, so cars going opposite ways on a two-way street pass at speed", () => {
+    const router = new RoadRouter(ground, DEFAULT_CROWD.safeLat);
+    const reverseOf = (e: number) => EDGES.findIndex((other) => other.u === EDGES[e].v && other.v === EDGES[e].u);
+    // A straight two-way street, one lane each way.
+    const edge = EDGES.findIndex(
+      (e, k) => router.edgeShape[k].length === 4 && e.meters > 200 && router.edgeTwoWay[k] && router.edgeLanes[k] === 1 && router.edgeFire[k] > 200 && !router.safe[e.v] && !router.safe[e.u],
+    );
+    const back = reverseOf(edge);
+    assert.ok(edge >= 0 && back >= 0);
+    const [ax, ay, bx, by] = router.edgeShape[edge];
+    const length = Math.hypot(bx - ax, by - ay);
+    const at = (m: number): Household => ({ ...toLatLng(ax + ((bx - ax) * m) / length, ay + ((by - ay) * m) / length), peopleCount: 1, canLeave: "yes", hasCar: true });
+    const sim = new CrowdSim(ground, [at(20), at(length - 20)], seededRandom(1), () => new Set(), { ...DEFAULT_CROWD, temperature: 0, lateralTemperature: 0 });
+    onStreet(sim, edge);
+    sim.edge[1] = back;
+    sim.goal[1] = router.edgeStart(back);
+    sim.point[1] = router.edgeShape[back].length / 2 - 1;
+    const free = router.edgeSpeed[edge];
+    for (const [i, sign] of [[0, 1], [1, -1]]) {
+      sim.vx[i] = (sign * free * (bx - ax)) / length;
+      sim.vy[i] = (sign * free * (by - ay)) / length;
+    }
+    let slowest = Infinity;
+    for (let s = 0; s < ((length - 40) / free) * 2; s++) {
+      sim.step();
+      slowest = Math.min(slowest, sim.routeSpeed(0), sim.routeSpeed(1));
+    }
+    assert.ok(slowest > 0.8 * free, `slowed to ${slowest.toFixed(1)} of ${free.toFixed(1)} m/s passing`);
   });
 
   it("leaves keen households earlier than reluctant ones", () => {
