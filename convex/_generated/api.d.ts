@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as agentIntake from "../agentIntake.js";
+import type * as agentPayload from "../agentPayload.js";
 import type * as apify from "../apify.js";
 import type * as apifyPayload from "../apifyPayload.js";
 import type * as callPlans from "../callPlans.js";
@@ -77,6 +79,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agentIntake: typeof agentIntake;
+  agentPayload: typeof agentPayload;
   apify: typeof apify;
   apifyPayload: typeof apifyPayload;
   callPlans: typeof callPlans;

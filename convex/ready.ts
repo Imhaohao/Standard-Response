@@ -56,7 +56,7 @@ function profileFrom(args: ProfileArgs, via: "call" | "form", now: number) {
   return { record, ready, helper: arranged as Helper | undefined };
 }
 
-async function householdByPhone(ctx: MutationCtx, phone: string) {
+export async function householdByPhone(ctx: MutationCtx, phone: string) {
   return await ctx.db
     .query("households")
     .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", phone))
@@ -90,10 +90,10 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
   });
 }
 
-const signUpArgs = { phone: v.string(), address: v.string(), lat: v.number(), lng: v.number(), language: v.string(), ...profileArgs };
-type SignUp = ObjectType<typeof signUpArgs>;
+export const signUpArgs = { phone: v.string(), address: v.string(), lat: v.number(), lng: v.number(), language: v.string(), ...profileArgs };
+export type SignUp = ObjectType<typeof signUpArgs>;
 
-async function signUp(ctx: MutationCtx, { phone, address, lat, lng, language, ...profile }: SignUp) {
+export async function signUp(ctx: MutationCtx, { phone, address, lat, lng, language, ...profile }: SignUp) {
   if (phone.trim() === "" || address.trim() === "") throw new Error("A phone number and an address are needed");
   const householdId = await findOrCreateHome(ctx, { phone: phone.trim(), address: address.trim(), lat, lng, language });
   await saveProfile(ctx, householdId, profileFrom(profile, "form", await simNow(ctx)));
