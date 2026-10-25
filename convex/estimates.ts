@@ -31,6 +31,13 @@ export async function needModelRunnerLive(ctx: QueryCtx) {
   return lastRunWallAt !== undefined && Date.now() - lastRunWallAt < RUNNER_STALE_MS;
 }
 
+// The household's prior is known need, not a base rate: a Ready check profile, or a mobility need
+// on file (the rider list, or one said on a call). Neighbor smoothing leaves these alone, because
+// neighbors who can leave say nothing about a wheelchair we already know about.
+export function needPriorKnown(h: Pick<Doc<"households">, "ready" | "mobility">) {
+  return h.ready !== undefined || (h.mobility !== undefined && h.mobility !== "walks");
+}
+
 export const state = query({
   args: {},
   returns: v.object({
@@ -101,6 +108,7 @@ const toHouseholdInput = (h: Doc<"households">) => ({
   attempts: h.attempts,
   lastAttemptAt: orNull(h.lastAttemptAt),
   needPrior: h.needPrior,
+  priorKnown: needPriorKnown(h),
   needProbability: h.needProbability,
   fireArrivalAt: h.fireArrivalAt,
   doorPriority: orNull(h.doorPriority),

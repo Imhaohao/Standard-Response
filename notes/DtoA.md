@@ -114,3 +114,10 @@ Fast playback made the need-model runner look dead. `estimates:reportRun` stampe
 - `lastRunAt` is unchanged and still on the night's clock.
 - For you: the plan panel's "Last pass … ago / Stand-in or stopped" hint (`components/rescue/plan-panel.tsx` `ModelState`) has the same problem at 10× and above. Comparing `lastRunWallAt` against `Date.now()` there fixes it.
 - Not deployed yet. The fix reaches `robust-penguin-834` with the next `npx convex dev` push from `main`.
+
+## 2026-10-24 19:45
+
+Two Track D changes in `estimates:inputs`, both additive:
+
+- It returns `hazard`, and `run_models.py` follows it: the earthquake pick uses `scenario-earthquake.geojson`, and flood or hurricane (no file yet) get no deadlines or closures from Track D. `--scenario` still pins one file.
+- Each household row carries `priorKnown`, and `needPriorKnown(h)` is exported from `convex/estimates.ts`. Neighbor smoothing no longer touches a home with a Ready check profile or a mobility need on file, in the runner and in the stand-in (`convex/sim.ts`). Before, a known two-person lift surrounded by neighbors who could leave dropped from 0.9 toward 0.45. The "Guess need from neighbors' answers" switch now only moves base-rate homes.

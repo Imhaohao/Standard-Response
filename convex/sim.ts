@@ -9,7 +9,7 @@ import { STAND_IN_RETRY_AFTER_MS as RETRY_AFTER_MS, STAND_IN_TEXT_REPLY_WAIT_MS 
 import { scriptFor } from "./scripts";
 import { callPriorityFor, located, metersBetween, Point } from "./model";
 import { approveLeftovers, standInCallbacks, standInDispatch } from "./dispatchStandIn";
-import { needModelRunnerLive } from "./estimates";
+import { needModelRunnerLive, needPriorKnown } from "./estimates";
 import { expireStaleChecks, startPickupChecks } from "./pickups";
 import { widenQuietSearches } from "./neighborPickups";
 import { standInPickupChecks } from "./pickupSim";
@@ -165,7 +165,7 @@ async function standInNeedModel(ctx: MutationCtx, now: number) {
   const reached = households.filter((h) => h.outcome !== "unknown" && h.outcome !== "unreachable");
   let events = 0;
   for (const household of households) {
-    if (household.outcome !== "unknown") continue;
+    if (household.outcome !== "unknown" || needPriorKnown(household)) continue;
     const needProbability = posteriorFor(household, reached);
     if (Math.abs(needProbability - household.needProbability) < 0.02) continue;
     await ctx.db.patch("households", household._id, {

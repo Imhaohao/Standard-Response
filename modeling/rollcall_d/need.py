@@ -4,7 +4,9 @@ Order of evidence, strongest first:
   1. Known need from a call or text: needs a ride or an accessible vehicle -> 1. Said they can leave -> small.
   2. A neighbor nomination raises the odds sharply (likelihood ratio NOMINATION_LR).
   3. Otherwise the prior: the rider list (mobility on file) or the census base rate for the block group.
-  4. Optional spatial smoothing toward what answered neighbors said (the on-screen toggle).
+  4. Optional spatial smoothing toward what answered neighbors said (the on-screen toggle), for base-rate
+     priors only: a known need (`priorKnown`: a Ready check profile or a mobility need on file) isn't
+     pulled toward neighbors, who say nothing about a wheelchair we already know about.
 
 Every constant is stated and defended here, because each one will be asked about.
 """
@@ -53,7 +55,7 @@ def estimate(households: list[dict], nominated: set[str], smoothing: bool, confi
         if household["outcome"] not in ESTIMATED:
             continue
         p = float(household["needPrior"])
-        if smoothing and household.get("lat") is not None and len(answered):
+        if smoothing and not household.get("priorKnown") and household.get("lat") is not None and len(answered):
             x, y = to_xy(household["lat"], household["lng"])
             d2 = (answered_xy[:, 0] - x) ** 2 + (answered_xy[:, 1] - y) ** 2
             w = np.exp(-d2 / (2 * config.kernel_meters**2))

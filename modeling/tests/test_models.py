@@ -44,6 +44,12 @@ def test_smoothing_moves_toward_answered_neighbors_only_when_on():
     assert off == 0.2 and on > 0.5
 
 
+def test_smoothing_leaves_a_known_need_alone():
+    known = {**household(1, prior=0.9), "priorKnown": True}
+    homes = [known] + [household(i, "leaving", lng=-118.1501) for i in range(2, 6)]
+    assert need.estimate(homes, set(), smoothing=True)["h1"] == 0.9
+
+
 def test_aging_lets_any_home_reach_the_top():
     alpha = door.alpha_for([0.1, 0.5, 1.0, 2.0], door.DoorConfig())
     isolated = door.need_urgency_term(0.02, 200, 30)
