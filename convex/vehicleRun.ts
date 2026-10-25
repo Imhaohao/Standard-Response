@@ -6,10 +6,6 @@
 
 export const UNLOAD_SECONDS = 120;
 
-// Simulated vehicles drive and board this many times faster than real time, so a run finishes
-// during a demo. ETAs, deadlines and the solver all stay in real minutes. Label it on screen.
-export const SIMULATED_TIME_LAPSE = 4;
-
 // The one-truck drill's fire engine (convex/truckRun.ts). A type 1 engine's cab seats six and LA County
 // staffs it with four, which leaves two seats. In an evacuation the engine averages well under the
 // limit: narrow streets, cars leaving, smoke.

@@ -9,11 +9,13 @@ import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
 import { closedEdgeSet, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
 import { trafficEdgeTime, trafficForDispatch } from "./traffic";
-import { nextStop, positionAt, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
+import { nextStop, positionAt, RunState } from "./vehicleRun";
 import { simNow } from "./clock";
 
 // Simulated vehicles drive their accepted runs along real road paths. Replaces the straight-line
 // movement in dispatchStandIn.ts when the dispatch stand-in is switched off.
+// They drive and board at the pace their ETAs assume, on the night's clock; playback speed is what
+// makes the night go faster, so a van told 6 minutes arrives 6 minutes later, as the fire does.
 
 // Getting from where the van stands to the nearest intersection, or from the curb to the door.
 const CURB_SPEED_MPS = 8;
@@ -163,7 +165,7 @@ async function arriveAtPickup(ctx: MutationCtx, { fleet, vehicle, route, load }:
     const rider = { requestId: request._id, shelterId: assignment.shelterId, load: request.load };
     await ctx.db.patch("vehicleLoads", load._id, { riders: [...load.riders, rider] });
   }
-  const boardingMs = ((request?.boardingMinutes ?? 2) * 60_000) / SIMULATED_TIME_LAPSE;
+  const boardingMs = (request?.boardingMinutes ?? 2) * 60_000;
   await ctx.db.patch("vehicleRoutes", route._id, { dwellUntil: fleet.now + boardingMs, updatedAt: fleet.now });
   const household = await ctx.db.get("households", assignment.householdId);
   await event(ctx, `${vehicle.label} reached ${household?.address ?? "the rider"}. Boarding`, assignment.householdId);
@@ -203,7 +205,7 @@ async function drive(ctx: MutationCtx, visit: Visit) {
   const { fleet, vehicle, route } = visit;
   if (route.legSeconds.length === 0) return;
   const total = route.legSeconds.reduce((sum, s) => sum + s, 0);
-  const progressSeconds = Math.min(total, route.progressSeconds + fleet.tickSeconds * SIMULATED_TIME_LAPSE);
+  const progressSeconds = Math.min(total, route.progressSeconds + fleet.tickSeconds);
   const arriving = progressSeconds >= total;
   const positionDue = fleet.now - (route.positionWrittenAt ?? 0) >= VEHICLE_POSITION_EVERY_MS;
   if (arriving || positionDue) {

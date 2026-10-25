@@ -5,7 +5,7 @@ import { solveHeuristic } from "./heuristic";
 import { OFFER_TTL_MS, vehicleCanServe } from "./model";
 import { closedEdgeSet, closedEdgesFor, edgeKeysOf, EdgeTime, nearestNode, nodePoint, shortestPathsFrom, ShortestPaths, streetNames } from "./roadGraph";
 import { trafficEdgeTime } from "./traffic";
-import { forecastRun, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
+import { forecastRun, RunState } from "./vehicleRun";
 
 // The pure half of re-planning: snapshot in, problem out; solution in, commit arguments out.
 
@@ -84,7 +84,7 @@ function shelterFor(context: Context) {
 function dwellSeconds(context: Context, vehicleId: Id<"vehicles">) {
   const route = context.snap.routes.find((r) => r.vehicleId === vehicleId);
   if (!route?.dwellUntil) return 0;
-  return Math.max(0, ((route.dwellUntil - context.now) / 1000) * SIMULATED_TIME_LAPSE);
+  return Math.max(0, (route.dwellUntil - context.now) / 1000);
 }
 
 function acceptedRun(context: Context, vehicle: Doc<"vehicles">, skip: Set<Id<"assignments">>) {
