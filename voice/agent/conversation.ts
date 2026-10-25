@@ -398,8 +398,11 @@ export class Conversation {
 
   // Asked to say it again, they hear the status in full; asked about the ride again, they hear that
   // nothing has changed. A real caller hung up after the full status three times in four turns.
+  // A life threat on hold hears the full status unless it was just said: a panicking caller says
+  // something frightening nearly every turn, and one heard the whole template seven times in six minutes.
   private rideLines(heard: Interpretation) {
-    if (this.holding && (heard.wantsRepeat || heard.emergency !== "none")) return [this.rideLine()];
+    if (this.holding && heard.wantsRepeat) return [this.rideLine()];
+    if (this.holding && heard.emergency !== "none") return this.rideJustSaid() ? [] : [this.rideLine()];
     return heard.asksAboutRide ? [this.rideUpdate(heard)] : [];
   }
 
@@ -742,21 +745,23 @@ export class Conversation {
     return isBrief(this.lastResidentLine()) && (heard.wantsRepeat || (answeredNothing(heard) && !heard.wantsTime));
   }
 
-  // Where the ride stands, unless the caller just heard it; then something to do meanwhile.
+  // Where the ride stands, unless the caller just heard it; then something to do meanwhile, and once
+  // those are said, nothing. "Nothing has changed" as filler answered "Okay, let me turn it on".
   private holdAnswer() {
     if (!this.rideJustSaid()) return this.rideLine();
-    return this.nextHoldStep(false) ?? LINES[this.language].statusUnchanged;
+    return this.nextHoldStep(false) ?? "";
   }
 
   // The status in full, or that it hasn't changed when they heard it in the last few agent turns.
-  // A life threat always hears the status in full, since its last sentences are what to do if the
-  // hazard reaches them: "I can see the fire approaching" got "Nothing has changed" on a real call.
+  // A life threat is never told "Nothing has changed": "I can see the fire approaching" got that on a
+  // real call. It hears the full status, whose last sentences say what to do if the hazard reaches
+  // them, or nothing more when that was just said.
   // "Nothing has changed" only follows a status the caller was actually told. "Leave now" or "I need
   // the address" isn't one: said after those, it claimed an update that never happened.
   private rideUpdate(heard?: Interpretation) {
+    if (!this.rideJustSaid()) return this.rideLine();
     const lifeThreat = heard !== undefined && heard.emergency !== "none";
-    if (!this.rideJustSaid() || lifeThreat) return this.rideLine();
-    return this.hasStatus() ? LINES[this.language].statusUnchanged : "";
+    return this.hasStatus() && !lifeThreat ? LINES[this.language].statusUnchanged : "";
   }
 
   private hasStatus() {

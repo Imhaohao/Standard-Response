@@ -491,12 +491,34 @@ describe("lines the caller just heard", () => {
     assert.ok(!hold.sentences.includes(conversation.rideLine()));
   });
 
-  it("says the full status, safety lines included, when a caller on hold reports the fire again", () => {
+  it("never answers a life threat on hold with no change, and says the full status once it isn't fresh", () => {
     const { conversation } = atHold();
-    conversation.respond("the fire is on my street", heard({ emergency: "flames" }));
-    conversation.respond("when are they coming?", heard({ asksAboutRide: true }));
-    const again = conversation.respond("I can see the fire approaching. I'm about to die.", heard({ emergency: "flames", asksAboutRide: true }));
-    assert.ok(again.sentences.includes(conversation.rideLine()));
-    assert.ok(!again.sentences.includes(EN.statusUnchanged));
+    const soon = conversation.respond("I can see the fire approaching. I'm about to die.", heard({ emergency: "flames", asksAboutRide: true }));
+    assert.ok(!soon.sentences.includes(EN.statusUnchanged));
+    assert.ok(!soon.sentences.includes(conversation.rideLine()));
+    conversation.respond("how close is the fire?", heard({ reply: "I don't know that." }));
+    conversation.respond("is my street closed?", heard({ reply: "I don't know whether streets are closed." }));
+    const later = conversation.respond("I'm burning, I'm burning.", heard({ emergency: "flames" }));
+    assert.ok(later.sentences.includes(conversation.rideLine()));
+  });
+
+  // Jerry at 3060 Olive Avenue: seven full status lines and five "Nothing has changed" in six minutes.
+  it("keeps a panicking caller on hold from hearing the status every turn", () => {
+    const { conversation } = atHold();
+    const turns: [string, Partial<Interpretation>][] = [
+      ["Oh my god, I don't want to die.", { emergency: "flames" }],
+      ["I can see the fire outside.", { emergency: "flames" }],
+      ["I can't leave safely. Give me some tips.", { asksWhatToDo: true }],
+      ["All right, so I'm gonna die here.", { emergency: "flames" }],
+      ["Fire has not reached my home.", {}],
+      ["Okay. Let me turn it on.", {}],
+      ["Can anyone help me?", { emergency: "flames", asksAboutRide: true }],
+      ["Unacceptable.", { feeling: "That sounds really frustrating." }],
+    ];
+    const said = turns.flatMap(([words, reading]) => conversation.respond(words, heard(reading)).sentences);
+    const full = said.filter((line) => line === conversation.rideLine()).length;
+    const unchanged = said.filter((line) => line === EN.statusUnchanged).length;
+    assert.ok(full <= 2, `full status ${full} times`);
+    assert.equal(unchanged, 0);
   });
 });
