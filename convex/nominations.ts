@@ -1,18 +1,50 @@
 import { v } from "convex/values";
 import { query, MutationCtx } from "./_generated/server";
 import { mutation } from "./functions";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { callPriorityFor, insidePolygon } from "./model";
 import { simNow } from "./clock";
+import { escalateHousehold } from "./requests";
+import { nameOnFile } from "../lib/name-on-file";
 
-// Voice agent: "Is there anyone else on your street who might not be able to leave?"
+// Voice agent: "Is there anyone else on your street who might not be able to leave?" A neighbor
+// named without an address ("Boris is bedridden") is matched to the one home on file with that
+// name. `danger` (they're dying, can't breathe) escalates that home; with no home to escalate, the
+// nomination goes on the dispatcher's flagged list near the caller's address.
 export const add = mutation({
-  args: { fromHouseholdId: v.optional(v.id("households")), spokenAddress: v.string() },
+  args: { fromHouseholdId: v.optional(v.id("households")), spokenAddress: v.string(), danger: v.optional(v.boolean()) },
   returns: v.id("nominations"),
-  handler: async (ctx, args) => {
-    return await ctx.db.insert("nominations", { ...args, status: "open", at: await simNow(ctx) });
+  handler: async (ctx, { danger, ...args }) => {
+    const at = await simNow(ctx);
+    const named = await householdNamed(ctx, args.spokenAddress, args.fromHouseholdId);
+    if (named) return await addMatchedByName(ctx, { ...args, at }, named, danger === true);
+    if (danger) return await addUrgentUnplaced(ctx, { ...args, at });
+    return await ctx.db.insert("nominations", { ...args, status: "open", at });
   },
 });
+
+type NewNomination = { fromHouseholdId?: Id<"households">; spokenAddress: string; at: number };
+
+async function householdNamed(ctx: MutationCtx, spoken: string, callerId?: Id<"households">) {
+  const others = (await ctx.db.query("households").take(5000)).filter((h) => h.residentName && h._id !== callerId);
+  const name = nameOnFile(spoken, others.map((h) => h.residentName ?? ""));
+  return name ? others.find((h) => h.residentName === name) : undefined;
+}
+
+async function addMatchedByName(ctx: MutationCtx, nomination: NewNomination, household: Doc<"households">, danger: boolean) {
+  const id = await ctx.db.insert("nominations", { ...nomination, status: "matched", matchedHouseholdId: household._id, note: "matched by name" });
+  await logMatch(ctx, `Neighbor report "${nomination.spokenAddress}" matched by name to ${household.address}`, household._id);
+  if (danger) await escalateHousehold(ctx, household._id, "medical");
+  return id;
+}
+
+async function addUrgentUnplaced(ctx: MutationCtx, nomination: NewNomination) {
+  const caller = nomination.fromHouseholdId ? await ctx.db.get("households", nomination.fromHouseholdId) : null;
+  const note = `in danger now${caller ? `, near ${caller.address}` : ""}`;
+  const id = await ctx.db.insert("nominations", { ...nomination, status: "unmatched", note });
+  await ctx.db.insert("events", { kind: "dispatch", message: `Urgent neighbor report "${nomination.spokenAddress}": ${note}`, householdId: caller?._id, at: nomination.at });
+  return id;
+}
 
 export const open = query({
   args: {},

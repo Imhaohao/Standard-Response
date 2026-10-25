@@ -162,9 +162,10 @@ export class CallSession implements LiveCall {
     const householdId = await this.resolveHousehold();
     this.householdId = householdId;
     liveByHousehold.set(householdId, this);
-    const [household, control] = await Promise.all([
+    const [household, control, neighborNames] = await Promise.all([
       convex().query(api.voice.household, { householdId }),
       convex().query(api.control.get, {}),
+      convex().query(api.voice.neighborNames, { householdId }),
     ]);
     if (!household) throw new Error(`Household ${householdId} not found`);
     this.language = languageOf(household.language);
@@ -179,6 +180,7 @@ export class CallSession implements LiveCall {
       onFile: onFileRecord(household),
       knownAddress: household.lat !== undefined ? household.address : undefined,
       residentName: household.residentName,
+      neighborNames,
       effects: this.effects(householdId),
     });
     this.unsubscribePickups = convex().onUpdate(api.pickups.callQueue, {}, (rows) => {
@@ -217,8 +219,8 @@ export class CallSession implements LiveCall {
       updateRecord: (patch, confidence) =>
         fireAndForget("households.update", convex().mutation(api.households.update, { householdId, patch, confidence })),
       escalate: (kind) => fireAndForget("requests.escalate", convex().mutation(api.requests.escalate, { householdId, kind })),
-      nominate: (spokenAddress) =>
-        fireAndForget("nominations.add", convex().mutation(api.nominations.add, { fromHouseholdId: householdId, spokenAddress })),
+      nominate: (spokenAddress, danger) =>
+        fireAndForget("nominations.add", convex().mutation(api.nominations.add, { fromHouseholdId: householdId, spokenAddress, danger })),
       rideStatus: () => this.ride,
     };
   }

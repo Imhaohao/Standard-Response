@@ -44,6 +44,7 @@ export const TL: Lines = {
   takeYourTime: "Sige po, dahan-dahan lang po. Hihintayin ko po kayo.",
   lostYou: "Hindi ko po kayo marinig, kaya tatawag po ulit ako maya-maya. Kung kaya po ninyong umalis nang ligtas, umalis na po kayo ngayon.",
   passedOn: (place) => `Salamat po, naipasa ko na po ang ${place}.`,
+  neighborUrgent: "Naipasa ko na po iyan sa dispatcher bilang urgent.",
   needAddress: "Para mailagay po kayo sa rescue list, kailangan ko po ang address.",
   leaveNow: "Umalis na po kayo ngayon, at dalhin po ang mga gamot at charger ng telepono.",
   statusUnchanged: "Wala pa pong nagbabago mula nang sabihin ko kanina. Sasabihin ko po agad kapag may nagbago.",

@@ -45,6 +45,7 @@ export const FR: Lines = {
   takeYourTime: "Bien sûr, prenez votre temps. J'attends.",
   lostYou: "Je ne vous entends pas, alors je vous rappelle dans un instant. Si vous pouvez partir en sécurité, partez maintenant.",
   passedOn: (place) => `Merci, j'ai transmis ${place}.`,
+  neighborUrgent: "Je l'ai transmis en urgence à un régulateur.",
   needAddress: "Pour vous inscrire sur la liste de secours, il me faut votre adresse.",
   leaveNow: "Partez maintenant, s'il vous plaît, et emportez vos médicaments et le chargeur de votre téléphone.",
   statusUnchanged: "Rien n'a changé depuis ce que je vous ai dit. Je vous préviens dès que cela change.",

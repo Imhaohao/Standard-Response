@@ -44,6 +44,7 @@ export const KO: Lines = {
   takeYourTime: "네, 천천히 하십시오. 기다리겠습니다.",
   lostYou: "말씀이 들리지 않아서 잠시 후에 다시 전화드리겠습니다. 안전하게 나가실 수 있으면 지금 나가십시오.",
   passedOn: (place) => `감사합니다. ${place}을(를) 상황실에 전달했습니다.`,
+  neighborUrgent: "긴급 건으로 상황실 담당자에게 전달했습니다.",
   needAddress: "구조 명단에 올리려면 주소가 필요합니다.",
   leaveNow: "지금 바로 나가십시오. 약과 휴대전화 충전기를 챙기십시오.",
   statusUnchanged: "방금 말씀드린 것에서 달라진 것은 없습니다. 달라지면 바로 알려 드리겠습니다.",

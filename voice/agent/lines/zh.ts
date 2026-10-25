@@ -44,6 +44,7 @@ export const ZH: Lines = {
   takeYourTime: "好的，不着急，我等您。",
   lostYou: "我听不到您的声音，稍后会再给您打过来。如果您能安全离开，请现在就离开。",
   passedOn: (place) => `谢谢，我已把${place}转告调度员。`,
+  neighborUrgent: "我已把这件事作为紧急情况转告调度员。",
   needAddress: "要把您列入救援名单，我需要地址。",
   leaveNow: "请现在就离开，带上您的药和手机充电器。",
   statusUnchanged: "和我刚才说的一样，还没有变化。一有变化，我马上告诉您。",

@@ -3,6 +3,7 @@ import { findApprovedAnswer } from "./answerLookup";
 import { NOBODY } from "./answerPatterns";
 import { AskVerdict, checkAsk, GoalPrompt } from "./askLine";
 import { withApprovedAnswer } from "./approvedAnswers";
+import { nameOnFile } from "../../lib/name-on-file";
 import { guardAcknowledgment, GuardResult } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, TurnContext } from "./interpreter";
 import { quickReading } from "./quickAnswer";
@@ -86,7 +87,8 @@ export const OUTLINE: Record<Step, OutlineStage> = {
 export interface ConversationEffects {
   updateRecord(patch: AgentRecord & { language?: string }, confidence: Confidence): void;
   escalate(kind: Escalation): void;
-  nominate(spokenAddress: string): void;
+  // danger: the person is dying, hurt or can't breathe now, so a dispatcher hears of it first.
+  nominate(spokenAddress: string, danger?: boolean): void;
   rideStatus(): RideStatus;
 }
 
@@ -117,6 +119,8 @@ export type ConversationOptions = {
   onFile: AgentRecord;
   knownAddress?: string;
   residentName?: string;
+  // The other residents on file, by name: a neighbor named without an address can still be found.
+  neighborNames?: readonly string[];
   effects: ConversationEffects;
 };
 
@@ -160,6 +164,9 @@ export class Conversation {
   private readonly repliesSaid = new Map<string, string>();
   // Neighbors already passed on, so one named on several turns is nominated and said back once.
   private readonly passedOn = new Set<string>();
+  // Neighbors passed on as in danger: one named calmly first and then "he's dying" is passed on again.
+  private readonly passedOnUrgent = new Set<string>();
+  private readonly neighborNames: readonly string[];
   private readonly residentName?: string;
   private triesOnStep = 0;
   private heldTurns = 0;
@@ -191,6 +198,7 @@ export class Conversation {
     this.record = { ...options.onFile };
     this.knownAddress = options.knownAddress;
     this.residentName = options.residentName;
+    this.neighborNames = options.neighborNames ?? [];
     this.effects = options.effects;
     this.step = options.knownAddress ? "confirm_address" : "ask_address";
   }
@@ -656,14 +664,28 @@ export class Conversation {
   }
 
   // A neighbor's address is said back from a template, since the guard keeps digits out of Claude's words.
+  // A neighbor in danger is passed on again even if named before, and the caller hears it went as urgent.
   private passOn(heard: Interpretation): string[] {
-    const fresh = heard.neighborAddresses.filter((place) => !this.passedOn.has(normalizeAck(place)));
+    const danger = heard.neighborInDanger === true;
+    const passed = danger ? this.passedOnUrgent : this.passedOn;
+    const fresh = heard.neighborAddresses.filter((place) => !passed.has(normalizeAck(place)));
     for (const place of fresh) {
       this.passedOn.add(normalizeAck(place));
-      this.effects.nominate(place);
+      if (danger) this.passedOnUrgent.add(normalizeAck(place));
+      this.effects.nominate(place, danger);
     }
-    // Only an address is said back; "my mom's house" is passed on without a sentence that garbles it.
-    return fresh.filter((place) => /^\s*\d/.test(place)).map((place) => LINES[this.language].passedOn(place));
+    const said = fresh.flatMap((place) => this.passedOnLine(place));
+    return danger && fresh.length > 0 ? [...said, LINES[this.language].neighborUrgent] : said;
+  }
+
+  // Only an address or a name on file is said back; "my mom's house" is passed on without a sentence that garbles it.
+  private passedOnLine(place: string): string[] {
+    const said = /^\s*\d/.test(place) ? place : this.neighborOnFile(place);
+    return said ? [LINES[this.language].passedOn(said)] : [];
+  }
+
+  private neighborOnFile(place: string) {
+    return nameOnFile(place, this.neighborNames);
   }
 
   private handleEmergency(heard: Interpretation): string[] {
@@ -819,7 +841,8 @@ export class Conversation {
   // "Yes, the house across the street" is asked once for the house number, so a field team can find it.
   neighbor(heard: Interpretation): Transition {
     const named = heard.answer === "yes" || heard.neighborAddresses.length > 0;
-    const owesAddress = named && !heard.neighborAddresses.some((place) => /^\s*\d/.test(place));
+    const found = heard.neighborAddresses.some((place) => /^\s*\d/.test(place) || this.neighborOnFile(place) !== undefined);
+    const owesAddress = named && !found && !heard.neighborInDanger;
     if (owesAddress && this.triesOnStep + 1 < MAX_TRIES_PER_STEP) return { step: "neighbor" };
     return this.afterNeighbor();
   }

@@ -43,6 +43,7 @@ export const EN: Lines = {
   takeYourTime: "Of course, take your time. I'll wait.",
   lostYou: "I can't hear you, so I'll call you back shortly. If you can leave safely, leave now.",
   passedOn: (place) => `Thanks, I've passed on ${place}.`,
+  neighborUrgent: "I've sent that to a dispatcher as urgent.",
   needAddress: "To put you on the rescue list, I need the address.",
   leaveNow: "Please leave now, and take your medications and phone charger.",
   statusUnchanged: "Nothing has changed since I last told you. I'll tell you the moment it does.",

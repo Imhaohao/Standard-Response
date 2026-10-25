@@ -104,6 +104,15 @@ export const dialQueue = query({
   },
 });
 
+// Names of the other residents on file, and nothing else about them, so the agent can tell a
+// caller that the neighbor they named ("Boris is bedridden") is found without needing an address.
+export const neighborNames = query({
+  args: { householdId: v.id("households") },
+  returns: v.array(v.string()),
+  handler: async (ctx, { householdId }) =>
+    (await ctx.db.query("households").take(5000)).flatMap((h) => (h.residentName && h._id !== householdId ? [h.residentName] : [])),
+});
+
 // The household as the agent should know it before the call: what the agency already has on file.
 export const household = query({
   args: { householdId: v.id("households") },

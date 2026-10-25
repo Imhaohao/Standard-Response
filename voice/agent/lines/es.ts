@@ -45,6 +45,7 @@ export const ES: Lines = {
   takeYourTime: "Claro, tómese su tiempo. Aquí espero.",
   lostYou: "No le escucho, así que le volveré a llamar en un momento. Si puede salir con seguridad, salga ahora.",
   passedOn: (place) => `Gracias, ya pasé ${place} a los despachadores.`,
+  neighborUrgent: "Se lo pasé a un despachador como urgente.",
   needAddress: "Para ponerle en la lista de rescate, necesito la dirección.",
   leaveNow: "Por favor salga ahora, y lleve sus medicinas y el cargador del teléfono.",
   statusUnchanged: "Nada ha cambiado desde lo que le dije. Le aviso en cuanto cambie.",

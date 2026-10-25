@@ -217,6 +217,51 @@ describe("answers that don't answer", () => {
     assert.ok(first.sentences.includes(EN.passedOn("45 East Mariposa")));
   });
 
+  // Jerry's call: "I don't know the address, but I know Boris is also bedridden." Boris is on file.
+  function atNeighbor() {
+    const nominations: { place: string; danger?: boolean }[] = [];
+    const conversation = new Conversation({
+      language: "en",
+      onFile: {},
+      knownAddress: ADDRESS,
+      neighborNames: ["Boris Nezlobin", "Brendan Giang"],
+      effects: { updateRecord: () => {}, escalate: () => {}, nominate: (place, danger) => nominations.push({ place, danger }), rideStatus: () => null },
+    });
+    conversation.start();
+    conversation.respond("yes", heard({ answer: "yes" }));
+    conversation.respond("yes we can", heard({ answer: "yes", updates: { canLeave: "yes" } }));
+    conversation.respond("yes I have a car", heard({ answer: "yes", updates: { hasCar: true } }));
+    conversation.respond("that's right", heard({ answer: "yes" }));
+    assert.equal(conversation.step, "neighbor");
+    return { conversation, nominations };
+  }
+
+  it("finds a neighbor named without an address on file, and doesn't ask for the address", () => {
+    const { conversation, nominations } = atNeighbor();
+    const turn = conversation.respond("I don't know the address, but Boris is bedridden", heard({ answer: "yes", neighborAddresses: ["Boris, bedridden"] }));
+    assert.deepEqual(nominations, [{ place: "Boris, bedridden", danger: false }]);
+    assert.ok(turn.sentences.includes(EN.passedOn("Boris Nezlobin")));
+    assert.notEqual(conversation.step, "neighbor");
+  });
+
+  it("passes on someone down the road who is dying as urgent, without an address", () => {
+    const { conversation, nominations } = atNeighbor();
+    const turn = conversation.respond(
+      "a guy down the road chugged five bottles and is dying",
+      heard({ answer: "yes", neighborAddresses: ["a man down the road"], neighborInDanger: true }),
+    );
+    assert.deepEqual(nominations, [{ place: "a man down the road", danger: true }]);
+    assert.ok(turn.sentences.includes(EN.neighborUrgent));
+    assert.notEqual(conversation.step, "neighbor");
+  });
+
+  it("passes a neighbor on again when they turn out to be in danger", () => {
+    const { conversation, nominations } = atNeighbor();
+    conversation.respond("Boris is bedridden", heard({ answer: "yes", neighborAddresses: ["Boris"] }));
+    conversation.respond("he's actively dying", heard({ neighborAddresses: ["Boris"], neighborInDanger: true }));
+    assert.deepEqual(nominations, [{ place: "Boris", danger: false }, { place: "Boris", danger: true }]);
+  });
+
   it("stays on the line for a plain \"okay\" on hold, and ends only on a goodbye", () => {
     const { conversation } = atHold();
     conversation.respond("Okay.", heard({ wantsToEnd: true }));

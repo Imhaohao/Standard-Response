@@ -43,6 +43,8 @@ export type Interpretation = {
   // Nobody is at the home: they're somewhere else, and no one else is there.
   awayFromHome?: boolean;
   neighborAddresses: string[];
+  // Someone named in neighborAddresses is dying, hurt or can't breathe right now.
+  neighborInDanger?: boolean;
   spokenLanguage: HeardLanguage;
   acknowledgment: string;
   // A few words naming what a frightened or upset resident feels, said before the facts.
@@ -100,6 +102,7 @@ const outputSchemaFor = (kind: Hazard) => ({
     emergency: enumOf(["medical", hazardEscalation(kind)]),
     flags: { type: "array", items: enumOf(CONDITIONS) },
     neighbors: { type: "array", items: { type: "string" } },
+    neighbor_danger: { type: "boolean" },
     language: enumOf(HEARD_LANGUAGES),
     feeling: { type: "string" },
     ack: { type: "string" },
@@ -184,7 +187,7 @@ Rules for changes:
 
 Other outputs:
 - answer: yes, no or unclear when the agent asked a yes-or-no question; none otherwise. When the agent read something back and asked "Is that right?" (or confirmed an address), agreement without the word yes is yes: "thank you", "okay", "mm-hm", "that's it", "correct", "감사합니다", "谢谢", "gracias". Only a correction or a no is no.
-- emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none. Fear, panic or hurrying to leave is not an emergency on its own: "We're panicking to evacuate" is none.
+- emergency: medical if someone is hurt, can't breathe or has a medical emergency now; ${hazardEscalation(kind)} if ${HAZARD_CONTEXT[kind].atHome}; otherwise none. Fear, panic or hurrying to leave is not an emergency on its own: "We're panicking to evacuate" is none. Only for someone in this home: a neighbor or someone down the road who is hurt or dying is listed in neighbors with neighbor_danger true, and emergency stays none.
 - flags: each of these that holds for this utterance, else an empty list.
   - away_from_home: nobody is at the home now. The resident says they aren't there (already left, at work, out of town, staying with family) and no one else is there either. Not when they're away but calling about someone who is at the home ("I'm in the car, he's at our house"): then give the household's address instead. Not "I'm not sure", and not a wrong address they then correct.
   - asks_ride: they ask whether someone is coming, when help arrives, or for any reassurance about a ride. Also any plea for help ("please, help us", "please hurry", "get them here now", "send someone"), asking whether anyone knows they are there, or whether to wait. Not asking whether the agent will stay on the line: reply answers that ("Yes, I'm staying on the line with you."). Also for any demand for a promise, a time or a pickup, even a conditional one: "give me a time and I'll be ready", "if you promise someone's coming, I'll stay put".
@@ -195,7 +198,8 @@ Other outputs:
   - says_chair_kind: they say which kind of wheelchair it is: manual, one they or someone else pushes, or electric, powered, motorized or battery.
   - says_unsure: they say they don't know or aren't sure, and give no answer to the question.
   - asks_what_to_do: they ask what they should do, bring or get ready while they wait, or where to wait ("what should I do now?", "should I pack anything?", "do I wait outside?"). The code answers with its own fixed steps.
-- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set.
+- neighbors: addresses or locations of other people who might not be able to leave, if they mention any. Only people who may need help, never where the fire is ("flames in my neighbor's yard" is not one). A caller who is away from the home and calling about someone there ("I'm in the car, he's at our house, 3037 Ewing Street") gives the household's address: set address, not neighbors. Write a street address with its house number when they give one ("45 East Mariposa"); otherwise write the place as said ("the house across the street"). When they give the address of someone they mentioned earlier ("it's 955 La Canada Verdugo Road"), list that address here, never in set. When they name the person, start with the name as said ("Boris, bedridden", "Boris, down the road"); a name is enough, so don't ask for an address they say they don't know.
+- neighbor_danger: true when someone in neighbors is dying, hurt, can't breathe, overdosed or drank or took something dangerous right now ("he's actively dying", "he chugged five bottles"). Then list that person in neighbors again on this turn, even if they were named before, and keep the danger in the words ("Boris, dying"). Leave it out otherwise.
 - language: the language the resident is speaking, or asks to speak ("Korean, please" is ko): en English, es Spanish, zh Chinese, ko Korean, vi Vietnamese, tl Tagalog, ru Russian, ja Japanese, fr French, hi Hindi, hy Armenian, fa Persian, other for any other language. Speech-to-text listens in the call language, so another language can arrive as garbled or nonsensical text in the call language; if the words make no sense as an answer and look like a mistranscription of another language, name that language when you can tell which one it is, and use other only when you can't. A short or unclear answer in the call language is still the call language.
 - feeling: when the resident sounds frightened, panicked, desperate or upset (pleading, asking anxiously whether anyone knows they are there, saying not to risk anyone for them), at most 5 words in their language naming it, such as "That sounds frightening." or "I can hear how scared you are."; otherwise empty, and empty when the agent named a feeling in its previous turn. Never an apology, and never comfort that could be false ("it's okay", "don't worry").
 - ack: at most 6 words in the resident's language that show what you understood from this answer, such as "Two people.", "Thanks, a walker." or "Mm, no car." Empty string when set lists canLeave, hasCar, peopleCount, mobility, medical, assistanceRequired or pets, because the code then speaks its own fixed echo of those; for anything else it reflects the answer ("Alright, that's the address."). On hold, or when they plead or ask about the ride, reflect their words in a few words without any promise ("You need help fast.", "You want to know they know you're here."). This matters most for a yes, a no or a confirmation: reflect what they agreed to ("You can leave on your own.", "Alright, that's the address.") rather than a bare "Okay". Vary the wording from turn to turn, opening word included: rotate among openers like "Thanks", "Mm", "Alright", "Right" or none, use "Okay" at most once in a call, never start the same way as the agent's previous turn, and never say "Got it". Empty string when not_to_agent is listed, when the utterance doesn't answer the agent's last question, or when nothing fits. Never say or imply that help, a driver or a vehicle is coming, that they are safe, or any time or number of minutes. Never repeat back a demand for a time, a driver or a pickup. Never tell them to take their time or to wait. Plain words only: never "readback", "record", "flag" or "confirmed". Never ask a question.
@@ -293,6 +297,7 @@ export function parse(text: string, fallbackLanguage: Language, kind: Hazard): I
     saysChairKind: flags.has("says_chair_kind"),
     awayFromHome: flags.has("away_from_home"),
     neighborAddresses: listOf(raw.neighbors) as string[],
+    neighborInDanger: raw.neighbor_danger === true,
     spokenLanguage: languageFrom(raw.language, fallbackLanguage),
     acknowledgment: textOf(raw.ack),
     feeling: textOf(raw.feeling),

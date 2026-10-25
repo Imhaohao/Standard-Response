@@ -53,3 +53,12 @@
 Skip: Hyphenate, Visa, Coinbase, CRS, Capital One (finance or shopping only), SpacetimeDB (it would replace Convex), ElevenLabs (it competes with Cartesia, unless the ElevenLabs stack is demoed), Atlassian (needs Forge), Bright Data, Fetch.ai, CREAO, Mana, Factory.
 
 Also: the README says live calls run "Claude Opus 5.5 in fast mode", but `voice/env.ts` defaults to Haiku 5.5. Whoever knows Fly's `VOICE_MODEL`, make the README match it.
+
+## 2026-10-24 22:40
+
+Neighbors named on a call can now be found by name, and a neighbor in danger goes straight to a dispatcher.
+
+- `nominations:add` takes an optional `danger: boolean`. Old callers still work. When the spoken text names exactly one resident on file ("Boris, bedridden"), the nomination is saved as `matched` to that home right away. With `danger`, that home is escalated `medical`. With `danger` and no match, it goes to `nominations:flagged` with the note "in danger now, near <caller's address>".
+- New `voice:neighborNames({ householdId })` returns the other residents' names only. The agent uses it to say "Thanks, I've passed on Boris Nezlobin." instead of asking for an address the caller doesn't know.
+- The interpreter keeps `emergency` for people in the caller's home. A neighbor who is dying sets the new `neighbor_danger` field instead, so the caller is no longer marked urgent for someone else.
+- Name matching lives in `lib/name-on-file.ts`: a first or last name as a whole word, and two people who both fit means no match.

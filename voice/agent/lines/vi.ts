@@ -44,6 +44,7 @@ export const VI: Lines = {
   takeYourTime: "Dạ được, quý vị cứ từ từ. Tôi sẽ chờ.",
   lostYou: "Tôi không nghe được quý vị, nên tôi sẽ gọi lại ngay sau đây. Nếu quý vị có thể rời đi an toàn, xin hãy rời đi ngay bây giờ.",
   passedOn: (place) => `Cảm ơn, tôi đã chuyển ${place} cho nhân viên điều phối.`,
+  neighborUrgent: "Tôi đã chuyển việc đó cho nhân viên điều phối như một trường hợp khẩn cấp.",
   needAddress: "Để đưa quý vị vào danh sách cứu hộ, tôi cần địa chỉ.",
   leaveNow: "Xin quý vị hãy rời đi ngay bây giờ, và mang theo thuốc và bộ sạc điện thoại.",
   statusUnchanged: "Dạ, chưa có gì thay đổi so với lúc tôi vừa nói. Có thay đổi là tôi báo ngay cho quý vị.",

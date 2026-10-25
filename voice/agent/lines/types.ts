@@ -64,6 +64,8 @@ export type Lines = {
   lostYou: string;
   // Said back when the resident names someone else who may not be able to leave.
   passedOn: (place: string) => string;
+  // Said after passing on a neighbor who is dying, hurt or can't breathe right now.
+  neighborUrgent: string;
   // The answer to a plea for help before any address is known: there is no request yet.
   needAddress: string;
   leaveNow: string;
