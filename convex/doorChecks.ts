@@ -1,6 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, query, type QueryCtx } from "./_generated/server";
-import { resolvedStatusFor, toDoorCheckItem } from "./doorCheckPayload";
+import { query, type QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 
 // The door-check score. Send any subset of households, as often as you like.
@@ -33,23 +32,3 @@ export const queue = query({
   },
 });
 
-// The Atlassian Forge app's view (convex/http.ts, POST /agent/door-checks): the same order as `queue`,
-// cut down to what a crew needs, plus where the homes it already has issues for now stand.
-export const forFieldCrews = internalQuery({
-  args: { limit: v.number(), reportOn: v.array(v.string()) },
-  handler: async (ctx, { limit, reportOn }) => {
-    // Once the incident closes, crews get nothing more, and the app deletes every issue it made.
-    const control = await ctx.db.query("control").first();
-    if (control?.incidentClosedAt) return { queue: [], resolved: [], incidentClosed: true };
-    const ranked = await rankedDoorChecks(ctx, limit);
-    const queue = ranked.map(({ home }, index) => toDoorCheckItem(home, index + 1));
-    const queued = new Set(queue.map((item) => item.householdId));
-    const resolved = [];
-    for (const id of reportOn.filter((reported) => !queued.has(reported))) {
-      const householdId = ctx.db.normalizeId("households", id);
-      const home = householdId ? await ctx.db.get("households", householdId) : null;
-      resolved.push({ householdId: id, status: resolvedStatusFor(home) });
-    }
-    return { queue, resolved, incidentClosed: false };
-  },
-});

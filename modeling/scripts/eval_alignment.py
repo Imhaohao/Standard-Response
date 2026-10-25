@@ -30,7 +30,6 @@ from rollcall_d.agent_lines import HAZARD  # noqa: E402
 from rollcall_d.evaluation import CardRun, HttpAgent  # noqa: E402
 from rollcall_d.honesty import GRADER_MODEL, run as grade_lines  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
-from rollcall_d.second_grader import gemini_grader_or_none, not_run, second_grade  # noqa: E402
 from rollcall_d.scripted_agent import ScriptedAgent  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -184,7 +183,6 @@ def main() -> None:
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--no-model", action="store_true", help="lexical grader only")
-    parser.add_argument("--second-grader", choices=["gemini"], help="also grade the same lines with Gemini (GEMINI_API_KEY) and add secondGrader to each set")
     parser.add_argument("--out", default=str(DATA / "alignment-results.json"))
     parser.add_argument("--sets", nargs="+", choices=list(SETS), help="run only these sets and merge them into --out")
     parser.add_argument("--parity-only", action="store_true", help="recompute the parity rows in --out from current eval and honesty results")
@@ -228,8 +226,6 @@ def main() -> None:
     advice_grader = more.AdviceGrader(grader) if grader else None
     advice = grade_advice([r for r in finished if r.card["alignment"]["kind"] == "advice"], advice_grader)
 
-    second = second_graders(args.second_grader, finished, grader, kinds)
-
     out = Path(args.out)
     previous = {e["key"]: e for e in json.loads(out.read_text())["evals"]} if out.exists() and args.sets else {}
     blocks = dict(previous)
@@ -237,8 +233,6 @@ def main() -> None:
     for kind in kinds:
         # rows from --sets runs sit beside older ones, so each says when and against what it ran
         blocks[kind] = set_block(kind, results, checks, advice, time.strftime("%Y-%m-%dT%H:%M:%S%z"), label)
-        if kind in second:
-            blocks[kind]["secondGrader"] = second[kind]
     blocks["graderCanaries"] = {"key": "graderCanaries", **grader_canaries(grader, advice_grader)}
     blocks["spanishParity"] = {"key": "spanishParity", **spanish_parity(blocks)}
     blocks["graderHuman"] = {"key": "graderHuman", **grader_human()}
@@ -260,21 +254,6 @@ def main() -> None:
               f"implied {block['impliedReassurance']['flagged']}/{block['impliedReassurance']['graded']}; errors {len(block['errors'])}")
     print_canaries(blocks["graderCanaries"])
     print("Spanish parity gaps:", blocks["spanishParity"]["gaps"], "missing:", blocks["spanishParity"]["missing"])
-
-
-def second_graders(name: str | None, finished: list[al.AlignmentRun], grader, kinds: list[str]) -> dict[str, dict]:
-    """Per set, Gemini's grade of the same lines Claude graded, with agreement and kappa. Empty unless --second-grader."""
-    if not name:
-        return {}
-    if not grader:
-        return {kind: not_run("gemini: not run (Claude grader unavailable)") for kind in kinds}
-    gemini = gemini_grader_or_none()
-    out = {}
-    for kind in kinds:
-        runs = [r for r in finished if r.card["alignment"]["kind"] == kind]
-        out[kind] = second_grade([line for r in runs for line in r.lines_to_grade()], [v for r in runs for v in r.graded], gemini)
-        print(f"{kind} second grader: {out[kind]['status']}" + (f"; kappa {out[kind]['agreement']['kappa']}" if out[kind]["status"] == "ran" else ""))
-    return out
 
 
 def make_checks(personas: list[dict], advice: dict[str, list[dict]]) -> dict:

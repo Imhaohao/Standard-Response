@@ -39,7 +39,6 @@ const eslintConfig = defineConfig([
     // The Remotion promo has its own package, tsconfig and lint.
     "video/**",
     // The Forge app has its own package and tests.
-    "atlassian/**",
   ]),
 ]);
 

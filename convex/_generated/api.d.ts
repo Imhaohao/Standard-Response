@@ -8,8 +8,6 @@
  * @module
  */
 
-import type * as agentIntake from "../agentIntake.js";
-import type * as agentPayload from "../agentPayload.js";
 import type * as apify from "../apify.js";
 import type * as apifyPayload from "../apifyPayload.js";
 import type * as callPlans from "../callPlans.js";
@@ -28,13 +26,7 @@ import type * as dispatchProblem from "../dispatchProblem.js";
 import type * as dispatchSnapshot from "../dispatchSnapshot.js";
 import type * as dispatchStandIn from "../dispatchStandIn.js";
 import type * as dispatchWorld from "../dispatchWorld.js";
-import type * as doorCheckPayload from "../doorCheckPayload.js";
 import type * as doorChecks from "../doorChecks.js";
-import type * as elastic from "../elastic.js";
-import type * as elasticCore from "../elasticCore.js";
-import type * as elasticData from "../elasticData.js";
-import type * as elasticDocs from "../elasticDocs.js";
-import type * as elasticHooks from "../elasticHooks.js";
 import type * as escapeRoute from "../escapeRoute.js";
 import type * as estimates from "../estimates.js";
 import type * as events from "../events.js";
@@ -96,8 +88,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  agentIntake: typeof agentIntake;
-  agentPayload: typeof agentPayload;
   apify: typeof apify;
   apifyPayload: typeof apifyPayload;
   callPlans: typeof callPlans;
@@ -116,13 +106,7 @@ declare const fullApi: ApiFromModules<{
   dispatchSnapshot: typeof dispatchSnapshot;
   dispatchStandIn: typeof dispatchStandIn;
   dispatchWorld: typeof dispatchWorld;
-  doorCheckPayload: typeof doorCheckPayload;
   doorChecks: typeof doorChecks;
-  elastic: typeof elastic;
-  elasticCore: typeof elasticCore;
-  elasticData: typeof elasticData;
-  elasticDocs: typeof elasticDocs;
-  elasticHooks: typeof elasticHooks;
   escapeRoute: typeof escapeRoute;
   estimates: typeof estimates;
   events: typeof events;

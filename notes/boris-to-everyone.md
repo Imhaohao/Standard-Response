@@ -100,3 +100,13 @@ Arrival times inside the perimeter moved only where those houses had carved it. 
 **Every screen opens with no sign-in, and the app has no session or roles.** `proxy.ts`, `lib/access.ts`, `lib/auth0.ts`, `/api/me` and `components/account/` aren't in the code, so pull before you touch the app bar, the restart menu, approval or `/api/search`. `/api/search` needs only `SEARCH_SECRET` on the server.
 
 **The repo describes only what's in the code.** The README, PLAN.md, HANDOFF.md, docs/ and code comments say what the system does today. Please don't add lines about what was taken out, what hasn't run, what's waiting on a key, or what's planned. The site is https://standardresponse.us. The lettered note files are out of the repo, and the `<name>-to-<name>.md` files carry on as before.
+
+## 2026-10-25 08:25
+
+Gemini, Bright Data, Fetch.ai, Elastic and Atlassian are out of the repo. None of them ever ran during the event, so the README no longer lists them, and the code is gone too:
+- **Convex:** the `/agent/ready-signup`, `/agent/status` and `/agent/door-checks` routes, `agentIntake`, `agentPayload`, `doorCheckPayload`, `doorChecks:forFieldCrews` and every `elastic*` file. Transcript lines are inserted with `ctx.db.insert` again, and the incident purge no longer schedules an Elastic delete. No table changed.
+- **Call floor:** the transcript search box is gone, since with no Elastic key it never returned anything. `/api/search` is gone with it.
+- **Apify Actor:** the `calFireWebIncidents` source and the Bright Data inputs are removed. The copy on the Apify Store still has them until someone republishes it.
+- **Evals:** `--second-grader gemini` is removed from `grade_honesty.py` and `eval_alignment.py`, and `google-genai` is out of `modeling/`.
+
+If the Devpost text names any of the five, take it out before submitting.

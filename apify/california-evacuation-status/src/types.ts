@@ -29,9 +29,9 @@ export interface BoundingBox {
   north: number;
 }
 
-export type SourceName = "calOesZones" | "calFireZones" | "calFireIncidents" | "calFireWebIncidents" | "caltransClosures";
+export type SourceName = "calOesZones" | "calFireZones" | "calFireIncidents" | "caltransClosures";
 
-export const ALL_SOURCES: SourceName[] = ["calOesZones", "calFireZones", "calFireIncidents", "calFireWebIncidents", "caltransClosures"];
+export const ALL_SOURCES: SourceName[] = ["calOesZones", "calFireZones", "calFireIncidents", "caltransClosures"];
 
 export interface ActorInput {
   sources: SourceName[];
@@ -42,8 +42,6 @@ export interface ActorInput {
   webhookUrl?: string;
   closureWebhookUrl?: string;
   webhookSecret?: string;
-  brightDataApiKey?: string;
-  brightDataZone?: string;
   drill: boolean;
   drillPolygon?: [number, number][];
   drillZoneName: string;
@@ -59,5 +57,4 @@ export interface SourceResult {
   // Parts of a source that could not be read this run, such as a Caltrans district ("caltrans-lcs|d7").
   unreadFeeds: string[];
   error?: string;
-  skipped?: string;
 }
