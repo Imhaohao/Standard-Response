@@ -110,3 +110,12 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 ## 2026-10-24 23:20
 
 **The voice server now rings any real number.** Fly's `DIAL_ALLOWLIST` is `*`, so a phone added in "Real phones" or by a judge rings with no Fly change. `mayDial` (`voice/env.ts`) still never dials a 555-exchange number, even under `*`, so the 40 sample riders and the seeded town stay undialed. To go back to a fixed list, set `DIAL_ALLOWLIST` on Fly to comma-separated numbers again.
+
+## 2026-10-24 23:58
+
+**Live checks with real keys:**
+- **Capital One Nessie, live.** Agency account created with $5,000 of sandbox money; `NESSIE_API_KEY` and `NESSIE_AGENCY_ACCOUNT_ID` are set on `robust-penguin-834`. The live sandbox differs from the old SDKs: plain http doesn't answer, a transfer has no payee field, and amounts are whole dollars. So a payment is a transfer out plus a deposit in, rounded up to the dollar (`dae84c5`). A real 7-mile payout ($1) went through our client end to end.
+- **Bitdeer, live.** The default model thought before answering and returned empty JSON; it's now Qwen3.8-27B with thinking off (about 0.5 s) and an explicit user agent, since Bitdeer's firewall 403s Python's default one (`50d6a71`). Outage drill with Claude unreachable: Bitdeer answered every turn, and a ride question still got only the fixed status line. **Fly needs `BITDEER_API_KEY`** for this to work on real calls.
+- **Bright Data:** the key works, but the account has no zone yet. Create a Web Unlocker zone, then set `BRIGHTDATA_ZONE`.
+- **Factory:** the key is in `.env.local`; the `droid` CLI isn't installed on this Mac yet.
+- **Not yet received:** Gemini, Elastic and Agentverse keys.
