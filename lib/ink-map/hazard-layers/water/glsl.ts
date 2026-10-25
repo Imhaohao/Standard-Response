@@ -114,12 +114,13 @@ vec2 towardShore(vec2 xy) {
   return length(g) > 1e-3 ? -normalize(g) : vec2(0.0);
 }
 
-// The bed under standing water: never shallower than a shelf falling away from the shore, so a seam or
-// a tile of bad bathymetry offshore never bares as a square, and deeper where the terrain is deeper.
+// The bed under standing water is a smooth shelf falling away from the shore, never the terrain's
+// bathymetry: offshore it is stitched from sources whose seams and tiles would otherwise bare as squares
+// or draw a drawn-back sea's edge as a straight line.
 float bedAt(vec2 xy, vec2 shore) {
   float ground = groundElevation(xy);
   float shelf = REST_LEVEL - min(${SHELF.shore} + max(shore.y, 0.0) * ${SHELF.slope}, ${SHELF.deepest.toFixed(1)});
-  return mix(ground, min(ground, shelf), smoothstep(-12.0, 12.0, shore.y));
+  return mix(ground, min(ground, shelf), smoothstep(-12.0, 0.0, shore.y)) * (1.0 - smoothstep(0.0, 12.0, shore.y)) + shelf * smoothstep(0.0, 12.0, shore.y);
 }
 
 float buildingRed(vec2 uv) {
