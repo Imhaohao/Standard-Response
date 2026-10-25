@@ -22,6 +22,14 @@ def test_outside_every_front_is_never_safe():
     assert math.isfinite(minutes) and minutes > 60
 
 
+def test_a_point_near_an_unburned_island_arrives_with_the_front_that_rings_it():
+    island = Point(500, 0).buffer(100)
+    scenario = Scenario([Front(0, Point(0, 0).buffer(100)), Front(60, Point(0, 0).buffer(1000).difference(island))])
+    shore = scenario.arrival_minutes_xy(390, 0)  # 10 m from the island, 290 m from the first front
+    assert 55 < shore <= 60
+    assert scenario.arrival_minutes_xy(500, 0) > 60  # inside the island: not burned by that front
+
+
 def household(i, outcome="unknown", lat=34.19, lng=-118.15, prior=0.2):
     return {"_id": f"h{i}", "outcome": outcome, "lat": lat, "lng": lng, "needPrior": prior, "needProbability": prior}
 
