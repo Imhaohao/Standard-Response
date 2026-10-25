@@ -116,6 +116,14 @@ ES = {
     "medical": " Mi esposo no puede respirar bien.",
 }
 
+# The question the agent says it is on (POST /turn `step`, conversation.ts Step) as the kind the resident answers.
+# Claude may word a question its own way, so the step, when the agent sends it, wins over matching the words.
+STEP_KIND = {
+    "ask_address": "ask_address", "confirm_address": "confirm_address", "can_leave": "can_leave", "has_car": "has_car",
+    "household": "household", "needs": "needs", "chair_kind": "chair_kind", "assistance": "assistance",
+    "readback": "readback", "fix": "fix", "neighbor": "neighbor", "done": "goodbye",
+}
+
 QUESTION_FIELD = {"household": "peopleCount", "needs": "mobility", "chair_kind": "mobility", "oxygen": "medical",
                   "assistance": "assistanceRequired", "can_leave": "canLeave"}
 FIELD_QUESTION = {"peopleCount": "household", "mobility": "needs", "medical": "needs", "assistanceRequired": "assistance", "canLeave": "can_leave"}
@@ -145,6 +153,7 @@ class Resident:
         self.partial_given = False
         self.emergency_said = False
         self.turns = 0
+        self.heard_step: str | None = None  # set by the eval from each agent turn, when the agent sends one
 
     # ---- values the resident states (possibly the wrong first one) ----------------------------
 
@@ -220,7 +229,7 @@ class Resident:
 
     def answer(self, reply: str, record: dict) -> str:
         self.turns += 1
-        kind = classify(reply)
+        kind = STEP_KIND.get(self.heard_step or "") or classify(reply)
         if self.repeats_left and kind not in ("goodbye", "repeat") and self.rng.random() < 0.4:
             self.repeats_left -= 1
             return self.say["repeat"]

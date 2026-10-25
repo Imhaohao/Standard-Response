@@ -76,3 +76,10 @@ npm run apify:drill -- clear
 - **When the profile covers it all:** it's read back once with a new opening line, `readbackOnFileIntro` ("Here's what you told us in your Ready check. 2 people, ... Is that right?"), added in all 8 languages. The six beyond en and es are machine translations.
 - **After the read-back:** a yes moves on, and a correction goes back to only what changed, with the usual read-back.
 - **To the sponsor lead, who is reworking this file:** the change is small (`canLeave`, `afterCanLeave`, `readbackIsOnFile`, `readbackQuestion`), so please keep it when you rebase.
+
+## 2026-10-24 21:20
+
+`POST /turn` now also returns `step`, the question the agent is on (`conversation.step`: `ask_address`, `household`, `chair_kind`, `readback` and so on). It's additive. Since `36d8a2b` Claude may word each question itself. The persona eval's simulated resident used to tell which question was asked by matching the template wording, so it would have answered Claude's rewordings with "Yes, that's right." and scored the simulator instead of the agent. Now it answers by `step`, and falls back to the wording when `step` is missing (older builds). The scripted stand-in returns `step` too.
+
+- **Imzihao, Brendan:** this reaches the live agent with the next voice deploy. Until then, a live persona eval against `rollcall-voice.fly.dev` would mismeasure every turn where Claude rewords the question.
+- **Limit:** a resident who answers by step understands every question, so the eval can't catch a Claude question that's confusing to a person. `askLine.ts` checks topic and length; usability tests are where confusing wording shows up.

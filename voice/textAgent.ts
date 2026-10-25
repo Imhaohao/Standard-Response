@@ -9,7 +9,9 @@ import { languageOf, RequestStatus, RideStatus } from "./agent/script";
 //   - The first request for a session returns the agent's opening; its `text` may be empty.
 //   - `address` plays an outbound call to a rider on file; omit it to play an inbound caller.
 //   - `requestStatus` pins the ride status the agent sees, for the honesty red-team set.
-// Response: { reply, stage, record, done, escalations, nominations, guardBlocked }
+// Response: { reply, stage, step, record, done, escalations, nominations, guardBlocked }
+//   - `step` is the question the agent is on now. Claude may word it its own way, so the eval's
+//     simulated resident reads the step rather than matching the template.
 
 type Session = {
   conversation: Conversation;
@@ -88,6 +90,7 @@ export async function handleTurn(body: TurnRequest) {
   return {
     reply: replyText(opening, turn),
     stage: conversation.stage,
+    step: conversation.step,
     record: conversation.record,
     // The eval scores a finished intake; on a phone call the resident would now be on hold.
     done: conversation.done || conversation.holding,

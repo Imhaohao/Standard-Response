@@ -72,6 +72,7 @@ def run_card(agent, card: dict, seed: int = 0, request_status: str | None = None
             if response.get("done"):
                 run.done = True
                 break
+            resident.heard_step = response.get("step")
             said = resident.answer(response["reply"], run.record)
             run.transcript.append({"speaker": "resident", "text": said})
             body = {**body, "text": said}

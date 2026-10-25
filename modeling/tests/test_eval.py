@@ -60,3 +60,14 @@ def test_spanish_if_is_not_a_yes():
     assert interpret("Sí, es correcto.", book)["answer"] == "yes"
     assert interpret("Si me promete que vienen, me quedo en la línea.", book)["answer"] is None
     assert interpret("Si tuviera que salir, no podría.", book)["updates"].get("canLeave") != "yes"
+
+
+def test_the_resident_answers_the_step_the_agent_is_on_whatever_the_words():
+    from rollcall_d.resident import Resident
+
+    cards = json.loads((DATA / "personas.json").read_text())
+    card = next(c for c in cards if c["language"] == "en" and not c.get("correction") and not c.get("traits") and c["truth"]["peopleCount"] > 1)
+    resident = Resident(card)
+    resident.heard_step = "household"
+    said = resident.answer("Okay. And who's there with you tonight?", {})
+    assert f"{card['truth']['peopleCount']} of us" in said

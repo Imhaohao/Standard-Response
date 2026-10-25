@@ -329,7 +329,7 @@ class ScriptedConversation:
 
 
 class ScriptedAgent:
-    """In-process POST /turn: {sessionId, language, text, address?} -> {reply, stage, record, done, escalations, nominations, guardBlocked}."""
+    """In-process POST /turn: {sessionId, language, text, address?} -> {reply, stage, step, record, done, escalations, nominations, guardBlocked}."""
 
     def __init__(self, book: AddressBook | None = None):
         self.book = book or AddressBook.from_osm()
@@ -347,5 +347,6 @@ class ScriptedAgent:
             parts.append(conversation.start())
         if text and not conversation.done:
             parts.append(conversation.hear(text))
-        return {"reply": " ".join(parts), "stage": STAGE_OF[conversation.step], "record": dict(conversation.record), "done": conversation.done,
+        return {"reply": " ".join(parts), "stage": STAGE_OF[conversation.step], "step": conversation.step,
+                "record": dict(conversation.record), "done": conversation.done,
                 "escalations": list(conversation.escalations), "nominations": list(conversation.nominations), "guardBlocked": False}
