@@ -20,6 +20,7 @@ import { callbackScripts, callEnded, callSidByCallId, LiveCall, liveByCallSid, l
 import type { CallMode, StreamParameters } from "./callParameters";
 import type { CallLine, CallVoice } from "./line";
 import { TwilioLine, TwilioStart } from "./twilioLine";
+import { MAILBOX_QUIET_MS, Mailbox } from "./voicemail";
 import { env } from "../env";
 import { SimClock, simTime } from "../../lib/sim-clock";
 import { warmInterpreterFor } from "../interpreterWarmUp";
@@ -149,6 +150,8 @@ export class CallSession implements LiveCall {
   private residentSpoke = false;
   private lastBackchannel = "";
   private reachedMachine = false;
+  private readonly mailbox = new Mailbox();
+  private mailboxTimer: NodeJS.Timeout | null = null;
   private ended = false;
   private readonly apology = new CutOffApology();
   // Whether the audio playing now is a thinking filler; talking over a filler isn't cutting off a turn.
@@ -265,6 +268,7 @@ export class CallSession implements LiveCall {
   private onSpeech(text: string, isFinal: boolean, voicedMs: number) {
     this.lastSpeechAt = Date.now();
     this.restartQuietTimer();
+    if (isFinal && this.mailboxHeard(text)) return;
     if (this.speech.speaking) {
       if (interrupts(text, voicedMs, this.language)) {
         if (!this.fillerPlaying) this.apology.cutOff();
@@ -601,16 +605,52 @@ export class CallSession implements LiveCall {
   }
 
   onMachine() {
-    if (this.residentSpoke || this.ended) return;
+    if (this.residentSpoke || this.ended || this.reachedMachine) return;
+    this.mailboxHeard("at the tone, please record your message");
+  }
+
+  // A finished transcript of a mailbox. Returns true when the words must not reach the conversation.
+  private mailboxHeard(text: string) {
+    if (this.params.mode === "inbound" || this.ended) return false;
+    const action = this.mailbox.hear(text);
+    if (action === "person") return false;
     this.reachedMachine = true;
+    this.dropTurn();
+    if (action === "speak") this.speakMailbox();
+    if (action === "hangup") void this.finish(false);
+    return true;
+  }
+
+  private dropTurn() {
+    this.heardSoFar = "";
+    this.ahead = null;
     this.waiting = null;
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.turnTimer = null;
     this.restartQuietTimer();
+  }
+
+  private speakMailbox() {
+    if (this.mailbox.attempt === 1) console.log(`[call ${this.callSid}] mailbox answered; leaving the warning after the beep`);
+    if (this.mailboxTimer) clearTimeout(this.mailboxTimer);
     this.speech.bargeIn();
-    const voicemail = this.params.mode === "callback"
-      ? this.callbackSentences()
-      : (this.conversation?.voicemail?.() ?? [LINES[this.language].voicemail]);
-    this.sayOther(voicemail, this.language);
-    void this.speech.whenSilent().then(() => this.finish(false));
+    const attempt = this.mailbox.attempt;
+    this.sayOther(this.mailboxScript(), this.language);
+    void this.speech.whenSilent().then(() => this.armMailboxHangup(attempt));
+  }
+
+  private mailboxScript() {
+    if (this.params.mode === "callback") return this.callbackSentences();
+    return this.conversation?.voicemail?.() ?? [LINES[this.language].voicemail];
+  }
+
+  private armMailboxHangup(attempt: number) {
+    if (this.ended || this.mailbox.attempt !== attempt) return;
+    this.mailboxTimer = setTimeout(() => {
+      this.mailboxTimer = null;
+      if (!this.ended && this.mailbox.attempt === attempt) void this.finish(false);
+    }, MAILBOX_QUIET_MS);
+    this.mailboxTimer.unref();
   }
 
   private callbackSentences() {
@@ -639,6 +679,7 @@ export class CallSession implements LiveCall {
   private stopListening() {
     if (this.turnTimer) clearTimeout(this.turnTimer);
     if (this.quietTimer) clearTimeout(this.quietTimer);
+    if (this.mailboxTimer) clearTimeout(this.mailboxTimer);
     this.unsubscribe?.();
     this.unsubscribePickups?.();
     this.unsubscribeSituation?.();

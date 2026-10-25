@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { AgentTurn } from "../agent/conversation";
 import type { CallLine, Hearing } from "./line";
 import { CallSession } from "./callSession";
+import { LINES } from "../agent/script";
 
 // The turn-taking half of a call on its own: a fake line feeds transcripts, and the conversation
 // records which utterances Claude was asked to read. Nothing reaches Convex, Twilio or Cartesia.
@@ -11,12 +12,19 @@ const TURN: AgentTurn = { acknowledgment: "", sentences: ["Okay."], stage: "can_
 const AFTER_TURN_GAP_MS = 1300;
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function session() {
+function session(mode: "survey" | "inbound" = "survey") {
   let hearing: Hearing | null = null;
+  const said: string[] = [];
   const line = {
     callSid: `CA-test-${Math.random()}`,
-    params: { mode: "survey" },
-    voice: { speaking: false, say: () => {}, cutIn: () => {}, bargeIn: () => {}, whenSilent: async () => {} },
+    params: { mode },
+    voice: {
+      speaking: false,
+      say: (sentences: string[]) => said.push(sentences.join(" ")),
+      cutIn: () => {},
+      bargeIn: () => {},
+      whenSilent: async () => {},
+    },
     fillsPauses: false,
     listen: (_language: string, heard: Hearing) => (hearing = heard),
     hangUp: async () => {},
@@ -37,7 +45,7 @@ function session() {
   call.answer = (utterance: string) => answered.push(utterance);
   (call.listen as () => void).call(call);
   const say = (text: string, isFinal = true) => hearing!.onSpeech(text, isFinal, 800);
-  return { say, reads, answered };
+  return { say, reads, answered, said, call };
 }
 
 describe("reading ahead of the turn gap", () => {
@@ -64,5 +72,33 @@ describe("reading ahead of the turn gap", () => {
     const { say, reads } = session();
     say("No, I", false);
     assert.deepEqual(reads, []);
+  });
+});
+
+const MAILBOX =
+  "six five zero seven zero nine nine nine one one can't take your call now. At the tone, please record your message. When you've finished recording, simply hang up.";
+
+describe("a mailbox that answers", () => {
+  it("leaves the warning and does not interview the recording", () => {
+    const { say, reads, answered, said } = session();
+    say(MAILBOX);
+    assert.deepEqual(reads, []);
+    assert.deepEqual(answered, []);
+    assert.equal(said.length, 1);
+    assert.equal(said[0], LINES.en.voicemail);
+  });
+
+  it("still hears a person who says they couldn't hear", () => {
+    const { say, reads, said } = session();
+    say("I couldn't hear you, say that again.");
+    assert.deepEqual(reads, ["I couldn't hear you, say that again."]);
+    assert.deepEqual(said, []);
+  });
+
+  it("lets an inbound caller say the same words", () => {
+    const { say, reads, said } = session("inbound");
+    say(MAILBOX);
+    assert.deepEqual(reads, [MAILBOX]);
+    assert.deepEqual(said, []);
   });
 });

@@ -217,3 +217,10 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 
 - Engines holding the line stretch every wildfire minute by 8 (`WILDFIRE_LINE_HOLD` in `lib/ink-map/fire-field.ts`). The map clock and `minutesUntilHazard` both use it. Floods and hurricanes do not. Homes already timed for this warning keep their saved arrival until the next warning runs `retimeArea`.
 - A neighbor the fire reaches sooner is still asked first. When nobody like that can go, the nearest driver is asked anyway, even if the drive points toward the fire (`convex/neighborPickups.ts`). Boris is queued for Jerry on that rule. The dialer is paused, so the call rings when it is resumed.
+
+## 2026-10-25 04:38
+
+**AT&T answers our calls straight into voicemail; the warning is now left after the beep.** Brendan's phone (+1 650 709 9911, AT&T) answered about 3 seconds after dial and the greeting was the mailbox ("can't take your call now. At the tone..."). Boris and Jerry, on Verizon, got a normal ring from the same Cartesia number (+1 850 641 7117) in the same minute. The agent then talked over the greeting, the mailbox recorded silence, and it hung up with "I couldn't hear you."
+
+- A mailbox transcript no longer goes to Claude. At "at the tone" / "record your message" the agent speaks the call's voicemail line and hangs up. If the mailbox says it heard nothing, the line is spoken once more. A person who says "I couldn't hear you" is unchanged. Twilio's machine detection uses the same path. `voice/phone/voicemail.ts`.
+- This does not make AT&T ring the handset. That divert happens before we speak. Turning off AT&T ActiveArmor "unknown calls to voicemail" (and adding +1 850 641 7117 to contacts) is what lets the phone ring. Until then, the mailbox recording is the warning, and the call still counts as unanswered so the ladder retries.
