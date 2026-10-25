@@ -1,0 +1,19 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "California evacuation status",
+  "description": "Every evacuation zone, road closure and fire incident that passed the filters, plus a summary of the run.",
+  "properties": {
+    "records": {
+      "type": "string",
+      "title": "Zones, closures and incidents",
+      "description": "One record per evacuation zone, Caltrans closure or CAL FIRE incident, normalized to the dataset schema.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Run summary",
+      "description": "Record counts per source and status, stale zones, failed sources and what the webhook sent.",
+      "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/OUTPUT"
+    }
+  }
+}
