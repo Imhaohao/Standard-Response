@@ -51,6 +51,7 @@ uniform vec2 uWindToward;
 // Downwind on the screen, a unit vector with y up.
 uniform vec2 uWindScreen;
 uniform float uWindSpeed;
+uniform vec4 uTerrainExtent;
 
 float detailAt() {
   return 1.0 - smoothstep(1.4, 4.5, uViewMpp);
@@ -100,9 +101,25 @@ float leeShelter(vec2 p, float reach) {
 }
 
 // Fresh snow is a cool white, brighter than the cream paper, so a snowfall changes the colour of the
-// whole map and a cap shows even where a roof is two pixels wide.
+// whole map. Capped roofs are the whitest thing on it; the ground is a hair less white, so a cap
+// shows even where a roof is two pixels wide.
 vec3 snowWhite() {
   return uSnow;
+}
+
+vec3 groundWhite() {
+  return uSnow * 0.965;
+}
+
+// How far a point is inside a box, in metres; negative outside it.
+float insideBy(vec2 p, vec4 box) {
+  return min(min(p.x - box.x, box.z - p.x), min(p.y - box.y, box.w - p.y));
+}
+
+// The snow thins out with the map's own fade toward the edge of the terrain (edgeFade in shaders.ts),
+// so the frame never shows where the data ends.
+float withinMap(vec2 mapXY) {
+  return smoothstep(0.0, 1500.0, insideBy(mapXY, uTerrainExtent));
 }
 
 // A few soft hatch curves along a drift's slope, broken so they read as strokes, not contours.
@@ -133,8 +150,10 @@ float roofOutline(vec2 uv, float idC) {
   return max(line * mix(0.3, 0.85, detail), overhang * 0.9 * detail);
 }
 
+// A flat roof's triangles face away from the camera, so the G-buffer flips their normal: the cap reads
+// how level a roof is, not which way its normal points.
 vec4 roofCap(vec2 uv, float idC, float up) {
-  float cap = capped() * smoothstep(0.3, 0.62, up);
+  float cap = capped() * smoothstep(0.3, 0.62, abs(up));
   return vec4(mix(snowWhite(), uInk, roofOutline(uv, idC) * uInkStrength), cap);
 }
 
@@ -170,7 +189,7 @@ vec4 groundSnow(vec2 mapXY, float surface) {
   // Close up the lee is hatched; at town scale, where a hatch can't resolve, it is a soft grey tone.
   float shadow = mix(0.22, groundHatch(mapXY, 4.5 * uPixelRatio, 0.7854, 0.3) * 0.45, detailAt()) * lee;
   float ink = max(strokes, shadow);
-  return vec4(mix(snowWhite(), uInk, ink * uInkStrength), max(fade, ink));
+  return vec4(mix(groundWhite(), uInk, ink * uInkStrength), max(fade, ink));
 }
 
 void main() {
@@ -189,8 +208,9 @@ void main() {
   vec3 n = normalize(texture(tNormal, vUv).xyz * 2.0 - 1.0);
   if (surface == SURFACE_ROOF) fragColor = roofCap(vUv, idC, n.y);
   else if (surface == SURFACE_WALL) fragColor = wallSnow(vUv, n, mapXY);
-  else if (surface == SURFACE_TREE) fragColor = vec4(snowWhite(), buried() * 0.85);
+  else if (surface == SURFACE_TREE) fragColor = vec4(groundWhite(), buried() * 0.85);
   else fragColor = groundSnow(mapXY, surface);
+  fragColor.a *= withinMap(mapXY);
 }
 `;
 
@@ -252,14 +272,19 @@ vec3 breathe(vec4 base) {
   return mix(base.rgb, uPaper, base.a * 0.3 * (1.0 - uPulse));
 }
 
-// Broad bands across the wind, moving along it: 15% of the way to white in a stiff wind, 30% in a
-// whiteout, with gaps between them where the town comes back.
+// How hard the storm is blowing, 0 to 1: the scenario's snowfall and visibility together.
+float storm() {
+  return smoothstep(0.3, 0.8, max(uWhiteout, uSnowfall));
+}
+
+// Broad bands across the wind, sweeping along it, so the contrast breathes: about 10% of the way to
+// white between gusts and 35% inside one at the worst, when the town all but goes.
 float gustVeil() {
   vec2 screen = gl_FragCoord.xy / uResolution.y - uVeilTravel;
   vec2 across = vec2(-uWindScreen.y, uWindScreen.x);
-  vec2 p = vec2(dot(screen, uWindScreen) * 2.2, dot(screen, across) * 0.6);
-  float bands = smoothstep(0.42, 0.78, fbm(p + vec2(0.0, 3.0)));
-  return bands * mix(0.15, 0.3, uWhiteout) * smoothstep(0.25, 0.75, max(uWhiteout, uSnowfall));
+  vec2 p = vec2(dot(screen, uWindScreen) * 1.6, dot(screen, across) * 0.45);
+  float gust = smoothstep(0.35, 0.72, fbm(p + vec2(0.0, 3.0)));
+  return mix(0.1, 0.35, gust) * storm();
 }
 
 vec2 fallDirection() {
@@ -267,17 +292,19 @@ vec2 fallDirection() {
 }
 
 // One depth of driving snow: lanes along the fall, each holding now and then a long thin streak that
-// bends a little. shape is (lane spacing, streak length, width, speed) in pixels. Returns the
-// streak's white core and its grey underside.
+// bends a little. shape is (lane spacing, streak length, width, speed) as shares of the frame's
+// height, so the storm reads the same at the overview and close up. Returns the streak's white core
+// and its dark grey underside.
 vec2 streakLayer(vec2 frag, vec4 shape, float density, float seed) {
-  float lane = shape.x * uPixelRatio;
-  float streakLength = shape.y * uPixelRatio;
-  float width = shape.z * uPixelRatio;
+  float frame = uResolution.y;
+  float lane = shape.x * frame;
+  float streakLength = shape.y * frame;
+  float width = max(shape.z * frame, 0.8 * uPixelRatio);
   vec2 dir = fallDirection();
   vec2 across = vec2(-dir.y, dir.x);
   float a = dot(frag, across) / lane;
   float laneId = floor(a);
-  float along = dot(frag, dir) - uStreakTravel * shape.w * uPixelRatio;
+  float along = dot(frag, dir) - uStreakTravel * shape.w * frame;
   float bend = sin(along / (streakLength * 1.7) + hash12(vec2(laneId, seed)) * 6.28) * 0.18;
   float offset = (fract(a) - 0.5 - bend) * lane;
   float period = streakLength * (3.0 + 4.0 * hash12(vec2(laneId, seed + 1.0)));
@@ -293,15 +320,15 @@ vec2 streakLayer(vec2 frag, vec4 shape, float density, float seed) {
 }
 
 vec3 drivingSnow(vec3 color) {
-  float storm = smoothstep(0.35, 0.9, uSnowfall);
-  if (storm < 0.01) return color;
+  float blowing = storm();
+  if (blowing < 0.01) return color;
   vec2 frag = gl_FragCoord.xy;
-  vec2 far = streakLayer(frag, vec4(9.0, 46.0, 0.8, 520.0), 0.22 * storm, 1.0);
-  vec2 middle = streakLayer(frag, vec4(23.0, 120.0, 1.4, 950.0), 0.26 * storm, 7.0);
-  vec2 near = streakLayer(frag, vec4(64.0, 280.0, 2.8, 1600.0), 0.3 * storm, 13.0);
-  vec2 streak = max(max(far * 0.7, middle * 0.85), near);
-  color = mix(color, mix(uSnow, uInk, 0.35), streak.y * 0.22);
-  return mix(color, uSnow, streak.x * 0.9);
+  vec2 far = streakLayer(frag, vec4(0.012, 0.09, 0.0012, 0.6), 0.3 * blowing, 1.0);
+  vec2 middle = streakLayer(frag, vec4(0.03, 0.24, 0.0022, 1.0), 0.32 * blowing, 7.0);
+  vec2 near = streakLayer(frag, vec4(0.085, 0.55, 0.0045, 1.7), 0.34 * blowing, 13.0);
+  vec2 streak = max(max(far * 0.65, middle * 0.85), near);
+  color = mix(color, mix(uSnow, uInk, 0.6), streak.y * 0.45);
+  return mix(color, uSnow, streak.x * 0.95);
 }
 
 float nightSky() {

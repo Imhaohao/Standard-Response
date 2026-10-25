@@ -186,7 +186,8 @@ void main() {
   float open = mix(0.6 * line, 0.9 * ruts(a * vHalf, vStreet.y, metersPerPixel), fine);
   float buried = mix(0.1 * line, buriedRoad(a, vStreet.y, w, metersPerPixel), fine);
   float ink = mix(open, buried, erased);
-  fragColor = vec4(mix(uSnow, uInk, ink * uInkStrength), snowy);
+  // Snow on the road is the ground's white (groundWhite in glsl.ts), a hair below the capped roofs.
+  fragColor = vec4(mix(uSnow * 0.965, uInk, ink * uInkStrength), snowy);
 }
 `;
 

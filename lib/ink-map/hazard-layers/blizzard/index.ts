@@ -147,7 +147,7 @@ class BlizzardLayer implements HazardLayer {
     const { terrain } = this.context;
     const uniforms = {
       ...this.pick("tDepth", "tShade", "tId", "tNormal", "tBuildingState", "uInvProjection", "uCameraWorld", "uBaseElevation", "uResolution"),
-      ...this.pick("uPaper", "uInk", "uInkStrength", "uViewMpp", "uPixelRatio", "uPatternScale"),
+      ...this.pick("uPaper", "uInk", "uInkStrength", "uViewMpp", "uPixelRatio", "uPatternScale", "uTerrainExtent"),
       ...this.ownUniforms("uSnow", "uDepth", "uWindToward", "uWindScreen", "uWindSpeed"),
       tTerrain: { value: terrain.texture },
       uTerrainRegion: { value: terrain.region },
