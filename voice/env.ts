@@ -63,8 +63,9 @@ export const env = {
   // Which stack runs the household call (inbound and survey). "cartesia" is our own loop: Cartesia
   // speech-to-text, the Conversation state machine on Claude, Cartesia voice. "elevenlabs" hands the
   // whole call to an ElevenLabs Conversational AI agent (voice/phone/elevenLabsCall.ts). Callbacks,
-  // pickup checks and Ready checks are scripted and always run on Cartesia.
-  voiceStack: optional("VOICE_STACK", process.env.ELEVENLABS_API_KEY ? "elevenlabs" : "cartesia") as "cartesia" | "elevenlabs",
+  // pickup checks and Ready checks are scripted and always run on Cartesia. Only VOICE_STACK=elevenlabs
+  // picks the ElevenLabs agent: it skips the honesty state machine, so an API key alone never does.
+  voiceStack: (process.env.VOICE_STACK === "elevenlabs" ? "elevenlabs" : "cartesia") as "cartesia" | "elevenlabs",
   elevenlabs: {
     apiKey: () => required("ELEVENLABS_API_KEY"),
     voiceId: optional("ELEVENLABS_VOICE_ID", "cjVigY5qzO86Huf0OWal"),
