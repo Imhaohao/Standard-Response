@@ -2,7 +2,7 @@
 
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { PRODUCT_NAME, WORDMARK } from "@/lib/brand";
+import { PRODUCT_NAME, WORDMARK_LAST_WORD } from "@/lib/brand";
 import { sceneMove } from "../motion";
 import { Photo } from "../photo";
 import type { PhotoName } from "../photos";
@@ -15,8 +15,6 @@ const PORTRAITS: { photo: PhotoName; name: string; delay: number }[] = [
   { photo: "mitchells", name: "Anthony and Justin", delay: 0.5 },
   { photo: "roseland", name: "Roseland", delay: 1.9 },
 ];
-
-const SECOND_WORD = WORDMARK.split(" ").slice(1).join(" ");
 
 function Portraits({ shown }: { shown: boolean }) {
   return (
@@ -51,8 +49,8 @@ function Response({ beat }: { beat: Beat }) {
             <motion.span layoutId="wordmark-mark" className="flex" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={sceneMove}>
               <BrandMark className="size-[1.1em]" />
             </motion.span>
-            <motion.span layoutId="wordmark-second" initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ ...sceneMove, delay: 1.4 }}>
-              {SECOND_WORD}
+            <motion.span layoutId="wordmark-last" initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ ...sceneMove, delay: 1.4 }}>
+              {WORDMARK_LAST_WORD}
             </motion.span>
           </motion.div>
         )}

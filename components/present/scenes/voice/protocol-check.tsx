@@ -3,6 +3,7 @@
 import { CheckCircle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { sceneMove } from "../../motion";
 import { Show } from "../../show";
 import { PUSH, REPLY } from "./aligned-reply";
@@ -56,7 +57,7 @@ export function ProtocolCheck({ shown }: { shown: boolean }) {
         <div className="mt-12 rounded-[40px] bg-night-raised p-10 shadow-[0_30px_80px_oklch(0_0_0/0.45)]">
           <p className="type-deck-note flex items-center gap-3 text-on-night-muted">
             <BrandMark className="size-8" />
-            Standard Response
+            {PRODUCT_NAME}
           </p>
           <p className="type-deck-quote mt-4">
             {REPLY.map((part, index) => (

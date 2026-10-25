@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Faces we have no license to publish: hotdogs (personal use only) sets the name Standard Response, and
+/* Faces we have no license to publish: hotdogs (personal use only) sets the name Doorstep, and
    Nexa Rust (a Fontfabric trial) sets numbers and big display text. The files are gitignored and live
    only on the presenting laptop. Without them the name falls back to Verlag, then League Spartan, and the
    big type to Sofia Sans Condensed. Each weight range stops the browser from synthesizing a bolder copy of the one face. */
@@ -61,7 +61,7 @@
   --night-raised: oklch(0.24 0.008 60);
   --on-night: oklch(0.95 0.006 85);
   --on-night-muted: oklch(0.72 0.01 70);
-  /* The name Standard Response, and numbers and big display text. See the @font-face rules above. */
+  /* The name Doorstep, and numbers and big display text. See the @font-face rules above. */
   --brand-face: "Hotdogs", "Verlag", var(--font-league-spartan), sans-serif;
   --big-face: "Nexa Rust Sans", var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
 }

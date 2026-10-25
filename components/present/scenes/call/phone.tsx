@@ -3,6 +3,7 @@
 import { Waveform } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { sceneMove } from "../../motion";
 import { LiveBars } from "../voice/live-bars";
 import type { CallTurn } from "./roseland-call";
@@ -28,7 +29,7 @@ function AgentTurn({ text }: { text: string }) {
     <div className="rounded-3xl bg-on-night/10 px-6 py-5">
       <p className="type-deck-note flex items-center gap-2 text-on-night-muted">
         <BrandMark className="size-6" />
-        Standard Response
+        {PRODUCT_NAME}
       </p>
       <p className="type-deck-label mt-2 font-normal">{text}</p>
     </div>

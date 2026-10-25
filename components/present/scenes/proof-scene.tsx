@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_NAME } from "@/lib/brand";
 import { Photo } from "../photo";
 import type { Beat } from "../script";
 import { Show } from "../show";
@@ -50,7 +51,7 @@ export function ProofScene({ beat }: { beat: Beat }) {
     <>
       <Nights shown={beat === "nights"} />
       <Outcome shown={comparing} out={NIGHT_OUTCOME.today} label="Today’s process" left={128} />
-      <Outcome shown={beat === "ours"} out={NIGHT_OUTCOME.ours} label="With Standard Response" left={1090} />
+      <Outcome shown={beat === "ours"} out={NIGHT_OUTCOME.ours} label={`With ${PRODUCT_NAME}`} left={1090} />
       <Show when={comparing} delay={1.2} className="absolute" style={{ left: 128, bottom: 56 }}>
         <p className="type-deck-note text-on-night-muted">Simulated on the Eaton Fire’s real record, median of 5 runs, {NIGHT_OUTCOME.setup}</p>
       </Show>

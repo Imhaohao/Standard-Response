@@ -1,6 +1,6 @@
-# Standard Response
+# Doorstep
 
-Standard Response gets people who can't evacuate on their own into a vehicle that can actually carry them. When an evacuation warning goes out, our voice agent calls every home in the zone to find out who can't leave and what help they need. Each answer becomes a ride request on a live map. A routing optimizer matches every request to a van with the right space and crew. Nobody is told help is coming until a driver has accepted the pickup on their own phone.
+Doorstep gets people who can't evacuate on their own into a vehicle that can actually carry them. When an evacuation warning goes out, our voice agent calls every home in the zone to find out who can't leave and what help they need. Each answer becomes a ride request on a live map. A routing optimizer matches every request to a van with the right space and crew. Nobody is told help is coming until a driver has accepted the pickup on their own phone.
 
 It works for any disaster that forces people out of their homes, including wildfires, floods, earthquakes, landslides and hurricanes. Each hazard changes what the agent tells people to do and how fast the deadline moves. The calls, the ride requests and the dispatch work the same way for all of them. Our demo replays a wildfire on a real map of Altadena, California.
 

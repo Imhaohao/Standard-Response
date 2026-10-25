@@ -2,6 +2,7 @@
 
 import { MotionConfig } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { PRODUCT_NAME } from "@/lib/brand";
 import type { ScreenPoint } from "@/lib/ink-map/renderer";
 import { NightMap } from "./night-map/night-map";
 import { useStoryMap } from "./night-map/use-story-map";
@@ -51,7 +52,7 @@ export function Deck({ initial }: { initial: Position }) {
   return (
     <MotionConfig reducedMotion="user">
       <main className="cursor-none select-none" onClick={commands.next}>
-        <h1 className="sr-only">Standard Response pitch</h1>
+        <h1 className="sr-only">{PRODUCT_NAME} pitch</h1>
         <p className="sr-only" aria-live="polite">{`Slide ${position.slide + 1} of ${slides.length}, beat ${position.beat + 1}`}</p>
         <Stage>
           {story && <NightMap beat={beat} story={story} houseAt={houseAt} setHouseAt={setHouseAt} />}

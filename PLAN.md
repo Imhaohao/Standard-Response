@@ -1,4 +1,4 @@
-# Cal Hacks 13.0 plan: Standard Response
+# Cal Hacks 13.0 plan: Doorstep
 
 We connect an evacuation warning to a confirmed, needs-matched ride for people who can't leave on their own. Wildfire is the first demonstration.
 
@@ -7,7 +7,7 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 | Submissions close | Sun Oct 25, 8:50am Pacific |
 | Judging at our table | Sun Oct 25, 10:30am |
 | Closing ceremony | Sun Oct 25, 2pm |
-| Product name | Standard Response |
+| Product name | Doorstep |
 
 ## Summary
 
