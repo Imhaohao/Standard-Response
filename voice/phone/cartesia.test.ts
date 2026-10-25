@@ -60,7 +60,7 @@ async function requestFor(language: Language, delivery?: Delivery) {
 describe("Speaker", () => {
   it("sends the delivery as generation_config on the request", async () => {
     const request = await requestFor("en", { urgency: "emergency", slower: false });
-    assert.deepEqual(request.generation_config, { speed: 1.1, volume: 1.4, emotion: "determined" });
+    assert.deepEqual(request.generation_config, { speed: 1.25, volume: 1.4, emotion: "determined" });
     assert.equal(request.transcript, "Leave now.");
   });
 

@@ -47,12 +47,17 @@ export type GuardResult = { text: string; blocked: boolean };
 // A blocked acknowledgment is dropped, not replaced: a stock "Okay." on every turn sounds robotic.
 const blocked: GuardResult = { text: "", blocked: true };
 
-export function guardAcknowledgment(text: string, status: RequestStatus | "none", language: Language): GuardResult {
+const CLAUDE_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY];
+// An approved answer is the agency's own advice (approvedAnswers.ts), so the advice Claude can't
+// stand behind is allowed there ("close every window"); a promise of help or false comfort is not.
+const APPROVED_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...SYMPATHY];
+
+export function guardAcknowledgment(text: string, status: RequestStatus | "none", language: Language, approved = false): GuardResult {
   const trimmed = text.trim();
   if (trimmed === "") return { text: "", blocked: false };
   // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
   if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
-  const soundsLikePromise = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY].some((pattern) => pattern.test(trimmed));
+  const soundsLikePromise = (approved ? APPROVED_LINE : CLAUDE_LINE).some((pattern) => pattern.test(trimmed));
   if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
   // Even after acceptance, ETAs and names come only from templates. "911" is the line's own name:
   // "No, you're on the phone with 911." to "Am I in heaven?" was blocked for its digits.

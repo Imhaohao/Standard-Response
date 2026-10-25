@@ -347,7 +347,7 @@ export class Conversation {
   private reply(heard: Interpretation, urgent: string[], extra: string[], { transfer, stalled }: ReplyOptions): AgentTurn {
     const status = this.effects.rideStatus()?.status ?? "none";
     const leavingHold = this.done && this.reachedHold;
-    const answer = guardAcknowledgment(heard.reply, status, this.language);
+    const answer = guardAcknowledgment(heard.reply, status, this.language, heard.approvedAnswer !== undefined);
     const givesTime = this.givesTime(heard, stalled);
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const feeling = this.feelingLines(heard, status, urgent);
@@ -429,7 +429,7 @@ export class Conversation {
 
   // Whether reply() will say something for Claude's reply: its words, or the status in their place.
   private replyWillPlay(heard: Interpretation) {
-    const answer = guardAcknowledgment(heard.reply, this.effects.rideStatus()?.status ?? "none", this.language);
+    const answer = guardAcknowledgment(heard.reply, this.effects.rideStatus()?.status ?? "none", this.language, heard.approvedAnswer !== undefined);
     return answer.blocked || this.isFreshReply(answer.text);
   }
 

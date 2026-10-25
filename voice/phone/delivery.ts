@@ -6,7 +6,8 @@ import type { Language } from "../agent/script";
 // - warning: an evacuation warning covers the home, but the fire is not near yet.
 // - imminent: the fire reaches the home within IMMINENT_WITHIN_MS on the night clock, or the
 //   resident already reported flames or a medical emergency on this call.
-// - emergency: a medical emergency or flames reported this turn, or the reassigning status line.
+// - emergency: the fire map has already reached the home, a medical emergency or flames reported
+//   this turn, or the reassigning status line.
 // slower: the resident asked to hear it again, or is hard of hearing on file.
 
 export type Urgency = "routine" | "warning" | "imminent" | "emergency";
@@ -26,8 +27,9 @@ const RANK: Record<Urgency, number> = { routine: 0, warning: 1, imminent: 2, eme
 const BY_URGENCY: Record<Urgency, Required<GenerationConfig>> = {
   routine: { speed: 1.0, volume: 1.0, emotion: "calm" },
   warning: { speed: 1.05, volume: 1.05, emotion: "calm" },
-  imminent: { speed: 1.1, volume: 1.25, emotion: "determined" },
-  emergency: { speed: 1.1, volume: 1.4, emotion: "determined" },
+  // Jerry, burning on the line, heard 1.1 as no faster than normal; Sonic goes to 1.5.
+  imminent: { speed: 1.15, volume: 1.25, emotion: "determined" },
+  emergency: { speed: 1.25, volume: 1.4, emotion: "determined" },
 };
 
 // A slower delivery keeps the urgency's volume: a hard-of-hearing resident needs it louder too.
@@ -47,8 +49,9 @@ export type CallSituation = { rescue: boolean; warningActive: boolean; fireArriv
 // The floor for every turn on this call. Only the rescue call (survey or inbound) can be urgent.
 export function callUrgency({ rescue, warningActive, fireArrivalAt, now }: CallSituation): Urgency {
   if (!rescue || !warningActive) return "routine";
-  const fireNear = fireArrivalAt !== undefined && fireArrivalAt - now <= IMMINENT_WITHIN_MS;
-  return fireNear ? "imminent" : "warning";
+  if (fireArrivalAt === undefined) return "warning";
+  if (fireArrivalAt <= now) return "emergency";
+  return fireArrivalAt - now <= IMMINENT_WITHIN_MS ? "imminent" : "warning";
 }
 
 // What this turn adds on top of the call's floor.

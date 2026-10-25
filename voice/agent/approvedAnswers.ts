@@ -22,7 +22,11 @@ export type ApprovedAnswerId =
   | "cost"
   | "go_back_inside"
   | "go_get_someone"
-  | "medical_change";
+  | "medical_change"
+  | "trapped_by_fire"
+  | "smoke_inside"
+  | "heat_inside"
+  | "oxygen_near_fire";
 
 type BankLanguage = Extract<Language, "en" | "es">;
 
@@ -37,7 +41,9 @@ type ApprovedAnswer = {
 };
 
 // What makes a question dangerous to answer from the agency's ordinary policy answers.
-type UnsafeKind = "toward_danger" | "staying" | "medical_change";
+// fire_at_home: fire, smoke or heat has reached them where they are. Only the fire-safety steps may
+// answer that; an ordinary answer ("bring your medications") would waste the turn.
+type UnsafeKind = "toward_danger" | "staying" | "medical_change" | "fire_at_home";
 
 export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
   pets: {
@@ -143,6 +149,45 @@ export const APPROVED_ANSWERS: Record<ApprovedAnswerId, ApprovedAnswer> = {
     questions: ["Should I turn my oxygen up?", "How many pills should I take?", "Should I take an extra dose of my insulin?", "Can I use more oxygen because of the smoke?", "Should I double my heart medicine?"],
     safetyFor: "medical_change",
   },
+  // Jerry's call (Oct 25): "It's so hot in here. What do I do? I'm gonna die." got "I don't know that
+  // yet." Checked by deep research (Oct 25): the trapped steps are CAL FIRE's Ready, Set, Go! "If you
+  // are trapped" section (newportbeachca.gov Go evacuation guide, CAL FIRE Go brochure); the heat
+  // steps are Ready.gov/heat (a fan alone doesn't lower body temperature; confusion, dizziness or
+  // hot dry skin is heat stroke); oxygen is the home-oxygen fire-safety handouts. Wet towels under
+  // doors and a damp cloth over the face weren't verified (CDC: cloth doesn't stop smoke), so they
+  // aren't said. A cooling center is left out: it conflicts with staying inside while trapped.
+  trapped_by_fire: {
+    answer: {
+      en: "If fire blocks your way out, stay inside. Close every door and window, but leave the doors unlocked. Go to a room in the middle of the house, not against an outside wall. Fill the sinks and tub with water, and turn on your lights so firefighters can see the house.",
+      es: "Cuando el fuego le bloquea la salida, permanezca dentro de la casa. Cierre todas las puertas y ventanas, pero no les ponga llave. Vaya a un cuarto en el centro de la casa, lejos de las paredes de afuera. Llene los lavabos y la tina con agua, y prenda las luces para que los bomberos encuentren la casa.",
+    },
+    questions: ["What do I do, the fire is at my house?", "I'm trapped, what do I do?", "There are flames outside my door, what should I do?", "I can't get out because of the fire, what do I do?", "The house is on fire, what do I do?", "Should I stay inside, the fire is at the door?"],
+    safetyFor: "fire_at_home",
+  },
+  smoke_inside: {
+    answer: {
+      en: "If smoke is coming in and the way out is clear, leave now. If you can't get out, close every door and window, and get low, under the smoke, where the air is cleaner. If you have an N ninety-five mask, put it on.",
+      es: "Cuando entra humo y la salida está libre, salga ya. Si no puede salir, cierre todas las puertas y ventanas, y agáchese, por debajo del humo, donde el aire está más limpio. Si tiene una mascarilla N noventa y cinco, póngasela.",
+    },
+    questions: ["There's smoke in the house, what do I do?", "I can't breathe from the smoke, what should I do?", "Smoke is coming in, what do I do?", "The room is full of smoke, what do I do?"],
+    safetyFor: "fire_at_home",
+  },
+  heat_inside: {
+    answer: {
+      en: "Drink water now, even if you're not thirsty. A fan alone won't cool you enough, so use wet cloths or a cool shower. If you feel confused or dizzy, or your skin is hot and dry, tell me now.",
+      es: "Tome agua ya, aunque no tenga sed. Un ventilador solo no basta, así que use trapos mojados o una ducha fresca. Si se siente confundido o mareado, o tiene la piel caliente y seca, dígamelo de inmediato.",
+    },
+    questions: ["It's so hot in here, what do I do?", "It's getting really hot, what should I do?", "I'm burning up in here, what do I do?", "The heat is unbearable, what do I do?"],
+    safetyFor: "fire_at_home",
+  },
+  oxygen_near_fire: {
+    answer: {
+      en: "Oxygen makes everything near it catch fire and burn much faster. Keep the tank and tubing clear of any flame, heat or sparks, and don't smoke.",
+      es: "El oxígeno hace que todo lo que está cerca prenda y se queme mucho más rápido. Mantenga el tanque y la manguera lejos de cualquier llama, calor o chispa, y no fume.",
+    },
+    questions: ["I'm on oxygen and the fire is close, what do I do?", "Is my oxygen tank dangerous with the fire?", "Will my oxygen catch fire?", "There's smoke and I'm on oxygen, what do I do?"],
+    safetyFor: "fire_at_home",
+  },
 };
 
 export const APPROVED_ANSWER_IDS = Object.keys(APPROVED_ANSWERS) as ApprovedAnswerId[];
@@ -169,6 +214,7 @@ const UNSAFE_QUESTIONS: Record<UnsafeKind, RegExp[]> = {
     /\bgo\s+(and\s+)?(get|grab|find|look\s+for|pick\s+up|check\s+on)\b/,
   ],
   staying: [/\b(stay|staying|wait|waiting)\b(?!\s+with\b)/, /\b(shelter|hide|hiding)\s+in\s+place\b/],
+  fire_at_home: [/\b(fire|flames?|smoke|smoky|burning|hot|heat|trapped|stuck|can'?t\s+(get\s+out|breathe))\b/],
   medical_change: [
     /\b(dose|doses|dosage)\b/,
     /\bhow\s+(many|much)\b.*\b(pills?|tablets?|medicines?|medications?|insulin|oxygen|puffs?)\b/,
@@ -179,9 +225,16 @@ const UNSAFE_QUESTIONS: Record<UnsafeKind, RegExp[]> = {
 
 const UNSAFE_KINDS = Object.keys(UNSAFE_QUESTIONS) as UnsafeKind[];
 
+// Which kind wins when one question has two. Going back or changing a dose keeps its own safety
+// answer ("can I go back in, it's burning?"). Fire at home beats staying: "should I stay inside, the
+// fire's at the door?" needs the trapped steps, which say when staying inside is right.
+const OUTRANKS: Partial<Record<UnsafeKind, UnsafeKind>> = { toward_danger: "fire_at_home", medical_change: "fire_at_home", fire_at_home: "staying" };
+
 export function unsafeKindsOf(question: string): UnsafeKind[] {
   const text = question.toLowerCase();
-  return UNSAFE_KINDS.filter((kind) => UNSAFE_QUESTIONS[kind].some((pattern) => pattern.test(text)));
+  const kinds = UNSAFE_KINDS.filter((kind) => UNSAFE_QUESTIONS[kind].some((pattern) => pattern.test(text)));
+  const outranked = new Set(kinds.map((kind) => OUTRANKS[kind]));
+  return kinds.filter((kind) => !outranked.has(kind));
 }
 
 // A safe question may get only an ordinary answer. An unsafe one may get only the safety answer for

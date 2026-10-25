@@ -33,7 +33,7 @@ describe("approved answers", () => {
   it("never sound like a promise of a ride, before any driver has accepted", () => {
     for (const id of APPROVED_ANSWER_IDS) {
       for (const [language, text] of Object.entries(APPROVED_ANSWERS[id].answer)) {
-        const guarded = guardAcknowledgment(text, "none", language as "en" | "es");
+        const guarded = guardAcknowledgment(text, "none", language as "en" | "es", true);
         assert.equal(guarded.blocked, false, `${id} (${language}) is blocked by the honesty guard: ${text}`);
       }
     }
@@ -130,5 +130,19 @@ describe("approved answers", () => {
     for (const id of APPROVED_ANSWER_IDS) {
       for (const question of APPROVED_ANSWERS[id].questions) assert.equal(mayGetApprovedAnswer(question, id), true, `${question} -> ${id}`);
     }
+  });
+});
+
+describe("fire at home", () => {
+  it("gets only the fire-safety steps, never an ordinary answer", () => {
+    assert.equal(mayGetApprovedAnswer("It's so hot in here, what do I do?", "heat_inside"), true);
+    assert.equal(mayGetApprovedAnswer("It's so hot in here, what do I do?", "medications"), false);
+    assert.equal(mayGetApprovedAnswer("What should I pack?", "trapped_by_fire"), false);
+  });
+
+  it("gives way to going back and to medicine, and wins over staying", () => {
+    assert.equal(mayGetApprovedAnswer("Can I go back in for my cat while it's burning?", "go_back_inside"), true);
+    assert.equal(mayGetApprovedAnswer("Should I turn my oxygen up because of the smoke?", "medical_change"), true);
+    assert.equal(mayGetApprovedAnswer("Should I stay inside, the fire is at the door?", "trapped_by_fire"), true);
   });
 });

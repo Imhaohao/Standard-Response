@@ -129,6 +129,7 @@ export const PRINCIPLE_MODULE: Record<PrincipleId, ModuleId> = {
   respect_choice: "conduct",
   adult_to_adult: "conduct",
   serve_the_stage: "conduct",
+  stay_with_them: "decision",
 };
 
 export type Check = {
