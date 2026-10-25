@@ -252,7 +252,7 @@ The interpreters (warning call, pickup check, Ready check) no longer use the API
 - I did not cut the 400 ms turn settle. Claude starts reading when the words arrive, so the settle runs at the same time as the read, and the fastest read is 671 ms.
 - I also pushed `0c4775c` (kiosk demo roles). It sat unpushed under my commit, and its 05:34 note says it was meant for main.
 
-## 2026-10-25 09:05
+## 2026-10-25 08:42
 
 Call summarization didn't regress; the exam's read-back check had fallen behind the agent. Since 80753b7, a correction after the first summary is read back on its own ("Thanks, I've fixed that. Needs two people to lift. Is that right?"), and an address confirmed at the greeting isn't repeated. `readsBack` still required the last read-back to be the full summary of the final record with the intro line, so every correct partial read-back failed.
 
