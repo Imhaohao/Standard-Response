@@ -89,7 +89,7 @@ export const VI: Lines = {
   textThanks: "Cảm ơn quý vị. Chúng tôi đã nhận được câu trả lời.",
   backchannels: ["Vâng.", "Dạ.", "Để tôi xem."],
   waiting:
-    "Quý vị đang nằm trong danh sách cứu hộ với mức ưu tiên cao. Chưa có tài xế nào nhận chuyến. Khi có tài xế nhận, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
+    "Tôi đã gửi yêu cầu đón quý vị, và nhân viên điều phối đang xử lý ngay bây giờ. Khi có tài xế nhận chuyến, tôi sẽ gọi lại cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   reassigning:
     "Tài xế của quý vị không thể đến chỗ quý vị nữa. Quý vị vẫn đứng đầu danh sách. Khi có tài xế mới nhận chuyến, tôi sẽ gọi cho quý vị ngay. Nếu quý vị có thể rời đi an toàn, hãy rời đi ngay bây giờ.",
   safety: {

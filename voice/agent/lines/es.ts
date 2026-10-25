@@ -90,7 +90,7 @@ export const ES: Lines = {
   textThanks: "Gracias. Ya tenemos su respuesta.",
   backchannels: ["Mm-hm.", "Muy bien.", "A ver.", "Un momento."],
   waiting:
-    "Usted está en la lista de rescate con prioridad alta. Todavía ningún conductor ha aceptado. Le llamaré en cuanto uno acepte. Si puede salir con seguridad, salga ahora.",
+    "Ya hice su solicitud de transporte, y los despachadores están trabajando en ella ahora. Le llamaré en cuanto un conductor acepte. Si puede salir con seguridad, salga ahora.",
   reassigning:
     "Su conductor ya no puede llegar a usted. Sigue en primer lugar de la lista. Le llamaré en cuanto un nuevo conductor acepte. Si puede salir con seguridad, salga ahora.",
   safety: {

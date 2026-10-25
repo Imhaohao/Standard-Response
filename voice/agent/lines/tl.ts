@@ -89,7 +89,7 @@ export const TL: Lines = {
   textThanks: "Salamat po. Natanggap na namin ang sagot ninyo.",
   backchannels: ["Opo.", "Mm-hm, opo.", "Sandali lang po."],
   waiting:
-    "Nasa listahan po kayo ng sasagipin bilang mataas na prayoridad. Wala pa pong driver na tumatanggap. Tatawagan ko po kayo kapag may tumanggap na. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
+    "Naipasa ko na po ang inyong request para sa sasakyan, at inaasikaso na po ito ng mga dispatcher ngayon. Tatawagan ko po kayo agad kapag may driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   reassigning:
     "Hindi na po kayo maaabot ng driver ninyo. Nasa pinakaunang puwesto pa rin po kayo sa listahan. Tatawagan ko po kayo kapag may bagong driver na tumanggap. Kung ligtas po kayong makakaalis, umalis na po kayo ngayon.",
   safety: {

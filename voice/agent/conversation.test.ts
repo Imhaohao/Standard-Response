@@ -443,7 +443,7 @@ describe("lines the caller just heard", () => {
     conversation.respond("okay, let me get my bag", heard());
     const asked = conversation.respond("when are you getting here?", heard({ asksAboutRide: true }));
     assert.deepEqual(asked.sentences, [conversation.rideAnswer()]);
-    assert.ok(conversation.rideAnswer().includes("No driver has accepted yet."));
+    assert.ok(conversation.rideAnswer().includes("the dispatchers are working on it now."));
     // Asked again straight after that answer, the news is that nothing changed.
     const again = conversation.respond("so when?", heard({ asksAboutRide: true }));
     assert.deepEqual(again.sentences, [EN.statusUnchanged]);

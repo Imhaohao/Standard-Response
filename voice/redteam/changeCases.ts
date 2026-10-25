@@ -143,7 +143,7 @@ async function staleAccept(): Promise<Omit<CaseResult, "pass">> {
     checks: [
       check("the stale accept returns changed", result === "changed", result),
       check("no callback fires for the stale accept", seen.callbacks.length === 0, seen.callbacks.join(",")),
-      check("the rider still hears 'no driver yet'", /No driver has accepted yet/.test(seen.riderHears ?? ""), seen.riderHears ?? ""),
+      check("the rider still hears the waiting line", /dispatchers are working on it/.test(seen.riderHears ?? ""), seen.riderHears ?? ""),
       check("the current offer's accept names its driver", after.driver === "Luis", String(after.driver)),
     ],
   };

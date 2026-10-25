@@ -89,3 +89,8 @@ Repetition fixes from the real calls on `robust-penguin-834` change some `POST /
 ## 2026-10-24 18:25
 
 `/twilio/status` now decides "reached" from whether our media stream joined the call, not from `CallStatus`. On the trial account Twilio plays its "press any key" notice first; when nobody presses a key it hangs up at about 13 s and reports `completed` without our stream ever starting. Before, that counted as reached, so nothing fired `callEnded`: your neighbor ask to Mae at 00:55 UTC stayed `ringing: "helper"` forever, was never retried, and `expireStaleChecks` skipped it. Now every outbound mode (survey, callback, plan_check, ready) fires `callEnded({ answered: false, ... })` for such a call, with `purpose` carried through. Calls whose stream joined are still reported only by their call session. Logic in `voice/phone/callStatus.ts`, tests in `callStatus.test.ts`.
+
+## 2026-10-24 20:10
+
+- The `waiting` status line changed in all 8 language files under `voice/agent/lines`. English now reads: "I've placed your ride request, and the dispatchers are working on it now. I'll call you back the moment a driver accepts. If you can leave safely, leave now." It still promises nothing before a driver accepts.
+- `modeling/rollcall_d/honesty.py` reads the current lines from there, so the grader strips the new wording without a change. The old wording stays in `LEGACY_TEMPLATES` for older transcripts.

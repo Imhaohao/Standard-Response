@@ -88,7 +88,7 @@ export const EN: Lines = {
   textThanks: "Thank you. We have your answer.",
   backchannels: ["Mm-hm.", "Mm.", "Alright.", "Let me see."],
   waiting:
-    "You're on the rescue list as high priority. No driver has accepted yet. I'll call you back the moment one does. If you can leave safely, leave now.",
+    "I've placed your ride request, and the dispatchers are working on it now. I'll call you back the moment a driver accepts. If you can leave safely, leave now.",
   reassigning:
     "Your driver can no longer reach you. You're still at the top of the list. I'll call the moment a new driver accepts. If you can leave safely, leave now.",
   safety: {

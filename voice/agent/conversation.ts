@@ -766,8 +766,8 @@ export class Conversation {
   // them, or nothing more when that was just said.
   // "Nothing has changed" only follows a status the caller was actually told. "Leave now" or "I need
   // the address" isn't one: said after those, it claimed an update that never happened.
-  // A question asked right after the status is answered with its first sentences ("No driver has
-  // accepted yet."), not "Nothing has changed": "Can anyone help me?" got that on a real call.
+  // A question asked right after the status is answered with its first sentences ("I've placed your
+  // ride request..."), not "Nothing has changed": "Can anyone help me?" got that on a real call.
   // Asked again straight after the answer, the news is that nothing changed, not the answer again.
   private rideUpdate(heard?: Interpretation) {
     const lifeThreat = heard?.emergency !== undefined && heard.emergency !== "none";
