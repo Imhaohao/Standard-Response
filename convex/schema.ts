@@ -304,7 +304,9 @@ export default defineSchema({
   })
     .index("by_callStatus_and_callPriority", ["callStatus", "callPriority"])
     .index("by_outcome", ["outcome"])
-    .index("by_callbackNumber", ["callbackNumber"]),
+    .index("by_callbackNumber", ["callbackNumber"])
+    // The incident purge finds real riders' rows without scanning the table (convex/incident.ts).
+    .index("by_simulated", ["simulated"]),
 
   // The call order Claude chose for one warning, most urgent first (convex/callPlans.ts).
   callPlans: defineTable({
@@ -672,6 +674,12 @@ export default defineSchema({
     clock: v.optional(v.object({ speed: v.number(), realAt: v.number(), simAt: v.number(), ranMs: v.number() })),
     // Track A: set while a rewind or reset copies the night into `nightRuns`; nothing new starts until it's done.
     archivingRunId: v.optional(v.id("nightRuns")),
+    // The incident closed (convex/incident.ts): real rider data is deleted after the retention window.
+    incidentClosedAt: v.optional(v.number()),
+    // The scheduled purge, so a reopen can cancel it.
+    incidentPurgeId: v.optional(v.id("_scheduled_functions")),
+    // When the purge finished deleting real rider data.
+    incidentPurgedAt: v.optional(v.number()),
   }),
 
   // Track A: every night, kept when it is rewound or reset (convex/nightRuns.ts). A run starts at the

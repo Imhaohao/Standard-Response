@@ -25,7 +25,7 @@ const DEFAULTS = {
   tickGeneration: 0,
 };
 
-async function controlRow(ctx: MutationCtx) {
+export async function controlRow(ctx: MutationCtx) {
   const existing = await ctx.db.query("control").first();
   if (existing) return existing;
   const id = await ctx.db.insert("control", DEFAULTS);
