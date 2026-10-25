@@ -114,7 +114,7 @@ Profile fields and allowed values:
 - peopleCount: how many people live in the home, a whole number
 - mobility: the most limited mobility of anyone who lives there: walks, walker, manual_wheelchair, power_wheelchair, bedbound. A wheelchair is manual_wheelchair unless they say electric or powered.
 - medical: comma-separated from oxygen, dialysis, other
-- assistanceRequired: help getting out of the home: none, one_person_assist, two_person_lift
+- assistanceRequired: help getting out of the home: none, one_person_assist, two_person_lift. One person to push a chair or help them to the car is one_person_assist; two_person_lift only when they say it takes two people or that they must be lifted or carried.
 - pets: true or false
 - hasCar: true or false
 - bedroomFloor: where the person who'd need help sleeps: ground, upstairs, basement. A one-story house is ground.

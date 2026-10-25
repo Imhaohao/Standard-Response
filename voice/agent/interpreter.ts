@@ -159,6 +159,7 @@ Rules for changes:
 - peopleCount only when they give the number or list who is home now. Someone mentioned in passing ("my son can't get out of bed") doesn't give it.
 - A wheelchair is manual_wheelchair unless they say it is electric or powered. When they say which kind it is, also list the says_chair_kind flag.
 - "Two people to lift", "he needs two of us to carry him", "can't get out of bed without help from two people" mean assistanceRequired two_person_lift.
+- "They need a person to wheel them out", "someone has to push her chair", "my son helps me to the car", "I need help getting to the door" mean assistanceRequired one_person_assist: one helper. It is two_person_lift only when they say it takes two people or that they must be lifted or carried; a wheelchair, oxygen or several people in the home doesn't make it two.
 - Someone who says they won't leave (without a pet, a person or their home) has canLeave unsure when the record has no canLeave yet; it never replaces a recorded no. Respect it and don't argue.
 - Someone who says they can't get out, can't walk far, or has no way to leave has canLeave no. Hesitation or "I don't know how" is unsure, and so is "I don't know" to the can-leave question, even with more said after it. Someone who says they are leaving or evacuating now ("we're getting in the car", "we're panicking to evacuate") has canLeave yes.
 - mobility is the most limited of anyone in the home now. Mentioning someone less limited never lowers it: after "my son can't get out of bed", "I'm in the wheelchair" keeps bedbound.
