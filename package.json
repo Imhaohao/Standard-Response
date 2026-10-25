@@ -17,6 +17,7 @@
     "test:prepare": "tsx --test lib/prepare/*.test.ts",
     "test:voice": "tsx --test voice/*.test.ts voice/agent/*.test.ts voice/phone/*.test.ts voice/knowledge/*.test.ts",
     "test:workflow": "vitest run tests/workflow --environment edge-runtime",
+    "stress:convex": "tsx scripts/stress/run.ts",
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
     "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts",
     "knowledge:generate": "VOICE_MODEL=claude-haiku-5-5 VOICE_KNOWLEDGE=off VOICE_HEDGED_REQUESTS=1 tsx --env-file=.env.local voice/knowledge/generate.ts",
