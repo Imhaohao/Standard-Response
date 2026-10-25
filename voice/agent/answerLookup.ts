@@ -1,5 +1,6 @@
-import { DocumentInfo, MossClient } from "@inferedge/moss";
+import type { DocumentInfo, MossClient } from "@inferedge/moss";
 import { env } from "../env";
+import { loadMossIndex, MOSS_RETRY_MS, sharedMossClient } from "../mossLoader";
 import { APPROVED_ANSWER_IDS, APPROVED_ANSWERS, ApprovedMatch, isApprovedAnswerId } from "./approvedAnswers";
 
 // Moss holds the approved-answer index in this process's memory, so a lookup takes 1 to 2 ms with
@@ -19,12 +20,7 @@ export function approvedAnswerDocuments(): DocumentInfo[] {
   );
 }
 
-export function mossClient() {
-  const { projectId, projectKey } = env.moss;
-  if (projectId === "" || projectKey === "") return null;
-  client ??= new MossClient(projectId, projectKey);
-  return client;
-}
+export const mossClient = sharedMossClient;
 
 // Called once at boot. Loading downloads the index and its embedding model, which takes about 12
 // seconds; calls that start before then simply get Claude's reply.
@@ -35,11 +31,13 @@ export async function loadApprovedAnswers() {
     return;
   }
   try {
-    await moss.loadIndex(APPROVED_ANSWER_INDEX, { cachePath: process.env.MOSS_CACHE_PATH || ".cache/moss" });
+    await loadMossIndex(APPROVED_ANSWER_INDEX);
+    client = moss;
     ready = true;
     console.log(`[moss] loaded ${APPROVED_ANSWER_INDEX}`);
   } catch (error) {
-    console.error("[moss] couldn't load the approved answers; run npm run moss:index", error);
+    console.error("[moss] couldn't load the approved answers; trying again in a minute", error);
+    setTimeout(() => void loadApprovedAnswers(), MOSS_RETRY_MS);
   }
 }
 

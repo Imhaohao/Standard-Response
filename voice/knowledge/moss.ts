@@ -1,7 +1,8 @@
-import { MossClient, type MetadataFilter, type QueryResultDocumentInfo } from "@inferedge/moss";
+import type { MossClient, MetadataFilter, QueryResultDocumentInfo } from "@inferedge/moss";
 import type { Hazard } from "../../convex/hazards";
 import type { Language } from "../../convex/languages";
 import { env } from "../env";
+import { loadMossIndex, MOSS_RETRY_MS, mossConfigured, sharedMossClient } from "../mossLoader";
 import { Guidance, INDEXES, momentText } from "./bank";
 
 // The first layer of every interpreter turn. Both indexes are downloaded once and searched in memory
@@ -16,25 +17,25 @@ const RECALL_BUDGET_MS = 80;
 const MIN_SCORE = 0.35;
 // The dialog bank is written in these; elsewhere the closest moments in any language are used.
 const BANK_LANGUAGES: readonly Language[] = ["en", "es"];
-const CACHE_PATH = process.env.MOSS_CACHE_PATH || ".cache/moss";
 
 let client: MossClient | null = null;
 let loading: Promise<boolean> | null = null;
 let ready = false;
 
-export const knowledgeConfigured = () => env.moss.enabled && env.moss.projectId !== "" && env.moss.projectKey !== "";
+export const knowledgeConfigured = () => env.moss.enabled && mossConfigured();
 
 export function loadKnowledge(): Promise<boolean> {
   if (!knowledgeConfigured()) return Promise.resolve(false);
   loading ??= (async () => {
-    client = new MossClient(env.moss.projectId, env.moss.projectKey);
     const started = Date.now();
-    await Promise.all(Object.values(INDEXES).map((name) => client!.loadIndex(name, { cachePath: CACHE_PATH })));
+    for (const name of Object.values(INDEXES)) await loadMossIndex(name);
+    client = sharedMossClient();
     ready = true;
     console.log(`[knowledge] Moss indexes loaded in ${Date.now() - started} ms`);
     return true;
   })().catch((error: unknown) => {
     console.error("[knowledge] Moss indexes failed to load; turns run without guidance", error);
+    setTimeout(() => (loading = null), MOSS_RETRY_MS);
     return false;
   });
   return loading;
