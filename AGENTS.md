@@ -25,7 +25,6 @@
 - Only the sender writes their file. Add each note at the bottom under a `## YYYY-MM-DD HH:MM` heading. Never edit someone else's file; reply in your own file to them.
 - Read every `notes/*-to-<you>.md` and `notes/*-to-everyone.md` file when you start and whenever a pull changes one.
 - Write a note before you push anything someone else's work depends on: a contract change, a new function to call, a stand-in you're turning off, or a blocker.
-- The older files named with letters (`AtoB.md`, `CSOtoD.md`, ...) are history. A was Boris, B Brendan, C Imzihao and D David; CSO, M and P were the sponsor, mesh and readiness survey add-ons.
 
 ## The contract
 

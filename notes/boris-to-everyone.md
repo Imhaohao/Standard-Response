@@ -94,3 +94,9 @@ The Eaton Fire scenario is regenerated (`data/hazard/scenario.geojson`, `public/
 - **The shader.** Where the fire field blends a reached cell with one that never burns, it used to put the edge on the cell boundary. `arrivalMinutes` in `lib/ink-map/shaders.ts` now decides burned or not from the four nearest cells, and it blends exactly as before where all four are reached.
 
 Arrival times inside the perimeter moved only where those houses had carved it. If you computed results from the scenario fronts (door fairness, danger zones), they may shift a little. The Altadena night replay (641 of 662) doesn't read these files.
+
+## 2026-10-25 05:20
+
+**Every screen opens with no sign-in, and the app has no session or roles.** `proxy.ts`, `lib/access.ts`, `lib/auth0.ts`, `/api/me` and `components/account/` aren't in the code, so pull before you touch the app bar, the restart menu, approval or `/api/search`. `/api/search` needs only `SEARCH_SECRET` on the server.
+
+**The repo describes only what's in the code.** The README, PLAN.md, HANDOFF.md, docs/ and code comments say what the system does today. Please don't add lines about what was taken out, what hasn't run, what's waiting on a key, or what's planned. The site is https://standardresponse.us. The lettered note files are out of the repo, and the `<name>-to-<name>.md` files carry on as before.
