@@ -23,6 +23,10 @@ BURNOVER_RADIUS_M = 150.0
 # A home's fire time is the first documented sighting within the near radius, else the far one (as in eaton_night).
 SIGHTING_NEAR_M, SIGHTING_FAR_M = 250.0, 500.0
 NIST_UTC_OFFSET = "-08:00"  # NIST TN 2135 times are PST
+# Lower Ninth: the first breach at 04:30 on 29 Aug 2005 (data/cities/lower-ninth/sources.md, IPET's earliest time).
+FLOOD_NO_ENTRY_MINUTE = 1050
+# Fort Myers Beach: Lee County told residents to be sheltered by 20:00 on 27 Sep 2022 (data/cities/fort-myers-beach/sources.md).
+SURGE_SHELTER_BY_MINUTE = 780
 # Blizzard: the outage curve peaks at 18:00 on 23 Dec (minute 510). Its denominator is the City of Buffalo's occupied
 # households, ACS 2019-2023 B11001 for place 3611000, standing in for National Grid's residential customers there.
 PEAK_OUTAGE_MINUTE = 510
@@ -158,6 +162,23 @@ def blizzard_deadline(arrival_s, context: ArrivalContext) -> np.ndarray:
     return np.where(np.isfinite(power), deadline, np.inf)
 
 
+def flood_last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
+    """Lower Ninth: aboard and out of the ward before the water reaches the home, and no van enters after the first
+    breach. The household's hazard time is the earlier of the two, minus the drive from its door out of the ward."""
+    return tsunami_last_exit(np.minimum(arrival_s, FLOOD_NO_ENTRY_MINUTE * MINUTE), context)
+
+
+def flood_closures(net, fronts, scenario, folder) -> np.ndarray:
+    """Streets close as the water reaches them, and every street in the ward closes to vans at the first breach."""
+    closes = edge_arrival_seconds(net, fronts)
+    return np.where(np.isfinite(closes), np.minimum(closes, FLOOD_NO_ENTRY_MINUTE * MINUTE), closes)
+
+
+def surge_shelter_by(arrival_s, context: ArrivalContext) -> np.ndarray:
+    """Fort Myers Beach: aboard by the county's shelter-in-place time, for every home the surge reaches."""
+    return np.minimum(arrival_s, SURGE_SHELTER_BY_MINUTE * MINUTE)
+
+
 def keep_arrival(arrival_s, context: ArrivalContext) -> np.ndarray:
     return arrival_s
 
@@ -191,18 +212,21 @@ RULES: dict[str, HazardRule] = {
         adjust_arrival=wildfire_arrival,
     ),
     "flood": HazardRule(
-        on_time="everyone aboard at least 10 min before the water reaches the home",
-        on_time_why="same margin as the fire runs; the research note gives no other",
-        margin_s=10 * MINUTE,
-        closure_rule="a street closes for good when the water reaches its midpoint",
-        closure_why="a lift van cannot drive through standing water",
+        on_time="aboard and driven out of the ward before the water reaches the home, and before the first breach at 04:30 on 29 Aug (minute 1050)",
+        on_time_why="data/cities/lower-ninth/sources.md: water went from the floor to 9 ft in about 15 minutes, so there is no safe depth to wait for; no van is routed into the ward after the first breach",
+        margin_s=0.0,
+        closure_rule="a street closes when the water reaches its midpoint, and every street in the ward closes at minute 1050",
+        closure_why="a lift van cannot drive through flood water, and nothing should drive into the ward once the walls have failed",
+        closures=flood_closures,
+        adjust_arrival=flood_last_exit,
     ),
     "surge": HazardRule(
-        on_time="everyone aboard at least 10 min before the surge reaches the home",
-        on_time_why="same margin as the fire runs; the research note gives no other",
-        margin_s=10 * MINUTE,
+        on_time="aboard by 20:00 on 27 Sep (minute 780), when Lee County told residents to be sheltered, for every home the surge reached",
+        on_time_why="data/cities/fort-myers-beach/sources.md: travel after that was into the storm, and the island's only ways off are two bridges",
+        margin_s=0.0,
         closure_rule="a street closes for good when the surge reaches its midpoint",
-        closure_why="a lift van cannot drive through surge water",
+        closure_why="a lift van cannot drive through surge water; the shelter time ends pickups well before that",
+        adjust_arrival=surge_shelter_by,
     ),
     "tsunami": HazardRule(
         on_time="everyone aboard, and the van able to drive out of the inundation zone, at least 10 min before the first wave",
