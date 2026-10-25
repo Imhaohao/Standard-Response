@@ -49,3 +49,13 @@ def test_helper_and_ready_check_lines_are_not_graded_for_ride_honesty():
             {"_id": "b", "text": "Can you pick up your neighbor? She'll be waiting.", "requestStatus": None, "flow": "pickup"},
             {"_id": "c", "text": "Thanks, I've saved your plan.", "requestStatus": None, "flow": "ready"}]
     assert [line.id for line in lines_from_convex(rows)] == ["a"]
+
+
+def test_fixed_lines_are_not_graded_as_claudes_words():
+    from rollcall_d.agent_lines import lines_for
+    from rollcall_d.honesty import free_text
+
+    for language in ("en", "es"):
+        lines = lines_for(language)
+        assert free_text(f"Mm. {lines['takeYourTime']}") == "Mm."
+        assert free_text(f"{lines['askHousehold']} Okay, we'll help you out.") == "Okay, we'll help you out."

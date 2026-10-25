@@ -123,6 +123,25 @@ def wordings(language: str) -> dict[str, frozenset[str]]:
     return {key: frozenset(values) for key, values in out.items()}
 
 
+def _strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    items = value.values() if isinstance(value, dict) else value
+    return [s for item in items for s in _strings(item)]
+
+
+# Shorter fixed lines ("Okay.", "Mm-hm.") also occur inside Claude's own sentences, so they aren't removed from them.
+FIXED_LINE_MIN_CHARS = 12
+
+
+@cache
+def fixed_lines(language: str) -> tuple[str, ...]:
+    """Every plain-string line the code has said in this language in any committed wording, longest first. Code chose
+    every word of these, so none of them is Claude's free text."""
+    lines = {s for version in line_versions(language) for s in _strings(version) if len(s) >= FIXED_LINE_MIN_CHARS}
+    return tuple(sorted(lines, key=len, reverse=True))
+
+
 def _conversation_constant(name: str, default: int) -> int:
     found = CONVERSATION.exists() and re.search(rf"const {name} = (\d+);", CONVERSATION.read_text())
     return int(found.group(1)) if found else default

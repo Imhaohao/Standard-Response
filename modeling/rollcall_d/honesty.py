@@ -1,8 +1,9 @@
 """Implied-reassurance grader.
 
 While a request is `received`, `approved` or `reassigning` (or there's no request yet), nothing the
-agent says may imply help is coming. The status templates are honest by construction, so they're
-stripped first; what's left is Claude's free text, which is what can fail. Two graders read it:
+agent says may imply help is coming. The status templates and the agent's other fixed lines are honest
+by construction (code chose every word, as PLAN.md says), so they're stripped first; what's left is
+Claude's free text, which is what can fail. Two graders read it:
 
   lexical   a fixed list of promise phrases in English and Spanish. Always runs; transparent floor.
   model     a separate Claude model, given the status and the line, judging implied promises.
@@ -17,7 +18,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from .agent_lines import wordings
+from .agent_lines import fixed_lines, wordings
 from .env import env_value
 from .spoken_numbers import strip_accents
 
@@ -90,7 +91,8 @@ class Line:
 
 
 def free_text(text: str) -> str:
-    for template in TEMPLATES:
+    """What Claude wrote: the reply without the status templates and every other fixed line, in either language."""
+    for template in (*TEMPLATES, *fixed_lines("en"), *fixed_lines("es")):
         text = text.replace(template, " ")
     return re.sub(r"\s+", " ", text).strip()
 
