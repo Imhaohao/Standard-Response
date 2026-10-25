@@ -46,6 +46,9 @@ export function nodePoint(node: number): Point {
   return { lat, lng };
 }
 
+// The street's drawn line, end to end.
+const shapeOf = (edge: EdgeRecord) => edge.geometry?.map(([lat, lng]) => ({ lat, lng })) ?? [nodePoint(edge.u), nodePoint(edge.v)];
+
 export function nearestNode(point: Point) {
   let best = 0;
   let bestMeters = Infinity;
@@ -147,7 +150,7 @@ export function legsFor(edges: number[], edgeTime: EdgeTime = freeFlow) {
     const seconds = edgeTime(edgeIndex, clock);
     clock += seconds;
     const edge = EDGES[edgeIndex];
-    const shape = edge.geometry?.map(([lat, lng]) => ({ lat, lng })) ?? [nodePoint(edge.u), nodePoint(edge.v)];
+    const shape = shapeOf(edge);
     if (points.length === 0) points.push(shape[0]);
     const pieces = shape.slice(1).map((p, i) => metersBetween(shape[i], p));
     const total = pieces.reduce((sum, m) => sum + m, 0) || 1;
@@ -201,10 +204,26 @@ function edgeLiesAlongPath(path: Point[], edge: EdgeRecord) {
   return metersToPath(nodePoint(edge.u), path) < ALONG_ROAD_METERS && metersToPath(nodePoint(edge.v), path) < ALONG_ROAD_METERS;
 }
 
-// A closure drawn along a road closes the segments it runs along. One drawn across roads, like a
-// fire line, closes every segment it cuts. Side streets that merely touch a closed road stay open.
+// Within this of a street's own line, a point is on that street. Closures cut from a van's route
+// (the "Close this road" control) are pieces of the street's own geometry, so they sit right on it.
+const ON_ROAD_METERS = 3;
+
+// A closure that is a piece of one street: every point on that street's line. A long curved street
+// has ends far from such a piece, so edgeLiesAlongPath alone misses it. A short piece ending at a
+// corner is held tighter, so the streets meeting there aren't taken for it.
+function pathLiesOnEdge(path: Point[], edge: EdgeRecord) {
+  const span = path.length < 2 ? 0 : metersBetween(path[0], path[path.length - 1]);
+  if (span < 0.5) return false;
+  const within = Math.min(ON_ROAD_METERS, span / 4);
+  const shape = shapeOf(edge);
+  return path.every((p) => metersToPath(p, shape) < within);
+}
+
+// A closure drawn along a road closes the segments it runs along, including the one street a short
+// piece of road lies on. One drawn across roads, like a fire line, closes every segment it cuts.
+// Side streets that merely touch a closed road stay open.
 function edgesForPath(path: Point[]) {
-  const along = [...EDGES.keys()].filter((index) => edgeLiesAlongPath(path, EDGES[index]));
+  const along = [...EDGES.keys()].filter((index) => edgeLiesAlongPath(path, EDGES[index]) || pathLiesOnEdge(path, EDGES[index]));
   if (along.length > 0) return along;
   return [...EDGES.keys()].filter((index) => pathCrossesEdge(path, EDGES[index]));
 }

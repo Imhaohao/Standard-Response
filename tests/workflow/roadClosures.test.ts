@@ -29,4 +29,14 @@ describe("road closures", () => {
     for (const row of rows) expect(row.edgeKeys?.length).toBeGreaterThan(0);
     expect(escapeRoute(HOME, SHELTERS, rows)).toBeNull();
   });
+
+  test("a short piece of a long curved street, as the Close this road control cuts it, closes that street", async () => {
+    const t = convexTest(schema, modules);
+    const street = EDGES.find((edge) => edge.meters > 300 && (edge.geometry?.length ?? 0) >= 6)!;
+    const middle = Math.floor(street.geometry!.length / 2);
+    const piece = street.geometry!.slice(middle, middle + 2).map(([lat, lng]) => ({ lat, lng }));
+    await t.mutation(api.roads.addClosures, { closures: [{ path: piece, source: "manual" }] });
+    const [row] = await t.query(api.roads.closures, {});
+    expect(row.edgeKeys).toContain(street.key);
+  });
 });
