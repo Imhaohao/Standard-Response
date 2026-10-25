@@ -372,11 +372,12 @@ Breaker breaker(vec2 xy, float behind, float along, float width, float seed, flo
   float reach = width * (0.1 + 1.6 * fingers * fingers * fingers);
   float edge = behind + reach;
   vec2 streak = vec2(along / (width * 0.8), behind / (width * 3.2) - uTime * 0.12);
-  float torn = fbm(streak + seed * 3.1) * 0.75 + valueNoise(xy / (width * 0.4) + seed) * 0.35;
+  float torn = fbm(streak + seed * 3.1) * 0.8 + valueNoise(xy / (width * 1.6) + seed) * 0.25;
   float thinning = smoothstep(width * 0.7, width * tail, behind);
   float holes = smoothstep(0.62, 0.8, valueNoise(xy / (width * 0.33) + seed * 2.3 + vec2(uTime * 0.2, 0.0)));
   float solid = width * (0.85 - holes * 0.9) - behind;
-  float patches = (torn - 0.47 - 0.4 * thinning) * width * 1.5;
+  float beyondTail = smoothstep(width * tail, width * (tail + 1.0), behind);
+  float patches = (torn - 0.47 - 0.4 * thinning) * width * 1.5 - beyondTail * width * 4.0;
   b.foam = min(edge, max(solid, patches));
   b.face = exp(min(edge, 0.0) / (width * 1.3)) * step(edge, 0.0);
   return b;
