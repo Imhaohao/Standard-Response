@@ -4,16 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { ActionCtx, internalAction, internalQuery, MutationCtx, query, QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { simNow } from "./clock";
-import {
-  agencyTransfers,
-  createCheckingAccount,
-  createCustomer,
-  createTransfer,
-  customerAccounts,
-  getTransfer,
-  NessieConfig,
-  nessieConfig,
-} from "./nessie";
+import { agencyTransfers, createCheckingAccount, createCustomer, createTransfer, customerAccounts, getTransfer, NessieConfig, nessieConfig, transferIdOf } from "./nessie";
 import { completedRouteMiles } from "./reimburseMiles";
 import schema, { reimbursementStatus } from "./schema";
 
@@ -42,10 +33,13 @@ function positiveEnv(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+// Nessie's sandbox keeps whole dollars, so the payment rounds up to the next dollar (at least $1),
+// in the volunteer's favor, and the cap rounds down.
 export function amountCentsFor(miles: number) {
   const rate = positiveEnv("REIMBURSE_RATE_PER_MILE", DEFAULT_RATE_PER_MILE);
-  const maxCents = Math.round(positiveEnv("REIMBURSE_MAX", DEFAULT_MAX_DOLLARS) * 100);
-  return { rate, amountCents: Math.min(Math.round(miles * rate * 100), maxCents) };
+  const maxDollars = Math.max(1, Math.floor(positiveEnv("REIMBURSE_MAX", DEFAULT_MAX_DOLLARS)));
+  const dollars = Math.max(1, Math.ceil(Math.round(miles * rate * 100) / 100));
+  return { rate, amountCents: Math.min(dollars, maxDollars) * 100 };
 }
 
 const volunteerKeyOf = (plan: Doc<"pickupPlans">) => plan.helperPhone.replace(/\D/g, "") || `plan:${plan._id}`;
@@ -232,7 +226,7 @@ async function earlierTransfer(config: NessieConfig, row: Reimbursement) {
 async function settle(ctx: ActionCtx, config: NessieConfig, row: Reimbursement) {
   const payee = await volunteerAccount(ctx, config, row);
   const earlier = await earlierTransfer(config, row);
-  if (earlier) return { id: earlier._id, status: earlier.status };
+  if (earlier) return { id: transferIdOf(earlier), status: earlier.status };
   await ctx.runMutation(internal.reimburse.markPosting, { reimbursementId: row._id, attempt: row.attempts });
   const description = `Mileage reimbursement, ${row.miles.toFixed(1)} mi at $${row.ratePerMile}/mi (${reference(row._id)})`;
   return await createTransfer(config, payee, row.amountCents, description);

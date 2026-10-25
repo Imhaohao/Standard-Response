@@ -1,19 +1,22 @@
-// A small client for Capital One's Nessie sandbox (http://api.nessieisreal.com). Every request
+// A small client for Capital One's Nessie sandbox (https://api.nessieisreal.com; plain http does not answer). Every request
 // carries the key as the `key` query parameter. Create calls answer
 // `{ code: 201, message, objectCreated: { _id, ... } }`. No Convex functions live here.
 
 export type NessieConfig = { key: string; baseUrl: string; agencyAccountId: string };
 
+// The live sandbox (checked 2026-10-24) answers a create with `_id` but lists and fetches transfers
+// with `id`, and a transfer names no payee: it only debits the paying account.
 export type NessieTransfer = {
-  _id: string;
-  payer_id?: string;
-  payee_id?: string;
+  id?: string;
+  _id?: string;
   amount?: number;
-  status?: string;
   description?: string;
+  status?: string;
 };
 
-const DEFAULT_BASE_URL = "http://api.nessieisreal.com";
+export const transferIdOf = (transfer: NessieTransfer) => transfer.id ?? transfer._id ?? "";
+
+const DEFAULT_BASE_URL = "https://api.nessieisreal.com";
 // One payment makes at most seven requests, so 20 s each stays inside reimburse.ts's 5-minute claim.
 const REQUEST_TIMEOUT_MS = 20_000;
 
@@ -84,16 +87,18 @@ export async function createCheckingAccount(config: NessieConfig, customerId: st
   return createdId(await call<Created>(config, "POST", `/customers/${customerId}/accounts`, body), "account");
 }
 
+// The live sandbox keeps whole dollars only and its transfers carry no payee, so a payment is the
+// agency's transfer out and then a deposit of the same amount into the volunteer's account.
+// amountCents is always a whole number of dollars here (see amountCentsFor in reimburse.ts).
 export async function createTransfer(config: NessieConfig, payeeAccountId: string, amountCents: number, description: string) {
-  const body = {
-    medium: "balance",
-    payee_id: payeeAccountId,
-    amount: amountCents / 100,
-    transaction_date: new Date().toISOString().slice(0, 10),
-    description,
-  };
-  const result = await call<Created>(config, "POST", `/accounts/${config.agencyAccountId}/transfers`, body);
-  return { id: createdId(result, "transfer"), status: result.objectCreated?.status };
+  const amount = Math.round(amountCents / 100);
+  const transaction_date = new Date().toISOString().slice(0, 10);
+  const sent = { amount, transaction_date, status: "pending", description: `${description}, to account ${payeeAccountId}` };
+  const result = await call<Created>(config, "POST", `/accounts/${config.agencyAccountId}/transfers`, sent);
+  const id = createdId(result, "transfer");
+  const received = { medium: "balance", amount, transaction_date, status: "pending", description };
+  await call<Created>(config, "POST", `/accounts/${payeeAccountId}/deposits`, received);
+  return { id, status: result.objectCreated?.status };
 }
 
 // The transfer, or null when Nessie has no transfer with that id.
@@ -108,5 +113,5 @@ export async function getTransfer(config: NessieConfig, transferId: string) {
 
 // Every transfer the agency account sent.
 export async function agencyTransfers(config: NessieConfig) {
-  return (await call<NessieTransfer[]>(config, "GET", `/accounts/${config.agencyAccountId}/transfers`, undefined, { type: "payer" })) ?? [];
+  return (await call<NessieTransfer[]>(config, "GET", `/accounts/${config.agencyAccountId}/transfers`)) ?? [];
 }

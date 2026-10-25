@@ -25,23 +25,29 @@ function setup() {
 
 type T = ReturnType<typeof setup>;
 
-// An in-memory Nessie: the routes reimburse.ts uses, with failures to order.
+// An in-memory Nessie shaped like the live sandbox (checked 2026-10-24): a transfer takes exactly
+// amount, transaction_date, status and description (no payee, extra fields are a 400), lists and
+// fetches return `id`, amounts are whole dollars, and the payee is paid by a deposit.
 function fakeNessie() {
   let next = 0;
   const id = (kind: string) => `${kind}-${++next}`;
   const accounts = new Map<string, string[]>();
-  const transfers: { _id: string; payer_id: string; payee_id: string; amount: number; description: string; status: string }[] = [];
+  const transfers: { id: string; payer_id: string; amount: number; description: string; status: string }[] = [];
+  const deposits: { account: string; amount: number; description: string }[] = [];
   const log: string[] = [];
   const failures: { transfer?: "rejected" | "lost" } = {};
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const created = (objectCreated: object) => json(201, { code: 201, message: "Created", objectCreated });
 
-  function postTransfer(path: string, body: { payee_id: string; amount: number; description: string }) {
+  const TRANSFER_FIELDS = ["amount", "description", "status", "transaction_date"];
+  function postTransfer(path: string, body: Record<string, unknown>) {
     if (failures.transfer === "rejected") return json(500, { code: 500, message: "Internal error" });
-    const transfer = { _id: id("transfer"), payer_id: path.split("/")[2], payee_id: body.payee_id, amount: body.amount, description: body.description, status: "pending" };
+    if (Object.keys(body).sort().join() !== TRANSFER_FIELDS.join()) return json(400, `validation errors for TransferCreate: ${Object.keys(body).join()}`);
+    const transfer = { id: id("transfer"), payer_id: path.split("/")[2], amount: Math.trunc(Number(body.amount)), description: String(body.description), status: "pending" };
     transfers.push(transfer);
     if (failures.transfer === "lost") throw new TypeError("network connection lost");
-    return created(transfer);
+    const { id: _id, ...rest } = transfer;
+    return created({ _id, ...rest });
   }
 
   const routes: [string, RegExp, (path: string, body: never) => Response][] = [
@@ -54,8 +60,12 @@ function fakeNessie() {
     }],
     ["POST", /^\/accounts\/[^/]+\/transfers$/, postTransfer],
     ["GET", /^\/accounts\/[^/]+\/transfers$/, (path) => json(200, transfers.filter((t) => t.payer_id === path.split("/")[2]))],
+    ["POST", /^\/accounts\/[^/]+\/deposits$/, (path, body: { amount: number; description: string }) => {
+      deposits.push({ account: path.split("/")[2], amount: Math.trunc(body.amount), description: body.description });
+      return created({ _id: id("deposit") });
+    }],
     ["GET", /^\/transfers\/[^/]+$/, (path) => {
-      const found = transfers.find((t) => t._id === path.split("/")[2]);
+      const found = transfers.find((t) => t.id === path.split("/")[2]);
       return found ? json(200, found) : json(404, { code: 404, message: "Not found" });
     }],
   ];
@@ -69,7 +79,7 @@ function fakeNessie() {
     if (!route) return json(404, { code: 404, message: "No route" });
     return route[2](url.pathname, (init?.body ? JSON.parse(String(init.body)) : undefined) as never);
   };
-  return { fetch, transfers, log, failures };
+  return { fetch, transfers, deposits, log, failures };
 }
 
 let nessie: ReturnType<typeof fakeNessie>;
@@ -126,15 +136,17 @@ describe("volunteer mileage through Nessie", () => {
     const [row] = await rows(t);
     expect(row).toMatchObject({ status: "pending", volunteerFirstName: "Ana", ratePerMile: 0.14, distanceSource: "road" });
     expect(row.miles).toBeGreaterThan(0);
-    expect(row.amountCents).toBe(Math.round(row.miles * 0.14 * 100));
+    expect(row.amountCents).toBe(Math.max(1, Math.ceil(row.miles * 0.14)) * 100);
     expect((await scheduledPays(t)).map((job) => job.name)).toEqual(["reimburse:pay"]);
 
     await pay(t, row._id);
     await pay(t, row._id);
     const [paid] = await rows(t);
-    expect(paid).toMatchObject({ status: "paid", nessieTransferId: nessie.transfers[0]._id, attempts: 1 });
+    expect(paid).toMatchObject({ status: "paid", nessieTransferId: nessie.transfers[0].id, attempts: 1 });
     expect(nessie.transfers).toHaveLength(1);
     expect(nessie.transfers[0]).toMatchObject({ payer_id: AGENCY, amount: row.amountCents / 100 });
+    expect(nessie.deposits).toHaveLength(1);
+    expect(nessie.deposits[0].amount).toBe(row.amountCents / 100);
     expect(nessie.log.filter((line) => line === "POST /customers")).toHaveLength(1);
     const [event] = await reimbursedEvents(t);
     expect(event.message).toBe(`Reimbursed Ana $${(row.amountCents / 100).toFixed(2)} for ${row.miles.toFixed(1)} miles`);
@@ -217,7 +229,7 @@ describe("volunteer mileage through Nessie", () => {
     nessie.failures.transfer = undefined;
     await t.mutation(internal.reimburse.retry, { reimbursementId: row._id });
     await pay(t, row._id);
-    expect((await rows(t))[0]).toMatchObject({ status: "paid", nessieTransferId: nessie.transfers[0]._id });
+    expect((await rows(t))[0]).toMatchObject({ status: "paid", nessieTransferId: nessie.transfers[0].id });
     expect(nessie.transfers).toHaveLength(1);
     expect(nessie.log.filter((line) => line.startsWith("POST /accounts/"))).toHaveLength(1);
   });
@@ -239,6 +251,7 @@ describe("volunteer mileage through Nessie", () => {
     const t = setup();
     await completeVolunteerPickup(t);
     const [row] = await rows(t);
-    expect(row).toMatchObject({ ratePerMile: 100, amountCents: 350 });
+    // Nessie keeps whole dollars, so a $3.50 cap pays $3.
+    expect(row).toMatchObject({ ratePerMile: 100, amountCents: 300 });
   });
 });
