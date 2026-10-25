@@ -51,6 +51,14 @@ const needs = (groups: Record<string, string | undefined>): Parsed => {
 
 const set = (updates: AgentRecord, answer?: Answer) => () => ({ updates, answer });
 
+// "5." or "three people" to the how-much-help question: the closest choice by helper count.
+const helpersNeeded = (groups: Record<string, string | undefined>): Parsed => {
+  const helpers = /^(zero|cero)$/.test(groups.count ?? "") ? 0 : countOf(groups.count ?? "");
+  if (helpers === 0) return { updates: { assistanceRequired: "none" }, answer: "no" };
+  return { updates: { assistanceRequired: helpers === 1 ? "one_person_assist" : "two_person_lift" } };
+};
+const HELPER_COUNT = "(?<count>\\d+|zero|cero|one|two|three|four|five|six|seven|eight|nine|ten|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)";
+
 const PERSON_EN = "(?:i|he|she|my (?:husband|wife|son|daughter|mom|mother|dad|father|sister|brother|partner|grandson|granddaughter|grandmother|grandfather))";
 const PERSON_ES = "(?:(?:mi (?:esposo|esposa|hijo|hija|mamá|mama|madre|papá|papa|padre|hermano|hermana|abuelo|abuela) )?)";
 const PETS_EN = "(?<pets>no pets|(?:my|our|a|the) (?:dog|dogs|cat|cats|pets))";
@@ -81,6 +89,7 @@ const EN: Record<string, Pattern[]> = {
     { match: /^(?:just )?one person(?: to help| helping)?(?: me| him| her| us)?$/, read: set({ assistanceRequired: "one_person_assist" }) },
     { match: /^(?:it takes )?two people(?: to lift)?(?: me| him| her)?$/, read: set({ assistanceRequired: "two_person_lift" }) },
     { match: /^(?:none|no help(?: needed)?(?: we can manage)?|we can manage|i can manage)$/, read: set({ assistanceRequired: "none" }, "no") },
+    { match: new RegExp(`^${HELPER_COUNT}(?: people| persons| of us)?$`), read: helpersNeeded },
   ],
   neighbor: [{ match: /^no(?: i don't think so| one| nobody| not that i know)?$/, read: set({}, "no") }],
 };
@@ -107,6 +116,7 @@ const ES: Record<string, Pattern[]> = {
     { match: /^una persona que (?:me |le |nos )?ayude$/, read: set({ assistanceRequired: "one_person_assist" }) },
     { match: /^se necesitan dos personas para levantar(?:lo|la|me)?$/, read: set({ assistanceRequired: "two_person_lift" }) },
     { match: /^no (?:necesito|necesitamos) ayuda$/, read: set({ assistanceRequired: "none" }, "no") },
+    { match: new RegExp(`^${HELPER_COUNT}(?: personas?)?$`), read: helpersNeeded },
   ],
   neighbor: [{ match: /^no(?: creo que no| nadie)?$/, read: set({}, "no") }],
 };

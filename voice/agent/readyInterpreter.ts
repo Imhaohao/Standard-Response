@@ -135,6 +135,7 @@ Profile fields and allowed values:
 
 Rules:
 - List a field only when this utterance gives or changes it. A correction to an earlier answer lists the new value.
+- An answer to the question that fits no allowed value exactly still counts: list the closest value rather than nothing, so the question isn't asked again. A number of helpers is assistanceRequired by count: 0 none, 1 one_person_assist, 2 or more ("5", "three people") two_person_lift.
 - When the question asks about mobility needs and they say nobody has any, list mobility walks and an empty medical (value "").
 - When the question asks about care needs and they say none, list care with value "".
 - At the exit plan or helper question, "nobody", "no one", "I don't have anyone", "I'd need you to come get me" or "I don't know how I'd get out" mean exitPlan needs_ride, with no helper fields. Never leave the plan unset for those.

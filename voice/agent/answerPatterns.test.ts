@@ -21,6 +21,9 @@ const PLAIN = [
   ["en", "assistance", "It takes two people to lift.", { assistanceRequired: "two_person_lift" }],
   ["en", "assistance", "One person to help.", { assistanceRequired: "one_person_assist" }],
   ["en", "assistance", "No help needed, we can manage.", { assistanceRequired: "none" }],
+  ["en", "assistance", "5.", { assistanceRequired: "two_person_lift" }],
+  ["en", "assistance", "Three people.", { assistanceRequired: "two_person_lift" }],
+  ["en", "assistance", "One.", { assistanceRequired: "one_person_assist" }],
   ["es", "can_leave", "No, no puedo salir sola.", { canLeave: "no" }],
   ["es", "has_car", "No, no tengo carro.", { hasCar: false }],
   ["es", "household", "Somos tres. Sin mascotas.", { peopleCount: 3, pets: false }],
@@ -28,6 +31,7 @@ const PLAIN = [
   ["es", "needs", "Mi hijo usa silla de ruedas eléctrica.", { mobility: "power_wheelchair" }],
   ["es", "needs", "Uso andadera. Y uso oxígeno.", { mobility: "walker", medical: ["oxygen"] }],
   ["es", "assistance", "Se necesitan dos personas para levantarlo.", { assistanceRequired: "two_person_lift" }],
+  ["es", "assistance", "Cinco.", { assistanceRequired: "two_person_lift" }],
 ] as const;
 
 // Anything beyond a plain answer must reach Claude.
