@@ -49,6 +49,8 @@
   --unknown: oklch(0.8 0.008 60);
   --map-paper: oklch(0.963 0.012 85);
   --map-ink: oklch(0.235 0.012 60);
+  /* Woodblock Prussian blue: water on the map (flood, surge, tsunami), and nothing else. INK_PALETTE.indigo in lib/ink-map/renderer.ts. */
+  --map-indigo: oklch(0.38 0.085 255);
   --smoke: oklch(0.9 0.008 70);
   --shadow-float: 0 1px 2px oklch(0.3 0.02 60 / 0.08), 0 6px 20px oklch(0.3 0.02 60 / 0.1);
   --shadow-popover: 0 0 0 1px var(--panel-raised), 0 16px 40px oklch(0 0 0 / 0.35);
@@ -90,6 +92,7 @@
   --color-unknown: var(--unknown);
   --color-map-paper: var(--map-paper);
   --color-map-ink: var(--map-ink);
+  --color-map-indigo: var(--map-indigo);
   --color-night: var(--night);
   --color-night-raised: var(--night-raised);
   --color-on-night: var(--on-night);

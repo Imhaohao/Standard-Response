@@ -114,6 +114,7 @@ export function MapStage({
   underlay,
   children,
   controls,
+  onRenderer,
   className = "",
 }: {
   data: InkMapData;
@@ -132,6 +133,8 @@ export function MapStage({
   underlay?: ReactNode;
   children?: ReactNode;
   controls?: ReactNode;
+  // The 3D renderer once it is up, for a page that drives it directly (the scenes recorder); null in paper mode.
+  onRenderer?: (renderer: InkMapRenderer | null) => void;
   className?: string;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -150,6 +153,7 @@ export function MapStage({
 
   const renderer = mode === "ink" ? handle?.renderer ?? null : null;
   const dragged = useMapGestures(boxRef, renderer);
+  useEffect(() => onRenderer?.(renderer), [onRenderer, renderer]);
   useFlyTo(renderer, focus);
 
   const groundAt = useCallback(
@@ -285,7 +289,7 @@ function StageSurface({ mode, data, view, frame, size, hazard, minutes = 0, fore
   if (!size || !frame) return null;
   return (
     <svg width={size.width} height={size.height} className="absolute inset-0" role="img" aria-label="Flat map of Altadena: streets, hills and the fire front">
-      <PaperSurface data={data} frame={frame} size={size} field={hazard?.field ?? null} burns={hazard?.burns !== false} minutes={minutes} />
+      <PaperSurface data={data} frame={frame} size={size} hazard={hazard ?? null} minutes={minutes} />
     </svg>
   );
 }

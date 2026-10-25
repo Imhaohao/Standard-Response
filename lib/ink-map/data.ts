@@ -1,3 +1,4 @@
+import { cityById, DEFAULT_CITY } from "../cities";
 import type { LatLng } from "../geo";
 
 // The baked map from scripts/map/bake.mjs. Coordinates are decimeters east and north of `origin`.
@@ -5,7 +6,8 @@ type RawMap = {
   origin: LatLng;
   detail: [number, number, number, number];
   extent?: [number, number, number, number];
-  terrain: { cols: number; rows: number; cell: number; x0: number; y0: number };
+  // offsetMeters lifts the stored decimetres so ground below sea level fits in a Uint16; Altadena's has none.
+  terrain: { cols: number; rows: number; cell: number; x0: number; y0: number; offsetMeters?: number };
   buildings: number[][];
   roads: number[][];
   roadNames: string[];
@@ -98,7 +100,7 @@ function decodeTerrain(raw: RawMap["terrain"], buffer: ArrayBuffer): Terrain {
   for (const value of decimeters) min = Math.min(min, value);
   const heights = new Float32Array(decimeters.length);
   for (let i = 0; i < decimeters.length; i++) heights[i] = (decimeters[i] - min) / 10;
-  return { ...raw, heights, base: min / 10 };
+  return { ...raw, heights, base: min / 10 - (raw.offsetMeters ?? 0) };
 }
 
 function decode(raw: RawMap, terrainBuffer: ArrayBuffer): InkMapData {
@@ -123,12 +125,17 @@ function decode(raw: RawMap, terrainBuffer: ArrayBuffer): InkMapData {
   };
 }
 
-let pending: Promise<InkMapData> | null = null;
+const loads = new Map<string, Promise<InkMapData>>();
 
-export function loadInkMapData() {
-  pending ??= Promise.all([
-    fetch("/map/altadena.json").then((r) => r.json() as Promise<RawMap>),
-    fetch("/map/terrain.bin").then((r) => r.arrayBuffer()),
+export function loadInkMapData(cityId: string = DEFAULT_CITY) {
+  const { files } = cityById(cityId);
+  const cached = loads.get(files.map);
+  if (cached) return cached;
+  const load = Promise.all([
+    fetch(files.map).then((r) => r.json() as Promise<RawMap>),
+    fetch(files.terrain).then((r) => r.arrayBuffer()),
   ]).then(([raw, terrain]) => decode(raw, terrain));
-  return pending;
+  load.catch(() => loads.delete(files.map));
+  loads.set(files.map, load);
+  return load;
 }

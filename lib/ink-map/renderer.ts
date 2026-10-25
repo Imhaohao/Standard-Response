@@ -3,21 +3,22 @@ import { InkMapData, Point, terrainHeight } from "./data";
 import { configureCamera, InkMapView, viewRegion } from "./camera";
 import type { ForecastField } from "./danger";
 import { NEVER_BURNS, type FireField } from "./fire-field";
-import { FlameField } from "./flames";
+import { HazardHost, type HazardRequest } from "./hazard-layers/host";
+import type { HazardFrame, HazardImpact } from "./hazard-layers/types";
 import { buildingGeometry, landuseTexture, LanduseTexture, roadGeometry, terrainChunks, TreeTile, treeTiles } from "./geometry";
 import {
-  BLUR_FRAGMENT,
   COMPOSITE_FRAGMENT,
   DEPTH_FRAGMENT,
   DEPTH_VERTEX,
   FIRE_FRAGMENT,
-  FIRE_MASK_FRAGMENT,
   FULLSCREEN_VERTEX,
   GBUFFER_FRAGMENT,
   GBUFFER_VERTEX,
 } from "./shaders";
 
-// Palette in linear-ish sRGB floats. These mirror --paper, --ink, --signal and --ember in globals.css.
+// Palette in linear-ish sRGB floats. These mirror --paper, --ink, --signal, --ember and --map-indigo
+// in globals.css. Indigo is the woodblock Prussian blue of water (flood, surge, tsunami), the one
+// hue besides red; snow stays ink and paper.
 function terrainExtent({ terrain }: InkMapData) {
   return new THREE.Vector4(terrain.x0, terrain.y0, terrain.x0 + (terrain.cols - 1) * terrain.cell, terrain.y0 + (terrain.rows - 1) * terrain.cell);
 }
@@ -27,6 +28,7 @@ export const INK_PALETTE = {
   ink: [0.11, 0.1, 0.09],
   red: [0.86, 0.16, 0.12],
   ember: [1.0, 0.42, 0.12],
+  indigo: [0.126, 0.263, 0.433],
 } as const;
 
 const FLIGHT_MS = 650;
@@ -79,8 +81,6 @@ function emptyTexture() {
 }
 
 const TREE_FAR_METERS_PER_PIXEL = 0.6;
-// Flames stand on the town and the hills the camera can reach around it, not the whole field.
-const FLAME_MARGIN_METERS = 2500;
 
 export class InkMapRenderer {
   readonly camera = new THREE.PerspectiveCamera();
@@ -93,30 +93,28 @@ export class InkMapRenderer {
   // The map without anything that moves, redrawn only when the view, the fire's minute or a home changes.
   private base: THREE.WebGLRenderTarget;
   private baseDirty = true;
-  private fireMask: THREE.WebGLRenderTarget;
-  private blurA: THREE.WebGLRenderTarget;
-  private bloom: THREE.WebGLRenderTarget;
   private quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private gbufferUniforms: Record<string, THREE.IUniform>;
   private composite: ReturnType<typeof fullscreenPass>;
   private fire: ReturnType<typeof fullscreenPass>;
-  private flames: FlameField;
-  private fireField: FireField | null = null;
-  private mask: ReturnType<typeof fullscreenPass>;
-  private blur: ReturnType<typeof fullscreenPass>;
+  private hazards: HazardHost;
+  private blank = emptyTexture();
   private landuse: LanduseTexture;
   private buildingStates: THREE.DataTexture;
-  private fireTexture: THREE.DataTexture | null = null;
   private forecastTexture: THREE.DataTexture | null = null;
   private cssSize = { width: 1, height: 1 };
   private frame = 0;
   private running = false;
   private startedAt = performance.now();
+  // Seconds a recorder pinned the animation clock to, so every capture of a minute looks the same.
+  private frozenSeconds: number | null = null;
+  private drawnWaiters: (() => void)[] = [];
   private disposables: { dispose: () => void }[] = [];
   private treeTiles: TreeTile[] = [];
   private treesUploaded = false;
   private onCpu: boolean;
   private pixelRatio: number;
+  private pulsing = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -144,9 +142,6 @@ export class InkMapRenderer {
       depthTexture: new THREE.DepthTexture(shadowSize, shadowSize, THREE.FloatType),
     });
     this.base = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
-    this.fireMask = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
-    this.blurA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
-    this.bloom = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
     this.buildingStates = new THREE.DataTexture(new Uint8Array(256 * Math.ceil(data.buildings.length / 256) * 4), 256, Math.ceil(data.buildings.length / 256), THREE.RGBAFormat);
     this.buildingStates.needsUpdate = true;
 
@@ -161,13 +156,19 @@ export class InkMapRenderer {
     };
     this.buildScene(region);
     this.composite = fullscreenPass(COMPOSITE_FRAGMENT, this.compositeUniforms());
-    this.mask = fullscreenPass(FIRE_MASK_FRAGMENT, this.composite.material.uniforms);
     this.fire = fullscreenPass(FIRE_FRAGMENT, this.composite.material.uniforms);
-    const b = region.buildings;
-    const flameBounds = { x0: b.x0 - FLAME_MARGIN_METERS, y0: b.y0 - FLAME_MARGIN_METERS, x1: b.x1 + FLAME_MARGIN_METERS, y1: b.y1 + FLAME_MARGIN_METERS };
-    this.flames = new FlameField(data, flameBounds, this.composite.material.uniforms);
-    this.blur = fullscreenPass(BLUR_FRAGMENT, { tInput: { value: null }, uDirection: { value: new THREE.Vector2() } });
-    this.disposables.push(this.gbuffer, this.shadow, this.base, this.fireMask, this.blurA, this.bloom, this.landuse.texture, this.buildingStates, this.renderer);
+    const [shade, normal, id] = this.gbuffer.textures;
+    this.hazards = new HazardHost({
+      three: this.renderer,
+      data,
+      view,
+      bounds: region.buildings,
+      gbuffer: { shade, normal, id, depth: this.gbuffer.depthTexture as THREE.DepthTexture },
+      shared: this.composite.material.uniforms,
+      invalidate: () => (this.baseDirty = true),
+      blank: this.blank,
+    });
+    this.disposables.push(this.gbuffer, this.shadow, this.base, this.blank, this.landuse.texture, this.buildingStates, this.renderer);
   }
 
   private buildScene(region: ReturnType<typeof viewRegion>) {
@@ -204,9 +205,9 @@ export class InkMapRenderer {
       tId: { value: this.gbuffer.textures[2] },
       tDepth: { value: this.gbuffer.depthTexture },
       tBase: { value: this.base.texture },
-      tFrontMask: { value: this.fireMask.texture },
-      tBloom: { value: this.bloom.texture },
-      tFire: { value: emptyTexture() },
+      tFrontMask: { value: this.blank },
+      tBloom: { value: this.blank },
+      tFire: { value: this.blank },
       tBuildingState: { value: this.buildingStates },
       uInvProjection: { value: new THREE.Matrix4() },
       uCameraWorld: { value: new THREE.Matrix4() },
@@ -218,6 +219,7 @@ export class InkMapRenderer {
       uCharcoal: { value: new THREE.Vector3(...INK_PALETTE.ink) },
       uRed: { value: new THREE.Vector3(...INK_PALETTE.red) },
       uEmber: { value: new THREE.Vector3(...INK_PALETTE.ember) },
+      uIndigo: { value: new THREE.Vector3(...INK_PALETTE.indigo) },
       uFireRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
       uFireNow: { value: 0 },
       uFireOn: { value: 0 },
@@ -281,7 +283,7 @@ export class InkMapRenderer {
     const h = Math.round(this.cssSize.height * pr);
     this.gbuffer.setSize(w, h);
     this.base.setSize(w, h);
-    for (const target of [this.fireMask, this.blurA, this.bloom]) target.setSize(Math.ceil(w / 4), Math.ceil(h / 4));
+    this.hazards.resize(w, h);
     this.baseDirty = true;
     configureCamera(this.camera, this.data, this.view, this.cssSize.width / this.cssSize.height);
     this.home = { position: this.camera.position.clone(), target: this.lookTarget() };
@@ -479,55 +481,60 @@ export class InkMapRenderer {
     this.renderer.setRenderTarget(null);
   }
 
-  // The crisp glow mask stays in fireMask for the flames; two blur rounds spread it into bloom.
-  private renderBloom() {
-    const u = this.composite.material.uniforms;
-    if (u.uFireOn.value < 0.5) return;
-    this.renderer.setRenderTarget(this.fireMask);
-    this.renderer.render(this.mask.scene, this.quadCamera);
-    const texel = new THREE.Vector2(1 / this.fireMask.width, 1 / this.fireMask.height);
-    const b = this.blur.material.uniforms;
-    for (let pass = 0; pass < 2; pass++) {
-      b.tInput.value = pass === 0 ? this.fireMask.texture : this.bloom.texture;
-      b.uDirection.value.set(texel.x * (1 + pass), 0);
-      this.renderer.setRenderTarget(this.blurA);
-      this.renderer.render(this.blur.scene, this.quadCamera);
-      b.tInput.value = this.blurA.texture;
-      b.uDirection.value.set(0, texel.y * (1 + pass));
-      this.renderer.setRenderTarget(this.bloom);
-      this.renderer.render(this.blur.scene, this.quadCamera);
-    }
-  }
-
-  private renderBase() {
+  private renderBase(frame: HazardFrame) {
     this.baseDirty = false;
     this.renderer.setRenderTarget(this.base);
     this.renderer.render(this.composite.scene, this.quadCamera);
+    this.hazards.drawBase(frame);
+  }
+
+  private hazardFrame(seconds: number): HazardFrame {
+    const { width, height } = this.base;
+    return { minutes: this.composite.material.uniforms.uFireNow.value, seconds, camera: this.camera, viewport: { width, height } };
   }
 
   renderFrame() {
     const u = this.composite.material.uniforms;
-    const seconds = (performance.now() - this.startedAt) / 1000;
+    const seconds = this.frozenSeconds ?? (performance.now() - this.startedAt) / 1000;
     u.uTime.value = seconds;
     u.uPulse.value = 0.5 + 0.5 * Math.sin(seconds * 3.2);
-    if (this.baseDirty) this.renderBase();
-    this.renderBloom();
+    const frame = this.hazardFrame(seconds);
+    if (this.baseDirty) this.renderBase(frame);
+    this.hazards.prepare(frame);
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.fire.scene, this.quadCamera);
-    this.renderFlames();
+    this.hazards.drawScreen(frame);
+    this.renderHazardScene(frame);
+    for (const resolve of this.drawnWaiters.splice(0)) resolve();
   }
 
-  // The flames stand in the scene over the finished map. They test against the town's depth in
-  // their own shader, and against each other with the canvas's depth buffer.
-  private renderFlames() {
-    if (this.flames.count === 0) return;
+  // A hazard's own geometry stands in the scene over the finished map. It tests against the town's
+  // depth in its own shader, and against itself with the canvas's depth buffer.
+  private renderHazardScene(frame: HazardFrame) {
+    if (!this.hazards.drawsScene) return;
     this.renderer.autoClear = false;
     this.renderer.clearDepth();
-    this.renderer.render(this.flames.scene, this.camera);
+    this.hazards.drawScene(frame);
     this.renderer.autoClear = true;
   }
 
-  // Animation runs only while something on the map moves: fire, or a pulsing home.
+  // Resolves once the next frame has reached the canvas.
+  nextFrame() {
+    return new Promise<void>((resolve) => this.drawnWaiters.push(resolve));
+  }
+
+  // Pins the animation clock (seconds since the renderer started) for a frame-exact recording; null lets it run.
+  freezeTime(seconds: number | null) {
+    this.frozenSeconds = seconds;
+    this.renderFrame();
+  }
+
+  // Animation runs only while something on the map moves: a hazard layer that animates (fire, water,
+  // snow), a pulsing home, or a change waiting to be drawn.
+  private moving() {
+    return this.baseDirty || this.hazards.animates || this.pulsing;
+  }
+
   start() {
     if (this.running) return;
     this.running = true;
@@ -535,7 +542,7 @@ export class InkMapRenderer {
     const tick = (time: number) => {
       if (!this.running) return;
       // A pan or zoom already drew this frame; drawing the fire again on top only costs time.
-      if (time - last > 33 && time - this.lastViewDraw > 33) {
+      if (time - last > 33 && time - this.lastViewDraw > 33 && this.moving()) {
         last = time;
         this.renderFrame();
       }
@@ -557,29 +564,18 @@ export class InkMapRenderer {
   }
 
   setFire(field: FireField | null, burning = true) {
-    const u = this.composite.material.uniforms;
-    this.fireTexture?.dispose();
-    this.fireTexture = null;
-    this.baseDirty = true;
-    this.fireField = burning ? field : null;
-    u.uBurning.value = burning ? 1 : 0;
-    this.flames.place(this.fireField, u.uFireNow.value);
-    if (!field) {
-      u.uFireOn.value = 0;
-      return;
-    }
-    const half = new Uint16Array(field.minutes.length);
-    for (let i = 0; i < half.length; i++) half[i] = THREE.DataUtils.toHalfFloat(field.minutes[i]);
-    const texture = new THREE.DataTexture(half, field.width, field.height, THREE.RedFormat, THREE.HalfFloatType);
-    texture.magFilter = THREE.LinearFilter;
-    texture.minFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-    this.fireTexture = texture;
-    u.tFire.value = texture;
-    u.uFireRegion.value.set(field.region.x0, field.region.y0, field.region.x1, field.region.y1);
-    u.uFireLast.value = field.fronts[field.fronts.length - 1].minutes;
-    u.uFireOn.value = 1;
-    this.baseDirty = true;
+    this.setHazard(field ? { kind: "wildfire", field, scenario: null, burning } : null);
+  }
+
+  // The hazard drawn over the town, by its layer in hazard-layers/registry.ts. Asking for the same
+  // hazard again keeps the layer it has.
+  setHazard(request: HazardRequest | null) {
+    if (this.hazards.set(request)) this.baseDirty = true;
+  }
+
+  // What the hazard has reached by a minute: buildings, roads and dispatcher edges.
+  hazardImpact(minutes: number): HazardImpact {
+    return this.hazards.impact(minutes);
   }
 
   // The forecast bands on the ground (see forecastField in danger.ts), or none.
@@ -626,7 +622,7 @@ export class InkMapRenderer {
     if (now.value === minutes) return;
     now.value = minutes;
     this.baseDirty = true;
-    this.flames.place(this.fireField, minutes);
+    this.hazards.setMinutes(minutes);
   }
 
   setBuildingStates(states: Map<number, BuildingState>) {
@@ -638,6 +634,7 @@ export class InkMapRenderer {
       pixels[id * 4 + 2] = state.occupancy ? OCCUPANCY_BYTE[state.occupancy] : 0;
     }
     this.buildingStates.needsUpdate = true;
+    this.pulsing = [...states.values()].some((state) => state.pulse);
     this.baseDirty = true;
   }
 
@@ -688,9 +685,8 @@ export class InkMapRenderer {
   dispose() {
     this.stop();
     cancelAnimationFrame(this.flight);
-    this.fireTexture?.dispose();
     this.forecastTexture?.dispose();
-    this.flames.dispose();
+    this.hazards.dispose();
     for (const item of this.disposables) item.dispose();
     // Without this the context, and every buffer in it, lives until garbage collection. A page that
     // remounts its map (navigation, hot reload) would stack a few hundred megabytes per mount.

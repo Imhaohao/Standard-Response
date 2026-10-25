@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { terrainContours } from "@/lib/ink-map/contours";
 import { AREA_KIND, InkMapData, Point, ROAD_WIDTH } from "@/lib/ink-map/data";
-import { FireField, fieldGrid } from "@/lib/ink-map/fire-field";
+import { fieldGrid } from "@/lib/ink-map/fire-field";
+import type { Hazard } from "@/lib/ink-map/hazard";
+import { HAZARD_LAYERS } from "@/lib/ink-map/hazard-layers/registry";
 import { isolines } from "@/lib/ink-map/isolines";
 import { Frame, fitFrame, frameTransform, LocalProjection, Size } from "./projection";
 
@@ -29,15 +31,13 @@ export function PaperSurface({
   data,
   frame,
   size,
-  field,
-  burns,
+  hazard,
   minutes,
 }: {
   data: InkMapData;
   frame: Frame;
   size: Size;
-  field: FireField | null;
-  burns: boolean;
+  hazard: Hazard | null;
   minutes: number;
 }) {
   const { scale } = frameTransform(frame, size);
@@ -65,39 +65,21 @@ export function PaperSurface({
           strokeLinecap="round"
         />
       ))}
-      {field && <FlatFire field={field} burns={burns} minutes={minutes} project={project} />}
+      {hazard && <FlatHazard data={data} hazard={hazard} minutes={minutes} project={project} />}
     </>
   );
 }
 
-const STILL_BURNING_MINUTES = 15;
-const AHEAD_MINUTES = 30;
-
-// The fire at the minute on the clock, traced from the same arrival times the 3D map shades: all the
-// ground it has reached in fire colour, a shade deeper behind the last quarter hour, a firm red line
-// on the edge, and a dashed line where it will be in half an hour. A hazard that doesn't burn leaves
-// grey ground instead.
-function FlatFire({ field, burns, minutes, project }: { field: FireField; burns: boolean; minutes: number; project: LocalProjection }) {
-  const outlines = useMemo(() => {
+// The hazard at the minute on the clock, drawn by its kind's flat drawing (hazard-layers/registry.ts)
+// over outlines traced from the same arrival times the 3D map shades.
+function FlatHazard({ data, hazard, minutes, project }: { data: InkMapData; hazard: Hazard; minutes: number; project: LocalProjection }) {
+  const { field } = hazard;
+  const trace = useMemo(() => {
     const grid = fieldGrid(field);
-    const trace = (level: number) => isolines(grid, level).map((ring) => ringPath(project, ring)).join("");
-    return { edge: trace(minutes), cooled: trace(minutes - STILL_BURNING_MINUTES), ahead: trace(minutes + AHEAD_MINUTES) };
-  }, [field, minutes, project]);
-  if (!outlines.edge) return <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />;
-  return (
-    <g>
-      {burns ? (
-        <>
-          <path d={outlines.edge} fill="var(--ember)" fillOpacity={0.55} />
-          <path d={outlines.cooled} fill="var(--signal)" fillOpacity={0.22} />
-        </>
-      ) : (
-        <path d={outlines.edge} fill="var(--map-ink)" fillOpacity={0.22} />
-      )}
-      <path d={outlines.ahead} fill="none" stroke="var(--signal)" strokeWidth={1.4} strokeDasharray="6 5" />
-      <path d={outlines.edge} fill="none" stroke="var(--signal)" strokeWidth={2.4} strokeLinejoin="round" />
-    </g>
-  );
+    return (level: number) => isolines(grid, level).map((ring) => ringPath(project, ring)).join("");
+  }, [field, project]);
+  const Drawing = HAZARD_LAYERS[hazard.kind ?? "wildfire"].paper;
+  return <Drawing data={data} field={field} scenario={hazard.scenario ?? null} minutes={minutes} burns={hazard.burns !== false} project={project} trace={trace} />;
 }
 
 const fmt = ({ x, y }: { x: number; y: number }) => `${x.toFixed(1)} ${y.toFixed(1)}`;

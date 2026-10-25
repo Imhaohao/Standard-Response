@@ -3,14 +3,18 @@
 import { useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import type { HazardKind } from "@/lib/cities";
 import { LatLng } from "@/lib/geo";
 import { simTime } from "@/lib/sim-clock";
 import { createProjection } from "./data";
 import { buildFireField, FireField, ScenarioGeoJson, scenarioFronts } from "./fire-field";
+import type { Scenario } from "./scenario";
 
 // `burns` is false for a hazard that isn't a fire, such as an earthquake's damage bands: the map
-// shades the area it reaches but draws no flames, embers or smoke over it.
-export type Hazard = { field: FireField; label: string; basis: string; burns?: boolean };
+// shades the area it reaches but draws no flames, embers or smoke over it. A hazard from a scenario
+// file (useScenario) also names its kind and carries the file, and the map draws it with that
+// kind's layer (lib/ink-map/hazard-layers); one without a kind is drawn as the fire always was.
+export type Hazard = { field: FireField; label: string; basis: string; burns?: boolean; kind?: HazardKind; scenario?: Scenario };
 
 type ScenarioFile = ScenarioGeoJson & { metadata?: { label?: string; basis?: string } };
 

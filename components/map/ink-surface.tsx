@@ -5,8 +5,15 @@ import { InkMapCanvas, InkMapHandle } from "@/components/ink-map/ink-map-canvas"
 import { InkMapView } from "@/lib/ink-map/camera";
 import { InkMapData } from "@/lib/ink-map/data";
 import { Hazard } from "@/lib/ink-map/hazard";
+import type { HazardRequest } from "@/lib/ink-map/hazard-layers/host";
 import { BuildingState } from "@/lib/ink-map/renderer";
 import type { StageForecast } from "./map-stage";
+
+// A hazard without a kind is the wildfire every screen drew before scenarios had kinds.
+function hazardRequest(hazard: Hazard | null): HazardRequest | null {
+  if (!hazard) return null;
+  return { kind: hazard.kind ?? "wildfire", field: hazard.field, scenario: hazard.scenario ?? null, burning: hazard.burns !== false };
+}
 
 // The WebGL half of the map. Everything it needs arrives as props; the parent keeps the handle
 // so it can project markers into the same frame.
@@ -43,7 +50,7 @@ export function InkSurface({
 
   useEffect(() => {
     if (!handle) return;
-    handle.renderer.setFire(hazard?.field ?? null, hazard?.burns !== false);
+    handle.renderer.setHazard(hazardRequest(hazard));
     handle.renderer.setBuildingStates(highlights);
     if (hazard || highlights.size > 0) handle.renderer.start();
     else handle.renderer.stop();

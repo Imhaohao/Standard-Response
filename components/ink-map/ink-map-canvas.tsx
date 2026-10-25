@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DEFAULT_CITY } from "@/lib/cities";
 import { InkMapData, loadInkMapData } from "@/lib/ink-map/data";
 import type { InkMapView } from "@/lib/ink-map/camera";
 import { InkMapRenderer } from "@/lib/ink-map/renderer";
 
 export type InkMapHandle = { renderer: InkMapRenderer; data: InkMapData; size: { width: number; height: number }; version: number };
 
-export function useInkMapData() {
-  const [data, setData] = useState<InkMapData | null>(null);
+// The baked map of one city, Altadena unless asked. Each city loads once per page.
+export function useInkMapData(cityId: string = DEFAULT_CITY) {
+  const [loaded, setLoaded] = useState<{ cityId: string; data: InkMapData } | null>(null);
   useEffect(() => {
     let live = true;
-    void loadInkMapData().then((d) => live && setData(d));
+    void loadInkMapData(cityId).then((data) => live && setLoaded({ cityId, data }));
     return () => {
       live = false;
     };
-  }, []);
-  return data;
+  }, [cityId]);
+  return loaded?.cityId === cityId ? loaded.data : null;
 }
 
 // A machine without WebGL gets null, and the stage falls back to the flat map.
