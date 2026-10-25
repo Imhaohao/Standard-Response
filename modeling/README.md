@@ -13,7 +13,7 @@ uv run pytest -q
 ```bash
 uv run python scripts/run_models.py                    # every 5 s against CONVEX_URL or the repo's .env.local
 uv run python scripts/run_models.py --time-scale 10    # a 4-hour night in 24 minutes
-uv run python scripts/run_models.py --scenario ../data/hazard/scenario-spread.geojson
+uv run python scripts/run_models.py --scenario ../data/hazard/scenario-spread.geojson   # the older fast-marching variant
 ```
 
 Each pass reads `estimates:inputs` once and writes only what changed:
@@ -33,8 +33,8 @@ On start the runner switches off the "Need model" stand-in. If the runner stops,
 | Script | Output |
 | --- | --- |
 | `fetch_osm.py` | `data/osm/`: address points, residential buildings, care facilities, drive graph |
-| `build_hazard.py` | `data/hazard/scenario.geojson`: elliptical wind-driven fronts shaped after the Eaton Fire's path into west Altadena |
-| `spread_model.py` | `data/hazard/scenario-spread.geojson`: fast-marching spread with spot fires (scikit-fmm) |
+| `spread_model.py` | `data/hazard/scenario.geojson` and the fronts in `public/scenarios/altadena.json`: the wildfire scenario. Spread over OSM ground from `public/map/altadena.json` (washes never burn; roads, parks, schools, parking, golf, pitches and cemeteries slow it; brush speeds it; some homes never catch) under a seeded wind walk, with embers thrown downwind. `--seed 7` is the rehearsed fire. Rerun `npx tsx scripts/hazard/bake-scenarios.ts` after |
+| `build_hazard.py` | The older elliptical fronts. Writes over `data/hazard/scenario.geojson` if run |
 | `danger_zones.py` | `data/hazard/danger-zones.geojson`: 100-run spread ensemble under the live NWS wind forecast; 10/50/90% burn-probability zones every 10 minutes. `--every 60` refreshes hourly; falls back to scenario wind, and says so, if the NWS is unreachable |
 | `build_riders.py` | `data/sample-riders.csv`: 40 fictional riders at real addresses, Carmen and Walter first |
 | `fetch_census.py` | `data/census/`: block-group and tract ACS controls, PUMS households (bulk files, no API key) |

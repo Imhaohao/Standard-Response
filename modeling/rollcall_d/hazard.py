@@ -74,7 +74,7 @@ class Scenario:
                 if previous is None:
                     return front.minutes
                 to_previous = previous.shape.distance(point)
-                to_boundary = front.shape.exterior.distance(point) if hasattr(front.shape, "exterior") else front.shape.boundary.distance(point)
+                to_boundary = front.shape.boundary.distance(point)  # island shores count as edges too
                 share = to_previous / max(to_previous + to_boundary, 1e-9)
                 return previous.minutes + share * (front.minutes - previous.minutes)
             previous = front
