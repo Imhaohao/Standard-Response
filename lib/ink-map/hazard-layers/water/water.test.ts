@@ -9,6 +9,7 @@ import { impactAt } from "../arrival";
 import { firstUnderWater, waterIndex } from "./impact";
 import { crestDelay, datumShift, depthAt, groundAt, pourReach, seaSurface, surfaceAt, waterModel, waveShape, type TsunamiWave, type WaveTrain } from "./model";
 import { cellCentre, shoreFor, shoreGrid } from "./shore";
+import { standingCells, standingOutline } from "./paper-grid";
 import { breachAxis, waterField } from "./source";
 
 const ORIGIN = { lat: 29.966, lng: -90.009 };
@@ -226,6 +227,14 @@ test("the sea fills from the edge over low ground but not into a basin behind hi
   const levee = shoreGrid(map, { sea: false });
   assert.equal(levee.water[at(levee, [-450, 0])], 0);
   assert.equal(levee.water[at(levee, [250, 250])], 1);
+});
+
+test("the flat map traces a sea that runs off the edge of the terrain without failing", () => {
+  const map = fakeMap({ ground: (x: number) => (x < -300 ? -2 : 2) });
+  const cells = standingCells(shoreGrid(map, { sea: true }));
+  const rings = standingOutline(cells, 0);
+  assert.ok(rings.length > 0);
+  assert.ok(rings.every((ring) => ring.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))));
 });
 
 const scenarioFile = (city: string) => `public/scenarios/${city}.json`;
