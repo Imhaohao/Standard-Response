@@ -1,7 +1,9 @@
-// Water as polygons for the other cities. The sea: OSM draws a coast as lines with the land on their left, not as areas, and the
-// lines run on far past any box we bake. So the box is cut into a grid, the coastline is drawn into
-// it, and each stretch of grid the coastline encloses is called sea when more of the coast faces it
-// from the water side than from the land side. The sea cells come back as rectangles in local metres.
+// Water as polygons for the other cities. OSM draws a coast as lines with the land on their left,
+// not as areas, and the lines run on far past any box we bake. So the box is cut into a grid, the
+// coastline is drawn into it, and each stretch of grid the coastline encloses is called sea when more
+// of the coast faces it from the water side than from the land side. Rivers and canals mapped as
+// multipolygons are filled into the same grid, and the water cells come back as polygons (outline.mjs).
+import { outlineCells } from "./outline.mjs";
 
 const CELL_METERS = 10;
 
@@ -89,28 +91,10 @@ function seaCells(grid, coastlines) {
   return sea;
 }
 
-// Runs of sea along each row, merged down the rows into rectangles.
-function rectangles(grid, sea, box) {
-  const done = [];
-  let open = new Map();
-  for (let r = 0; r <= grid.rows; r++) {
-    const next = new Map();
-    for (let c = 0; r < grid.rows && c < grid.cols; c++) {
-      if (!sea[r * grid.cols + c]) continue;
-      const c0 = c;
-      while (c < grid.cols && sea[r * grid.cols + c]) c++;
-      const key = `${c0},${c}`;
-      next.set(key, open.get(key) ?? { c0, c1: c, r0: r });
-      open.delete(key);
-    }
-    for (const rect of open.values()) done.push({ ...rect, r1: r });
-    open = next;
-  }
-  return done.map(({ c0, c1, r0, r1 }) => {
-    const [x0, x1] = [box.x0 + c0 * CELL_METERS, Math.min(box.x1, box.x0 + c1 * CELL_METERS)];
-    const [y0, y1] = [box.y0 + r0 * CELL_METERS, Math.min(box.y1, box.y0 + r1 * CELL_METERS)];
-    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
-  });
+// The water cells as polygons in local metres, one per connected patch with its islands cut out.
+function polygons(grid, mask, box) {
+  const toLocal = ([gx, gy]) => [Math.min(box.x1, box.x0 + gx * CELL_METERS), Math.min(box.y1, box.y0 + gy * CELL_METERS)];
+  return outlineCells(grid, mask).map((ring) => ring.map(toLocal));
 }
 
 // Fills a multipolygon's cells, even-odd across every member line, so inner rings (islands) cut holes
@@ -135,11 +119,11 @@ function fillMultipolygon(grid, box, lines, mask) {
 }
 
 // The sea closed from `coastlines`, plus every water multipolygon in `multipolygons` (each a list of
-// its member lines, outer and inner), as rectangles in local metres over `box`, the baked extent.
+// its member lines, outer and inner), as polygons in local metres over `box`, the baked extent.
 export function waterRings({ coastlines, multipolygons }, box) {
   if (coastlines.length === 0 && multipolygons.length === 0) return [];
   const grid = rasterGrid(box);
   const mask = coastlines.length ? seaCells(grid, coastlines) : new Uint8Array(grid.cols * grid.rows);
   for (const lines of multipolygons) fillMultipolygon(grid, box, lines, mask);
-  return rectangles(grid, mask, box);
+  return polygons(grid, mask, box);
 }
