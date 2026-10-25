@@ -1,0 +1,21 @@
+{
+ "label": "Synthetic population for simulation. Real ACS PUMS household records reweighted to real block-group and tract totals; not real people.",
+ "city": "fort-myers-beach",
+ "name": "Fort Myers Beach, Florida",
+ "event": "Hurricane Ian storm surge, September 28, 2022",
+ "source": "ACS 2019-2023 5-year: PUMS (FL PUMAs 07101), B11001, B11007, B25044 by block group, B18101 by tract, from www2.census.gov bulk files. Buildings: OpenStreetMap residential buildings in the detail box, retrieved via Overpass. Care facilities: OpenStreetMap.",
+ "era": "ACS 2019-2023 describes the town within a few years of the event.",
+ "blockGroups": 7,
+ "buildings": 1855,
+ "households": 2053,
+ "needHelp": 279,
+ "ipfWorstRelativeError": {
+  "households": 0.0,
+  "hasMember65": 0.0,
+  "alone65": 0.0,
+  "noVehicle": 0.0,
+  "disabled65 (tract)": 0.0
+ },
+ "seed": 13,
+ "assumptions": "ACS has no wheelchair, bed or oxygen variables; see modeling/rollcall_d/population.py for the mapping and its rates."
+}

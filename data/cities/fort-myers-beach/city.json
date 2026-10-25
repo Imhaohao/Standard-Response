@@ -1,0 +1,39 @@
+{
+ "id": "fort-myers-beach",
+ "name": "Fort Myers Beach, Florida",
+ "event": "Hurricane Ian storm surge, September 28, 2022",
+ "hazard": "surge",
+ "detail": {
+  "south": 26.405,
+  "north": 26.49,
+  "west": -81.995,
+  "east": -81.88
+ },
+ "state": {
+  "fips": "12",
+  "abbr": "fl"
+ },
+ "timezone": "America/New_York",
+ "censusYear": "ACS 2019-2023",
+ "roadBox": {
+  "south": 26.395,
+  "north": 26.6276,
+  "west": -82.00500000000001,
+  "east": -81.7688
+ },
+ "staging": {
+  "name": "LeeTran headquarters, Metro Parkway, Fort Myers",
+  "lat": 26.6176,
+  "lng": -81.8597,
+  "record": "LeeTran carried barrier-island evacuees to shelters; depot as staging assumed",
+  "source": "https://www.fox4now.com/news/local-news/lee-county/leetran-full-bus-service-returns-on-sunday"
+ },
+ "shelter": {
+  "name": "Hertz Arena, Estero",
+  "lat": 26.4405,
+  "lng": -81.7788,
+  "capacity": 3000,
+  "record": "open Lee County shelter during Ian",
+  "source": "https://estero-fl.gov/sheltering-operations-hurricane-ian-update-from-lee-county/"
+ }
+}
