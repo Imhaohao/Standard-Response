@@ -264,9 +264,12 @@ export function buildWorld(snap: Snapshot, now: number) {
   const shelterNodes = snap.shelters.map((shelter) => ({ shelter, node: nearestNode(shelter) }));
   const travel = new TravelTable(closed, trafficEdgeTime(snap.traffic, now));
   const context: Context = { snap, now, travel, requests, shelterNodes };
-  const vehicles = snap.vehicles.filter((vehicle) => vehicle.shiftEndsAt > now);
-  const vehiclePlans = vehicles.map((vehicle) => planVehicle(context, vehicle));
-  const revoke = vehiclePlans.flatMap((plan) => plan.revoke);
+  // A van past the end of its shift still drives the pickups its driver accepted, so its run is
+  // forecast like any other (ETAs, revocations); it just isn't given anything new.
+  const allPlans = snap.vehicles.map((vehicle) => planVehicle(context, vehicle));
+  const vehiclePlans = allPlans.filter((plan) => plan.vehicle.shiftEndsAt > now);
+  const vehicles = vehiclePlans.map((plan) => plan.vehicle);
+  const revoke = allPlans.flatMap((plan) => plan.revoke);
   const revokingRequests = new Set(revoke.map((r) => snap.live.find((a) => a._id === r.assignmentId)!.requestId));
   const refused = refusedPairs(snap, revoke);
   const offers = openOffers(snap, firstFreeStops(snap, revoke));
@@ -315,7 +318,7 @@ export function buildWorld(snap: Snapshot, now: number) {
     riders: new Map(riders.map((entry) => [entry.request._id as string, entry])),
     offers,
     revoke,
-    etaUpdates: vehiclePlans.flatMap((plan) => plan.etaUpdates),
+    etaUpdates: allPlans.flatMap((plan) => plan.etaUpdates),
     closureEdges: updates,
     closuresSeen: closureSetKey(snap.closures),
   };

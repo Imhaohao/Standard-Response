@@ -386,3 +386,21 @@ describe("a plan that revokes a pickup", () => {
     expect(await callbacksFor(t, request._id)).toEqual(["driver_accepted", "reassigning"]);
   });
 });
+
+describe("a van whose shift ended mid-run", () => {
+  test("is given nothing new, but a closure that strands its accepted pickup still tells the rider", async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: offer._id });
+    await t.run(async (ctx) => await ctx.db.patch("vehicles", offer.vehicleId, { shiftEndsAt: Date.now() - 60_000 }));
+    const snap = await t.query(internal.dispatchSnapshot.snapshot, {});
+    expect(buildWorld(snap, snap.now).vehicles.map((v) => v._id)).not.toContain(offer.vehicleId);
+
+    await t.mutation(api.roads.addClosures, { closures: cutOff(HOMES[0]) });
+    await replan(t);
+    expect((await requestOf(t, homes[0])).status).toBe("reassigning");
+  });
+});
