@@ -27,7 +27,7 @@ const placed = new Map<string, StreamParameters>();
 async function cartesiaApi(path: string, body: object) {
   const response = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { "X-API-Key": env.cartesia.apiKey(), "Cartesia-Version": env.cartesia.version, "Content-Type": "application/json" },
+    headers: { "X-API-Key": env.cartesia.telephonyApiKey(), "Cartesia-Version": env.cartesia.version, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const text = await response.text();

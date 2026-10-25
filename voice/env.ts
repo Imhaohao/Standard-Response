@@ -70,6 +70,8 @@ export const env = {
     // voice until CARTESIA_VOICE_<CODE> (for example CARTESIA_VOICE_KO) names a native one.
     // Cartesia's telephony (VOICE_CARRIER=cartesia): the self-hosted agent that calls this server,
     // the number it dials from (its id, "ap_..."), and that number, so an inbound call is recognized.
+    // The account that owns that agent and number, when it isn't the one CARTESIA_API_KEY speaks for.
+    telephonyApiKey: () => process.env.CARTESIA_TELEPHONY_API_KEY || required("CARTESIA_API_KEY"),
     agentId: () => required("CARTESIA_AGENT_ID"),
     fromNumberId: () => required("CARTESIA_FROM_NUMBER_ID"),
     phoneNumber: () => required("CARTESIA_PHONE_NUMBER"),
