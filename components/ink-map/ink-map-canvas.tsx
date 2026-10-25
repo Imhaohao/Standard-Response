@@ -46,7 +46,7 @@ export function InkMapCanvas({
   onFail?: () => void;
   className?: string;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const onReadyRef = useRef(onReady);
   const onFailRef = useRef(onFail);
   useEffect(() => {
@@ -55,12 +55,18 @@ export function InkMapCanvas({
   });
   const viewKey = JSON.stringify(view);
 
+  // Each renderer draws on a canvas of its own. Disposing a renderer gives up its WebGL context (and
+  // the memory in it) at once, and a canvas whose context is lost can't make another one.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const canvas = document.createElement("canvas");
+    canvas.className = `block size-full ${className}`;
+    host.appendChild(canvas);
     const parsedView = JSON.parse(viewKey) as InkMapView;
     const renderer = createRenderer(canvas, data, parsedView);
     if (!renderer) {
+      canvas.remove();
       onFailRef.current?.();
       return;
     }
@@ -82,8 +88,9 @@ export function InkMapCanvas({
       observer.disconnect();
       onReadyRef.current(null);
       renderer.dispose();
+      canvas.remove();
     };
-  }, [data, viewKey]);
+  }, [data, viewKey, className]);
 
-  return <canvas ref={canvasRef} className={`block size-full ${className}`} />;
+  return <div ref={hostRef} className="size-full" />;
 }

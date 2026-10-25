@@ -56,6 +56,22 @@ function fullscreenPass(fragmentShader: string, uniforms: Record<string, THREE.I
   return { scene, material };
 }
 
+// GPU memory is the machine's RAM on a Mac, and every full-size target costs width x height x bytes.
+// The screen-size targets stay under this many pixels, so a retina display draws at a little under 2x
+// rather than spending four times the memory, and the sun's shadow map is a fixed 2048 square.
+const MAX_TARGET_PIXELS = 2_500_000;
+const SHADOW_SIZE = 2048;
+const SOFTWARE_SHADOW_SIZE = 1024;
+
+// A browser drawing WebGL on the CPU (SwiftShader in headless Chrome, llvmpipe) holds every GPU buffer
+// in ordinary memory and draws each pixel on the CPU, so it gets 1x pixels and a smaller shadow map.
+function drawsOnCpu(renderer: THREE.WebGLRenderer) {
+  const gl = renderer.getContext();
+  const info = gl.getExtension("WEBGL_debug_renderer_info");
+  const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
+  return /swiftshader|llvmpipe|softpipe|software/i.test(name);
+}
+
 function emptyTexture() {
   const texture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
   texture.needsUpdate = true;
@@ -99,6 +115,8 @@ export class InkMapRenderer {
   private disposables: { dispose: () => void }[] = [];
   private treeTiles: TreeTile[] = [];
   private treesUploaded = false;
+  private onCpu: boolean;
+  private pixelRatio: number;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -106,8 +124,10 @@ export class InkMapRenderer {
     private view: InkMapView,
     private options: Options,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(options.pixelRatio);
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance" });
+    this.onCpu = drawsOnCpu(this.renderer);
+    this.pixelRatio = this.onCpu ? 1 : options.pixelRatio;
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
     const region = viewRegion(data, view);
     const fine = view.kind === "closeup";
@@ -117,8 +137,12 @@ export class InkMapRenderer {
       texture.minFilter = THREE.NearestFilter;
       texture.magFilter = THREE.NearestFilter;
     }
-    const shadowSize = Math.min(this.renderer.capabilities.maxTextureSize, fine ? 4096 : 8192);
-    this.shadow = new THREE.WebGLRenderTarget(shadowSize, shadowSize, { depthTexture: new THREE.DepthTexture(shadowSize, shadowSize, THREE.FloatType) });
+    const shadowSize = Math.min(this.renderer.capabilities.maxTextureSize, this.onCpu ? SOFTWARE_SHADOW_SIZE : SHADOW_SIZE);
+    // The sun pass only writes depth, so its colour attachment is a single byte per texel.
+    this.shadow = new THREE.WebGLRenderTarget(shadowSize, shadowSize, {
+      format: THREE.RedFormat,
+      depthTexture: new THREE.DepthTexture(shadowSize, shadowSize, THREE.FloatType),
+    });
     this.base = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
     this.fireMask = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
     this.blurA = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
@@ -187,7 +211,7 @@ export class InkMapRenderer {
       uInvProjection: { value: new THREE.Matrix4() },
       uCameraWorld: { value: new THREE.Matrix4() },
       uResolution: { value: new THREE.Vector2(1, 1) },
-      uPixelRatio: { value: this.options.pixelRatio },
+      uPixelRatio: { value: this.pixelRatio },
       uBaseElevation: { value: this.data.terrain.base },
       uPaper: { value: new THREE.Vector3(pr, pg, pb) },
       uInk: { value: new THREE.Vector3(...INK_PALETTE.ink) },
@@ -247,8 +271,12 @@ export class InkMapRenderer {
 
   resize(width: number, height: number) {
     this.cssSize = { width: Math.max(1, width), height: Math.max(1, height) };
+    const fits = Math.sqrt(MAX_TARGET_PIXELS / (this.cssSize.width * this.cssSize.height));
+    this.pixelRatio = Math.min(this.onCpu ? 1 : this.options.pixelRatio, fits);
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(this.cssSize.width, this.cssSize.height, false);
-    const pr = this.options.pixelRatio;
+    this.composite.material.uniforms.uPixelRatio.value = this.pixelRatio;
+    const pr = this.pixelRatio;
     const w = Math.round(this.cssSize.width * pr);
     const h = Math.round(this.cssSize.height * pr);
     this.gbuffer.setSize(w, h);
@@ -297,7 +325,7 @@ export class InkMapRenderer {
   // the power-of-two grid nearest it (see placePattern in shaders.ts).
   private placeTone(centreDepth: number) {
     const u = this.composite.material.uniforms;
-    const devicePixels = this.cssSize.height * this.options.pixelRatio;
+    const devicePixels = this.cssSize.height * this.pixelRatio;
     const metersPerPixel = (centreDepth * 2 * Math.tan((this.camera.fov * Math.PI) / 360)) / devicePixels;
     const octave = Math.log2(metersPerPixel);
     const step = Math.floor(octave);
@@ -651,7 +679,9 @@ export class InkMapRenderer {
     return null;
   }
 
+  // The drawing buffer isn't kept between frames, so draw one and read it in the same task.
   snapshot() {
+    this.renderFrame();
     return this.canvas.toDataURL("image/png");
   }
 
@@ -662,5 +692,8 @@ export class InkMapRenderer {
     this.forecastTexture?.dispose();
     this.flames.dispose();
     for (const item of this.disposables) item.dispose();
+    // Without this the context, and every buffer in it, lives until garbage collection. A page that
+    // remounts its map (navigation, hot reload) would stack a few hundred megabytes per mount.
+    this.renderer.forceContextLoss();
   }
 }

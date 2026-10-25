@@ -369,9 +369,12 @@ function fillRing(pixels: Uint8Array, width: number, height: number, ring: Point
   }
 }
 
+// A land-use texel is one byte; 4096 square is 16 MB, enough for 1 m texels across a 4 km close-up.
+const LANDUSE_MAX_SIZE = 4096;
+
 export function landuseTexture(data: InkMapData, region: Region, pixelsPerMeter: number): LanduseTexture {
-  const width = Math.min(8192, Math.ceil((region.x1 - region.x0) * pixelsPerMeter));
-  const height = Math.min(8192, Math.ceil((region.y1 - region.y0) * pixelsPerMeter));
+  const width = Math.min(LANDUSE_MAX_SIZE, Math.ceil((region.x1 - region.x0) * pixelsPerMeter));
+  const height = Math.min(LANDUSE_MAX_SIZE, Math.ceil((region.y1 - region.y0) * pixelsPerMeter));
   const pixels = new Uint8Array(width * height);
   for (const area of data.areas) fillRing(pixels, width, height, area.ring, region, area.kind + 1);
   const texture = new THREE.DataTexture(pixels, width, height, THREE.RedFormat, THREE.UnsignedByteType);
