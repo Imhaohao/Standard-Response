@@ -70,3 +70,20 @@ The call floor moved from `/` to `/dashboard`, still dispatcher-only.
 - `lib/access.ts` gates `/dashboard` with the dispatcher role and no longer gates `/`. The app bar's "Call floor" link, the README and HANDOFF point at `/dashboard`.
 - `/` is becoming the public sign-in page for judges. Until it lands, `app/page.tsx` only redirects to `/dashboard`, so old bookmarks still work.
 - Auth0 logins started without a `returnTo` land on `/`. The proxy always sends one for gated screens, so nothing changes there.
+
+## 2026-10-24 22:56
+
+**More sponsors are now load-bearing on `main`. Add these to the Devpost checklist above:**
+
+| Track | Paste-ready line | Needs before the demo |
+| --- | --- | --- |
+| MLH: Gemini API | Gemini independently re-grades every agent line Claude's grader judged, and we report the agreement (Cohen's kappa) so no single model grades its own family. | `GEMINI_API_KEY`, then `grade_honesty.py --second-grader gemini` |
+| Bright Data | CAL FIRE's own incident site blocks plain requests (403 from Akamai); Bright Data Web Unlocker lets the Actor read it. | Web Unlocker zone and key in the Actor input |
+| Fetch.ai | A uAgent on Agentverse lets a caregiver, or anyone's agent on ASI:One, sign a relative up for the Ready check and ask whether a warning is active, without exposing anyone's data. | Run `fetchai/`, connect the mailbox, and register through ASI:One's submission agent |
+| Factory | After the voice exam fails, a sandboxed Droid diagnoses each failed case and proposes a tested diff; it can't touch the repo. | `FACTORY_API_KEY` and the `droid` CLI |
+| Elastic | Dispatchers search every call by what people said ("oxygen", "second floor") in any language, through a dispatcher-gated route. | Elastic Cloud serverless URL and key on Convex, plus `SEARCH_SECRET` on Vercel |
+| Bitdeer AI | If Claude is down or slow mid-call, the agent answers on a Bitdeer-hosted model, still behind the honesty guard. | `BITDEER_API_KEY` locally and on Fly |
+| Atlassian | A Forge app turns every unreached home into a Jira work item for field crews and deletes them all when the incident closes. | `forge deploy` and install on a Jira site |
+| Capital One Nessie | Volunteer neighbors who drive someone out get mileage paid (IRS charitable rate) through Nessie, exactly once per confirmed pickup. | Nessie key and agency account id on Convex |
+
+Also new: closing the incident deletes real rider data everywhere (Convex, Elastic, Jira, payment records) after a 72-hour window (Convex scheduler and a daily cron). That line is for Microsoft's responsible-design question.
