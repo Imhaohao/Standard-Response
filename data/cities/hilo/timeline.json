@@ -1,0 +1,110 @@
+{
+  "id": "hilo",
+  "event": "Tsunami from the 22 May 1960 Chile earthquake reaching Hilo, Hawaii",
+  "timezone": "Pacific/Honolulu",
+  "utcOffset": "-10:00",
+  "minuteZero": {
+    "at": "1960-05-22T20:35:00-10:00",
+    "what": "Hilo's coastal sirens sound for the first time.",
+    "why": "The sirens were the public signal to leave the shore, so it is when a coordinator would start calling. The official warning (18:47) went to agencies; the County Civil Defense log records the first siren at 20:35 (USGS Circular 1187 rounds it to 'around 8:30 p.m.').",
+    "source": "johnston-2003"
+  },
+  "events": [
+    {
+      "at": "1960-05-22T09:11:20-10:00",
+      "kind": "earthquake",
+      "what": "Mw 9.5 earthquake off south-central Chile (19:11:20 UTC). Hawaii was on UTC-10:00 in 1960.",
+      "source": "usgs-comcat"
+    },
+    {
+      "at": "1960-05-22T18:47:00-10:00",
+      "kind": "warning",
+      "what": "US Coast and Geodetic Survey (Honolulu Observatory) issues the tsunami warning; waves expected at Hilo about midnight.",
+      "source": "usgs-c1187",
+      "where": "p. 6"
+    },
+    {
+      "at": "1960-05-22T20:15:00-10:00",
+      "kind": "order",
+      "what": "State Civil Defense gives authority to sound the sirens (they had been held at 20:00).",
+      "source": "johnston-2003",
+      "where": "p. 26"
+    },
+    {
+      "at": "1960-05-22T20:35:00-10:00",
+      "kind": "warning",
+      "what": "First siren. The Civil Defense log lists soundings at 20:35, 20:40, 20:43, 20:47 and 20:50.",
+      "source": "johnston-2003",
+      "where": "pp. 26-27"
+    },
+    {
+      "at": "1960-05-22T21:56:00-10:00",
+      "kind": "order",
+      "what": "Police told to evacuate low areas immediately.",
+      "source": "johnston-2003",
+      "where": "p. 29"
+    },
+    {
+      "at": "1960-05-23T00:07:00-10:00",
+      "kind": "first-wave",
+      "what": "First rise at the Wailuku River bridge (Cox & Mink: detected in Hilo Bay at 0007 HST). NCEI lists 09:58 UTC (23:58 HST), which conflicts.",
+      "source": "eaton-1961",
+      "where": "p. 139, via Johnston 2003 pp. 8-9, 33-36; Cox & Mink 1963 abstract"
+    },
+    {
+      "at": "1960-05-23T00:13:00-10:00",
+      "kind": "wave",
+      "what": "Wave 1 crest, about 4 ft above normal water at the bridge.",
+      "source": "eaton-1961",
+      "where": "p. 139, via Johnston 2003"
+    },
+    {
+      "at": "1960-05-23T00:30:00-10:00",
+      "kind": "trough",
+      "what": "Trough about 3 ft below normal.",
+      "source": "eaton-1961",
+      "where": "p. 139, via Johnston 2003"
+    },
+    {
+      "at": "1960-05-23T00:46:00-10:00",
+      "kind": "wave",
+      "what": "Wave 2 crest, about 9 ft above normal; floods Kamehameha Ave and the business district. Agency logs: water over the pier 00:47, Kamehameha Ave covered from Hilo Theater to Waiakea about 00:55-00:58.",
+      "source": "eaton-1961",
+      "where": "p. 139, via Johnston 2003 pp. 31-37"
+    },
+    {
+      "at": "1960-05-23T01:00:00-10:00",
+      "kind": "trough",
+      "what": "Trough about 7 ft below normal; the bore's rumble is heard.",
+      "source": "eaton-1961",
+      "where": "p. 139, via Johnston 2003"
+    },
+    {
+      "at": "1960-05-23T01:04:00-10:00",
+      "kind": "peak",
+      "what": "Wave 3 arrives as a bore about 20 ft high at the bridge; the Waiakea town clock stops at 01:04. Runup reaches 35 ft (10.7 m).",
+      "source": "eaton-1961",
+      "where": "abstract; USGS Circular 1187 p. 7"
+    },
+    {
+      "at": "1960-05-23T01:05:00-10:00",
+      "kind": "hazard",
+      "what": "Bore reaches the power plant and the city goes dark.",
+      "source": "johnston-2003",
+      "where": "pp. 31-37"
+    },
+    {
+      "at": "1960-05-23T02:00:00-10:00",
+      "kind": "recession",
+      "what": "Eaton's record shows smaller crests (about 6-8.5 ft at the bridge) continuing to about 2 a.m.; Volcano Watch counts eight waves cresting 4-14 ft at the bridge. Figure values, not a table.",
+      "source": "usgs-c1187",
+      "where": "p. 7 figure; USGS Volcano Watch 20 May 1994"
+    }
+  ],
+  "outcome": {
+    "deaths": 61,
+    "injured": "282 (Cox & Mink 1963; USGS Circular 1187); 43 seriously injured (Lander & Lockridge 1989)",
+    "areaFloodedAcres": 600,
+    "source": "lander-lockridge-1989"
+  }
+}

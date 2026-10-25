@@ -1,0 +1,58 @@
+{
+ "datum": {
+  "name": "Local mean sea level (the 3DEP DEM in Hawaii)",
+  "mslAboveMllwM": 0.349,
+  "source": "NOAA CO-OPS Hilo 1617760 datums, 1983-2001 epoch: MSL 1.545 m, MLLW 1.196 m above station datum",
+  "url": "https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/1617760/datums.json?units=metric"
+ },
+ "tide": {
+  "what": "NOAA's harmonic prediction for Hilo that night: low 0.59 ft MLLW at 20:10, high 1.59 ft MLLW at 01:23 HST. The waves rode a weak high tide about 0.1 m above mean sea level.",
+  "source": "noaa-coops-hilo-predictions",
+  "derived": true,
+  "tideAboveMslM": 0.1
+ },
+ "waves": [
+  {
+   "label": "Wave 1",
+   "arrivalLocal": "1960-05-23T00:13-10:00",
+   "riseBeganLocal": "1960-05-23T00:07-10:00",
+   "heightFt": 4,
+   "heightNote": "above normal water at the Wailuku River bridge (Eaton et al. 1961 p. 139)",
+   "periodMinutes": 30,
+   "periodNote": "NCEI runup 3922 and Lander & Lockridge 1989 give a 30 min period",
+   "note": "Wave 1 crest, about 4 ft above normal at the Wailuku River bridge",
+   "riseFrom": {
+    "local": "1960-05-23T00:07-10:00",
+    "heightFt": 0,
+    "note": "rise began at 00:07 (Eaton; Cox & Mink)"
+   }
+  },
+  {
+   "label": "Wave 2",
+   "arrivalLocal": "1960-05-23T00:46-10:00",
+   "heightFt": 9,
+   "heightNote": "above normal at the bridge; it flooded Kamehameha Ave and the business district",
+   "periodMinutes": 33,
+   "periodNote": "derived: interval from crest 1 (00:13) to crest 2 (00:46)",
+   "note": "Wave 2 crest, about 9 ft above normal; Kamehameha Ave and the bayfront flood",
+   "riseFrom": {
+    "local": "1960-05-23T00:30-10:00",
+    "heightFt": -3,
+    "note": "trough about 3 ft below normal at 00:30 (Eaton)"
+   }
+  },
+  {
+   "label": "Wave 3, the bore",
+   "arrivalLocal": "1960-05-23T01:04-10:00",
+   "heightFt": 35,
+   "heightNote": "maximum runup 35 ft (10.7 m) (Eaton et al. 1961; NCEI 3922); the bore front was about 20 ft at the bridge. Inland flooding uses Loomis's 18 measured 1960 runup heights",
+   "periodMinutes": 18,
+   "periodNote": "derived: interval from crest 2 (00:46) to the bore (01:04)",
+   "usesRunupSurface": true,
+   "boreMetersPerMinute": 536,
+   "boreSpeedNote": "Scripps Institution of Oceanography press release (28 Oct 1960): about 20 miles an hour",
+   "note": "The bore comes ashore and runs inland at about 20 mph to the 1960 runup line"
+  }
+ ],
+ "risingLimbNote": "Between a published trough or start of rise and the next crest the water is assumed to rise linearly (derived, not measured)."
+}

@@ -1,0 +1,150 @@
+{
+ "source": "Hawaii Statewide GIS Program, Hazards MapServer layer 1 (Tsunami Wave Heights), from Loomis, H.G. (1976) Tsunami wave runup heights in Hawaii, Hawaii Institute of Geophysics HIG-76-5. https://geodata.hawaii.gov/arcgis/rest/services/Hazards/MapServer/1 ; metadata https://files.hawaii.gov/dbedt/op/gis/data/tsunhts.pdf",
+ "note": "0 means no reading at that point for that tsunami, not zero runup.",
+ "points": [
+  {
+   "number": "11-01",
+   "name": "S OF MAILI STREAM",
+   "lng": -155.0904,
+   "lat": 19.73869,
+   "runup1960Ft": 19,
+   "runup1946Ft": 30
+  },
+  {
+   "number": "11-06",
+   "name": "E OF HILO",
+   "lng": -155.0763,
+   "lat": 19.72304,
+   "runup1960Ft": 35,
+   "runup1946Ft": 0
+  },
+  {
+   "number": "11-05",
+   "name": "NEAR HILO",
+   "lng": -155.08351,
+   "lat": 19.72441,
+   "runup1960Ft": 22,
+   "runup1946Ft": 26
+  },
+  {
+   "number": "11-02",
+   "name": "N OF WAILUKU RIVER",
+   "lng": -155.09034,
+   "lat": 19.73403,
+   "runup1960Ft": 0,
+   "runup1946Ft": 30
+  },
+  {
+   "number": "11-03",
+   "name": "WAILUKU RIVER",
+   "lng": -155.08784,
+   "lat": 19.72957,
+   "runup1960Ft": 14,
+   "runup1946Ft": 17
+  },
+  {
+   "number": "11-04",
+   "name": "E OF WAILUKU RIVER",
+   "lng": -155.08622,
+   "lat": 19.72711,
+   "runup1960Ft": 19,
+   "runup1946Ft": 17
+  },
+  {
+   "number": "11-07",
+   "name": "NEAR WAIAKEA",
+   "lng": -155.07082,
+   "lat": 19.72405,
+   "runup1960Ft": 0,
+   "runup1946Ft": 22
+  },
+  {
+   "number": "11-08",
+   "name": "NEAR WAIAKEA",
+   "lng": -155.0708,
+   "lat": 19.7262,
+   "runup1960Ft": 20,
+   "runup1946Ft": 23
+  },
+  {
+   "number": "11-09",
+   "name": "WAIAKEA",
+   "lng": -155.06969,
+   "lat": 19.72654,
+   "runup1960Ft": 0,
+   "runup1946Ft": 13
+  },
+  {
+   "number": "11-10",
+   "name": "NEAR WAIAKEA",
+   "lng": -155.06808,
+   "lat": 19.72776,
+   "runup1960Ft": 21,
+   "runup1946Ft": 21
+  },
+  {
+   "number": "11-11",
+   "name": "N OF WAIAKEA",
+   "lng": -155.06894,
+   "lat": 19.73048,
+   "runup1960Ft": 15,
+   "runup1946Ft": 25
+  },
+  {
+   "number": "11-12",
+   "name": "NE OF WAIAKEA",
+   "lng": -155.06508,
+   "lat": 19.73026,
+   "runup1960Ft": 11,
+   "runup1946Ft": 11
+  },
+  {
+   "number": "11-13",
+   "name": "NE OF WAIAKEA",
+   "lng": -155.06276,
+   "lat": 19.72803,
+   "runup1960Ft": 10,
+   "runup1946Ft": 9
+  },
+  {
+   "number": "11-14",
+   "name": "E OF WAIAKEA",
+   "lng": -155.06209,
+   "lat": 19.72375,
+   "runup1960Ft": 11,
+   "runup1946Ft": 9
+  },
+  {
+   "number": "11-15",
+   "name": "E OF WAIAKEA",
+   "lng": -155.05746,
+   "lat": 19.72823,
+   "runup1960Ft": 12,
+   "runup1946Ft": 10
+  },
+  {
+   "number": "11-16",
+   "name": "NE OF WAIAKEA",
+   "lng": -155.05528,
+   "lat": 19.72923,
+   "runup1960Ft": 12,
+   "runup1946Ft": 21
+  },
+  {
+   "number": "11-17",
+   "name": "NE OF WAIAKEA",
+   "lng": -155.05182,
+   "lat": 19.7314,
+   "runup1960Ft": 0,
+   "runup1946Ft": 27
+  },
+  {
+   "number": "11-18",
+   "name": "W OF KEAUKAHA",
+   "lng": -155.05431,
+   "lat": 19.73446,
+   "runup1960Ft": 13,
+   "runup1946Ft": 27
+  }
+ ]
+}
