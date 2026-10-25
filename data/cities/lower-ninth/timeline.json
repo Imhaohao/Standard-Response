@@ -1,0 +1,140 @@
+{
+  "id": "lower-ninth",
+  "event": "Industrial Canal floodwall breaches into the Lower Ninth Ward, New Orleans, during Hurricane Katrina",
+  "timezone": "America/Chicago",
+  "utcOffset": "-05:00",
+  "minuteZero": {
+    "at": "2005-08-28T11:00:00-05:00",
+    "what": "Mayor Nagin announces the first-ever mandatory evacuation of New Orleans.",
+    "why": "It is the order that covers every Lower Ninth Ward household, so it is when a coordinator would start calling. Both federal reports put it at about 11 a.m.; secondary accounts say 9:30-10 a.m.",
+    "source": "house-failure-of-initiative"
+  },
+  "events": [
+    {
+      "at": "2005-08-28T11:00:00-05:00",
+      "kind": "order",
+      "what": "Mandatory evacuation of New Orleans ordered.",
+      "source": "house-failure-of-initiative",
+      "where": "p. 108; NWS Service Assessment p. 19"
+    },
+    {
+      "at": "2005-08-28T23:00:00-05:00",
+      "kind": "water",
+      "what": "IHNC at the lock about 5.7 ft NAVD88(2004.65), rising about 1 ft an hour.",
+      "source": "ipet-iv",
+      "where": "p. IV-33 and Fig. 14 (digitized)"
+    },
+    {
+      "at": "2005-08-29T04:30:00-05:00",
+      "kind": "breach",
+      "what": "Earliest water into the north of the ward (eyewitnesses at Site 3 and OP-5). IPET: one or both IHNC breaches failed before 05:30, possibly as early as 04:30. ILIT and Team Louisiana put both breaches at 07:30-07:45; the court (Duval 2011) puts the north breach at about 06:00.",
+      "source": "ipet-iv",
+      "where": "pp. IV-194, IV-198"
+    },
+    {
+      "at": "2005-08-29T05:15:00-05:00",
+      "kind": "water",
+      "what": "Stopped clocks at Site C1, next to the north breach, read 05:15 at +2 ft NAVD88; ground there is about -6 ft, so the water had risen about 8 ft.",
+      "source": "ipet-iv",
+      "where": "p. IV-195, Fig. 136"
+    },
+    {
+      "at": "2005-08-29T05:30:00-05:00",
+      "kind": "water",
+      "what": "Pump station OP-5 shut down for high water.",
+      "source": "ipet-iv",
+      "where": "p. IV-194"
+    },
+    {
+      "at": "2005-08-29T06:10:00-05:00",
+      "kind": "landfall",
+      "what": "Katrina makes landfall near Buras, LA, at 110 kt (1110 UTC).",
+      "source": "nhc-tcr-al122005",
+      "where": "p. 3, Table 1"
+    },
+    {
+      "at": "2005-08-29T06:30:00-05:00",
+      "kind": "water",
+      "what": "Higher clocks at Site C1 stop at 06:30 (about +4 ft NAVD88).",
+      "source": "ipet-iv",
+      "where": "p. IV-195, Fig. 136 (digitized)"
+    },
+    {
+      "at": "2005-08-29T06:53:00-05:00",
+      "kind": "wind",
+      "what": "New Orleans Lakefront (KNEW): 60 kt sustained, 75 kt gust (incomplete record).",
+      "source": "nhc-tcr-al122005",
+      "where": "Table 3"
+    },
+    {
+      "at": "2005-08-29T07:30:00-05:00",
+      "kind": "breach",
+      "what": "South breach (about 850 ft, starting about 300 ft north of N. Claiborne Ave) opens; barge ING 4727 is carried through it. Team Louisiana: 'consensus' 07:30; ILIT 07:45; IPET: walls overtopped about 07:30.",
+      "source": "team-louisiana",
+      "where": "p. 67; ILIT Ch. 6 p. 6-6; IPET V App. 14 p. V-14-23"
+    },
+    {
+      "at": "2005-08-29T07:46:00-05:00",
+      "kind": "water",
+      "what": "Jackson Barracks (ground about +4 ft) still dry in a time-stamped photo.",
+      "source": "ipet-iv",
+      "where": "p. IV-196"
+    },
+    {
+      "at": "2005-08-29T08:00:00-05:00",
+      "kind": "water",
+      "what": "Water reaches Jackson Barracks from the north; up to truck wheels by 08:13.",
+      "source": "ipet-iv",
+      "where": "p. IV-196"
+    },
+    {
+      "at": "2005-08-29T09:00:00-05:00",
+      "kind": "peak",
+      "what": "IHNC peaks at about 14.3 ft NAVD88(2004.65) at the lock.",
+      "source": "ipet-iv",
+      "where": "pp. IV-32-33"
+    },
+    {
+      "at": "2005-08-29T09:45:00-05:00",
+      "kind": "landfall",
+      "what": "Final landfall near the Louisiana/Mississippi border (1445 UTC).",
+      "source": "nhc-tcr-al122005",
+      "where": "p. 7"
+    },
+    {
+      "at": "2005-08-29T13:42:00-05:00",
+      "kind": "peak",
+      "what": "Water in the ward peaks at about 10.5 ft NAVD88(2004.65) at Jackson Barracks (IPET text gives 1945 UTC, 14:45; the plotted point is about 13:42). IPET: 10.5-11 ft for the Lower Ninth and St. Bernard.",
+      "source": "ipet-iv",
+      "where": "pp. IV-196, IV-199, Fig. 136"
+    },
+    {
+      "at": "2005-09-15T12:00:00-05:00",
+      "kind": "recession",
+      "what": "St. Bernard Parish unwatering complete on approximately 15 September (no separate date published for the Lower Ninth).",
+      "source": "ipet-vi",
+      "where": "p. VI-23",
+      "dateOnly": true
+    },
+    {
+      "at": "2005-09-24T12:00:00-05:00",
+      "kind": "hazard",
+      "what": "Hurricane Rita reopens the large south breach and refloods the Upper and Lower Ninth Ward.",
+      "source": "team-louisiana",
+      "where": "pp. 29, 91",
+      "dateOnly": true
+    },
+    {
+      "at": "2005-10-11T12:00:00-05:00",
+      "kind": "recession",
+      "what": "USACE reports all floodwater removed from New Orleans.",
+      "source": "nhc-tcr-al122005",
+      "where": "p. 9",
+      "dateOnly": true
+    }
+  ],
+  "outcome": {
+    "deaths": "73 victims recovered in the Lower Ninth Ward (Team Louisiana App. III Table A3.2; Boyd 2011 gives 72); 71 within one mile of the two IHNC breaches (Table A3.3)",
+    "source": "team-louisiana"
+  }
+}
