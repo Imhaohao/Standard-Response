@@ -598,7 +598,16 @@ export class Conversation {
     this.quietCheckIns += 1;
     if (this.quietCheckIns > MAX_QUIET_CHECK_INS) return this.loseContact();
     const stillThere = lines.stillThere[(this.quietCheckIns - 1) % lines.stillThere.length];
-    return this.say("", [stillThere, this.askAgain()], false);
+    return this.say("", [stillThere, this.checkInQuestion()].filter((line) => line !== ""), false);
+  }
+
+  // A third time word for word sounds like a recording: the opening, "Hello? Hello?" and two quiet
+  // check-ins asked "What address are you at right now?" three times. Once both wordings have been
+  // said twice, the check-in alone asks for an answer.
+  private checkInQuestion() {
+    const timesSaid = (line: string) => this.history.filter((said) => said.speaker === "agent" && said.text.includes(line)).length;
+    const wornOut = timesSaid(this.question()) >= 2 && timesSaid(this.questionAgain()) >= 2;
+    return wornOut ? "" : this.askAgain();
   }
 
   // A quiet line on hold hears the next thing to do while they wait, then a check that they're

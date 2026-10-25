@@ -491,6 +491,19 @@ describe("asked to stay on the line", () => {
   });
 });
 
+describe("a quiet line", () => {
+  it("never asks the same question a third time word for word on a check-in", () => {
+    const { conversation } = call(null);
+    conversation.respond("Can you send someone to my mom's house?", heard({ reply: "I need an address." }));
+    conversation.respond("Hello? Hello?", heard({ wantsRepeat: true }));
+    conversation.checkIn();
+    conversation.checkIn();
+    assert.ok(!conversation.done);
+    const said = (line: string) => (conversation as unknown as { history: { speaker: string; text: string }[] }).history.filter((entry) => entry.speaker === "agent" && entry.text.includes(line)).length;
+    assert.ok(said(EN.askAddress) <= 2, `asked ${said(EN.askAddress)} times`);
+  });
+});
+
 describe("speech the agent can't read", () => {
   it("hands a caller in a language we don't speak to a person even when Claude called it not meant for us", () => {
     const { conversation, escalations } = call();
