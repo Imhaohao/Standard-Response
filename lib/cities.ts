@@ -103,7 +103,10 @@ function fromDraft({ verified, pad, closeups, ...city }: Draft): City & { verifi
 // Boxes checked against OpenStreetMap on 2026-10-25: Paradise's town boundary (relation 3983857),
 // the Lower Ninth Ward place node and the Inner Harbor Navigation Canal (relation 2189784), Fort
 // Myers Beach's boundary (relation 1216971), and Hilo Bay (node 368391211). Each detail box also holds
-// every front of its scenario in public/scenarios.
+// every front of its scenario in public/scenarios. Close-up centres sit on or beside OSM features
+// (the Paradise and Holy Cross place nodes, Pentz Road, Jourdan Avenue at the canal, the pier, MLK
+// Park, the Broadway Market, Banyan Drive), except Hilo's bayfront and Estero Island's south end, which
+// are set by eye from the town's outline.
 const DRAFTS: Draft[] = [
   {
     id: "paradise",
@@ -118,7 +121,10 @@ const DRAFTS: Draft[] = [
     osmSnapshot: "2018-11-07T00:00:00Z",
     // That snapshot holds 122 buildings over the baked extent, where CAL FIRE inspected 21,349 structures.
     structures: { source: "calfire-dins", incident: "Camp" },
-    closeups: [],
+    closeups: [
+      { name: "downtown", label: "Downtown Paradise", center: { lat: 39.7596, lng: -121.6219 }, radius: 480 },
+      { name: "pentz", label: "Pentz Road", center: { lat: 39.7646, lng: -121.5766 }, radius: 480 },
+    ],
     sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/paradise/sources.md" }],
   },
   {
@@ -132,7 +138,10 @@ const DRAFTS: Draft[] = [
     terrainZoom: 15,
     terrainCellMeters: 10,
     osmSnapshot: null,
-    closeups: [],
+    closeups: [
+      { name: "breach", label: "Industrial Canal breach", center: { lat: 29.969, lng: -90.0225 }, radius: 420 },
+      { name: "holy-cross", label: "Holy Cross", center: { lat: 29.9579, lng: -90.0165 }, radius: 450 },
+    ],
     sources: [OSM, TERRAIN_TILES],
   },
   {
@@ -146,7 +155,10 @@ const DRAFTS: Draft[] = [
     terrainZoom: 15,
     terrainCellMeters: 10,
     osmSnapshot: "2022-09-27T00:00:00Z",
-    closeups: [],
+    closeups: [
+      { name: "pier", label: "Times Square and the pier", center: { lat: 26.4522, lng: -81.9545 }, radius: 420 },
+      { name: "estero", label: "Estero Island south", center: { lat: 26.43, lng: -81.92 }, radius: 500 },
+    ],
     sources: [OSM, TERRAIN_TILES],
   },
   {
@@ -162,7 +174,10 @@ const DRAFTS: Draft[] = [
     // The 2022-12-22 snapshot holds 9,926 buildings here and today's map 48,266; the East Side has
     // changed little since, so today's footprints stand in for the town the storm hit.
     osmSnapshot: null,
-    closeups: [],
+    closeups: [
+      { name: "mlk-park", label: "Martin Luther King Jr. Park", center: { lat: 42.9055, lng: -78.8401 }, radius: 500 },
+      { name: "broadway-fillmore", label: "Broadway-Fillmore", center: { lat: 42.8922, lng: -78.8376 }, radius: 500 },
+    ],
     sources: [OSM, TERRAIN_TILES, { label: "Scenario sources: data/cities/buffalo/sources.md" }],
   },
   {
@@ -176,7 +191,10 @@ const DRAFTS: Draft[] = [
     terrainZoom: 15,
     terrainCellMeters: 10,
     osmSnapshot: null,
-    closeups: [],
+    closeups: [
+      { name: "bayfront", label: "Hilo bayfront", center: { lat: 19.7215, lng: -155.084 }, radius: 500 },
+      { name: "waiakea", label: "Waiākea and Banyan Drive", center: { lat: 19.7245, lng: -155.066 }, radius: 480 },
+    ],
     sources: [OSM, TERRAIN_TILES],
   },
 ];
