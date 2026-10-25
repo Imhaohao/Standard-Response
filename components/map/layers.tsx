@@ -27,13 +27,79 @@ export function GeoAnchor({ at, children }: { at: LatLng; children: ReactNode })
   return <Anchor point={toLocal(at)}>{children}</Anchor>;
 }
 
-export function screenPath(project: Project, points: Point[], close = false) {
-  let d = "";
-  for (let i = 0; i < points.length; i++) {
-    const { x, y } = project(points[i]);
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+type Box = { x0: number; y0: number; x1: number; y1: number };
+type XY = { x: number; y: number };
+
+// The part of a segment inside a box (Liang-Barsky), or null when it misses the box.
+function clipSegment(a: XY, b: XY, box: Box): [XY, XY] | null {
+  const [dx, dy] = [b.x - a.x, b.y - a.y];
+  let [enter, leave] = [0, 1];
+  const edges: [number, number][] = [[-dx, a.x - box.x0], [dx, box.x1 - a.x], [-dy, a.y - box.y0], [dy, box.y1 - a.y]];
+  for (const [p, q] of edges) {
+    if (p === 0 && q < 0) return null;
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else if (p > 0) leave = Math.min(leave, t);
   }
-  return close && d ? `${d}Z` : d;
+  if (enter > leave) return null;
+  return [
+    { x: a.x + dx * enter, y: a.y + dy * enter },
+    { x: a.x + dx * leave, y: a.y + dy * leave },
+  ];
+}
+
+const OFFSCREEN_MARGIN_PX = 64;
+
+// A line as path data, cut to the screen and a little past it. Zoomed in, a route can run thousands
+// of pixels off the edge, and a dashed or animated stroke costs its whole length on every frame.
+export function clippedPath(project: Project, points: Point[], size: { width: number; height: number }) {
+  const box = { x0: -OFFSCREEN_MARGIN_PX, y0: -OFFSCREEN_MARGIN_PX, x1: size.width + OFFSCREEN_MARGIN_PX, y1: size.height + OFFSCREEN_MARGIN_PX };
+  const screen = points.map((point) => project(point));
+  let d = "";
+  let open = false;
+  for (let i = 1; i < screen.length; i++) {
+    const piece = clipSegment(screen[i - 1], screen[i], box);
+    if (!piece) {
+      open = false;
+      continue;
+    }
+    const [from, to] = piece;
+    if (!open) d += `M${from.x.toFixed(1)} ${from.y.toFixed(1)}`;
+    d += `L${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+    open = to.x === screen[i].x && to.y === screen[i].y;
+  }
+  return d;
+}
+
+// A closed ring cut to the same box (Sutherland-Hodgman), so a zone filled and outlined far past
+// the edge of the screen only costs what shows. The cut runs along the box, off screen.
+function clipRing(ring: XY[], box: Box): XY[] {
+  const sides: [(p: XY) => boolean, (a: XY, b: XY) => XY][] = [
+    [(p) => p.x >= box.x0, (a, b) => lerpTo(a, b, (box.x0 - a.x) / (b.x - a.x))],
+    [(p) => p.x <= box.x1, (a, b) => lerpTo(a, b, (box.x1 - a.x) / (b.x - a.x))],
+    [(p) => p.y >= box.y0, (a, b) => lerpTo(a, b, (box.y0 - a.y) / (b.y - a.y))],
+    [(p) => p.y <= box.y1, (a, b) => lerpTo(a, b, (box.y1 - a.y) / (b.y - a.y))],
+  ];
+  return sides.reduce((points, [inside, cross]) => clipAgainst(points, inside, cross), ring);
+}
+
+const lerpTo = (a: XY, b: XY, t: number): XY => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+
+function clipAgainst(points: XY[], inside: (p: XY) => boolean, cross: (a: XY, b: XY) => XY) {
+  const out: XY[] = [];
+  points.forEach((current, i) => {
+    const previous = points[(i + points.length - 1) % points.length];
+    if (inside(current) !== inside(previous)) out.push(cross(previous, current));
+    if (inside(current)) out.push(current);
+  });
+  return out;
+}
+
+export function clippedRing(project: Project, ring: Point[], size: { width: number; height: number }) {
+  const box = { x0: -OFFSCREEN_MARGIN_PX, y0: -OFFSCREEN_MARGIN_PX, x1: size.width + OFFSCREEN_MARGIN_PX, y1: size.height + OFFSCREEN_MARGIN_PX };
+  const clipped = clipRing(ring.map((point) => project(point)), box);
+  if (clipped.length < 3) return "";
+  return clipped.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join("") + "Z";
 }
 
 // A path whose `d` follows the camera. `shape` turns the current projection into path data.
@@ -46,8 +112,10 @@ function ProjectedPath({ shape, ...rest }: { shape: (project: Project) => string
 type LineProps = { route: Point[]; close?: boolean } & React.SVGProps<SVGPathElement>;
 
 export function MapLine({ route, close = false, ...rest }: LineProps) {
+  const { size } = useMapStage();
   if (route.length < 2) return null;
-  return <ProjectedPath shape={(project) => screenPath(project, route, close)} {...rest} />;
+  const shape = close ? (project: Project) => clippedRing(project, route, size) : (project: Project) => clippedPath(project, route, size);
+  return <ProjectedPath shape={shape} {...rest} />;
 }
 
 export function GeoLine({ route, close = false, ...rest }: { route: LatLng[]; close?: boolean } & React.SVGProps<SVGPathElement>) {
@@ -59,7 +127,8 @@ type LegProps = { start: Point; end: Point; stroke: string; strokeWidth: number;
 
 // A straight run between two places, used for the leg a vehicle is driving.
 export function Leg({ start, end, ...rest }: LegProps) {
-  return <ProjectedPath shape={(project) => screenPath(project, [start, end])} fill="none" {...rest} />;
+  const { size } = useMapStage();
+  return <ProjectedPath shape={(project) => clippedPath(project, [start, end], size)} fill="none" {...rest} />;
 }
 
 export function GeoLeg({ start, end, ...rest }: { start: LatLng; end: LatLng } & Omit<LegProps, "start" | "end">) {
@@ -69,7 +138,8 @@ export function GeoLeg({ start, end, ...rest }: { start: LatLng; end: LatLng } &
 
 // Several closed rings as one even-odd path, so a hole inside a ring stays open.
 export function MapShape({ rings, ...rest }: { rings: Point[][] } & React.SVGProps<SVGPathElement>) {
+  const { size } = useMapStage();
   const closed = rings.filter((ring) => ring.length >= 3);
   if (closed.length === 0) return null;
-  return <ProjectedPath shape={(project) => closed.map((ring) => screenPath(project, ring, true)).join("")} fillRule="evenodd" {...rest} />;
+  return <ProjectedPath shape={(project) => closed.map((ring) => clippedRing(project, ring, size)).join("")} fillRule="evenodd" {...rest} />;
 }

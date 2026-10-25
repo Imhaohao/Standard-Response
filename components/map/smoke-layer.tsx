@@ -15,7 +15,8 @@ import { Project, useMapStage } from "./map-stage";
 const PUFFS = 72;
 const LIFE_SECONDS = 9;
 const EDGE_SAMPLES = 96;
-const PLUME_EVERY_METERS = 900;
+const PLUME_EVERY_METERS = 350;
+const INSIDE_HEAT = 0.55;
 const MOST_PLUMES = 8;
 // How hard the ground the last two fronts crossed still smokes, against the burning edge's 1.
 const SMOULDER_HEAT = [0.6, 0.35];
@@ -59,8 +60,18 @@ function plumesAlong(ring: Point[], nextRing: Point[] | null, plumes: number, he
     .map((source) => ({ ...source, strength: source.strength * heat }));
 }
 
-// One plume for every kilometre or so of burning edge, and fewer, fainter ones over the ground the
-// fire crossed in the last hour or so, which is still smouldering.
+// Plumes over the burned ground inside a front: points of the ring pulled part of the way to its
+// middle, fainter than the edge's.
+function plumesInside(ring: Point[], count: number): Source[] {
+  const [cx, cy] = ring.reduce(([x, y], [px, py]) => [x + px / ring.length, y + py / ring.length], [0, 0]);
+  return sampleRing(ring, count).map(([x, y], i) => {
+    const pull = 0.3 + 0.4 * hash(i * 4.7 + x);
+    return { point: [x + (cx - x) * pull, y + (cy - y) * pull] as Point, strength: INSIDE_HEAT };
+  });
+}
+
+// A plume for every few hundred metres of burning edge, some over the burned ground inside it, and
+// fainter ones over ground the fire crossed in the last hour or so, which is still smouldering.
 function smokeSources(fronts: ScenarioFront[], minutes: number): Source[] {
   const index = fronts.findLastIndex((front) => front.minutes <= minutes);
   if (index < 0) return [];
@@ -68,6 +79,7 @@ function smokeSources(fronts: ScenarioFront[], minutes: number): Source[] {
   const plumes = Math.max(1, Math.min(MOST_PLUMES, Math.round(perimeter(fronts[index].ring) / PLUME_EVERY_METERS)));
   const sources = [
     ...plumesAlong(fronts[index].ring, sampled(index + 1), plumes, 1),
+    ...plumesInside(fronts[index].ring, Math.max(1, Math.round(plumes / 2))),
     ...SMOULDER_HEAT.flatMap((heat, back) => {
       const older = fronts[index - back - 1];
       return older ? plumesAlong(older.ring, sampled(index - back), Math.max(1, Math.round(plumes / 2)), heat) : [];

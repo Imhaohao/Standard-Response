@@ -5,8 +5,8 @@ import type { FireField } from "./fire-field";
 // Flames as objects standing in the town: rows of licking tongues along every burning edge,
 // and a scatter of smaller ones over ground that burned in the last few minutes. They are real
 // geometry, so they stand up from the hills, hide behind houses and look different from every
-// angle. Each one is a pair of crossed cards the tongues are drawn on; the set is re-placed only
-// when the fire's minute changes.
+// angle. Each one is a flat card turned along the fire line, with the tongues drawn on it; the set is
+// re-placed only when the fire's minute changes.
 
 const MOST_FLAMES = 12000;
 const FLAME_SPACING_METERS = 8;
@@ -23,12 +23,15 @@ in vec2 uv;
 in vec3 iOffset;
 in vec2 iSize;
 in float iPhase;
+in float iAngle;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 out vec2 vUv;
 flat out float vPhase;
 void main() {
-  vec3 world = iOffset + vec3(position.x * iSize.x, position.y * iSize.y, position.z * iSize.x);
+  // The card lies along the fire line: its width runs in the line's direction on the map.
+  vec2 along = vec2(cos(iAngle), sin(iAngle)) * position.x * iSize.x;
+  vec3 world = iOffset + vec3(along.x, position.y * iSize.y, -along.y);
   vUv = uv;
   vPhase = iPhase;
   gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
@@ -65,43 +68,37 @@ float valueNoise(vec2 p) {
 }
 
 const float COLUMNS = 3.0;
+// The card is drawn in coarse pixels, a grid of these across and up, so the tongues come out
+// blocky and stepped like the rest of the printed map rather than as smooth triangles.
+const vec2 PIXELS = vec2(COLUMNS * 6.0, 18.0);
+const float SHADES = 5.0;
 
 void main() {
   float scene = texture(tDepth, gl_FragCoord.xy / uResolution).r;
   if (gl_FragCoord.z > scene + 2e-5) discard;
-  float across = vUv.x * COLUMNS;
+  vec2 cell = (floor(vUv * PIXELS) + 0.5) / PIXELS;
+  float across = cell.x * COLUMNS;
   float column = floor(across) + vPhase * 97.0;
   float profile = 1.0 - abs(fract(across) - 0.5) * 2.0;
-  float t = vUv.y;
+  float t = cell.y;
   float flicker = valueNoise(vec2(column * 1.7, uTime * 4.0 - t * 3.0)) * valueNoise(vec2(column * 0.31, uTime * 0.7));
   float height = 0.12 + 1.6 * flicker;
   float rise = t / max(height, 1e-3);
   if (rise > 1.0 || rise > profile) discard;
-  float f = 1.0 - rise;
+  float f = ceil((1.0 - rise) * SHADES) / SHADES;
   vec3 hot = vec3(1.0, 0.9, 0.62);
   vec3 color = f < 0.7 ? mix(uRed, uEmber, f / 0.7) : mix(uEmber, hot, (f - 0.7) / 0.3);
   fragColor = vec4(color, 1.0);
 }
 `;
 
-// Two upright cards crossed at right angles, a metre wide and a metre tall, standing on their
-// bottom edge. Seen from any side, one of them faces the camera.
-function crossedCards() {
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  for (const [dx, dz] of [[1, 0], [0, 1]]) {
-    const base = positions.length / 3;
-    for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-      positions.push((u - 0.5) * dx, v, (u - 0.5) * dz);
-      uvs.push(u, v);
-    }
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-  }
+// One upright card a metre wide and a metre tall, standing on its bottom edge. Each instance turns
+// it to run along the fire line, so the row of tongues reads as the line of fire itself.
+function flameCard() {
   const geometry = new THREE.InstancedBufferGeometry();
-  geometry.setIndex(indices);
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0], 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
   return geometry;
 }
 
@@ -110,7 +107,8 @@ const hash = (n: number) => {
   return x - Math.floor(x);
 };
 
-type Flame = { x: number; y: number; width: number; height: number; phase: number };
+// `angle` is the direction the card runs on the map, in radians from east.
+type Flame = { x: number; y: number; width: number; height: number; phase: number; angle: number };
 
 type Grid = { field: FireField; cellX: number; cellY: number; minutes: number };
 
@@ -141,6 +139,7 @@ function flamesOnCrossing(grid: Grid, from: [number, number], to: [number, numbe
       width: (8 + hash(s + 1) * 4) * scale,
       height: (16 + hash(s + 2) * 14) * scale,
       phase: hash(s + 3),
+      angle: Math.atan2(dx, -dy),
     };
   });
 }
@@ -151,7 +150,7 @@ function flameInside(grid: Grid, col: number, row: number, index: number): Flame
   if (since < 0 || since > STILL_BURNING_MINUTES || hash(index * 3.7) > INSIDE_SHARE) return [];
   const [x, y] = centre(grid, col, row);
   const seed = index * 7.13;
-  return [{ x: x + (hash(seed) - 0.5) * grid.cellX, y: y + (hash(seed + 0.5) - 0.5) * grid.cellY, width: 4 + hash(seed + 1) * 2, height: 6 + hash(seed + 2) * 5, phase: hash(seed + 3) }];
+  return [{ x: x + (hash(seed) - 0.5) * grid.cellX, y: y + (hash(seed + 0.5) - 0.5) * grid.cellY, width: 4 + hash(seed + 1) * 2, height: 6 + hash(seed + 2) * 5, phase: hash(seed + 3), angle: hash(seed + 4) * Math.PI }];
 }
 
 const NEIGHBOURS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -188,10 +187,11 @@ function flamesAt(field: FireField, minutes: number, bounds: Bounds): Flame[] {
 export class FlameField {
   readonly scene = new THREE.Scene();
   readonly uniforms: Record<string, THREE.IUniform>;
-  private geometry = crossedCards();
+  private geometry = flameCard();
   private offsets = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES * 3), 3);
   private sizes = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES * 2), 2);
   private phases = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES), 1);
+  private angles = new THREE.InstancedBufferAttribute(new Float32Array(MOST_FLAMES), 1);
   private material: THREE.RawShaderMaterial;
   private mesh: THREE.Mesh;
 
@@ -207,10 +207,11 @@ export class FlameField {
       uEmber: shared.uEmber,
       uTime: shared.uTime,
     };
-    for (const attribute of [this.offsets, this.sizes, this.phases]) attribute.setUsage(THREE.DynamicDrawUsage);
+    for (const attribute of [this.offsets, this.sizes, this.phases, this.angles]) attribute.setUsage(THREE.DynamicDrawUsage);
     this.geometry.setAttribute("iOffset", this.offsets);
     this.geometry.setAttribute("iSize", this.sizes);
     this.geometry.setAttribute("iPhase", this.phases);
+    this.geometry.setAttribute("iAngle", this.angles);
     this.geometry.instanceCount = 0;
     this.material = new THREE.RawShaderMaterial({
       vertexShader: FLAME_VERTEX,
@@ -234,8 +235,9 @@ export class FlameField {
       this.offsets.setXYZ(i, flame.x, terrainHeight(this.data.terrain, flame.x, flame.y) - 0.5, -flame.y);
       this.sizes.setXY(i, flame.width, flame.height);
       this.phases.setX(i, flame.phase);
+      this.angles.setX(i, flame.angle);
     });
-    for (const attribute of [this.offsets, this.sizes, this.phases]) attribute.needsUpdate = true;
+    for (const attribute of [this.offsets, this.sizes, this.phases, this.angles]) attribute.needsUpdate = true;
     this.geometry.instanceCount = flames.length;
   }
 

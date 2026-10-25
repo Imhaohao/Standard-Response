@@ -223,11 +223,11 @@ function HazardSmoke({ hazard, minutes = 0 }: { hazard?: Hazard | null; minutes?
   return <SmokeLayer fronts={hazard.field.fronts} minutes={minutes} />;
 }
 
-// Each overlay is its own compositor layer, so a marker that changes repaints only the markers and
-// never the large fire and forecast shapes underneath, which change once a minute at most.
+// One SVG per overlay. They are left to the browser's own layering: forcing each onto a full-screen
+// compositor layer made every camera move re-raster the whole layer and stalled zooms.
 function OverlayLayer({ size, children }: { size: { width: number; height: number }; children: ReactNode }) {
   return (
-    <svg width={size.width} height={size.height} className="pointer-events-none absolute inset-0 will-change-transform" aria-hidden>
+    <svg width={size.width} height={size.height} className="pointer-events-none absolute inset-0" aria-hidden>
       {children}
     </svg>
   );

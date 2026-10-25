@@ -94,6 +94,7 @@ export class InkMapRenderer {
   private startedAt = performance.now();
   private disposables: { dispose: () => void }[] = [];
   private treeTiles: TreeTile[] = [];
+  private treesUploaded = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -391,11 +392,27 @@ export class InkMapRenderer {
     this.flight = requestAnimationFrame(step);
   }
 
+  // Every tree tile, near and far, drawn once with culling off so its buffers reach the GPU now.
+  // Otherwise the detailed tiles upload the moment a zoom first crosses into them, and the zoom
+  // stalls halfway.
+  private uploadTrees() {
+    const meshes = this.treeTiles.flatMap((tile) => [tile.near, tile.far]);
+    const shown = meshes.map((mesh) => mesh.visible);
+    for (const mesh of meshes) [mesh.visible, mesh.frustumCulled] = [true, false];
+    this.renderer.setRenderTarget(this.gbuffer);
+    this.renderer.render(this.scene, this.camera);
+    meshes.forEach((mesh, i) => ([mesh.visible, mesh.frustumCulled] = [shown[i], true]));
+  }
+
   private renderStatic() {
     this.fitShadowCamera();
     this.renderer.setRenderTarget(this.shadow);
     this.renderer.clear();
     this.renderer.render(this.depthScene, this.shadowCamera);
+    if (!this.treesUploaded) {
+      this.uploadTrees();
+      this.treesUploaded = true;
+    }
     this.renderer.setRenderTarget(this.gbuffer);
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.clear();
