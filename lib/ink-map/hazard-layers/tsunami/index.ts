@@ -1,5 +1,6 @@
-import { PlaceholderLayer } from "../placeholder";
+import { createWaterLayer } from "../water/layer";
 import type { HazardLayerFactory } from "../types";
 
-// Stand-in until the tsunami renderer lands: hatching over the ground the scenario's fronts reach.
-export const createTsunamiLayer: HazardLayerFactory = (context) => new PlaceholderLayer("tsunami", context, { tint: context.shared.uIndigo.value, angle: -0.35 });
+// A tsunami: before each crest the sea draws back and bares the bay floor, then a bore with a curling
+// foam lip runs up the bay and over the waterfront, and drains away again, once for every wave.
+export const createTsunamiLayer: HazardLayerFactory = createWaterLayer("tsunami");

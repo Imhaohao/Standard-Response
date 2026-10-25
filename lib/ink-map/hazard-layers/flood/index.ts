@@ -1,5 +1,6 @@
-import { PlaceholderLayer } from "../placeholder";
+import { createWaterLayer } from "../water/layer";
 import type { HazardLayerFactory } from "../types";
 
-// Stand-in until the flood renderer lands: hatching over the ground the scenario's fronts reach.
-export const createFloodLayer: HazardLayerFactory = (context) => new PlaceholderLayer("flood", context, { tint: context.shared.uIndigo.value, angle: 0 });
+// A levee breach: water pours through the gap in churning foam, runs down the low streets behind a
+// hooked white edge carrying debris, rises house by house, and settles into a still sheet with slow rings.
+export const createFloodLayer: HazardLayerFactory = createWaterLayer("flood");

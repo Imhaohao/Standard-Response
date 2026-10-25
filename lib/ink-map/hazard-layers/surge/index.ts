@@ -1,5 +1,6 @@
-import { PlaceholderLayer } from "../placeholder";
+import { createWaterLayer } from "../water/layer";
 import type { HazardLayerFactory } from "../types";
 
-// Stand-in until the surge renderer lands: hatching over the ground the scenario's fronts reach.
-export const createSurgeLayer: HazardLayerFactory = (context) => new PlaceholderLayer("surge", context, { tint: context.shared.uIndigo.value, angle: 0.35 });
+// A storm surge: the sea rises with the storm tide, swell marches ashore in broken crests that throw
+// spray, the water sloshes over the barrier island, and rain slants across the map on the wind.
+export const createSurgeLayer: HazardLayerFactory = createWaterLayer("surge");
