@@ -1,8 +1,9 @@
 // The recorder's memory watchdog. The team shares one 16 GB laptop, and on a Mac GPU memory comes out
 // of the same RAM: a Chrome GPU helper once grew to 14 GB and froze the machine. From the moment
 // Chrome launches until it closes, every second, this reads the system's free memory and the
-// resident size of Chrome's whole process tree (GPU helper and renderers included), and SIGKILLs
-// that tree the moment either crosses its line. Every wait and hold in the recorder calls
+// footprint of Chrome's whole process tree (GPU helper and renderers included), and SIGKILLs that
+// tree the moment either crosses its line. Footprint is top's MEM column: resident size leaves out
+// the Metal memory a GPU helper holds, which is how a 14 GB helper once looked like 2 GB. Every wait and hold in the recorder calls
 // `assertHealthy`, so the run stops within a second of a kill.
 
 import { execFile } from "node:child_process";
@@ -46,6 +47,32 @@ export function chromeTree(rows: ProcessRow[], parentPid: number) {
   return tree;
 }
 
+const UNIT_BYTES: Record<string, number> = { B: 1, K: 1024, M: 1024 ** 2, G: 1024 ** 3, T: 1024 ** 4 };
+
+// top prints MEM as "874M", "1.2G" or "512K", sometimes with a trailing + or -.
+export function parseTopMemory(value: string) {
+  const match = value.trim().match(/^([\d.]+)([BKMGT])?[+-]?$/);
+  if (!match) return 0;
+  return Number(match[1]) * UNIT_BYTES[match[2] ?? "B"];
+}
+
+export function topFootprints(stdout: string) {
+  const footprints = new Map<number, number>();
+  for (const line of stdout.split("\n")) {
+    const match = line.trim().match(/^(\d+)\s+(\S+)$/);
+    if (match) footprints.set(Number(match[1]), parseTopMemory(match[2]));
+  }
+  return footprints;
+}
+
+async function footprintBytes(pids: number[]) {
+  if (pids.length === 0) return 0;
+  const args = ["-l", "1", "-stats", "pid,mem", ...pids.flatMap((pid) => ["-pid", String(pid)])];
+  const { stdout } = await run("top", args, { maxBuffer: 4 * 1024 * 1024 });
+  const footprints = topFootprints(stdout);
+  return pids.reduce((sum, pid) => sum + (footprints.get(pid) ?? 0), 0);
+}
+
 const gigabytes = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 
 export class Watchdog {
@@ -71,7 +98,7 @@ export class Watchdog {
     try {
       const [free, rows] = await Promise.all([freeMemoryPercent(), processTable()]);
       const tree = chromeTree(rows, process.pid);
-      const treeBytes = tree.reduce((sum, row) => sum + row.rssBytes, 0);
+      const treeBytes = await footprintBytes(tree.map((row) => row.pid));
       this.peak = { treeBytes: Math.max(this.peak.treeBytes, treeBytes), lowestFree: Math.min(this.peak.lowestFree, free) };
       const reason = free < MIN_FREE_PERCENT ? `free memory fell to ${free}%` : treeBytes > MAX_CHROME_TREE_BYTES ? `Chrome grew to ${gigabytes(treeBytes)}` : null;
       if (reason) this.trip(reason, tree);
