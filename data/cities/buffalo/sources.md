@@ -145,3 +145,17 @@ A household is **on time** if it is reached before the first of these:
 2. **Twelve hours after the home loses heat, or at once if someone in it depends on powered equipment.** Assumption: 12 hours is our number, not a published one. Urban Green's modelled typical single-family house reached 35°F after three days, but in a milder New York cold spell. Buffalo's airport recorded 4–12°F with sustained winds mostly 25–45 mph through the 24th, so a house there loses heat faster. And the people this is for are older or ill, so they come to harm well before a house reaches freezing. Twelve of the 46 county deaths were attributed to no power or heat. For someone on home oxygen or another powered device, the loss of power itself is the emergency, so that deadline is the minute the power goes out. City outages rose from 3,177 customers at 10:00 to 20,890 at 18:00 on the 23rd. Without per-street outage data, a simulated household's power-loss time should be drawn from that rising curve.
 
 Under these rules, the realistic window for the dispatch simulator is minute 0 to minute 330: five and a half hours on 23 Dec. In that window a household that can't ride out a multi-day outage has to be moved to a warming center or hospital, and anyone who depends on powered equipment has to be checked on. Most of the deaths happened after that window closed. This scenario shows what could be done before the roads shut, and shows plainly what no fleet could do after.
+
+## Who needs a ride in the blizzard
+
+The evacuation rule the app uses for fire and water says a household needs a ride when it can't leave on its own, and having no car counts. That rule doesn't fit a blizzard. Under a driving ban nobody drives, so a car doesn't make a home safe, and 23.8% of the simulated East Side households have none. Applied here, the evacuation rule marked 38% of homes as needing a ride in the earlier, smaller population.
+
+The dispatch simulator uses a blizzard rule instead (`blizzard_need` in `dispatch/sim/hazard_rules.py`). A household needs moving to a warming center if it can't stay safe through days without heat or power. That means any of the following:
+
+- someone 65 or older living alone (ACS B11007, matched exactly by the reweighting): 13.3% of households;
+- someone with an ambulatory or self-care difficulty (ACS PUMS DPHY and DDRS, mapped to mobility and assistance in `modeling/rollcall_d/population.py`): 13.4%;
+- someone on home oxygen or dialysis (an assumed rate; ACS has no such variable): 0.6%.
+
+Together that's 24,526 of 104,953 households, or 23.4%. The population fills the whole baked extent: the `buffalo` detail box in `lib/cities.ts` grown by its 0.005° extent pad.
+
+A household that needs moving is at risk only if it loses power during the storm. Its power-loss time is drawn from the outage curve above, and households above the curve's peak share (17.5%) keep power. We didn't add a separate no-heat share for homes that keep power, because we found no source to ground one.
