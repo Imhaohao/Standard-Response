@@ -5,6 +5,7 @@ import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ElasticLike, forgetHouseholds, indexDocuments, searchIndex } from "./elasticCore";
 import { householdDocument, lineDocument } from "./elasticDocs";
+import { secretMatches } from "./apifyPayload";
 
 // Search over call transcripts and households, kept in Elastic Cloud. Set ELASTIC_URL and
 // ELASTIC_API_KEY in the Convex env. With either unset every function here logs and does nothing,
@@ -80,10 +81,14 @@ const searchResult = v.object({
 
 // Public like households.coverage: nothing in Convex checks who is calling. The call floor page is
 // dispatcher-only, but this endpoint is not gated server-side yet.
+// Results are addresses and words of people who may need rescue, so only the Next server route
+// /api/search (dispatcher-gated) may call this: it must pass SEARCH_SECRET, and with that env var
+// unset nothing is returned.
 export const search = action({
-  args: { q: v.string(), language: v.optional(v.string()) },
+  args: { q: v.string(), language: v.optional(v.string()), secret: v.string() },
   returns: v.array(searchResult),
-  handler: async (_ctx, { q, language }) => {
+  handler: async (_ctx, { q, language, secret }) => {
+    if (!secretMatches(`Bearer ${secret}`, process.env.SEARCH_SECRET)) return [];
     const query = q.trim();
     if (query === "") return [];
     const client = await connect();

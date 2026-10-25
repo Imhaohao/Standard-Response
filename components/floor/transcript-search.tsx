@@ -1,9 +1,7 @@
 "use client";
 
-import { useAction } from "convex/react";
 import { FormEvent, useState } from "react";
 import { MagnifyingGlass, X } from "@phosphor-icons/react";
-import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "../ui/button";
 
@@ -36,13 +34,14 @@ function Snippet({ snippet }: { snippet: string }) {
 }
 
 function useTranscriptSearch() {
-  const search = useAction(api.elastic.search);
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [searching, setSearching] = useState(false);
   const run = async (q: string) => {
     setSearching(true);
     try {
-      setMatches(await search({ q }));
+      // The server route checks dispatcher access and holds the search secret.
+      const response = await fetch("/api/search", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q }) });
+      setMatches(response.ok ? ((await response.json()) as Match[]) : []);
     } catch {
       setMatches([]);
     } finally {

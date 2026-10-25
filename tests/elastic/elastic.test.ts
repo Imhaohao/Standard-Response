@@ -76,7 +76,7 @@ describe("without Elastic credentials", () => {
     await expect(t.action(internal.elastic.indexLine, { lineId })).resolves.toBeNull();
     await expect(t.action(internal.elastic.indexHousehold, { householdId })).resolves.toBeNull();
     await expect(t.action(internal.elastic.backfill, {})).resolves.toBeNull();
-    await expect(t.action(api.elastic.search, { q: "oxygen" })).resolves.toEqual([]);
+    await expect(t.action(api.elastic.search, { q: "oxygen", secret: "wrong" })).resolves.toEqual([]);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("ELASTIC_URL"));
     vi.unstubAllEnvs();
     log.mockRestore();
