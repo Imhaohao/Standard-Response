@@ -59,6 +59,12 @@
       "description": "If set, the Actor POSTs { zones: [...] } here for zones in warning or order that are new or changed since the last run.",
       "editor": "textfield"
     },
+    "closureWebhookUrl": {
+      "title": "Road closure webhook URL",
+      "type": "string",
+      "description": "If set, the Actor POSTs { closures: [...] } here: each full road closure once when it starts (status closed, with its geometry), and once more with status lifted when the source stops reporting it. A Caltrans district whose feed failed this run never reports a closure as lifted.",
+      "editor": "textfield"
+    },
     "webhookSecret": {
       "title": "Webhook secret",
       "type": "string",

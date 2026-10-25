@@ -6,9 +6,12 @@ import { internalMutation } from "./functions";
 import { point } from "./schema";
 import { insidePolygon, located, Point } from "./model";
 import { simNow } from "./clock";
+import { edgeKeysOf, edgesRunningAlong, streetNames } from "./roadGraph";
+import { insertClosures } from "./roads";
 
-// Evacuation zones reported by the "California evacuation status" Apify Actor (convex/http.ts).
+// Evacuation zones and road closures reported by the "California evacuation status" Apify Actor (convex/http.ts).
 // A zone with riders inside is applied the way the dispatcher does it: riders:setZone, then control:issueWarning.
+// A full road closure on our road graph is written like any other closure, so the next plan routes around it.
 
 const HOUSEHOLD_LIMIT = 5000;
 const PRIOR_ZONE_LIMIT = 200;
@@ -122,5 +125,67 @@ export const applyZones = internalMutation({
     for (const { zone, ridersInside } of fresh) await recordZone(ctx, zone, ridersInside, epoch, at);
     const ridersInside = countRidersInside(await ctx.db.query("households").take(HOUSEHOLD_LIMIT), covered);
     return { applied: fresh.length, duplicates, noRiders, ridersInside, warningStarted };
+  },
+});
+
+const closureArg = v.union(
+  v.object({ key: v.string(), name: v.string(), status: v.literal("closed"), path: v.array(point) }),
+  v.object({ key: v.string(), name: v.string(), status: v.literal("lifted") }),
+);
+
+const closureResultShape = v.object({
+  closed: v.number(),
+  duplicates: v.number(),
+  offOurRoads: v.number(),
+  reopened: v.number(),
+});
+
+// The streets a lifted closure had shut, or null when it isn't one of ours.
+async function reopen(ctx: MutationCtx, key: string) {
+  const row = await ctx.db
+    .query("roadClosures")
+    .withIndex("by_sourceKey", (q) => q.eq("sourceKey", key))
+    .first();
+  if (!row || row.source !== "apify") return null;
+  await ctx.db.delete("roadClosures", row._id);
+  return row.streets ?? [];
+}
+
+const placeOf = (streets: string[], fallback: string) => (streets.length > 0 ? streets.join(", ") : fallback);
+
+// Statewide feeds report closures far from our riders. Only one that runs along a street on our road
+// graph is written; the rest are counted and dropped.
+export const applyClosures = internalMutation({
+  args: { closures: v.array(closureArg) },
+  returns: closureResultShape,
+  handler: async (ctx, { closures }) => {
+    const result = { closed: 0, duplicates: 0, offOurRoads: 0, reopened: 0 };
+    const at = await simNow(ctx);
+    for (const closure of closures) {
+      if (closure.status === "lifted") {
+        const streets = await reopen(ctx, closure.key);
+        if (streets === null) continue;
+        result.reopened += 1;
+        await ctx.db.insert("events", { kind: "control", message: `Apify: ${placeOf(streets, closure.name)} reopened`, at });
+        continue;
+      }
+      const edges = edgesRunningAlong(closure.path);
+      if (edges.length === 0) {
+        result.offOurRoads += 1;
+        continue;
+      }
+      const streets = streetNames(edges);
+      const edgeKeys = edgeKeysOf(edges);
+      const added = await insertClosures(ctx, [
+        { path: closure.path, source: "apify", sourceKey: closure.key, edgeKeys, streets, edgeKey: edgeKeys[0], confirmed: true },
+      ]);
+      if (added === 0) {
+        result.duplicates += 1;
+        continue;
+      }
+      result.closed += 1;
+      await ctx.db.insert("events", { kind: "control", message: `Apify: road closed on ${placeOf(streets, closure.name)}`, at });
+    }
+    return result;
   },
 });

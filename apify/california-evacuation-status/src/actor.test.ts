@@ -4,7 +4,7 @@ import { buildDrillRecord } from "./drill.js";
 import { applyFilters, dedupeZones } from "./filters.js";
 import { isStale, normalizeZoneStatus } from "./status.js";
 import type { EvacuationRecord } from "./types.js";
-import { planWebhook } from "./webhook.js";
+import { deliverClosureWebhook, planClosureWebhook, planWebhook } from "./webhook.js";
 
 const square: [number, number][] = [
   [-118.16, 34.18],
@@ -72,3 +72,65 @@ test("drill records are labelled", () => {
   assert.equal(record.status, "warning");
   assert.equal(record.geometry.type, "Polygon");
 });
+
+const closure = (overrides: Partial<EvacuationRecord> = {}): EvacuationRecord => ({
+  source: "caltrans-lcs",
+  sourceUrl: "https://example.test",
+  kind: "road_closure",
+  id: "LCS-1",
+  name: "I-210 Lake Ave to Allen Ave",
+  county: "Los Angeles",
+  status: "closed",
+  updatedAt: "2026-10-24T12:00:00.000Z",
+  geometry: { type: "LineString", coordinates: [[-118.13, 34.16], [-118.11, 34.16]] },
+  properties: { district: "7" },
+  ...overrides,
+});
+
+const CALTRANS = new Set(["caltrans-lcs"]);
+
+test("closure webhook sends a full closure once, and once more when it lifts", () => {
+  const first = planClosureWebhook([closure()], {}, CALTRANS, new Set());
+  assert.equal(first.pending.length, 1);
+  assert.equal(first.pending[0]!.item.status, "closed");
+  const sent = { [first.pending[0]!.key]: first.pending[0]!.fingerprint! };
+  assert.equal(planClosureWebhook([closure({ updatedAt: "2026-10-24T13:00:00.000Z" })], sent, CALTRANS, new Set()).pending.length, 0);
+
+  const lifted = planClosureWebhook([], sent, CALTRANS, new Set());
+  assert.deepEqual(
+    lifted.pending.map((entry) => [entry.item.status, entry.item.id, entry.fingerprint]),
+    [["lifted", "LCS-1", null]],
+  );
+});
+
+test("a closure is never called lifted when its feed wasn't read", () => {
+  const sent = { "caltrans-lcs:LCS-1": "closed|caltrans-lcs|d7" };
+  assert.equal(planClosureWebhook([], sent, CALTRANS, new Set(["caltrans-lcs|d7"])).pending.length, 0);
+  assert.equal(planClosureWebhook([], sent, new Set(), new Set()).pending.length, 0);
+  assert.equal(planClosureWebhook([], sent, CALTRANS, new Set(["caltrans-lcs|d4"])).pending.length, 1);
+});
+
+test("lane closures and zones never go to the closure webhook", () => {
+  assert.equal(planClosureWebhook([closure({ status: "open" }), zone()], {}, CALTRANS, new Set()).pending.length, 0);
+});
+
+test("closure delivery forgets a lifted closure only once the receiver has it", async (t) => {
+  const posted: unknown[] = [];
+  let status = 200;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    posted.push(JSON.parse(String(init.body)));
+    return new Response("{}", { status });
+  });
+  const sent = { "caltrans-lcs:LCS-1": "closed|caltrans-lcs|d7" };
+  const plan = planClosureWebhook([closure({ id: "LCS-2" })], sent, CALTRANS, new Set());
+
+  const delivered = await deliverClosureWebhook("https://example.test/hook", "s", plan, 5);
+  assert.deepEqual(delivered.state, { "caltrans-lcs:LCS-2": "closed|caltrans-lcs|d7" });
+  assert.deepEqual((posted[0] as { closures: { id: string; status: string }[] }).closures.map((c) => [c.id, c.status]), [["LCS-1", "lifted"], ["LCS-2", "closed"]]);
+
+  status = 400;
+  const failed = await deliverClosureWebhook("https://example.test/hook", "s", plan, 5);
+  assert.deepEqual(failed.state, sent);
+  assert.equal(failed.failed, 2);
+});
+

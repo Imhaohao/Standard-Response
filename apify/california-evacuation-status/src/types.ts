@@ -40,6 +40,7 @@ export interface ActorInput {
   closureDetail: "full" | "all";
   staleAfterHours: number;
   webhookUrl?: string;
+  closureWebhookUrl?: string;
   webhookSecret?: string;
   drill: boolean;
   drillPolygon?: [number, number][];
@@ -51,5 +52,7 @@ export interface SourceResult {
   source: SourceName;
   ok: boolean;
   records: EvacuationRecord[];
+  // Parts of a source that could not be read this run, such as a Caltrans district ("caltrans-lcs|d7").
+  unreadFeeds: string[];
   error?: string;
 }

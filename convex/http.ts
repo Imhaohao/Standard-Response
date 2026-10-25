@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { parsePayload, secretMatches } from "./apifyPayload";
+import { parseClosures, parsePayload, secretMatches } from "./apifyPayload";
 
 const http = httpRouter();
 
@@ -28,6 +28,18 @@ const zoneStatus = httpAction(async (ctx, request) => {
   return json({ received: payload.zones.length + payload.ignored, ignored: payload.ignored, ...result });
 });
 
+// The same Actor posts full road closures that started or were lifted since its last run, with the same secret.
+const roadClosures = httpAction(async (ctx, request) => {
+  if (!secretMatches(request.headers.get("authorization"), process.env.APIFY_WEBHOOK_SECRET)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  const payload = parseClosures(await readJson(request));
+  if (!payload) return json({ error: "expected { closures: [...] }" }, 400);
+  const result = await ctx.runMutation(internal.apify.applyClosures, { closures: payload.closures });
+  return json({ received: payload.closures.length + payload.ignored, ignored: payload.ignored, ...result });
+});
+
 http.route({ path: "/apify/zone-status", method: "POST", handler: zoneStatus });
+http.route({ path: "/apify/road-closures", method: "POST", handler: roadClosures });
 
 export default http;

@@ -215,6 +215,16 @@ export function closedEdgesFor(closure: { edgeKey?: string; path: Point[] }) {
   return [...new Set(direct.flatMap(withReverse))];
 }
 
+// Only the segments a reported closure runs along, both directions: never the ones it merely crosses.
+// An outside feed gives a closure as its two ends, so the straight line between them can cut across
+// streets that are open. A single point closes the segments passing within reach of it.
+export function edgesRunningAlong(path: Point[]) {
+  const lies = (edge: EdgeRecord) =>
+    path.length === 1 ? metersToSegment(path[0], nodePoint(edge.u), nodePoint(edge.v)) < ALONG_ROAD_METERS : edgeLiesAlongPath(path, edge);
+  const along = [...EDGES.keys()].filter((index) => lies(EDGES[index]));
+  return [...new Set(along.flatMap(withReverse))];
+}
+
 export function edgeKeysOf(edges: number[]) {
   return edges.map((index) => EDGES[index].key);
 }

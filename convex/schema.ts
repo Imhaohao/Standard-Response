@@ -162,6 +162,8 @@ export const closureSource = v.union(
   v.literal("driver"),
   v.literal("resident"),
   v.literal("manual"),
+  // Full road closures from the "California evacuation status" Apify Actor (Caltrans lane closure feeds).
+  v.literal("apify"),
 );
 
 // Ready check (Track A): what a household told us before any disaster.
@@ -461,9 +463,14 @@ export default defineSchema({
     streets: v.optional(v.array(v.string())),
     path: v.array(point),
     source: closureSource,
+    // The outside record this closure came from ("caltrans-lcs:<id>" for Apify), so a repeat post is
+    // ignored and a closure the source lifts is reopened.
+    sourceKey: v.optional(v.string()),
     confirmed: v.boolean(),
     at: v.number(),
-  }).index("by_edgeKey", ["edgeKey"]),
+  })
+    .index("by_edgeKey", ["edgeKey"])
+    .index("by_sourceKey", ["sourceKey"]),
 
   nominations: defineTable({
     fromHouseholdId: v.optional(v.id("households")),

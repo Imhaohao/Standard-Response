@@ -35,3 +35,14 @@ Suggested fix, yours to pick: in `dispatch.commit`, clear `escalation` when it i
 ## 2026-10-24 16:02
 
 Deployed to `robust-penguin-834`: the `workflow` component (reach ladder) and `POST /apify/zone-status` (Convex HTTP action, secret in env `APIFY_WEBHOOK_SECRET`, also in the repo's `.env.local`). Checked live: a wrong secret returns 401, and a zone with no riders returns `noRiders: 1` with nothing written. Watch usage: each unreached real rider's workflow wakes every 20 s while waiting.
+
+## 2026-10-24 19:45
+
+**Additive change to your `roadClosures` table**, for the Apify prize. Apify's real road closures now reach dispatch. Nothing you call changes.
+
+- `closureSource` gains `"apify"`. `roadClosures` gains an optional `sourceKey` (for example `"caltrans-lcs:<id>"`) and the index `by_sourceKey`.
+- New endpoint `POST /apify/road-closures` (`convex/http.ts`), with the same `APIFY_WEBHOOK_SECRET` as the zone endpoint. It runs `internal.apify.applyClosures`. A `closed` closure is written through the new `insertClosures` helper in `convex/roads.ts`, which `roads:addClosures` now also uses. Its behavior is unchanged, plus a dedupe on `sourceKey`. A `lifted` closure deletes only the `apify` row with that `sourceKey`. Your closure count in `maybeReplan` changes either way, so both trigger a re-plan.
+- **Snapping:** Caltrans gives a closure as its two ends, and the straight line between them can cut across open streets. `closedEdgesFor` would close every street it crosses. So `applyClosures` uses a new `edgesRunningAlong(path)` in your `convex/roadGraph.ts`, which only takes edges the line runs along, and writes `edgeKeys` and `streets` already set. `snapClosures` then leaves those rows alone. A closure that runs along none of our streets is counted as `offOurRoads` and not written.
+- Every Apify row is `confirmed: true`, because Caltrans reports closures it has made.
+- Tests: `npx vitest run apify/tests --environment edge-runtime` (7 new cases: snapped write, repeat ignored, lift reopens, a lift never removes a manual closure, crossing-only and far-away lines close nothing, bad input ignored, 401/400).
+- Not deployed to `robust-penguin-834` yet. Whoever runs `npx convex dev` or deploy next pushes it. The schema change is additive.
