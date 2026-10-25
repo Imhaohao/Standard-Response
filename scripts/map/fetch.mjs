@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { CACHE, DETAIL, TERRAIN, TERRAIN_ZOOM, tileRange } from "./frame.mjs";
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
-const USER_AGENT = "rollcall-calhacks-track-a/0.1 (evacuation coordination map)";
+const USER_AGENT = "rollcall-calhacks/0.1 (evacuation coordination map)";
 const box = ({ south, west, north, east }) => `${south},${west},${north},${east}`;
 const DETAIL_BOX = box(DETAIL);
 

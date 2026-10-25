@@ -250,7 +250,7 @@ export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {
   for (const vehicle of await ctx.db.query("vehicles").take(200)) await moveVehicle(ctx, fleet, vehicle);
 }
 
-// Track C's real dispatcher and vehicle movement. The simulation tick schedules this once the
+// The real dispatcher and vehicle movement. The simulation tick schedules this once the
 // "Dispatcher and vehicle movement" stand-in is off. It runs as its own transaction, so a failure
 // here never stops the rest of the simulation.
 export const tick = internalMutation({

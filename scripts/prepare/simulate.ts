@@ -210,7 +210,7 @@ async function main() {
     runs.push(run);
   }
   const results = {
-    label: "Simulation, not a prediction. Synthetic answers on Track D's synthetic population; rates assumed in lib/prepare/synthetic.ts.",
+    label: "Simulation, not a prediction. Synthetic answers on the synthetic population; rates assumed in lib/prepare/synthetic.ts.",
     settings: { ...SETTINGS, training: SURVEY_TRAINING, rates: RATES, areas: AREA_COUNT, areaIndexSize: AREA_INDEX.size },
     runs,
   };

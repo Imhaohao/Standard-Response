@@ -141,7 +141,7 @@ async function seedFleet(ctx: MutationCtx, random: Random, warningAt: number, fl
 
 type AreaOptions = { withFleet: boolean; batch: number };
 
-// Batch 0 is the demo area. Later batches (Track C's checks) get other households and phone numbers.
+// Batch 0 is the demo area. Later batches (the dispatcher's checks) get other households and phone numbers.
 export async function seedSimulatedArea(ctx: MutationCtx, warningAt: number, options: AreaOptions = { withFleet: true, batch: 0 }) {
   const random = mulberry32(13 + options.batch);
   const blockVulnerability = Array.from({ length: BLOCK_GRID * BLOCK_GRID }, () => 0.08 + random() * 0.5);
@@ -200,7 +200,7 @@ export async function seedFleetIfEmpty(ctx: MutationCtx, warningAt: number, driv
 // fire arrival and call priority are measured from it instead.
 // The warning starts the fire clock for every home with a location, simulated or real. Placeholder
 // arrival times from sign-up or the rider list would otherwise order neighbors by when they signed
-// up, not by where they live. Track D's hazard runner overwrites these once a scenario is running.
+// up, not by where they live. The hazard runner overwrites these once a scenario is running.
 export async function retimeArea(ctx: MutationCtx, warningAt: number) {
   const households = await ctx.db.query("households").take(1000);
   for (const household of households) {

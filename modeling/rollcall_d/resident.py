@@ -1,7 +1,7 @@
 """A simulated resident who answers the agent from a persona card.
 
 It works out which question the agent just asked from the reply text (English or Spanish, matching
-Track B's question lines), answers from the card's truth, and plays the card's traits: repeats for
+the voice agent's question lines), answers from the card's truth, and plays the card's traits: repeats for
 hard of hearing, a partial address first, tangents, panic, a second voice, pushing for reassurance,
 an emergency, a neighbor nomination, and the scripted correction. Deterministic for a given seed.
 """

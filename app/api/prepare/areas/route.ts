@@ -3,7 +3,7 @@ import path from "node:path";
 import { connection } from "next/server";
 import { areaShapes } from "@/lib/prepare/areas";
 
-// The readiness survey's block groups as { id, households, rings }, out of Track D's census file.
+// The readiness survey's block groups as { id, households, rings }, out of the census file.
 // Public census geography; phones use it to find their own block group from a pin that stays on the phone.
 export async function GET() {
   await connection();

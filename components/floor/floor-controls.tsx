@@ -58,12 +58,12 @@ function LineStepper({ value }: { value: number }) {
 
 type StandInKey = "simulateVoice" | "simulateNeedModel" | "simulateDispatch" | "simulateDrivers" | "autoApprove";
 
-const STAND_INS: { key: StandInKey; label: string; owner: string }[] = [
-  { key: "simulateVoice", label: "Voice agent, dialer and callbacks", owner: "Track B" },
-  { key: "simulateDispatch", label: "Dispatcher and vehicle movement", owner: "Track C" },
-  { key: "simulateDrivers", label: "Drivers not on the driver page", owner: "Track C" },
-  { key: "autoApprove", label: "Dispatcher approval", owner: "Track A" },
-  { key: "simulateNeedModel", label: "Need model", owner: "Track D" },
+const STAND_INS: { key: StandInKey; label: string }[] = [
+  { key: "simulateVoice", label: "Voice agent, dialer and callbacks" },
+  { key: "simulateDispatch", label: "Dispatcher and vehicle movement" },
+  { key: "simulateDrivers", label: "Drivers not on the driver page" },
+  { key: "autoApprove", label: "Dispatcher approval" },
+  { key: "simulateNeedModel", label: "Need model" },
 ];
 
 // Ends the night after a second click. Either way the night is saved in `nightRuns` first; a
@@ -124,7 +124,7 @@ function useDismiss(open: boolean, close: () => void) {
   return ref;
 }
 
-// Each piece of the system has a stand-in until its owner switches it to Real. The switches are
+// Each piece of the system has a stand-in until someone switches it to Real. The switches are
 // for the team, not the audience, so they live behind one button.
 function StandIns({ control }: { control: ControlState }) {
   const setStandIns = useMutation(api.control.setStandIns);
@@ -145,7 +145,7 @@ function StandIns({ control }: { control: ControlState }) {
               checked={control[entry.key] === false}
               onChange={(isReal) => void setStandIns({ [entry.key]: !isReal })}
               label={entry.label}
-              hint={`${control[entry.key] === false ? "Real" : "Stand-in"}, owned by ${entry.owner}`}
+              hint={control[entry.key] === false ? "Real" : "Stand-in"}
             />
           ))}
           <div className="border-t border-panel-raised p-3">

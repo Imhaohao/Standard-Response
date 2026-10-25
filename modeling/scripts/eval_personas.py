@@ -1,7 +1,7 @@
 """Run the persona eval and write data/eval-results.json (summary) and data/eval-transcripts.jsonl.
 
   uv run python scripts/eval_personas.py                               # scripted stand-in agent, in process
-  uv run python scripts/eval_personas.py --endpoint http://localhost:8787  # Track B's real POST /turn
+  uv run python scripts/eval_personas.py --endpoint http://localhost:8787  # the voice server's real POST /turn
 """
 
 import argparse
@@ -54,7 +54,7 @@ def run_honesty(agent, cards: list[dict], concurrency: int, seed: int, transcrip
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--endpoint", help="Track B's text agent base URL; omit to use the scripted stand-in")
+    parser.add_argument("--endpoint", help="The voice server's text agent base URL; omit to use the scripted stand-in")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=0)
@@ -69,7 +69,7 @@ def main() -> None:
     if args.limit:
         cards = cards[: args.limit]
     if args.endpoint:
-        agent, label, concurrency = HttpAgent(args.endpoint), f"Track B text agent at {args.endpoint}", args.concurrency
+        agent, label, concurrency = HttpAgent(args.endpoint), f"Text agent at {args.endpoint}", args.concurrency
         if (spoken := probe_hazard(agent)) != HAZARD:
             sys.exit(f"The agent speaks for {spoken or 'an unknown hazard'}, and these cards are for {HAZARD}. "
                      f"Set the call floor's hazard to {HAZARD}, or wait for whoever set it, then run again.")
@@ -85,7 +85,7 @@ def main() -> None:
     summary = summarize(runs, label)
     if not args.endpoint:
         summary["caveat"] = ("The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the "
-                             "harness works end to end. Report the run against Track B's endpoint, never this one.")
+                             "harness works end to end. Report the run against the voice server's endpoint, never this one.")
     out.write_text(json.dumps(summary, indent=1, ensure_ascii=False))
     transcripts = Path(args.transcripts) if args.transcripts else out.with_name(out.stem.removesuffix("-results") + "-transcripts.jsonl")
     with transcripts.open("w") as handle:

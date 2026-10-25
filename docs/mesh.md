@@ -119,13 +119,13 @@ The model also records flow by street: cars through each segment, their sampled 
 
 ### In the dispatcher's drive times
 
-`convex/traffic.ts` turns the newest forecast into the time a vehicle takes to drive each street: `1 / max(0.05, 1 − slowdown)` times its free-flow time, using the ensemble median for that direction in the window the drive reaches it, and the last window past the hour. A drive that crosses from one window into the next covers the rest of the street at the next window's speed, so leaving later never arrives sooner and Dijkstra stays exact. Track C's re-planner (the solver's matrix, the accepted-run forecast, revocations, ETA updates) and the simulated vans' road paths all use these times, so the ETA in a rider's callback is the drive through the traffic the model expects, and the van on the map drives it. Vans get no right of way. With no forecast for this incident, or one older than 15 minutes, every street is at free flow, as before. One approximation: the solver's matrix prices each leg as if it set out now; every re-plan prices again from the present. `lib/crowd/traffic.test.ts` tests it.
+`convex/traffic.ts` turns the newest forecast into the time a vehicle takes to drive each street: `1 / max(0.05, 1 − slowdown)` times its free-flow time, using the ensemble median for that direction in the window the drive reaches it, and the last window past the hour. A drive that crosses from one window into the next covers the rest of the street at the next window's speed, so leaving later never arrives sooner and Dijkstra stays exact. The re-planner (the solver's matrix, the accepted-run forecast, revocations, ETA updates) and the simulated vans' road paths all use these times, so the ETA in a rider's callback is the drive through the traffic the model expects, and the van on the map drives it. Vans get no right of way. With no forecast for this incident, or one older than 15 minutes, every street is at free flow, as before. One approximation: the solver's matrix prices each leg as if it set out now; every re-plan prices again from the present. `lib/crowd/traffic.test.ts` tests it.
 
 Measured offline on the full synthetic population (4 members, forecasts made 10 and 20 minutes after the warning, 400 homes that need a ride, one shelter south of the zone): drives from the shelter into the zone barely change (median 6.1 min either way, the worst 1.3 times longer), while drives from those homes back to the shelter, with the evacuation, take a median 1.3 to 1.4 times longer (6.5 min becomes 7.7 to 7.9), up to 1.8 times.
 
 ## Results (simulation, not a prediction)
 
-`data/flow-results.json`. Four seeds, 3,497 synthetic households each (30% of Track D's population), five hours from the warning. Each figure is the median (5th to 95th percentile).
+`data/flow-results.json`. Four seeds, 3,497 synthetic households each (30% of the synthetic population), five hours from the warning. Each figure is the median (5th to 95th percentile).
 
 | | Mesh on | Mesh off | Difference |
 | --- | --- | --- | --- |

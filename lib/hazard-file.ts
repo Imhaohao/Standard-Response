@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-// Track D's hazard files under data/hazard. A missing file answers null so the map simply leaves the layer off.
+// The hazard files under data/hazard. A missing file answers null so the map simply leaves the layer off.
 export async function hazardFileResponse(name: string) {
   try {
     const text = await readFile(path.join(process.cwd(), "data", "hazard", name), "utf8");

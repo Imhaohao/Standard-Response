@@ -18,7 +18,7 @@ Decentralized data collection for disaster preparedness and prevention. It runs 
 | `lib/prepare/mixing.ts` | The survey vector and push-sum mixing |
 | `lib/prepare/node.ts` | A household's phone and its meeting protocol |
 | `lib/prepare/county.ts` | The county's side: counts, rounds, versions (used by Convex and the simulation alike) |
-| `lib/prepare/synthetic.ts` | Synthetic answers on Track D's synthetic population, for the simulation |
+| `lib/prepare/synthetic.ts` | Synthetic answers on the synthetic population, for the simulation |
 | `scripts/prepare/simulate.ts` | A three-month campaign over every synthetic household |
 
 ```bash

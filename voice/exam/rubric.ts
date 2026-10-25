@@ -111,7 +111,7 @@ export const MODULES: Record<ModuleId, Module> = {
 
 // CritiCall modules this exam does not score, and why.
 export const NOT_SCORED = [
-  { criticall: "Map Reading", why: "Routes are the dispatch optimizer's job (Track C), not the voice agent's." },
+  { criticall: "Map Reading", why: "Routes are the dispatch optimizer's job, not the voice agent's." },
   { criticall: "Typing / Keyboarding", why: "Speech-to-text does the typing; Data entry and Spelling grade the result." },
   { criticall: "Character Comparison", why: "No voice-agent task compares character strings by eye." },
 ];

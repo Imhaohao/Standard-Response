@@ -1,4 +1,4 @@
-"""Convex access for Track D's scripts.
+"""Convex access for the modeling scripts.
 
 The deployment URL comes from CONVEX_URL, or NEXT_PUBLIC_CONVEX_URL, in the environment or in the
 repository's .env.local (the shared env file). Python ints become Convex int64, which `v.number()`

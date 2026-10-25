@@ -29,7 +29,7 @@ function metresBetween(a: LatLng, b: LatLng) {
 
 // With a routed van, close the last stretch of its real route before the door. Without one (the
 // dispatch stand-in drives straight lines), cut across the approach a little short of the house;
-// Track C closes every road a cut crosses.
+// The dispatcher closes every road a cut crosses.
 function closurePath(van: Vehicle, stop: Assignment, route: Route | undefined): LatLng[] | null {
   if (stop.lat === undefined || stop.lng === undefined) return null;
   const door = { lat: stop.lat, lng: stop.lng };

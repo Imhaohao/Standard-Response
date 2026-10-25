@@ -19,7 +19,7 @@ export const open = query({
   handler: async (ctx) => await ctx.db.query("nominations").withIndex("by_status", (q) => q.eq("status", "open")).take(200),
 });
 
-// Nominations Track D couldn't place, with the reason. They stay on the dispatcher's list.
+// Nominations address matching couldn't place, with the reason. They stay on the dispatcher's list.
 export const flagged = query({
   args: {},
   handler: async (ctx) =>
@@ -30,7 +30,7 @@ async function logMatch(ctx: MutationCtx, message: string, householdId?: Id<"hou
   await ctx.db.insert("events", { kind: "model", message, householdId, at: await simNow(ctx) });
 }
 
-// Track D matched the spoken address to a household, or couldn't (say why in `note`).
+// Address matching matched the spoken address to a household, or couldn't (say why in `note`).
 export const resolve = mutation({
   args: {
     nominationId: v.id("nominations"),
@@ -59,7 +59,7 @@ export const resolve = mutation({
 
 const NOMINATED_NEED_PRIOR_FLOOR = 0.05;
 
-// Track D matched a nomination to a real address point that isn't on the rider list yet. Finds the
+// Address matching matched a nomination to a real address point that isn't on the rider list yet. Finds the
 // household at that address or adds one. It has no phone, so it goes straight to the door-check list.
 export const matchAddress = mutation({
   args: {
@@ -67,7 +67,7 @@ export const matchAddress = mutation({
     address: v.string(),
     lat: v.number(),
     lng: v.number(),
-    // Census base rate for the block group (Track D), before the nomination raises it.
+    // Census base rate for the block group, before the nomination raises it.
     needPrior: v.number(),
     needProbability: v.number(),
     fireArrivalAt: v.number(),

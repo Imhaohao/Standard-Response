@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connection } from "next/server";
 
-// Tracks B, C and D write these files; the under-the-hood screen reads them.
+// The evals and simulators write these files; the under-the-hood screen reads them.
 const RESULT_FILES = {
   simulator: "sim-results.json",
   evaluation: "eval-results.json",

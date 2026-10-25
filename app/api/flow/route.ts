@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { connection } from "next/server";
 
-// The flow lab's inputs: Track D's synthetic households (only the fields the crowd model reads)
+// The flow lab's inputs: the synthetic households (only the fields the crowd model reads)
 // and the mesh add-on's simulation results. Fictional households only.
 type Household = { lat: number; lng: number; peopleCount: number; canLeave: string; hasCar: boolean };
 

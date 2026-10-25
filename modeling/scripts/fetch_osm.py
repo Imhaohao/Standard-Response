@@ -1,4 +1,4 @@
-"""Download the OpenStreetMap inputs Track D uses and save compact copies under data/osm.
+"""Download the OpenStreetMap inputs the models use and save compact copies under data/osm.
 
   addresses.json    every address point (nodes and building centroids) in the study area
   buildings.json    residential building footprint centroids, for placing the synthetic population
@@ -20,7 +20,7 @@ from rollcall_d.area import BBOX, EAST, NORTH, SOUTH, WEST  # noqa: E402
 from rollcall_d.paths import OSM  # noqa: E402
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
-HEADERS = {"User-Agent": "rollcall-calhacks-track-d/0.1 (evacuation coordination research)", "Accept": "application/json"}
+HEADERS = {"User-Agent": "rollcall-calhacks/0.1 (evacuation coordination research)", "Accept": "application/json"}
 BOX = f"{SOUTH},{WEST},{NORTH},{EAST}"
 
 

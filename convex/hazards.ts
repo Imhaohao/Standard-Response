@@ -18,7 +18,7 @@ export type HazardEscalation = "flames" | "hazard_at_home";
 
 export const hazardEscalation = (kind: Hazard): HazardEscalation => (kind === "wildfire" ? "flames" : "hazard_at_home");
 
-// Track D's scenario file for each hazard under data/hazard. A missing file leaves the map layer off.
+// The scenario file for each hazard under data/hazard. A missing file leaves the map layer off.
 export const SCENARIO_FILES: Record<Hazard, string> = {
   wildfire: "scenario.geojson",
   earthquake: "scenario-earthquake.geojson",

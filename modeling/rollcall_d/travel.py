@@ -1,7 +1,7 @@
 """Travel times on the real west Altadena road graph (OSMnx), with closures removed.
 
 Door-check teams and the hazard runner both use this. Edge keys are "u-v-key" with OSM node ids,
-the same keys Track C's graph uses when it loads data/osm/drive.graphml.
+the same keys the dispatcher's graph uses when it loads data/osm/drive.graphml.
 """
 
 import math

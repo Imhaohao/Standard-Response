@@ -12,14 +12,14 @@ import { planFromSolution, buildWorld, solve } from "./dispatchWorld";
 import type { Snapshot } from "./dispatchSnapshot";
 import { simNow } from "./clock";
 
-// Track C's real dispatcher. Every few seconds, and right away when a road closes, it snapshots the
+// The real dispatcher. Every few seconds, and right away when a road closes, it snapshots the
 // world, forecasts each vehicle's accepted run, revokes pickups a closure has made unreachable in
 // time, and asks the ALNS solver service (or the heuristic when it is down) for new offers.
 // Every write goes through writePlan, so the contract's rules hold for this dispatcher too.
 
 const REPLAN_EVERY_MS = 5_000;
 // With nobody waiting, re-plan only this often. Each re-plan reads every open request, so this
-// is most of Track C's database reads on a quiet night.
+// is most of the dispatcher's database reads on a quiet night.
 const REFRESH_EVERY_MS = 30_000;
 const REPLAN_LOCK_MS = 30_000;
 

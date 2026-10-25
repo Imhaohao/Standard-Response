@@ -18,12 +18,12 @@ import { signatureIsValid, streamTwiml } from "./phone/twilio";
 import { startTextFollowUp } from "./textFollowUp";
 import { handleTurn } from "./textAgent";
 
-// The Track B call server. Twilio webhooks and media streams, plus the text endpoint for the eval.
+// The call server. Twilio webhooks and media streams, plus the text endpoint for the eval.
 //   POST /twilio/inbound   a resident calls our number
 //   POST /twilio/status    an outbound call finished (no answer, busy, completed)
 //   POST /twilio/amd       answering-machine detection result
 //   WS   /media            Twilio Media Streams audio for every call
-//   POST /turn             the same agent over text, for Track D's persona eval
+//   POST /turn             the same agent over text, for the persona eval
 //   GET  /health
 //   GET  /live             how many calls this server is holding, so a deploy can wait for them
 

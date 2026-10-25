@@ -6,7 +6,7 @@ import type { Language } from "./script";
 // space ("Just me.", "I use a walker.", "No, I don't have a car.", "One person to help."), so a
 // whole-utterance pattern can read the common forms exactly. A pattern must match everything said:
 // any extra detail, emotion, emergency or question leaves the turn to Claude. The patterns were
-// written from the answer space and checked against Track D's persona phrasings
+// written from the answer space and checked against the persona phrasings
 // (modeling/rollcall_d/resident.py), not from the voice exam's calls.
 
 export type Parsed = { updates: AgentRecord; answer?: Answer; saysChairKind?: boolean };

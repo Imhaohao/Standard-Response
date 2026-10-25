@@ -81,7 +81,7 @@ describe("approved answers", () => {
     }
   });
 
-  // Questions Track D's unsafe advice set heard answered from the bank (notes/DtoB.md, Oct 24 18:25),
+  // Questions the unsafe advice set heard answered from the bank (notes/DtoB.md, Oct 24 18:25),
   // as Claude restates them, plus going back for a neighbor (Palo Alto Station 6).
   const UNSAFE = [
     "Can I go back in for my cat?",

@@ -14,7 +14,7 @@ export type Hazard = { field: FireField; label: string; basis: string; burns?: b
 
 type ScenarioFile = ScenarioGeoJson & { metadata?: { label?: string; basis?: string } };
 
-// Track D's scenario for the operator's hazard, in the map's own metres. Reloaded when the hazard changes.
+// The scenario for the operator's hazard, in the map's own metres. Reloaded when the hazard changes.
 export function useHazard(origin: LatLng | undefined): Hazard | null {
   // A deployment from before the hazard switch returns no hazard at all; that night is a wildfire.
   const control = useQuery(api.control.get);
@@ -44,8 +44,8 @@ export function useHazard(origin: LatLng | undefined): Hazard | null {
   }, [origin, file, loaded?.kind]);
 }
 
-// Minute 0 is the warning, and the fire runs on the night's clock, the same clock Track D's
-// deadlines use. At normal speed that is the wall clock; the rescue map can pause or speed it up.
+// Minute 0 is the warning, and the fire runs on the night's clock, the same clock the hazard
+// runner's deadlines use. At normal speed that is the wall clock; the rescue map can pause or speed it up.
 export const SIM_MINUTES_PER_SECOND = 1 / 60;
 
 export type FireClock = { minutes: number; last: number };

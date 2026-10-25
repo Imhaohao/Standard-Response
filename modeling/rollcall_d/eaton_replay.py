@@ -245,7 +245,7 @@ def write() -> dict:
 
 
 # The documented requests are only the people whose calls got through. The fleet check asks whether
-# AccessLA's vans could have carried everyone west of Lake who needs a ride, using Track D's synthetic
+# AccessLA's vans could have carried everyone west of Lake who needs a ride, using the synthetic
 # population (real census records reweighted to Altadena; not real people).
 FLEET_SIZES = [10, 25, 50, 100, 200]
 DIAL_SECONDS_PER_CALL = 1.0
@@ -320,7 +320,7 @@ def fleet_check(roads: dict, lake: LakeAvenue, sightings: list[Sighting], depot:
     stops, needing = population_stops(lake, sightings)
     shelter = DriveTimes(roads, (SHELTER["lat"], SHELTER["lng"]))
     return {
-        "households": "Track D synthetic population (data/population.json), west of Lake Avenue",
+        "households": "Synthetic population (data/population.json), west of Lake Avenue",
         "needARide": needing,
         "withFireDocumentedNearby": len(stops),
         "shelter": SHELTER,

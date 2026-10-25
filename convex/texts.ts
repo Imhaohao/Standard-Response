@@ -15,14 +15,14 @@ export const recent = query({
   handler: async (ctx, { limit }) => await ctx.db.query("texts").order("desc").take(limit),
 });
 
-// Voice track: an outbound text to a resident.
+// Voice server: an outbound text to a resident.
 export const send = mutation({
   args: { householdId: v.id("households"), body: v.string() },
   returns: v.id("texts"),
   handler: async (ctx, args) => await ctx.db.insert("texts", { ...args, direction: "outbound", at: await simNow(ctx) }),
 });
 
-// Simulated phone panel: a resident's reply. The voice track parses it. A reply ends the reach
+// Simulated phone panel: a resident's reply. The voice server parses it. A reply ends the reach
 // ladder at once, so no door check follows while the reply is being read.
 export const reply = mutation({
   args: { householdId: v.id("households"), body: v.string() },

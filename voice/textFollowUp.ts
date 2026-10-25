@@ -6,7 +6,7 @@ import { languageOf, LINES, statusLine } from "./agent/script";
 import { convex, logSubscriptionError } from "./convex";
 
 // The text step of the reach ladder for real riders. SMS registration won't clear this weekend, so
-// texts live in Convex and show on Track A's simulated phone panel. This sends the prompt in the
+// texts live in Convex and show on the simulated phone panel. This sends the prompt in the
 // rider's language and reads the reply; the reach ladder workflow (convex/reachLadder.ts) puts the
 // home on the door-check list when no reply comes in time.
 

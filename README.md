@@ -116,4 +116,4 @@ In the latest voice exam, the agent's own turn took 0.92 s at the median and 1.6
 - Six of the eight call languages (zh, ko, vi, tl, ru and ja) are machine translations waiting for review by a fluent speaker. Without `CARTESIA_VOICE_<CODE>`, the English voice speaks them with an English accent.
 - Because phone audio is 8 kHz, voices sound like a phone call rather than a studio recording.
 - A status change, such as a driver accepting or a road closing, plays after the turn that's already speaking. That's a few seconds at most, but it never cuts in mid-sentence.
-- The Twilio account is a trial as of Track B's last note. Every call opens with Twilio's notice. Outbound calls reach verified numbers only.
+- The Twilio account is a trial as of Brendan's last note. Every call opens with Twilio's notice. Outbound calls reach verified numbers only.

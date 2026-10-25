@@ -1,7 +1,7 @@
 """The voice agent's fixed lines, read from voice/agent/lines/<language>.ts.
 
 The eval and the grader compare agent replies against these sentences (status templates, the safety line,
-"nothing has changed", the hold steps). Reading them from Track B's source keeps the comparison true when
+"nothing has changed", the hold steps). Reading them from the voice agent's source keeps the comparison true when
 the wording changes, instead of drifting from a copy. Only plain string values are read: a key whose
 value is a function (`confirmAddress: (address) => ...`) is skipped.
 """

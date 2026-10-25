@@ -107,7 +107,7 @@ function ScenarioRows({ metric, scenarios, readout, zero }: { metric: string; sc
   );
 }
 
-// Track C's congestion model: what the roads do when the whole area drives out. Every input is an assumption.
+// The congestion model: what the roads do when the whole area drives out. Every input is an assumption.
 export function ExplorationDisclosure({ simulator }: { simulator: Simulator | null }) {
   const exploration = simulator?.exploration;
   if (!exploration) return <PendingDisclosure icon={Car} title="Everyone leaves at once" />;
@@ -160,7 +160,7 @@ function NeedRows({ model, score, domain }: { model: NeedModel; score: keyof Nee
   );
 }
 
-// Track D's need model: how well it ranks the homes nobody answered at, against their true need.
+// The need model: how well it ranks the homes nobody answered at, against their true need.
 export function NeedModelDisclosure({ model }: { model: NeedModel | null }) {
   if (!model) return <PendingDisclosure icon={Brain} title="Need model" />;
   return (

@@ -5,7 +5,7 @@ import { acceptAssignment, approveAssignment, completeAssignment, liveAssignment
 import { Proposal, writePlan } from "./plans";
 import { transitionRequest } from "./requests";
 
-// Stand-in dispatcher, drivers and vehicle movement. Track C's solver replaces the dispatcher;
+// Stand-in dispatcher, drivers and vehicle movement. The real solver replaces the dispatcher;
 // the rules it must keep (compatibility, frozen accepted runs, version-checked accepts) live in
 // plans.ts and offers.ts, not here.
 

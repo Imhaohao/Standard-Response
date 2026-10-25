@@ -1,4 +1,4 @@
-"""End-to-end check of Track C against a running deployment: solver, compatibility, frozen runs,
+"""End-to-end check of the dispatcher against a running deployment: solver, compatibility, frozen runs,
 re-routing, revocation, cancellation, stale acceptance, fallback and vehicle movement.
 
 Needs the Convex backend, the solver service and the simulation running:

@@ -18,7 +18,7 @@ import { startRunIfNone } from "./nightRuns";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
-// home (Track B's `ready` call mode, or the stand-in below for simulated homes), or the household
+// home (the voice server's `ready` call mode, or the stand-in below for simulated homes), or the household
 // signs up on its phone at /ready.
 
 const READY_TICK_MS = 700;

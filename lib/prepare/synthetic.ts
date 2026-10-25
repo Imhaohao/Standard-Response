@@ -2,7 +2,7 @@ import { gaussian, Random } from "../mesh/random";
 import { sigmoid } from "../mesh/federated";
 import { Answers, Topic } from "./survey";
 
-// Synthetic survey answers for the simulation, built on Track D's synthetic population
+// Synthetic survey answers for the simulation, built on the synthetic population
 // (data/population.json: real ACS PUMS households reweighted to west Altadena's block groups). The
 // population gives where each household lives, its size, ages, cars and medical needs. Everything
 // else here is assumed, with rates stated below, and the outcomes come from known logistic models

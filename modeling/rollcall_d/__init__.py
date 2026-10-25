@@ -1,1 +1,1 @@
-"""Track D: modeling and evaluation for assisted evacuation coordination."""
+"""Modeling and evaluation for assisted evacuation coordination."""

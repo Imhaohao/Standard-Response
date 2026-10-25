@@ -1,7 +1,7 @@
 # Picking up Boris's work
 
 You are working on the interface of a hackathon app. Boris built the map and the rescue map. On
-Saturday 24 Oct around 03:30–04:00 Brendan's Claude finished the rest of Track A from this file: the
+Saturday 24 Oct around 03:30–04:00 Brendan's Claude finished the rest of the interface from this file: the
 driver page, the call floor, `/system` and `/phone` are all on the new design now. Read "What is
 done" before you change any of them, so you build on that work instead of redoing it.
 
@@ -34,9 +34,9 @@ Non-negotiable direction:
    The typography, layout and writing rules in there are why the existing screens look the way they
    do. `better-interface` and the other `better-*` skills are subordinate to those files.
 2. `PLAN.md`, the section for the screen you are building.
-3. `notes/*toA.md` — what the other three tracks have told Track A. There are 12 note files; the
-   three addressed to `A` are the ones you need.
-4. Every `notes/Ato*.md` — what Boris already told the other tracks. Do not contradict it.
+3. The notes addressed to Boris: `notes/*-to-boris.md`, `notes/*-to-everyone.md`, and the older
+   `notes/*toA.md` (A was Boris).
+4. Every note Boris wrote: `notes/boris-to-*.md` and the older `notes/Ato*.md`. Do not contradict them.
 
 ## How the map works
 
@@ -189,8 +189,8 @@ replies and a free-text reply. The "simulated" label is in the app bar.
    fallback draws the fire, but neither has been looked at in `mode="paper"` yet.
 3. **The demo run end to end** with the driver page on a real phone: Maria accepts Carmen, close the
    road from `/system`, the revoke and the "This assignment changed" card on Luis's old offer.
-4. `/system` shows "–" for requests and vehicles while the dispatch stand-in is on, because only Track
-   C's real dispatcher fills `requestCount` / `vehicleCount`.
+4. `/system` shows "–" for requests and vehicles while the dispatch stand-in is on, because only the real
+   dispatcher fills `requestCount` / `vehicleCount`.
 
 ## Working in this checkout
 
@@ -238,11 +238,11 @@ stop for the day.
   commit, in small commits. Watch `main` for pushes while you work.
 - `npm run typecheck && npm run lint` must pass before every push. Cyclomatic complexity over 15
   fails lint. A complexity failure is a failing test, not a warning.
-- `convex/schema.ts` and the functions named in `PLAN.md` under "Contract" are shared. Change only
-  the tables your track owns and write a note to every reading track first.
-- Never break another track's stand-in; turn yours off with its switch on the call floor.
-- Notes between tracks live in `notes/<X>to<Y>.md`. Only the sending track writes its file. Add each
-  note at the bottom under a `## YYYY-MM-DD HH:MM` heading.
+- `convex/schema.ts` and the functions named in `PLAN.md` under "Contract" are shared. Before
+  changing a shape someone else reads, write a note to everyone it affects.
+- Never break a stand-in someone is building against; turn it off with its switch on the call floor.
+- Notes between people live in `notes/<from>-to-<to>.md` (`notes/boris-to-brendan.md`). Only the
+  sender writes their file. Add each note at the bottom under a `## YYYY-MM-DD HH:MM` heading.
 - No summary markdown files, no `.backup` or `.pre-features` copies. Git is the history.
 - Secrets never go in git. `.env.local` is gitignored.
 
@@ -256,6 +256,6 @@ npx next dev -p 3100    # the app, terminal 2 — http://localhost:3100
 Screens: `/` call floor, `/map` rescue map, `/driver` driver page, `/phone` simulated handset,
 `/system` under the hood, `/lab` the map bench (both surfaces, a fire scrubber, nothing else).
 
-The team also has a shared Convex deployment and a live voice server on Fly. Track B's note
+The team also has a shared Convex deployment and a live voice server on Fly. Brendan's note
 `notes/BtoA.md` has the URLs and what to put in `.env.local`. The local deployment is fine while you
 build; switch before the demo.

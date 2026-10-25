@@ -1,7 +1,7 @@
 import { Doc } from "./_generated/dataModel";
 import { RecordPatch } from "./households";
 
-// Stand-in conversation for simulated residents. The real voice agent (Track B) replaces
+// Stand-in conversation for simulated residents. The real voice agent replaces
 // this with Claude + speech; the stage order matches the plan's state machine.
 
 type Truth = Doc<"personas">["truth"];

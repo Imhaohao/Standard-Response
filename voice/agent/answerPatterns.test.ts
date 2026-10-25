@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { quickReading } from "./quickAnswer";
 
-// Plain answers as Track D's simulated residents phrase them (modeling/rollcall_d/resident.py), a
+// Plain answers as the simulated residents phrase them (modeling/rollcall_d/resident.py), a
 // corpus the parser was not written from, read to the same fields Claude would give.
 const PLAIN = [
   ["en", "can_leave", "No, I can't get out on my own.", { canLeave: "no" }],

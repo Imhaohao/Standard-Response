@@ -1,4 +1,4 @@
-"""One pass of Track D's live models against Convex.
+"""One pass of the live models against Convex.
 
   hazard      fireArrivalAt for every located household, and `hazard` closures as fronts reach roads
   need        needProbability for every household not yet reached (the real need model)

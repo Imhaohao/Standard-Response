@@ -1,7 +1,7 @@
 import type { LatLng } from "@/lib/geo";
 import type { Point } from "./data";
 
-// Track D's scenario: nested fire fronts, each tagged with the minute after the warning it is reached.
+// The hazard scenario: nested fire fronts, each tagged with the minute after the warning it is reached.
 export type ScenarioFront = { minutes: number; ring: Point[] };
 export type FireField = {
   fronts: ScenarioFront[];

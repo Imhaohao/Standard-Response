@@ -58,7 +58,7 @@ export function DoorCheckPanel({ unreached = 0, className = "" }: { unreached?: 
   );
 }
 
-// Addresses callers named for somebody else. Track D places most of them; the ones it couldn't are
+// Addresses callers named for somebody else. Address matching places most of them; the ones it couldn't are
 // listed here with the reason, because a dispatcher has to read them by hand.
 export function NominationPanel({ className = "" }: { className?: string }) {
   const open = useQuery(api.nominations.open);

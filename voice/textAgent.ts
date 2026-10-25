@@ -2,7 +2,7 @@ import { AgentTurn, Conversation } from "./agent/conversation";
 import type { AgentRecord } from "./agent/record";
 import { languageOf, RequestStatus, RideStatus } from "./agent/script";
 
-// POST /turn for Track D's persona eval. Same state machine and prompt as phone calls, but sessions
+// POST /turn for the persona eval. Same state machine and prompt as phone calls, but sessions
 // live in memory and write nothing to Convex.
 //
 // Request:  { sessionId, language, text, address?, requestStatus? }

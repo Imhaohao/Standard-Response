@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
 
-// Track D's door-check score. Send any subset of households, as often as you like.
+// The door-check score. Send any subset of households, as often as you like.
 export const setPriorities = mutation({
   args: { scores: v.array(v.object({ householdId: v.id("households"), doorPriority: v.number() })) },
   returns: v.null(),
@@ -12,7 +12,7 @@ export const setPriorities = mutation({
   },
 });
 
-// Field teams' order: unreached homes, highest score first. Falls back to need estimate before Track D writes.
+// Field teams' order: unreached homes, highest score first. Falls back to need estimate before the model runner writes.
 export const queue = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {

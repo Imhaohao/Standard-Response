@@ -1,4 +1,4 @@
-"""A scripted stand-in for Track B's text agent, behind the same POST /turn shape.
+"""A scripted stand-in for the voice server's text agent, behind the same POST /turn shape.
 
 Same steps and question lines as voice/agent/conversation.ts, but keyword rules instead of Claude read
 the resident's words. It exists so the persona eval runs before the real endpoint has a key, and as a

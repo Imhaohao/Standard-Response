@@ -45,7 +45,7 @@ export async function insertClosures(ctx: MutationCtx, closures: ClosureInput[])
   return added;
 }
 
-// Hazard (Track D), driver and resident reports (Track C, Track B), and the manual demo control (Track A).
+// The hazard runner, driver and resident reports, and the manual demo control.
 // Apify closures arrive through convex/http.ts.
 export const addClosures = mutation({
   args: {
@@ -62,7 +62,7 @@ export const addClosures = mutation({
   handler: async (ctx, { closures }) => await insertClosures(ctx, closures),
 });
 
-// Track C snaps a drawn closure to the road graph.
+// The dispatcher snaps a drawn closure to the road graph.
 export const setEdgeKey = mutation({
   args: { closureId: v.id("roadClosures"), edgeKey: v.string() },
   returns: v.null(),

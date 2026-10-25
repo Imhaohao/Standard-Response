@@ -19,7 +19,7 @@ import { simNow } from "./clock";
 // When a later call changes the picture (the resident can leave on their own, now needs more than a
 // car, or the helper can't drive after all), the pickup ends and whichever side had already agreed
 // is called with the update. A pickup that isn't happening becomes a ride request at once, its needs
-// already filled in from the Ready check profile. Track B's voice server places the real calls
+// already filled in from the Ready check profile. The voice server places the real calls
 // through the mutations below; the stand-in in pickupSim.ts plays the simulated households.
 
 type Plan = Doc<"pickupPlans">;

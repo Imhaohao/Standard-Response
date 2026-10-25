@@ -6,7 +6,7 @@ import { nextToCall } from "./households";
 import { openRequestFor } from "./requests";
 import { dialableNow } from "./reachLadder";
 
-// Track B: what the real voice server reads. Only real riders (simulated: false) appear here;
+// What the real voice server reads. Only real riders (simulated: false) appear here;
 // the stand-in keeps handling the simulated households.
 
 const assignedDriver = v.object({

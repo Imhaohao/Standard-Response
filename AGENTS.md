@@ -1,6 +1,6 @@
 # Working in this repo
 
-`PLAN.md` is the plan. Read it before your first task, and read the section for your track closely. Your track (A, B, C or D) is named in your first prompt; if it isn't, ask before writing code.
+`PLAN.md` is the plan. Read it before your first task. Nobody owns a part of the app: whoever finds something that needs fixing fixes it, wherever it is.
 
 ## Git: only `main`, always current
 
@@ -16,19 +16,21 @@
   done
   ```
 
-- When new commits appear: pull with rebase, read every changed note addressed to your track, run `npm run typecheck`, and fix anything of yours that broke before continuing.
+- When new commits appear: pull with rebase, read every changed note addressed to you, run `npm run typecheck`, and fix anything that broke before continuing.
 
-## Notes between tracks
+## Notes between people
 
-- `notes/AtoB.md` holds notes from Track A to Track B, and the same pattern covers every pair (`BtoC.md`, `DtoA.md`, ...).
-- Only the sending track writes its file. Add each note at the bottom under a `## YYYY-MM-DD HH:MM` heading. Never edit another track's file; reply in your own file to that track.
-- Read every `notes/*to<YourTrack>.md` file when you start and whenever a pull changes one.
-- Write a note before you push anything another track depends on: a contract change, a new function they should call, a stand-in you're turning off, or a blocker.
+- The team is Boris, Brendan, Imzihao and David. You're working for whoever your first prompt names, or for the git user if it doesn't name anyone.
+- `notes/boris-to-brendan.md` holds notes from Boris to Brendan, and the same pattern covers every pair. `notes/boris-to-everyone.md` holds notes for the whole team.
+- Only the sender writes their file. Add each note at the bottom under a `## YYYY-MM-DD HH:MM` heading. Never edit someone else's file; reply in your own file to them.
+- Read every `notes/*-to-<you>.md` and `notes/*-to-everyone.md` file when you start and whenever a pull changes one.
+- Write a note before you push anything someone else's work depends on: a contract change, a new function to call, a stand-in you're turning off, or a blocker.
+- The older files named with letters (`AtoB.md`, `CSOtoD.md`, ...) are history. A was Boris, B Brendan, C Imzihao and D David; CSO, M and P were the sponsor, mesh and readiness survey add-ons.
 
 ## The contract
 
-- `convex/schema.ts` and the functions listed in `PLAN.md` under "Contract" are shared. Change only the tables your track owns, and write a note to every reading track first. Keep old fields working until the readers confirm.
-- Never break a stand-in another track builds against. Turn yours off with its switch on the call floor.
+- `convex/schema.ts` and the functions listed in `PLAN.md` under "Contract" are shared. Before changing a shape someone else reads, write a note to everyone it affects. Keep old fields working until nothing reads them.
+- Never break a stand-in someone is building against. Turn it off with its switch on the call floor.
 - `npm run typecheck && npm run lint` must pass before every push. Cyclomatic complexity over 15 fails lint.
 
 <!-- BEGIN:nextjs-agent-rules -->

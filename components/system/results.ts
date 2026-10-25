@@ -117,7 +117,7 @@ export type Results = {
   needModel: NeedModel | null;
 };
 
-// The result files Tracks B, C and D write into data/. Re-read every 30 s so a fresh run shows up.
+// The result files the evals and simulators write into data/. Re-read every 30 s so a fresh run shows up.
 export function useResults() {
   const [results, setResults] = useState<Results | null>(null);
   useEffect(() => {

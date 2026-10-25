@@ -120,8 +120,8 @@ const bankText = (id: ApprovedAnswerId, language: string) =>
 
 // Questions no approved answer may meet, however close Moss scores them: going back in or back for
 // someone, staying or waiting, and changing a dose or a setting. "Can I go back in for my cat?"
-// scored close to "Can I bring my cat?" and heard "Yes, bring your pets." on every call (Track D,
-// Oct 24). The policy question is Claude's English restatement, so one English list covers every
+// scored close to "Can I bring my cat?" and heard "Yes, bring your pets." on every call (unsafe
+// advice set, Oct 24). The policy question is Claude's English restatement, so one English list covers every
 // call language.
 const UNSAFE_QUESTIONS = [
   /\b(go|goes|going|went|run|running|head|heading|drive|driving|walk|walking|come|coming|turn|turning)\s+(right\s+)?back\b/,

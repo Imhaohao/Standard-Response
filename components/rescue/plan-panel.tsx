@@ -29,7 +29,7 @@ function ChangeCounts({ changes }: { changes: { kind: string }[] }) {
   );
 }
 
-// What the need model did on its last pass. Track D asked for these six rows in this order.
+// What the need model did on its last pass, in these six rows.
 const STAT_ROWS = [
   { key: "scenarioMinute", label: "Scenario minute" },
   { key: "closuresAdded", label: "Hazard closures, last pass" },
@@ -59,7 +59,7 @@ function ModelStats({ stats }: { stats: Record<string, number> }) {
   );
 }
 
-// Whether Track D's need model is actually running, and the switch that steers it.
+// Whether the need model is actually running, and the switch that steers it.
 function ModelState() {
   const state = useQuery(api.estimates.state);
   const setSmoothing = useMutation(api.estimates.setSmoothing);

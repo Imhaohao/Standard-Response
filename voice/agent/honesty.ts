@@ -3,7 +3,7 @@ import { Language, RequestStatus } from "./script";
 
 // Claude writes only short acknowledgments. This guard is the code-level backstop: while no driver
 // has accepted, any acknowledgment that sounds like a promise of help is replaced with a neutral one.
-// The implied-reassurance grader (Track D) measures what slips past it.
+// The implied-reassurance grader measures what slips past it.
 
 // Besides direct promises, these catch echoes of a caller's demand ("Entendido, una hora.",
 // "Understood, checking on the driver.", "we'll work that out"): any time word, driver or "we will".

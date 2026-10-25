@@ -5,7 +5,7 @@ import { mutation } from "./functions";
 import { simNow } from "./clock";
 import { hazardOf } from "./hazards";
 
-// Track D's model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
+// The model runner (modeling/scripts/run_models.py) reads its inputs here and reports back.
 // It never reads `personas`: the models see only what a real agency would know.
 
 const DEFAULT_STATE = { smoothing: true };

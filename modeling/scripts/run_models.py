@@ -1,10 +1,10 @@
-"""Track D's live models: hazard deadlines and closures, need estimates, door-check order, address matching.
+"""The live models: hazard deadlines and closures, need estimates, door-check order, address matching.
 
   uv run python scripts/run_models.py                # every 5 s against CONVEX_URL / .env.local
   uv run python scripts/run_models.py --once         # one pass, then exit
   uv run python scripts/run_models.py --time-scale 10  # a 4-hour night in 24 minutes
 
-On start it turns off the "Need model" stand-in (Track D's own switch) so the two don't fight over
+On start it turns off the "Need model" stand-in (the runner's own switch) so the two don't fight over
 needProbability. Pass --keep-stand-in to leave it on. Once the last pass is 15 s old (the runner stopped,
 or a --once pass ended), the stand-in covers again on its own, so the incident always has a need model.
 """
@@ -37,7 +37,7 @@ def main() -> None:
     convex = Convex()
     config = RunnerConfig(time_scale=args.time_scale, closure_margin_meters=args.margin, closures=not args.no_closures)
     runner = ModelRunner(convex, config, scenario=Scenario.load(args.scenario) if args.scenario else None)
-    print(f"Track D models on {convex.url}, scenario: {args.scenario or 'the hazard picked on the call floor'}")
+    print(f"Models on {convex.url}, scenario: {args.scenario or 'the hazard picked on the call floor'}")
     if not args.keep_stand_in:
         convex.mutation("control:setStandIns", {"simulateNeedModel": False})
         print("Need-model stand-in switched off")

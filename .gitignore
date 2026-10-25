@@ -43,12 +43,12 @@ next-env.d.ts
 # Local Convex backend state
 .convex/
 
-# Track D Python environment
+# Modeling Python environment
 modeling/.venv/
 __pycache__/
 modeling/cache/
 
-# Track A map bake cache and browser screenshots
+# Map bake cache and browser screenshots
 scripts/map/.cache/
 .playwright-mcp/
 

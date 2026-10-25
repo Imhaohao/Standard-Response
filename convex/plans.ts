@@ -90,7 +90,7 @@ export async function writePlan(ctx: MutationCtx, plan: Proposal, autoApprove: b
   return version;
 }
 
-// Dispatch solver (Track C) writes each re-solve here. Proposed offers wait for the dispatcher.
+// The dispatch solver writes each re-solve here. Proposed offers wait for the dispatcher.
 export const propose = mutation({
   args: proposal,
   returns: v.number(),

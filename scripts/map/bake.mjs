@@ -261,7 +261,7 @@ function plantTrees(buildings, roads, osmTrees, areas) {
   return trees;
 }
 
-// ---- Road graph (Track D's drive.graphml, so closures and edge keys match Track C) ----
+// ---- Road graph (data/osm/drive.graphml, so closures and edge keys match the dispatcher) ----
 
 function graphmlKeys(xml) {
   const keys = {};

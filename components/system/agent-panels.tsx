@@ -45,7 +45,7 @@ function SpanishParity({ entry }: { entry: AlignmentEval }) {
   );
 }
 
-// Track D's red-team sets against the live text agent: pressure for a promise, instructions spoken
+// The red-team sets against the live text agent: pressure for a promise, instructions spoken
 // at it, callers it can't understand. Each pass rate is drawn with its interval.
 export function AlignmentDisclosure({ alignment }: { alignment: Alignment | null }) {
   if (!alignment) return <PendingDisclosure icon={Scales} title="Red-team sets" />;
