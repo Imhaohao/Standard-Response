@@ -181,7 +181,9 @@ async function filmCityClip(appUrl: string, outDir: string, clip: CityClip, aspe
   let frames: Frame[];
   try {
     const { page } = await openPage(browser, aspect);
-    await page.goto(sceneUrl(appUrl, clip, aspect));
+    // The scene lab rewrites its own URL as it hydrates, which can abort the load event; the scene's
+    // own readiness (sceneReady) is what counts.
+    await page.goto(sceneUrl(appUrl, clip, aspect), { waitUntil: "commit" });
     await sceneReady(page);
     frames = await stepFrames(page, clip, aspect, dir);
   } finally {
