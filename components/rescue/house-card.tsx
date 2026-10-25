@@ -12,6 +12,7 @@ import { languageInEnglish } from "@/lib/labels";
 import { Point } from "@/lib/ink-map/data";
 import { ASSIST_LABELS, EXIT_OPTIONS, InsideFacts, MOBILITY_OPTIONS } from "../ready/profile";
 import { Home } from "./marks";
+import { PhoneOnFile } from "./phone-on-file";
 
 type Card = NonNullable<FunctionReturnType<typeof api.ready.card>>;
 
@@ -119,6 +120,7 @@ function CardBody({ card, onClose }: { card: Card; onClose: () => void }) {
           <X weight="bold" className="size-4" />
         </button>
       </header>
+      <PhoneOnFile key={card._id} home={card} />
       <NeedTiles card={card} />
       {card.ready && <InsideFacts ready={card.ready} />}
       <ExitPlan card={card} />
@@ -144,7 +146,7 @@ export function HouseCard({ householdId, at, onClose }: { householdId: string; a
   });
   if (!card) return null;
   return (
-    <section ref={ref} aria-label={`Household at ${card.address}`} style={{ width: CARD_WIDTH }} className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4">
+    <section ref={ref} aria-label={`Household at ${card.address}`} style={{ width: CARD_WIDTH }} onClick={(event) => event.stopPropagation()} className="pointer-events-auto absolute z-10 flex -translate-y-1/2 flex-col gap-3 card p-4">
       <CardBody card={card} onClose={onClose} />
     </section>
   );

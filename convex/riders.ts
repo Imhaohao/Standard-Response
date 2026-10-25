@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc } from "./_generated/dataModel";
@@ -153,4 +153,41 @@ export const setZone = mutation({
 export const currentZone = query({
   args: {},
   handler: async (ctx) => await ctx.db.query("zones").order("desc").first(),
+});
+
+// "(626) 555-0142", "626-555-0142" and "+1 626 555 0142" all become "+16265550142".
+function dialableNumber(input: string) {
+  const digits = input.replace(/\D/g, "");
+  if (/^\d{10}$/.test(digits)) return `+1${digits}`;
+  if (/^1\d{10}$/.test(digits)) return `+${digits}`;
+  if (input.trim().startsWith("+") && /^\d{8,15}$/.test(digits)) return `+${digits}`;
+  throw new ConvexError("That doesn't look like a phone number");
+}
+
+// A simulated home's call status came from the stand-in, so it starts over for the real voice agent.
+const freshQueueEntry = { callStatus: "not_called" as const, attempts: 0, lastAttemptAt: undefined, ladder: undefined };
+
+// Rescue map: puts a real person's number on a home. A simulated home becomes a real rider, so the
+// voice agent dials this number instead of the stand-in playing the call.
+export const setPhone = mutation({
+  args: { householdId: v.id("households"), phone: v.string(), residentName: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { householdId, phone, residentName }) => {
+    const household = await ctx.db.get("households", householdId);
+    if (!household) throw new ConvexError("That home is gone");
+    if (household.callStatus === "in_call") throw new ConvexError("Wait for the call on the line to end");
+    const callbackNumber = dialableNumber(phone);
+    const owner = await ctx.db
+      .query("households")
+      .withIndex("by_callbackNumber", (q) => q.eq("callbackNumber", callbackNumber))
+      .first();
+    if (owner && owner._id !== householdId) throw new ConvexError(`${owner.address} already has that number`);
+    const name = residentName?.trim();
+    await ctx.db.patch("households", householdId, {
+      callbackNumber,
+      ...(name ? { residentName: name } : {}),
+      ...(household.simulated ? { ...freshQueueEntry, simulated: false } : {}),
+    });
+    return null;
+  },
 });

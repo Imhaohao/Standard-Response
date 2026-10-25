@@ -219,6 +219,7 @@ export const card = query({
       _id: household._id,
       address: household.address,
       residentName: household.residentName,
+      callbackNumber: household.callbackNumber,
       peopleCount: household.peopleCount,
       mobility: household.mobility,
       assistanceRequired: household.assistanceRequired,
