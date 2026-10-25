@@ -16,13 +16,16 @@ const RING_SECONDS = 25;
 // Cartesia sends no "nobody answered" event to a self-hosted agent: a call that hasn't opened its
 // socket this long after it was placed never reached anyone.
 const MISS_AFTER_MS = (RING_SECONDS + 20) * 1000;
-// The socket can open before the API has told us the call's id; this is how long we wait for it.
+// The socket can open before the API has told us the call's id; while a call is being placed, this
+// is how long we wait for it.
 const START_WAIT_MS = 5000;
 
 type StartMessage = { type?: string; call_id?: string; agent_call_id?: string; from?: string; to?: string; agent?: { id?: string } };
 
 // What each call we placed is for, by Cartesia's call id, until its socket opens.
 const placed = new Map<string, StreamParameters>();
+// Calls we've asked Cartesia to place that haven't come back with an id yet.
+let placing = 0;
 
 async function cartesiaApi(path: string, body: object) {
   const response = await fetch(`${API}${path}`, {
@@ -36,12 +39,13 @@ async function cartesiaApi(path: string, body: object) {
 }
 
 export async function placeCartesiaCall(to: string, parameters: StreamParameters) {
+  placing += 1;
   const response = await cartesiaApi("/agents/calls", {
     agent_id: env.cartesia.agentId(),
     from_number_id: env.cartesia.fromNumberId(),
     ringing_timeout_seconds: RING_SECONDS,
     outbound_calls: [{ to_number: to }],
-  });
+  }).finally(() => (placing -= 1));
   const [call] = (response.calls ?? []) as { agent_call_id?: string; error?: unknown }[];
   if (!call?.agent_call_id) throw new Error(`Cartesia didn't place the call to ${to}: ${JSON.stringify(call ?? response)}`);
   const callSid = call.agent_call_id;
@@ -69,22 +73,21 @@ export function chatSession(body: { metadata?: unknown }) {
 
 const digits = (phone: string | undefined) => (phone ?? "").replace(/\D/g, "");
 
-async function waitForPlaced(callSid: string) {
+async function placedCall(callSid: string) {
   const deadline = Date.now() + START_WAIT_MS;
-  while (Date.now() < deadline) {
-    const parameters = placed.get(callSid);
-    if (parameters) return parameters;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return null;
+  while (!placed.has(callSid) && placing > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
+  const parameters = placed.get(callSid);
+  placed.delete(callSid);
+  return parameters;
 }
 
-// A call to our number is a resident calling in; any other call is one we placed.
-async function parametersFor(start: StartMessage): Promise<StreamParameters | null> {
-  if (digits(start.to) === digits(env.cartesia.phoneNumber())) return { mode: "inbound", from: start.from };
-  const parameters = (await waitForPlaced(start.agent_call_id ?? "")) ?? (await waitForPlaced(start.call_id ?? ""));
-  placed.delete(start.agent_call_id ?? "");
-  return parameters;
+// The person on the other end: the caller on a call to our number, the callee on one from it.
+const otherParty = (start: StartMessage) => (digits(start.from) === digits(env.cartesia.phoneNumber()) ? start.to : start.from);
+
+// A call we placed carries what it is for. Any other call (a resident calling in, or one dialed from
+// Cartesia's dashboard or web preview) is a household conversation with whoever is on the other end.
+export async function parametersFor(start: StartMessage): Promise<StreamParameters> {
+  return (await placedCall(start.agent_call_id ?? "")) ?? { mode: "inbound", from: otherParty(start) };
 }
 
 // Older harnesses pass the call in the socket URL instead of a start message.
@@ -103,8 +106,8 @@ export function handleCartesiaSocket(socket: WebSocket, url: URL) {
     if (start.agent?.id && start.agent.id !== env.cartesia.agentId()) return socket.close();
     const parameters = await parametersFor(start);
     const callSid = start.agent_call_id ?? start.call_id;
-    if (!parameters || !callSid) {
-      console.error(`[cartesia] no call of ours matches ${JSON.stringify(start)}`);
+    if (!callSid) {
+      console.error(`[cartesia] a call with no id: ${JSON.stringify(start)}`);
       return socket.close();
     }
     line = new CartesiaLine(socket, callSid, parameters);
