@@ -1,6 +1,6 @@
 import type { Point } from "../../data";
 import type { FireField } from "../../fire-field";
-import type { WaterModel } from "./model";
+import type { OpenBreach, WaterModel } from "./model";
 import { cellCentre, shoreDistanceAt, type ShoreGrid } from "./shore";
 
 // Inside its first front a scenario gives no timing, and the arrival field fills it the fire's way: the
@@ -42,4 +42,23 @@ export function waterField(field: FireField, model: WaterModel, shore: ShoreGrid
   const minutes = Float32Array.from(field.minutes);
   for (const { index, distance } of inside) minutes[index] = start + ((first - start) * distance) / farthest;
   return { ...field, minutes };
+}
+
+const JET_LOOK_METERS = 600;
+const JET_LOOK_MINUTES = 120;
+
+// The way one breach's water went: from the gap toward the middle of the ground near it that the water
+// reached in its first two hours, so the jet fans into the ward and never back over the canal. Zero
+// when no water near it is reached after it opens.
+export function breachAxis(field: FireField, breach: OpenBreach): Point {
+  const sum = [0, 0];
+  field.minutes.forEach((minutes, index) => {
+    if (minutes < breach.opensAt - 1 || minutes > breach.opensAt + JET_LOOK_MINUTES) return;
+    const [x, y] = cellCentre(field, index);
+    if (Math.hypot(x - breach.at[0], y - breach.at[1]) > JET_LOOK_METERS) return;
+    sum[0] += x - breach.at[0];
+    sum[1] += y - breach.at[1];
+  });
+  const length = Math.hypot(sum[0], sum[1]);
+  return length > 0 ? [sum[0] / length, sum[1] / length] : [0, 0];
 }

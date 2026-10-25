@@ -6,9 +6,9 @@ import { impactAt, NO_IMPACT, type ArrivalIndex } from "../arrival";
 import type { FullscreenPass, HazardFrame, HazardLayer, HazardLayerContext } from "../types";
 import { MAX_BREACHES, MAX_WAVES, waterFragment } from "./glsl";
 import { waterIndex } from "./impact";
-import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type OpenBreach, type WaterKind, type WaterModel } from "./model";
-import { cellCentre, shoreBytes, shoreFor, type ShoreGrid } from "./shore";
-import { waterField } from "./source";
+import { basinLevel, bearingVector, breachSourceLevel, levelOf, pourReach, waterModel, type WaterKind, type WaterModel } from "./model";
+import { shoreBytes, shoreFor, type ShoreGrid } from "./shore";
+import { breachAxis, waterField } from "./source";
 
 // The flood, the surge and the tsunami share this layer; each kind's shader (glsl.ts) draws its own
 // motion. GPU memory beyond the shared terrain: the arrival field as half floats and the shore as two
@@ -35,24 +35,6 @@ function arrivalTextureFrom(field: FireField, offset: number): ArrivalTexture {
   texture.needsUpdate = true;
   const { x0, y0, x1, y1 } = field.region;
   return { texture, region: new THREE.Vector4(x0, y0, x1, y1), last: field.fronts[field.fronts.length - 1]?.minutes ?? 0, offset };
-}
-
-const JET_LOOK_METERS = 600;
-const JET_LOOK_MINUTES = 120;
-
-// The way one breach's water went: from the gap toward the middle of the ground near it that the water
-// reached in its first two hours, so the jet fans into the ward and never back over the canal.
-function breachAxis(field: FireField, breach: OpenBreach): Point {
-  const sum = [0, 0];
-  field.minutes.forEach((minutes, index) => {
-    if (minutes < breach.opensAt - 1 || minutes > breach.opensAt + JET_LOOK_MINUTES) return;
-    const [x, y] = cellCentre(field, index);
-    if (Math.hypot(x - breach.at[0], y - breach.at[1]) > JET_LOOK_METERS) return;
-    sum[0] += x - breach.at[0];
-    sum[1] += y - breach.at[1];
-  });
-  const length = Math.hypot(sum[0], sum[1]);
-  return length > 0 ? [sum[0] / length, sum[1] / length] : [0, 0];
 }
 
 function breachAxes(model: WaterModel, field: FireField) {

@@ -9,7 +9,7 @@ import { impactAt } from "../arrival";
 import { firstUnderWater, waterIndex } from "./impact";
 import { crestDelay, datumShift, depthAt, groundAt, pourReach, seaSurface, surfaceAt, waterModel, waveShape, type TsunamiWave, type WaveTrain } from "./model";
 import { cellCentre, shoreFor, shoreGrid } from "./shore";
-import { waterField } from "./source";
+import { breachAxis, waterField } from "./source";
 
 const ORIGIN = { lat: 29.966, lng: -90.009 };
 const { toLatLng } = createProjection(ORIGIN);
@@ -167,7 +167,16 @@ test("inside the first front the water spreads out from the breach, not in from 
   assert.equal(arrivalMinutesAt(spread, [-100, 0]), arrivalMinutesAt(field, [-100, 0]), "between later fronts nothing changes");
 });
 
-const bore: TsunamiWave ={ arrival: 100, runup: 6, period: 20, drawdown: 2 };
+test("a breach's jet is aimed where its water went, into the ward and away from the canal", () => {
+  const breach = { at: [-400, 0] as Point, opensAtMinutes: 5, widthMeters: 50 };
+  const { map, field, model } = floodWorld(fakeMap(), floodScenario(0, [breach], { at: [-450, 0], meters: 3 }));
+  const spread = waterField(field, model, shoreFor(map, "flood"));
+  const [x, y] = breachAxis(spread, model.still!.breaches[0]);
+  assert.ok(x > 0.9 && Math.abs(y) < 0.4, `axis ${x}, ${y}`);
+  assert.deepEqual(breachAxis(spread, { at: [-400, 0], opensAt: 500, width: 50 }), [0, 0], "a breach that opens after the water has spread has no jet");
+});
+
+const bore: TsunamiWave = { arrival: 100, runup: 6, period: 20, drawdown: 2 };
 
 test("a tsunami crest draws the sea back first, stands at its run-up, then drains away", () => {
   assert.equal(waveShape(-30, bore), 0);
