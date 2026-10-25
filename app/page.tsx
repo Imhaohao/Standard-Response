@@ -1,6 +1,10 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { Kiosk } from "@/components/claim/kiosk";
+import { PRODUCT_NAME } from "@/lib/brand";
 
-// The call floor moved to /dashboard. This stays until the public sign-in page takes over /.
-export default function Home() {
-  redirect("/dashboard");
+export const metadata: Metadata = { title: `${PRODUCT_NAME} judge sign-in` };
+
+// The public kiosk judges walk up to. The call floor lives at /dashboard.
+export default function Page() {
+  return <Kiosk />;
 }
