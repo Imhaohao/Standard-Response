@@ -12,16 +12,17 @@ import { Show } from "../show";
 // Portraits arrive about when each name is said in "the Anthonys, Justins, and Roselands".
 const WORDMARK_LEADING = WORDMARK.split(" ").slice(0, -1).join(" ");
 
-const PORTRAITS: { photo: PhotoName; name: string; delay: number }[] = [
-  { photo: "mitchells", name: "Anthony Mitchell", delay: 0.5 },
-  { photo: "roseland", name: "Roseland", delay: 1.9 },
+// Each frame takes its photo's own shape, so nobody in it is cropped.
+const PORTRAITS: { photo: PhotoName; name: string; delay: number; width: number }[] = [
+  { photo: "mitchellsSmiling", name: "Anthony Mitchell", delay: 0.5, width: 484 },
+  { photo: "roseland", name: "Roseland", delay: 1.9, width: 320 },
 ];
 
 function Portraits({ shown }: { shown: boolean }) {
   return (
     <div className="absolute flex gap-12" style={{ left: 128, bottom: 120 }}>
       {PORTRAITS.map((portrait) => (
-        <Show key={portrait.photo} when={shown} delay={portrait.delay} className="w-[320px]">
+        <Show key={portrait.photo} when={shown} delay={portrait.delay} style={{ width: portrait.width }}>
           <div className="h-[444px] overflow-hidden rounded-[28px] shadow-[0_30px_80px_oklch(0_0_0/0.5)] outline-1 -outline-offset-1 outline-white/10">
             <Photo name={portrait.photo} compact />
           </div>

@@ -22,12 +22,11 @@ const INTO_HOUSE: Frame = {
   borderRadius: MARK / 2,
   opacity: 0,
 };
-// Upright like the photo, so 1.4 shows the whole portrait. The call rows sit under it.
-const CARD: Frame = { left: 1250, top: 80, width: 420, height: 583, borderRadius: 32, opacity: 1 };
+// The family photo is landscape, so 1.4's card is too. The call rows sit under it.
+const CARD: Frame = { left: 1150, top: 110, width: 640, height: 480, borderRadius: 32, opacity: 1 };
 const CALL_ROWS = { left: 1090, top: CARD.top + CARD.height + 40, width: 740 };
-// Anthony's portrait is a small, upright photo, so it stands whole on the right at its own shape
-// rather than being cropped to the stage.
-const PORTRAIT: Frame = { left: 1110, top: 110, width: 620, height: 860, borderRadius: 32, opacity: 1 };
+// Anthony with his family, whole, at the photo's own shape on the right.
+const PORTRAIT: Frame = { left: 880, top: 196, width: 920, height: 689, borderRadius: 32, opacity: 1 };
 
 function portraitFrame(beat: Beat): Frame {
   if (beat === "anthony") return PORTRAIT;
