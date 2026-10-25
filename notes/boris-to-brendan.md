@@ -13,3 +13,7 @@ For the pitch, use the full-scale run on the real night (`data/eaton/night-sim-r
 - **Calls at the real 3:25 a.m. order, vans from 4 a.m., 50 vans:** 356 of 662. Fire was already reported near 220 of those homes before 3:25, so 442 was the most any fleet could get out.
 - **The line that holds up:** "Twenty-five vans, under 2% of AccessLA's fleet, would have been enough, if the calls had started when the fire crossed Lake Avenue."
 - **The documented records:** 16 households west of Lake asked for help because someone couldn't get out alone. The records show 1 of them getting out. That's the only true real-life number, and it isn't out of 65.
+
+## 2026-10-24 22:30
+
+The quote on the proof slide wasn't what was said, so I changed it to the words on the Station 1 recording (at 12:39): "Honestly, this one is probably the most at the cutting edge of what we're already doing and what could be helpful." The slide had "Is the most cutting-edge EMT improvement idea I've heard". Judges may ask about it, and the README already quotes the recording. The recording doesn't say he's an EMT, so the label now reads "Firefighter, Palo Alto Fire Station 1". The new quote is longer, so please check that the slide still fits at your screen size. I didn't open it in a browser.

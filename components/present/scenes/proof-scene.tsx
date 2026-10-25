@@ -55,8 +55,8 @@ export function ProofScene({ beat }: { beat: Beat }) {
         <p className="type-deck-note text-on-night-muted">Simulated on the Eaton Fire’s real record, median of 5 runs, {NIGHT_OUTCOME.setup}</p>
       </Show>
       <Show when={beat === "quote"} delay={0.2} className="absolute" style={{ left: 128, top: 400, width: 940 }}>
-        <blockquote className="type-deck-quote">“Is the most cutting-edge EMT improvement idea I’ve heard”</blockquote>
-        <p className="type-deck-label mt-10 text-on-night-muted">EMT and firefighter, Palo Alto Fire Station 1</p>
+        <blockquote className="type-deck-quote">“Honestly, this one is probably the most at the cutting edge of what we’re already doing and what could be helpful.”</blockquote>
+        <p className="type-deck-label mt-10 text-on-night-muted">Firefighter, Palo Alto Fire Station 1</p>
       </Show>
       <Show when={beat === "quote"} delay={0.4} className="absolute" style={{ left: 1180, top: 140, width: 612, height: 800 }}>
         <div className="size-full overflow-hidden rounded-[32px] outline-1 -outline-offset-1 outline-white/10">
