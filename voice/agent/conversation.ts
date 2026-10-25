@@ -464,9 +464,16 @@ export class Conversation {
   // A life threat on hold hears the full status unless it was just said: a panicking caller says
   // something frightening nearly every turn, and one heard the whole template seven times in six minutes.
   private rideLines(heard: Interpretation) {
-    if (this.holding && heard.wantsRepeat) return [this.rideLine()];
+    if (this.holding && heard.wantsRepeat) return [this.repeatOnHold()];
     if (this.holding && heard.emergency !== "none") return this.rideJustSaid() ? [] : [this.rideLine()];
     return heard.asksAboutRide ? [this.rideUpdate(heard)] : [];
+  }
+
+  // "Hello?" just after the status is checking the line, not asking for the status again: a real
+  // caller said it twice and heard the same five sentences twice.
+  private repeatOnHold() {
+    const checkingTheLine = isLineCheck(this.lastResidentLine()) && this.rideJustSaid();
+    return checkingTheLine ? LINES[this.language].stillThere[STILL_ON_THE_LINE] : this.rideLine();
   }
 
   // "What should I bring?" gets the next of the fixed steps, never Claude's own advice. Someone
@@ -918,8 +925,11 @@ export class Conversation {
     return this.history.findLast((line) => line.speaker === "resident")?.text ?? "";
   }
 
+  // Said once: a turn that keeps the question (asked to repeat) doesn't count as a hold turn.
   holdQuestion() {
-    return this.holdTurns === 0 ? LINES[this.language].holdPrompt : "";
+    const { holdPrompt } = LINES[this.language];
+    const said = this.history.some((line) => line.speaker === "agent" && line.text.includes(holdPrompt));
+    return this.holdTurns === 0 && !said ? holdPrompt : "";
   }
 
   question(): string {
@@ -997,6 +1007,11 @@ const RECENT_AGENT_TURNS = 3;
 const RIDE_ANSWER_SENTENCES = 2;
 // Speech-to-text punctuates a question, in every language the line speaks.
 const isQuestion = (text: string) => /[?？¿]/.test(text);
+const STILL_ON_THE_LINE = 1;
+// "Hello?", "Hello? Hello?", "Are you there?", "¿Bueno?", "喂？", "もしもし" and the like, alone.
+const LINE_CHECK =
+  /^(\s*(hello|hi|hey|are you (still )?there|you there|hola|bueno|al[oóô]|allô|oiga|喂|もしもし|여보세요|ал+о|हेलो)( po)?[\s?？¿!.,。]*)+$/iu;
+const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
 const firstSentences = (text: string, count: number) =>
   text
     .split(/(?<=[.!?。！？])\s*/u)

@@ -22,6 +22,7 @@ const CAUGHT = [
   ["en", "Stay in the car and keep going if it's safe to."],
   ["en", "The status line is what I can tell you right now."],
   ["en", "You sound worried, and I understand."],
+  ["en", "Sorry about that."],
   ["en", "I can help with that, and I'll need her address first."],
   ["en", "It helps us bring the right vehicle for your chair."],
   ["en", "You want to know who's coming."],

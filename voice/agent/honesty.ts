@@ -29,7 +29,8 @@ const FALSE_COMFORT = [
 ];
 
 // Scripted sympathy after the feeling is named: principle 5 names it once and moves on.
-const SYMPATHY = [/\bi'?m (so |very |really )?sorry\b/i, /\blo siento\b/i, /\b(and )?i understand\b/i, /\blo entiendo\b/i];
+// "Sorry about that." opened a hold answer on a real call; the call-taker principles never apologize.
+const SYMPATHY = [/\bsorry\b/i, /\blo siento\b/i, /\b(and )?i understand\b/i, /\blo entiendo\b/i];
 
 // A caller near the fire is never told to slow down.
 const DELAY = [/\btake your time\b/i, /t[oó]mese (su|el) tiempo/i];

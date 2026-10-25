@@ -502,6 +502,19 @@ describe("lines the caller just heard", () => {
     assert.deepEqual(heaven.sentences, ["No, you're on the phone with 911."]);
   });
 
+  // Jerry's test call, 05:18: "Hello?" twice on hold, each answered with the five-sentence status
+  // the agent had just said, and the hold prompt said twice.
+  it("answers 'Hello?' on hold that it is still on the line, not with the status again", () => {
+    const { conversation } = atHold();
+    const full = conversation.rideLine();
+    const hello = conversation.respond("Hello?", heard({ wantsRepeat: true }));
+    assert.deepEqual(hello.sentences, [EN.stillThere[1]]);
+    const again = conversation.respond("Can you say that again?", heard({ wantsRepeat: true }));
+    assert.ok(again.sentences.includes(full));
+    const said = [hello, again].flatMap((turn) => turn.sentences);
+    assert.ok(!said.includes(EN.holdPrompt));
+  });
+
   it("gives the same answer to a new question, but not to the line it just answered", () => {
     const { conversation } = atHold();
     const unknown = "I don't know that.";

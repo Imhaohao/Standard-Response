@@ -55,6 +55,7 @@ export type Lines = {
     neighbor: string;
   };
   // Check-ins when the line goes quiet after a question, used in turn before the question again.
+  // The second ("Hello? I'm still on the line.") also answers a caller checking the line on hold.
   stillThere: string[];
   // The resident asked for a moment ("hold on, let me ask my wife"): the agent waits.
   takeYourTime: string;
