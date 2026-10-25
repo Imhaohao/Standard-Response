@@ -378,8 +378,10 @@ void main() {
   float fog = whiteout(vUv) * (1.0 - 0.85 * red - 0.45 * charcoal);
   vec3 dimmed = mix(color * mix(1.0, NIGHT_PAPER, night), color * mix(1.0, 0.85, night), red);
   color = mix(dimmed, uPaper * mix(1.0, NIGHT_FOG, night), fog);
-  vec2 glow = texture(tGlow, vUv).rg;
-  float halo = smoothstep(0.0, 0.45, glow.r) * (0.3 + 0.5 * uWhiteout + 0.35 * night) * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
+  // Two blurs spread one house's mask to a few hundredths, so the glow answers exponentially: a
+  // single home still glows, and a street of them doesn't turn into a red sea.
+  vec2 glow = 1.0 - exp(-texture(tGlow, vUv).rg * 28.0);
+  float halo = glow.r * (0.22 + 0.4 * uWhiteout + 0.3 * night) * (1.0 - 0.35 * glow.g * (1.0 - uPulse));
   vec3 warm = mix(uRed, uEmber, 0.22);
   color = mix(color, warm, halo * (1.0 - 0.6 * red));
   color += warm * halo * night * 0.18;

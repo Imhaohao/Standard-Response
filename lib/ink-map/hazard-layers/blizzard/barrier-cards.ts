@@ -25,8 +25,14 @@ uniform float uPixelRatio;
 uniform float uMinutes;
 out vec2 vUv;
 out float vViewDepth;
+// A barrier springs up over the four minutes after its street closes, overshooting a little.
+float popIn(float since) {
+  float t = clamp(since / 4.0, 0.0, 1.0) - 1.0;
+  return step(0.0, since) * (1.0 + 2.70158 * t * t * t + 1.70158 * t * t);
+}
+
 void main() {
-  float shown = step(aWindow.x, uMinutes) * (1.0 - step(aWindow.y, uMinutes));
+  float shown = popIn(uMinutes - aWindow.x) * (1.0 - step(aWindow.y, uMinutes));
   vec4 anchor = viewMatrix * vec4(aAt, 1.0);
   float metersPerPixel = -anchor.z * 2.0 / (projectionMatrix[1][1] * uResolution.y);
   float width = max(aWidth, 9.0 * uPixelRatio * metersPerPixel) * shown;
