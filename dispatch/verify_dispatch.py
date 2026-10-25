@@ -101,9 +101,11 @@ def check_solver(world: World, report: Report):
         return
     status = world.status()
     solver = plan["solver"]
+    # The re-planner asks the service for ALNS; a service built before ALNS answers with OR-Tools.
+    # The heuristic here means the service was down or unset and Convex fell back.
     report.check(
-        solver == "ortools",
-        "OR-Tools writes offers through plans:propose",
+        solver in ("alns", "ortools"),
+        "The solver service writes offers through plans:propose",
         f"plan v{plan['version']} by {solver}, {plan.get('requestCount')} requests, {plan.get('vehicleCount')} vehicles, "
         f"{plan['solveMs']} ms, fallback: {plan.get('fallbackReason') or 'none'}, solver configured: {status['solverConfigured']}",
     )
