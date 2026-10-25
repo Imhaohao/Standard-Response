@@ -568,12 +568,12 @@ float burningShare(float minutes) {
   return step(0.0, since) * (1.0 - smoothstep(12.0, 18.0, since)) * uFireOn * uBurning;
 }
 
-// Burned ground is char, the way NASA's and InciWeb's fire maps show it: one grey-black tone from just
-// behind the front inward, so the burn reads as burned and the heat stays on the front line. Only a
-// short band of live coals trails the front, torn by noise into tongues so it never reads as a ring.
-// The char varies by place, never by age: darker scorched patches and pale flecks of ash, so the
-// middle never splits into rings that each need a legend. The embers that wink over it are drawn every
-// frame by the fire pass.
+// Burned ground is warm char, one tone from just behind the front inward, so the burn never splits
+// into rings that each need a legend. Only a short band of live coals trails the front, torn by noise
+// into tongues. Inside, beds of coals hold their heat under the char and glow through it, cooling
+// smoothly over the hours so they thin out without drawing a ring. The char varies by place: darker
+// scorched patches and pale flecks of ash. The embers that wink over it are drawn every frame by the
+// fire pass.
 vec3 fireGround(vec2 mapXY, float since) {
   float age = since + (fbm(mapXY * 0.02) - 0.5) * 16.0;
   float coals = 1.0 - smoothstep(2.0, 14.0, age);
@@ -583,26 +583,34 @@ vec3 fireGround(vec2 mapXY, float since) {
   float edge = fwidth(patches) + 0.015;
   float scorched = 1.0 - smoothstep(0.42 - edge, 0.42 + edge, patches);
   float ash = smoothstep(0.64 - edge, 0.64 + edge, patches);
-  vec3 char = mix(uInk, uPaper, 0.4);
-  char = mix(char, mix(uInk, uPaper, 0.22), scorched * 0.8);
-  char = mix(char, mix(uInk, uPaper, 0.66), ash * 0.7);
+  vec3 char = mix(mix(uInk, uPaper, 0.32), mix(uInk, uRed, 0.3), 0.15);
+  char = mix(char, mix(uInk, uPaper, 0.18), scorched * 0.8);
+  char = mix(char, mix(uInk, uPaper, 0.6), ash * 0.6);
+  float bedNoise = fbm(mapXY * 0.035 + 71.0 + tear * 0.8);
+  float bed = smoothstep(0.6, 0.7, bedNoise) * mix(0.4, 1.0, 1.0 - smoothstep(20.0, 240.0, age));
+  char = mix(char, mix(uRed, uEmber, 0.7), bed * 0.9);
   return mix(char, mix(uEmber, uRed, 0.35) * 0.9, coals);
 }
 
-// Homes in the zone: a burning one is the brightest thing on the map for its quarter hour, and a
-// burned-out one is a pale grey shell. It stays lighter than the charcoal of a home with people still
-// in it and the red of one that needs a ride, so those two still stand out over the burn.
-vec3 fireBuilding(float surface, float burning) {
-  vec3 burnedOut = mix(uInk, uPaper, surface == S_ROOF ? 0.5 : 0.38);
-  vec3 alight = surface == S_ROOF ? mix(uEmber, vec3(1.0, 0.7, 0.3), 0.3) : uRed;
+// Homes in the zone: a burning one is the brightest thing on the map for its quarter hour. After that
+// it's a grey shell, and about a third of them, picked by building, keep smouldering ember orange for
+// hours. Both stay unlike the charcoal of a home with people still in it and the pulsing red of one
+// that needs a ride, so those two still stand out over the burn.
+vec3 fireBuilding(float surface, float burning, float id, float since) {
+  bool roof = surface == S_ROOF;
+  float smoulders = step(0.64, hash12(vec2(id, 7.0)));
+  float warmth = smoulders * mix(0.4, 1.0, 1.0 - smoothstep(30.0, 300.0, since));
+  vec3 burnedOut = mix(uInk, uPaper, roof ? 0.5 : 0.38);
+  burnedOut = mix(burnedOut, mix(uEmber, uRed, 0.4) * (roof ? 0.92 : 0.68), warmth * 0.75);
+  vec3 alight = roof ? mix(uEmber, vec3(1.0, 0.7, 0.3), 0.3) : uRed;
   return mix(burnedOut, alight, burning);
 }
 
-vec3 fireZone(vec3 color, float ink, float surface, vec2 mapXY, float minutes) {
+vec3 fireZone(vec3 color, float ink, float surface, float id, vec2 mapXY, float minutes) {
   float since = uFireNow - minutes;
   if (since < 0.0 || uFireOn < 0.5) return color;
   bool building = surface == S_ROOF || surface == S_WALL;
-  vec3 zone = building ? fireBuilding(surface, burningShare(minutes)) : fireGround(mapXY, since);
+  vec3 zone = building ? fireBuilding(surface, burningShare(minutes), id, since) : fireGround(mapXY, since);
   return zone * (1.0 - ink * 0.7);
 }
 
@@ -691,7 +699,7 @@ void main() {
   float ink = max(tone * 0.85, lines) * (1.0 - edgeFade(mapXY, surface));
   vec3 color = mix(paper, uInk, ink * uInkStrength);
   float minutes = arrivalAt(uv, mapXY);
-  if (uBurning > 0.5) color = fireZone(color, ink * uInkStrength, surface, mapXY, minutes);
+  if (uBurning > 0.5) color = fireZone(color, ink * uInkStrength, surface, idC, mapXY, minutes);
   else color = ashen(color, surface, minutes, lines);
 
   // Who is in a home is drawn over the fire, never under it: a home with people still in it stays
@@ -770,8 +778,8 @@ vec3 sparks(vec3 color, vec2 mapXY, float fresh) {
 // a patch of glow crawls, splits and merges instead of sliding across the map, and each patch
 // breathes on its own beat. A fine grain flickers inside it, like coals catching and dimming. It
 // glows red at the rim and orange at the core, never yellow: burned ground glows like coals, not
-// flame. The glow dies down over the hour after the front passes, smoothly so it draws no ring, and
-// leaves a faint scatter in the char. Only the ground smoulders; the houses and trees keep their own colours.
+// flame. The glow dies down over the hours after the front passes, smoothly so it draws no ring, and
+// keeps a steady scatter over the char all night. Only the ground smoulders; the houses and trees keep their own colours.
 vec3 smoulder(vec3 color, vec2 mapXY, float since, float surface) {
   if (since < 0.0 || (surface != S_TERRAIN && surface != S_ROAD && surface < S_LANDUSE)) return color;
   vec2 p = mapXY * 0.03;
@@ -780,8 +788,8 @@ vec3 smoulder(vec3 color, vec2 mapXY, float since, float surface) {
   float fine = valueNoise(mapXY * 0.12 + warp * 3.0 + vec2(uTime * 0.2, -uTime * 0.15));
   float grain = valueNoise(mapXY * 0.35 + vec2(uTime * 0.9, -uTime * 1.3));
   float glow = smoothstep(0.48, 0.78, broad * 0.65 + fine * 0.35) * (0.6 + 0.4 * sin(uTime * 1.7 + broad * 12.0));
-  float heat = glow * (0.55 + 0.45 * grain) * mix(0.12, 1.0, 1.0 - smoothstep(8.0, 60.0, since));
-  return color + mix(uRed, uEmber, heat) * heat * 0.5;
+  float heat = glow * (0.55 + 0.45 * grain) * mix(0.45, 1.0, 1.0 - smoothstep(8.0, 120.0, since));
+  return color + mix(uRed, uEmber, heat) * heat * 0.7;
 }
 
 // The map point under a screen point.
