@@ -14,6 +14,7 @@ import { SOURCES } from "./sources";
 //   npm run exam:voice -- --only decision    one module's items, or one item id
 //   npm run exam:voice -- --runs 3           certify: every run of every item counts
 //   npm run exam:voice -- --no-judge         quick loop; conduct and part of honesty go ungraded
+//   FACTORY_API_KEY set: a failing exam ends by handing each failed case to a Droid (npm run exam:triage)
 
 const RESULTS_FILE = "data/voice-exam-results.json";
 const CONCURRENCY = 6;
@@ -146,6 +147,13 @@ async function main() {
   writeFileSync(RESULTS_FILE, `${JSON.stringify(result, null, 1)}\n`);
   print(result);
   process.exitCode = result.verdict === "PASS" ? 0 : 1;
+  if (process.env.FACTORY_API_KEY && result.verdict !== "PASS") await triageFailures();
+}
+
+// A Droid reads each failed case and proposes a fix as a diff in data/droid-triage.json. It never commits.
+async function triageFailures() {
+  const { runTriage } = await import("../../scripts/droid/triage");
+  await runTriage({ repoRoot: process.cwd(), apiKey: process.env.FACTORY_API_KEY });
 }
 
 main().catch((error) => {

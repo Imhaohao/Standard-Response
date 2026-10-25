@@ -21,6 +21,8 @@
     "test:incident": "vitest run tests/incident --environment edge-runtime",
     "stress:convex": "tsx scripts/stress/run.ts",
     "exam:voice": "tsx --env-file=.env.local voice/exam/run.ts",
+    "exam:triage": "tsx --env-file=.env.local scripts/droid/triage.ts",
+    "test:droid": "tsx --test scripts/droid/*.test.ts",
     "forecast:traffic": "tsx --env-file=.env.local scripts/mesh/traffic-forecast.ts",
     "knowledge:generate": "VOICE_MODEL=claude-haiku-5-5 VOICE_KNOWLEDGE=off VOICE_HEDGED_REQUESTS=1 tsx --env-file=.env.local voice/knowledge/generate.ts",
     "moss:index": "tsx --env-file=.env.local scripts/moss/build-answer-index.ts",
@@ -53,6 +55,7 @@
   },
   "devDependencies": {
     "@convex-dev/batch-worker": "0.3.3",
+    "@factory/droid-sdk": "^0.10.0",
     "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/turbopack": "^4",
     "@types/d3-geo": "^3.1.0",
