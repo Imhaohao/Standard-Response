@@ -3,7 +3,7 @@
  "publisher": "Butte County District Attorney, The Camp Fire Public Report (June 2020), victim locations file",
  "privacy": "Names, descriptions and exact points are discarded; only counts per 0.01-degree cell are kept.",
  "placemarksInFile": 82,
- "victimsInFrame": 70,
+ "victimsInFrame": 65,
  "cellDegrees": 0.01,
  "cells": [
   {
@@ -47,11 +47,6 @@
    "count": 1
   },
   {
-   "west": -121.61,
-   "south": 39.8,
-   "count": 1
-  },
-  {
    "west": -121.6,
    "south": 39.74,
    "count": 6
@@ -79,11 +74,6 @@
   {
    "west": -121.6,
    "south": 39.8,
-   "count": 2
-  },
-  {
-   "west": -121.6,
-   "south": 39.81,
    "count": 1
   },
   {
@@ -109,7 +99,7 @@
   {
    "west": -121.59,
    "south": 39.8,
-   "count": 3
+   "count": 1
   },
   {
    "west": -121.58,
@@ -159,12 +149,12 @@
  ],
  "minutesFromFirstOrderToFireWithin250m": {
   "what": "Per victim location: first NIST TN 2135 observation within 250 m, minus 07:46 PST",
-  "locationsWithAnObservation": 47,
+  "locationsWithAnObservation": 43,
   "min": 7,
-  "p25": 50,
+  "p25": 45,
   "median": 134,
-  "p75": 223,
-  "max": 926,
+  "p75": 184,
+  "max": 846,
   "within30Minutes": 8,
   "within60Minutes": 14
  }

@@ -27,7 +27,8 @@ CITY = REPO / "data" / "cities" / "buffalo"
 OUTPUT = CITY / "scenario.json"
 MINUTE_ZERO = datetime.fromisoformat("2022-12-23T09:30:00-05:00")
 UNREACHABLE_AT = datetime.fromisoformat("2022-12-23T15:00:00-05:00")
-FRAME = {"west": -78.870, "south": 42.870, "east": -78.795, "north": 42.945}
+# lib/cities.ts, buffalo: `extent`, which is `detail` grown by 0.015 degrees on every side.
+FRAME = {"west": -78.887, "south": 42.857, "east": -78.793, "north": 42.923}
 LABEL = "Reconstruction of a past storm, not a forecast"
 
 
@@ -106,10 +107,24 @@ def frame_ring() -> list[list[float]]:
     return [[w, s], [e, s], [e, n], [w, n], [w, s]]
 
 
+def seed_ring() -> list[list[float]]:
+    lng = round((FRAME["west"] + FRAME["east"]) / 2, 6)
+    lat = round((FRAME["south"] + FRAME["north"]) / 2, 6)
+    d = 0.00001
+    return [[lng - d, lat - d], [lng + d, lat - d], [lng + d, lat + d], [lng - d, lat + d], [lng - d, lat - d]]
+
+
+# lib/ink-map/fire-field.ts ramps points deep inside the first front up to 30 minutes earlier than its
+# minute. A one-metre seed front at the same minute makes the whole frame read exactly minute 330.
 def fronts() -> dict:
+    minute = minutes_after_warning(UNREACHABLE_AT)
     return {
         "type": "FeatureCollection",
         "features": [{
+            "type": "Feature",
+            "properties": {"minutesAfterWarning": minute, "meaning": "seed so the arrival field holds 330 inside the frame", "label": LABEL},
+            "geometry": {"type": "Polygon", "coordinates": [seed_ring()]},
+        }, {
             "type": "Feature",
             "properties": {
                 "minutesAfterWarning": minutes_after_warning(UNREACHABLE_AT),

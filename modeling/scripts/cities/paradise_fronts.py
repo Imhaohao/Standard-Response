@@ -45,7 +45,8 @@ FRONT_CLOCKS = (
 )
 SPEED_M_PER_MIN = 12.0
 MAX_WINDOW_MIN = 60
-FRAME = {"west": -121.668, "south": 39.716, "east": -121.552, "north": 39.811}
+# lib/cities.ts, paradise: `extent`, which is `detail` grown by 0.02 degrees on every side.
+FRAME = {"west": -121.675, "south": 39.717, "east": -121.565, "north": 39.803}
 MAX_VERTICES = 300
 LAT0 = 39.76
 M_PER_DEG_LNG = 111_320 * math.cos(math.radians(LAT0))

@@ -7,14 +7,49 @@
   "what": "Erie County travel ban takes effect"
  },
  "frame": {
-  "west": -78.87,
-  "south": 42.87,
-  "east": -78.795,
-  "north": 42.945
+  "west": -78.887,
+  "south": 42.857,
+  "east": -78.793,
+  "north": 42.923
  },
  "fronts": {
   "type": "FeatureCollection",
   "features": [
+   {
+    "type": "Feature",
+    "properties": {
+     "minutesAfterWarning": 330,
+     "meaning": "seed so the arrival field holds 330 inside the frame",
+     "label": "Reconstruction of a past storm, not a forecast"
+    },
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        -78.84001,
+        42.88999
+       ],
+       [
+        -78.83999,
+        42.88999
+       ],
+       [
+        -78.83999,
+        42.890010000000004
+       ],
+       [
+        -78.84001,
+        42.890010000000004
+       ],
+       [
+        -78.84001,
+        42.88999
+       ]
+      ]
+     ]
+    }
+   },
    {
     "type": "Feature",
     "properties": {
@@ -28,24 +63,24 @@
      "coordinates": [
       [
        [
-        -78.87,
-        42.87
+        -78.887,
+        42.857
        ],
        [
-        -78.795,
-        42.87
+        -78.793,
+        42.857
        ],
        [
-        -78.795,
-        42.945
+        -78.793,
+        42.923
        ],
        [
-        -78.87,
-        42.945
+        -78.887,
+        42.923
        ],
        [
-        -78.87,
-        42.87
+        -78.887,
+        42.857
        ]
       ]
      ]

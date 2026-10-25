@@ -109,7 +109,12 @@ Urban Green Council with Atelier Ten, *Baby It's Cold Inside* (2014), https://ww
 - **Snowfall.** The storm total at the airport is interpolated linearly between the NWS checkpoints above and the NCEI midnight totals (22.3 in at midnight on the 23rd, 40.2 on the 24th, 43.0 on the 25th, 50.3 on the 26th). Snowfall rate is the change over the past hour. The airport sits under the same band as the city (NWS: the band "extended from the City of Buffalo to the Buffalo Airport").
 - **Snow depth.** Daily only, as NCEI publishes it. Depth is not interpolated, because wind packed and drifted the snow and depth is not the running total.
 - **Streets by class.** See the table below; each time carries its source.
-- **Fronts.** One polygon covering the East Side frame at minute 330 (15:00 on 23 Dec), when whiteout stopped road operations.
+- **Fronts.** One polygon covering the East Side frame at minute 330 (15:00 on 23 Dec), when whiteout stopped road operations. The file also carries a one-metre seed polygon at the frame's centre, at the same minute. `lib/ink-map/fire-field.ts` makes points deep inside the first front up to 30 minutes earlier than its minute; with the seed, the whole frame reads exactly 330.
+- **Scenario file v2** (`public/scenarios/buffalo.json`, written by `modeling/scripts/cities/scenario_v2.py`):
+  - `series.snow` has one sample per routine hourly KBUF report. `rateCmPerHour` is the snowfall rate above. `depthCm` is interpolated linearly between the daily depths, each placed at 07:00. **Assumption: the daily depth is the morning (12 UTC, 07:00 EST) measurement, the time NWS climate reports use for snow depth.** The 1.2 in reported for 23 Dec is from before the storm, which fits.
+  - `series.wind` and `series.visibility` are the hourly reports converted to m/s and metres.
+  - `series.roadClosures` has one entry per street class. It closes at the 'unusable from' time in the table below and reopens at the first plow pass, or at reopening for expressways.
+  - `clock.minutesShown` is 2,730, the first plow pass on the arterials (07:00 on 25 Dec).
 
 | Street class | OSM `highway` | Unusable from | First reopened |
 | --- | --- | --- | --- |
@@ -120,7 +125,7 @@ Urban Green Council with Atelier Ten, *Baby It's Cold Inside* (2014), https://ww
 ## Assumptions
 
 - **Assumption: minute 0 is 09:30 on 23 Dec**, when the county travel ban took effect. The blizzard warning (03:54 on 22 Dec) and its start (07:00 on 23 Dec) are in `timeline.json`.
-- **Assumption: every street on the East Side became impassable to ordinary vehicles at 15:00 on 23 Dec.** The NYU timeline says whiteout "stopping roadway operations" began then. We found no source that gives an earlier time for side streets or a later one for arterials, and no source that says when any particular East Side street drifted shut. That's why the front is one polygon and not a progression. The frame is a provisional East Side box (west −78.870, south 42.870, east −78.795, north 42.945) until the city's `detail` box lands in `lib/cities.ts`.
+- **Assumption: every street on the East Side became impassable to ordinary vehicles at 15:00 on 23 Dec.** The NYU timeline says whiteout "stopping roadway operations" began then. We found no source that gives an earlier time for side streets or a later one for arterials, and no source that says when any particular East Side street drifted shut. That's why the front is one polygon and not a progression. The frame is the `extent` box for `buffalo` in `lib/cities.ts`, which is its `detail` box grown by 0.015°: west −78.887, south 42.857, east −78.793, north 42.923.
 - **Assumption: the airport's snowfall and wind stand in for the East Side.** No NWS report is labelled for the East Side. The NWS says the band covered the city and the airport together.
 - **Assumption: "Friday evening" for the National Guard request is placed at 20:00, and "at one point Saturday" for stranded fire trucks at 12:00.** Both events are flagged `timeIsApproximate` in `timeline.json`.
 - City outages are city-wide counts. Two of the three failed substations were in East Buffalo, but we found no map of which streets they served.

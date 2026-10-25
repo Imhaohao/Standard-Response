@@ -29,7 +29,8 @@ REPO = Path(__file__).resolve().parents[3]
 OBSERVATIONS = REPO / "data" / "cities" / "paradise" / "nist-observations.json"
 OUTPUT = REPO / "data" / "cities" / "paradise" / "fatalities.json"
 KMZ_URL = "https://web.archive.org/web/20220309060121/https://www.buttecounty.net/Portals/30/CFReport/Camp-Fire-Victim-Locations.kmz"
-FRAME = {"west": -121.668, "south": 39.716, "east": -121.552, "north": 39.811}
+# lib/cities.ts, paradise: `extent`, which is `detail` grown by 0.02 degrees on every side.
+FRAME = {"west": -121.675, "south": 39.717, "east": -121.565, "north": 39.803}
 CELL_DEGREES = 0.01
 NEAR_M = 250.0
 WARNING_MINUTES = 7 * 60 + 46
