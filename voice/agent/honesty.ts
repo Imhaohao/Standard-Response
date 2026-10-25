@@ -1,4 +1,5 @@
 import { REVIEWED_LANGUAGES } from "../../convex/languages";
+import { readsAsOtherLanguage } from "./languageMarkers";
 import { Language, RequestStatus } from "./script";
 
 // Claude writes only short acknowledgments. This guard is the code-level backstop: while no driver
@@ -23,7 +24,14 @@ const HANDLED = [/\bwe'?ve got (it|you|this)\b|\b(is|are|can) (coming|come) with
 const INVENTED_ADVICE = [
   /\b(officers?|signs|stay low|windows?|route|which way|turn (left|right)|head (north|south|east|west)|shelter in|news|alerts?|keep driving|keep going|stay in the car|stay on (the|a)|main road|reach (her|him|you|them)|anyone will|status line)\b/i,
   /(oficiales|polic[ií]a|ventanas|ruta|gire a|qu[eé]dese adentro)/i,
+  // "The fire is to your north." to "Which way do I go?": the agent can't see the fire.
+  /\bthe fire is (to|near|close|at|coming|moving|heading|behind|in front|on|north|south|east|west)\b|\b(to|of) (your|the) (north|south|east|west)\b/i,
+  /\b(el )?fuego (est[aá]|viene|va)\b|\bal (norte|sur|este|oeste)\b/i,
 ];
+
+// "You want to know what to do while you wait." to "Are we supposed to wait here?" made waiting
+// sound like the plan. Only the fixed lines speak about waiting.
+const WAITING = [/\bwhile you wait\b/i, /\bmientras (usted )?espera\b/i];
 
 // Comfort that may be false while the hazard is at the door: "Está bien, no pasa nada" to a caller
 // with flames coming in.
@@ -51,7 +59,7 @@ export type GuardResult = { text: string; blocked: boolean };
 // A blocked acknowledgment is dropped, not replaced: a stock "Okay." on every turn sounds robotic.
 const blocked: GuardResult = { text: "", blocked: true };
 
-const CLAUDE_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...HANDLED, ...FALSE_COMFORT, ...DELAY, ...INVENTED_ADVICE, ...SYMPATHY];
+const CLAUDE_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...HANDLED, ...FALSE_COMFORT, ...DELAY, ...WAITING, ...INVENTED_ADVICE, ...SYMPATHY];
 // An approved answer is the agency's own advice (approvedAnswers.ts), so the advice Claude can't
 // stand behind is allowed there ("close every window"); a promise of help or false comfort is not.
 const APPROVED_LINE = [...PROMISES, ...HELP_ON_THE_WAY, ...FALSE_COMFORT, ...DELAY, ...SYMPATHY];
@@ -61,6 +69,7 @@ export function guardAcknowledgment(text: string, status: RequestStatus | "none"
   if (trimmed === "") return { text: "", blocked: false };
   // The phrase lists only cover reviewed languages, so elsewhere Claude's words are never spoken.
   if (!REVIEWED_LANGUAGES.includes(language)) return blocked;
+  if (readsAsOtherLanguage(trimmed, language)) return blocked;
   const soundsLikePromise = (approved ? APPROVED_LINE : CLAUDE_LINE).some((pattern) => pattern.test(trimmed));
   if (UNCONFIRMED.has(status) && soundsLikePromise) return blocked;
   // Even after acceptance, ETAs and names come only from templates. "911" is the line's own name:

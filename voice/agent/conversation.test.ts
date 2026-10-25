@@ -788,6 +788,23 @@ describe("Claude's wording of the next question", () => {
   });
 });
 
+describe("a caller with fire at the home, on hold", () => {
+  it("hears the agency's fire-safety steps once when they plead or ask about the ride", () => {
+    const { conversation } = atHold();
+    conversation.respond("the flames are at my door", heard({ emergency: "flames" }));
+    const first = conversation.respond("please, is someone coming?", heard({ asksAboutRide: true }));
+    assert.ok(first.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+    const again = conversation.respond("please hurry", heard({ asksAboutRide: true }));
+    assert.ok(!again.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+  });
+
+  it("doesn't hear them without fire at the home", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("is someone coming?", heard({ asksAboutRide: true }));
+    assert.ok(!turn.sentences.some((line) => line.startsWith("If fire blocks your way out")));
+  });
+});
+
 describe("a resident who isn't at the home", () => {
   function awayCall() {
     const updates: object[] = [];

@@ -2,7 +2,7 @@ import type { Doc } from "../../convex/_generated/dataModel";
 import { findApprovedAnswer } from "./answerLookup";
 import { NOBODY } from "./answerPatterns";
 import { AskVerdict, checkAsk, GoalPrompt } from "./askLine";
-import { withApprovedAnswer } from "./approvedAnswers";
+import { bankText, withApprovedAnswer } from "./approvedAnswers";
 import { nameOnFile } from "../../lib/name-on-file";
 import { guardAcknowledgment, GuardResult } from "./honesty";
 import { canSpeak, Emergency, interpret, Interpretation, Rehearing, TurnContext } from "./interpreter";
@@ -195,6 +195,7 @@ export class Conversation {
   private lastAcknowledgment = "";
   private holdTurns = 0;
   private holdStepsSaid = 0;
+  private fireStepsGiven = false;
   private quietOnHold = 0;
   // After an unclear reply to the read-back, ask "Is that right?" rather than read it all again.
   private shortReadback = false;
@@ -287,7 +288,7 @@ export class Conversation {
     this.quietCheckIns = 0;
     this.quietOnHold = 0;
     if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
-    const turn = this.done ? this.afterGoodbye(heard) : this.answer(this.householdAddress(heard));
+    const turn = this.done ? this.afterGoodbye(heard) : this.answer(this.spokenAddressOnly(this.householdAddress(heard)));
     return heard.heardAs ? { ...turn, heardAs: heard.heardAs } : turn;
   }
 
@@ -304,6 +305,14 @@ export class Conversation {
       confidence: { ...heard.confidence, address: 0.9 },
       neighborAddresses: heard.neighborAddresses.filter((place) => place !== given),
     };
+  }
+
+  // An address whose street nobody on the call said, and that isn't the one on record, is dropped.
+  private spokenAddressOnly(heard: Interpretation): Interpretation {
+    const address = heard.updates.address;
+    const said = [...this.history.filter((line) => line.speaker === "resident").map((line) => line.text), this.record.address, this.knownAddress];
+    if (!address || streetWasSaid(address, said.join(" "))) return heard;
+    return { ...heard, updates: { ...heard.updates, address: undefined } };
   }
 
   private answer(heard: Interpretation): AgentTurn {
@@ -374,7 +383,7 @@ export class Conversation {
     const greeting = transfer ? [LINES[this.language].transferIn] : [];
     const feeling = this.feelingLines(heard, status, urgent);
     const said = this.claudeAnswer(heard, answer, feeling);
-    const told = [...urgent, ...extra, ...this.rideLines(heard), ...this.screenLines(heard), ...this.whatToDoLines(heard)].filter((line) => line !== "");
+    const told = [...urgent, ...extra, ...this.rideLines(heard), ...this.fireSafetyLines(heard), ...this.screenLines(heard), ...this.whatToDoLines(heard)].filter((line) => line !== "");
     const silent = Boolean(transfer) || leavingHold;
     const plain = !silent && !givesTime && told.length === 0;
     const asked = plain ? this.claudeQuestion(heard, [...greeting, ...feeling, ...said].length === 0) : NO_ASK;
@@ -496,6 +505,16 @@ export class Conversation {
   // nothing has changed. A real caller hung up after the full status three times in four turns.
   // A life threat on hold hears the full status unless it was just said: a panicking caller says
   // something frightening nearly every turn, and one heard the whole template seven times in six minutes.
+  // Fire reached the home on this call, and on hold the caller pleads or asks about the ride. Claude
+  // rarely asked for the fire-safety steps then, so callers with flames at the door heard only the
+  // status (voice exam, stay_with_them). The agency's steps are given once, after the status.
+  private fireSafetyLines(heard: Interpretation) {
+    if (this.fireStepsGiven || !this.holding || !this.escalated.has("flames") || heard.approvedAnswer) return [];
+    if (!heard.asksAboutRide && heard.feeling === "") return [];
+    this.fireStepsGiven = true;
+    return [bankText("trapped_by_fire", this.language) ?? ""];
+  }
+
   private rideLines(heard: Interpretation) {
     if (this.holding && heard.wantsRepeat) return [this.repeatOnHold()];
     if (this.holding && heard.emergency !== "none") return this.rideJustSaid() ? [] : [this.rideLine()];
@@ -1122,6 +1141,19 @@ export const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
 function keepCantLeave(record: AgentRecord, updates: AgentRecord): AgentRecord {
   if (updates.canLeave !== "unsure" || record.canLeave !== "no") return updates;
   return { ...updates, canLeave: undefined };
+}
+
+const STREET_KINDS = new Set(["street", "avenue", "ave", "road", "boulevard", "blvd", "drive", "way", "lane", "court", "circle", "terrace", "trail", "parkway", "highway", "north", "south", "east", "west", "calle", "avenida", "camino"]);
+const lettersOf = (text: string) => text.toLowerCase().normalize("NFD").replace(/[^\p{L}]/gu, "");
+
+// Claude wrote "3426 Catherine Road" for "Can you send someone to my mom's house?", a street from its
+// own prompt. A street counts as said when its name's letters appear in what was said, so a name
+// spelled out ("M, A, R, I, P, O, S, A") counts too.
+export function streetWasSaid(address: string, said: string) {
+  const names = address.toLowerCase().split(/[^\p{L}]+/u).filter((word) => word.length >= 3 && !STREET_KINDS.has(word));
+  if (names.length === 0) return true;
+  const spoken = lettersOf(said);
+  return names.some((name) => spoken.includes(lettersOf(name)));
 }
 
 export const firstSentences = (text: string, count: number) =>

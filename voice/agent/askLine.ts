@@ -1,4 +1,5 @@
 import { guardAcknowledgment } from "./honesty";
+import { inLanguage } from "./languageMarkers";
 import type { Language } from "./script";
 
 // Goals, not a script. Code decides which fact to ask for next; Claude, in the same call that reads
@@ -59,19 +60,6 @@ const TOPICS = [
 ];
 
 // Words only English or only Spanish use, to tell which language a line is in.
-const LANGUAGE_MARKERS: Partial<Record<Language, RegExp>> = {
-  en: words("the|you|your|is|are|anyone|how|what|there|and|do|does|with|any|would|that|of|to|who|where", "giu"),
-  es: new RegExp(`${words("el|la|los|las|usted|su|hay|alguien|c[oó]mo|qu[eé]|tiene|es|en|y|con|para|por|de|que|le|d[oó]nde|qui[eé]n").source}|[¿¡ñáéíóú]`, "giu"),
-};
-
-const hits = (text: string, language: Language) => text.match(LANGUAGE_MARKERS[language] ?? /$^/g)?.length ?? 0;
-
-function inLanguage(line: string, language: Language) {
-  const other = (Object.keys(LANGUAGE_MARKERS) as Language[]).filter((code) => code !== language);
-  const own = hits(line, language);
-  return own > 0 && other.every((code) => hits(line, code) < own);
-}
-
 function fitsLength(line: string) {
   return sentencesOf(line).length <= MAX_ASK_SENTENCES && line.split(/\s+/).length <= MAX_ASK_WORDS;
 }

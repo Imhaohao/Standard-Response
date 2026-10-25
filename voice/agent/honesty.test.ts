@@ -9,6 +9,8 @@ const CAUGHT = [
   ["es", "Sí, ya lo tenemos."],
   ["en", "Okay, your dog is coming with you."],
   ["en", "We've got you."],
+  ["en", "You want to know what to do while you wait."],
+  ["en", "The fire is to your north."],
   ["en", "Your dad is trying to fight the fire, and I want to make sure the right help gets to you."],
   ["en", "Yes, your address is on the list, and the dispatchers can see that."],
   ["es", "Estamos trabajando para ayudarle."],
@@ -53,6 +55,15 @@ describe("the honesty guard", () => {
       assert.equal(guardAcknowledgment(line, "received", language).blocked, true);
     });
   }
+
+  it("still lets through not knowing where the fire is", () => {
+    assert.equal(guardAcknowledgment("I don't know where the fire is.", "received", "en").blocked, false);
+  });
+
+  it("drops English on a Spanish call", () => {
+    assert.equal(guardAcknowledgment("You need help fast. I hear how scared you are.", "received", "es").blocked, true);
+    assert.equal(guardAcknowledgment("Necesita ayuda rápido.", "received", "es").blocked, false);
+  });
 
   it("still lets through why a question is asked", () => {
     assert.equal(guardAcknowledgment("It helps us match the right vehicle to your needs.", "received", "en").blocked, false);

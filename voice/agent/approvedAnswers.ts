@@ -197,7 +197,7 @@ export type ApprovedMatch = { id: ApprovedAnswerId; score: number; lookupMs: num
 export const isApprovedAnswerId = (value: string | undefined): value is ApprovedAnswerId =>
   value !== undefined && value in APPROVED_ANSWERS;
 
-const bankText = (id: ApprovedAnswerId, language: string) =>
+export const bankText = (id: ApprovedAnswerId, language: string) =>
   language === "en" || language === "es" ? APPROVED_ANSWERS[id].answer[language] : undefined;
 
 // Questions the ordinary answers may never meet, however close Moss scores them. "Can I go back in
