@@ -2,7 +2,7 @@
 
 import { Drop, Fire, Hurricane, Person, Snowflake, ThermometerHot, Tornado, type Icon } from "@phosphor-icons/react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
-import { motion } from "motion/react";
+import { motion, useMotionValue, useTransform, type MotionValue } from "motion/react";
 import { feature, mesh } from "topojson-client";
 import type { GeometryCollection, Topology } from "topojson-specification";
 import usAtlas from "us-atlas/states-albers-10m.json";
@@ -56,33 +56,43 @@ function anchor({ x, y, side }: { x: number; y: number; side: LabelSide }) {
 // A label slid up or down beside its mark, when the centred spot was taken.
 const shiftOf = ({ shift }: LabelPlace) => (shift ? `translateY(${shift}px)` : undefined);
 
-function DisasterMark({ disaster, shown, delay, first }: { disaster: (typeof placed)[number]; shown: boolean; delay: number; first: boolean }) {
+type MarkProps = { disaster: (typeof placed)[number]; zoom: MotionValue<number>; shown: boolean; delay: number; first: boolean };
+
+// Marks keep their size while the map zooms, but ride its zoom about Altadena so each one stays on its place.
+function DisasterMark({ disaster, zoom, shown, delay, first }: MarkProps) {
   const Glyph = ICONS[disaster.kind];
+  const x = useTransform(zoom, (scale) => (disaster.x - altadena.x) * (scale - 1));
+  const y = useTransform(zoom, (scale) => (disaster.y - altadena.y) * (scale - 1));
   return (
-    <Show when={shown} delay={delay} rise={10} className="absolute" style={anchor(disaster)}>
-      <span className={`flex gap-2 ${LAYOUT[disaster.side]}`}>
-        <span
-          className={`flex shrink-0 items-center justify-center rounded-full bg-signal text-on-night ${first ? "shadow-[0_0_0_5px_var(--night),0_0_40px_12px_oklch(0.585_0.215_27/0.55)]" : "shadow-[0_0_0_3px_var(--night)]"}`}
-          style={{ width: MARK, height: MARK }}
-        >
-          <Glyph size={20} weight="fill" aria-hidden />
+    <motion.div className="absolute" style={{ ...anchor(disaster), x, y }}>
+      <Show when={shown} delay={delay} rise={10}>
+        <span className={`flex gap-2 ${LAYOUT[disaster.side]}`}>
+          <span
+            className={`flex shrink-0 items-center justify-center rounded-full bg-signal text-on-night ${first ? "shadow-[0_0_0_5px_var(--night),0_0_40px_12px_oklch(0.585_0.215_27/0.55)]" : "shadow-[0_0_0_3px_var(--night)]"}`}
+            style={{ width: MARK, height: MARK }}
+          >
+            <Glyph size={20} weight="fill" aria-hidden />
+          </span>
+          <span className="type-deck-note whitespace-nowrap rounded-lg bg-night/80 px-2.5" style={{ transform: shiftOf(disaster) }}>
+            {disaster.name} <span className="tabular-nums text-on-night-muted">{disaster.year}</span>
+          </span>
         </span>
-        <span className="type-deck-note whitespace-nowrap rounded-lg bg-night/80 px-2.5" style={{ transform: shiftOf(disaster) }}>
-          {disaster.name} <span className="tabular-nums text-on-night-muted">{disaster.year}</span>
-        </span>
-      </span>
-    </Show>
+      </Show>
+    </motion.div>
   );
 }
 
-function UsMap({ beat }: { beat: Beat }) {
-  const shown = beat === "everywhere" || beat === "eighty";
+const isMapShown = (beat: Beat) => beat === "everywhere" || beat === "eighty";
+const mapZoom = (beat: Beat) => (isMapShown(beat) ? 1 : START_ZOOM);
+
+function UsMap({ beat, zoom }: { beat: Beat; zoom: MotionValue<number> }) {
+  const shown = isMapShown(beat);
   return (
     <motion.div
       className="absolute inset-0"
-      style={{ transformOrigin: `${altadena.x}px ${altadena.y}px` }}
+      style={{ transformOrigin: `${altadena.x}px ${altadena.y}px`, scale: zoom }}
       initial={false}
-      animate={{ opacity: shown ? (beat === "eighty" ? 0.25 : 1) : 0, scale: shown ? 1 : START_ZOOM }}
+      animate={{ opacity: shown ? (beat === "eighty" ? 0.25 : 1) : 0, scale: mapZoom(beat) }}
       transition={{ ...cameraMove, opacity: { duration: 0.9 } }}
       aria-hidden
     >
@@ -131,11 +141,12 @@ function EightyPercent({ shown }: { shown: boolean }) {
 
 export function UsScene({ beat }: { beat: Beat }) {
   const marking = beat === "everywhere";
+  const zoom = useMotionValue(mapZoom(beat));
   return (
     <>
-      <UsMap beat={beat} />
+      <UsMap beat={beat} zoom={zoom} />
       {placed.map((disaster, i) => (
-        <DisasterMark key={disaster.name} disaster={disaster} shown={marking} first={i === 0} delay={i === 0 ? 0.6 : 1.2 + i * 0.07} />
+        <DisasterMark key={disaster.name} disaster={disaster} zoom={zoom} shown={marking} first={i === 0} delay={i === 0 ? 0.6 : 1.2 + i * 0.07} />
       ))}
       <EightyPercent shown={beat === "eighty"} />
     </>
