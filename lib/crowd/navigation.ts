@@ -128,6 +128,15 @@ export type StreetPoint = { edge: number; stretch: number; along: number; x: num
 // Grid cell for finding the street nearest a point, in metres.
 const STRETCH_CELL = 100;
 
+// The keys of the cells `ring` cells out from (col, row), the outline of that square.
+function ringCells(col: number, row: number, ring: number) {
+  if (ring === 0) return [`${col},${row}`];
+  const keys: string[] = [];
+  for (let c = col - ring; c <= col + ring; c++) keys.push(`${c},${row - ring}`, `${c},${row + ring}`);
+  for (let r = row - ring + 1; r < row + ring; r++) keys.push(`${col - ring},${r}`, `${col + ring},${r}`);
+  return keys;
+}
+
 // An option drawn with logit probabilities over drive times to safety, proportional to
 // exp(-seconds / spread): its index, or -1 when none reaches safety. A spread of 0 always takes the
 // fastest.
@@ -194,6 +203,7 @@ export class RoadRouter {
   // The stretches (edge, stretch index, edge, ...) that pass through each STRETCH_CELL cell, built
   // on first use.
   private stretchGrid: Map<string, number[]> | null = null;
+  private stretchBounds = { cols: [Infinity, -Infinity], rows: [Infinity, -Infinity] };
   private readonly outgoing: number[][] = Array.from({ length: NODE_COUNT }, () => []);
   private readonly incoming: number[][] = Array.from({ length: NODE_COUNT }, () => []);
 
@@ -336,7 +346,7 @@ export class RoadRouter {
   }
 
   // The point on any street `allowed` takes nearest (x, y), in each direction the street can be
-  // driven: one point for a one-way street, two for a two-way one. Empty with none within 1 km.
+  // driven: one point for a one-way street, two for a two-way one. Empty if `allowed` takes none.
   streetPoints(x: number, y: number, allowed: (edge: number) => boolean = () => true): StreetPoint[] {
     const best = this.nearestStretch(x, y, allowed);
     if (!best) return [];
@@ -351,30 +361,30 @@ export class RoadRouter {
     return [best, back];
   }
 
-  // The point on a street `allowed` takes nearest (x, y), or null with none within 1 km.
+  // The point on a street `allowed` takes nearest (x, y), or null if it takes none.
   private nearestStretch(x: number, y: number, allowed: (edge: number) => boolean): StreetPoint | null {
     const grid = (this.stretchGrid ??= this.buildStretchGrid());
     const col = Math.floor(x / STRETCH_CELL);
     const row = Math.floor(y / STRETCH_CELL);
+    const { cols, rows } = this.stretchBounds;
+    // Every ring of cells out to the far side of the grid.
+    const rings = Math.max(col - cols[0], cols[1] - col, row - rows[0], rows[1] - row);
     let best: StreetPoint | null = null;
     let bestDistance = Infinity;
-    // Widen the search ring by ring. After ring r every stretch within r cells of (x, y) has been
-    // seen, so a nearest one found that close is the nearest.
-    for (let ring = 1; ring <= 10; ring++) {
-      for (let r = row - ring; r <= row + ring; r++) {
-        for (let c = col - ring; c <= col + ring; c++) {
-          const stretches = grid.get(`${c},${r}`) ?? [];
-          for (let k = 0; k < stretches.length; k += 2) {
-            if (!allowed(stretches[k])) continue;
-            const point = this.onStretch(stretches[k], stretches[k + 1], x, y);
-            const distance = Math.hypot(point.x - x, point.y - y);
-            if (distance >= bestDistance) continue;
-            best = point;
-            bestDistance = distance;
-          }
+    // Ring by ring outward: once rings 0 to r are searched every stretch within r cells of (x, y)
+    // has been seen, so the nearest found that close is the nearest of all.
+    for (let ring = 0; ring <= rings && !(best && bestDistance <= (ring - 1) * STRETCH_CELL); ring++) {
+      for (const key of ringCells(col, row, ring)) {
+        const stretches = grid.get(key) ?? [];
+        for (let k = 0; k < stretches.length; k += 2) {
+          if (!allowed(stretches[k])) continue;
+          const point = this.onStretch(stretches[k], stretches[k + 1], x, y);
+          const distance = Math.hypot(point.x - x, point.y - y);
+          if (distance >= bestDistance) continue;
+          best = point;
+          bestDistance = distance;
         }
       }
-      if (best && bestDistance <= ring * STRETCH_CELL) break;
     }
     return best;
   }
@@ -392,6 +402,7 @@ export class RoadRouter {
 
   private buildStretchGrid() {
     const grid = new Map<string, number[]>();
+    const { cols, rows } = this.stretchBounds;
     this.edgeShape.forEach((shape, edge) => {
       for (let stretch = 0; 2 * stretch + 3 < shape.length; stretch++) {
         const [ax, ay, bx, by] = shape.subarray(2 * stretch, 2 * stretch + 4);
@@ -399,6 +410,7 @@ export class RoadRouter {
           for (let c = Math.floor(Math.min(ax, bx) / STRETCH_CELL); c <= Math.floor(Math.max(ax, bx) / STRETCH_CELL); c++) {
             const key = `${c},${r}`;
             grid.set(key, [...(grid.get(key) ?? []), edge, stretch]);
+            [cols[0], cols[1], rows[0], rows[1]] = [Math.min(cols[0], c), Math.max(cols[1], c), Math.min(rows[0], r), Math.max(rows[1], r)];
           }
         }
       }

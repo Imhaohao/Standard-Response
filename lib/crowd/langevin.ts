@@ -1108,10 +1108,12 @@ export class CrowdSim {
     const safe = Math.max(0, gap - JAM_SPACING_METERS) / timeGap;
     this.pace[i] = this.stuck[i] || free <= 0 ? 0 : Math.min(speedShare(gap, lookAhead), safe / free);
     const forward = this.vx[i] * hx + this.vy[i] * hy;
-    let drive = this.desiredSpeed(i, free * this.pace[i], forward) / tau;
-    // The open-road car relaxes the same way, exactly over the step.
+    let drive = Math.min((free * this.pace[i]) / tau, this.cornerDrive(i, forward));
+    // The open-road car relaxes the same way, exactly over the step, and brakes as hard for a corner.
     const open = this.openSpeed[i];
-    this.openSpeed[i] = open + (this.desiredSpeed(i, free, open) - open) * (1 - Math.exp(-this.params.dt / tau));
+    const openBraking = this.cornerBraking(i, open);
+    const relaxed = open + (free - open) * (1 - Math.exp(-this.params.dt / tau));
+    this.openSpeed[i] = openBraking > 0 ? Math.min(relaxed, open - openBraking * this.params.dt) : relaxed;
     if (leader >= 0) {
       const closing = (this.vx[leader] - this.vx[i]) * hx + (this.vy[leader] - this.vy[i]) * hy;
       drive += speedMatching * gapWeight(gap, lookAhead) * closing;
@@ -1125,11 +1127,16 @@ export class CrowdSim {
     this.fy[i] = drive * hy + ry + excess * hy - laneStiffness * oy;
   }
 
-  // The speed car i, going `forward` m/s, relaxes toward: `wanted`, or less where it has to brake
-  // for a corner ahead, at the rate that corner needs.
-  private desiredSpeed(i: number, wanted: number, forward: number) {
-    const corner = this.cornerBraking(i, forward);
-    return corner > 0 ? Math.min(wanted, forward - this.params.tau * corner) : wanted;
+  // The force along the heading that slows car i, going `forward` m/s, at the rate the corner ahead
+  // needs over this step (Infinity with no corner to slow for). The step's friction is exact and its
+  // force comes in two half kicks around it, so a force of v / tau - need slows the car by only
+  // (1 + c1) / 2 of need: 80% at a 1 s step, and cars took right-angle turns at 30 km/h.
+  private cornerDrive(i: number, forward: number) {
+    const need = this.cornerBraking(i, forward);
+    if (need <= 0) return Infinity;
+    const { dt, tau } = this.params;
+    const c1 = Math.exp(-dt / tau);
+    return ((forward * (1 - c1)) / dt - need) * (2 / (1 + c1));
   }
 
   // Anyone the scenario fire reaches before they get out. A household still at home is where it
