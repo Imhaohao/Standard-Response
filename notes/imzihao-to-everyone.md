@@ -119,3 +119,10 @@ Also new: closing the incident deletes real rider data everywhere (Convex, Elast
 - **Bright Data:** the key works, but the account has no zone yet. Create a Web Unlocker zone, then set `BRIGHTDATA_ZONE`.
 - **Factory:** the key is in `.env.local`; the `droid` CLI isn't installed on this Mac yet.
 - **Not yet received:** Gemini, Elastic and Agentverse keys.
+
+## 2026-10-25 00:15
+
+**ElevenLabs is now a real Devpost entry (MLH: Best use of ElevenLabs).** The key works live. Creating a per-call agent takes 1.5 s, and sample speech starts in 0.4 s. The README has a row for it.
+- **Paste for MLH ElevenLabs:** "Every evacuation call can run on ElevenLabs Conversational AI. Each call gets its own agent built from that household's file, and its client tools write the resident's answers straight into our Convex record, so a whole carrier outage is one setting away from a working phone line."
+- **Paste for Armadin, Best Security Hack:** "A phone agent for evacuations is an attack surface: anyone can call it and say anything. We red-team it with spoken prompt injection and pressure attacks graded by two model families. Ride promises are fixed code templates the model can't write. Dispatcher data sits behind Auth0 roles and step-up auth. Every phone number, transcript, Jira issue and payment record is deleted when the incident closes."
+- To demo it, set `VOICE_STACK=elevenlabs` on Fly for one call. Leave it on Cartesia for the main demo.
