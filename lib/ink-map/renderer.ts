@@ -187,6 +187,7 @@ export class InkMapRenderer {
       uBaseElevation: { value: this.data.terrain.base },
       uPaper: { value: new THREE.Vector3(pr, pg, pb) },
       uInk: { value: new THREE.Vector3(...INK_PALETTE.ink) },
+      uCharcoal: { value: new THREE.Vector3(...INK_PALETTE.ink) },
       uRed: { value: new THREE.Vector3(...INK_PALETTE.red) },
       uEmber: { value: new THREE.Vector3(...INK_PALETTE.ember) },
       uFireRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
@@ -404,6 +405,29 @@ export class InkMapRenderer {
     meshes.forEach((mesh, i) => ([mesh.visible, mesh.frustumCulled] = [shown[i], true]));
   }
 
+  // A slower camera move that can zoom out as well as in, for the pitch deck. A null place glides
+  // back to the town overview.
+  glideTo(place: Point | null, zoom: number, ms: number) {
+    cancelAnimationFrame(this.flight);
+    const limit = this.view.kind === "overview" ? 14 : 4;
+    const from = { pan: this.nav.pan.clone(), zoom: this.nav.zoom };
+    const to = {
+      pan: place ? new THREE.Vector3(place[0] - this.home.target.x, 0, -place[1] - this.home.target.z) : new THREE.Vector3(),
+      zoom: THREE.MathUtils.clamp(zoom, 1, limit),
+    };
+    const started = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - started) / ms);
+      const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+      this.nav.pan.lerpVectors(from.pan, to.pan, eased);
+      this.nav.zoom = from.zoom * (to.zoom / from.zoom) ** eased;
+      this.clampPan();
+      this.redrawView();
+      if (t < 1) this.flight = requestAnimationFrame(step);
+    };
+    this.flight = requestAnimationFrame(step);
+  }
+
   private renderStatic() {
     this.fitShadowCamera();
     this.renderer.setRenderTarget(this.shadow);
@@ -538,6 +562,16 @@ export class InkMapRenderer {
     this.forecastTexture = texture;
     u.tForecast.value = texture;
     u.uForecastRegion.value.set(field.region.x0, field.region.y0, field.region.x1, field.region.y1);
+  }
+
+  // Swaps the paper and ink, as the pitch deck does for its night map. The fire keeps its own colours.
+  setPalette(paper: readonly [number, number, number], ink: readonly [number, number, number], charcoal = ink) {
+    const u = this.composite.material.uniforms;
+    u.uPaper.value.set(...paper);
+    u.uInk.value.set(...ink);
+    u.uCharcoal.value.set(...charcoal);
+    this.baseDirty = true;
+    this.renderFrame();
   }
 
   setDebug(mode: number) {

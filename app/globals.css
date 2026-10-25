@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* Faces we have no license to publish: hotdogs (personal use only) sets the name Standard Response, and
+   Nexa Rust (a Fontfabric trial) sets numbers and big display text. The files are gitignored and live
+   only on the presenting laptop. Without them the name falls back to Verlag, then League Spartan, and the
+   big type to Sofia Sans Condensed. Each weight range stops the browser from synthesizing a bolder copy of the one face. */
+@font-face {
+  font-family: "Hotdogs";
+  src: url("/brand-fonts/Hotdogs.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Verlag";
+  src: url("/brand-fonts/Verlag-Black.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nexa Rust Sans";
+  src: url("/brand-fonts/NexaRustSans-Trial-Black2.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* Light mode only: the map is paper, and every surface around it is paper too.
    Red means fire or a person who can't leave without help. Nothing else is red. */
 :root {
@@ -33,6 +56,14 @@
   --shadow-handset: 0 30px 80px oklch(0 0 0 / 0.28);
   --shadow-knob: 0 1px 2px oklch(0.3 0.02 60 / 0.3);
   --shadow-inset-line: inset 0 0 0 1px oklch(0 0 0 / 0.06);
+  /* The pitch deck's night: the map with its paper and ink swapped, and the stage around it. */
+  --night: oklch(0.17 0.008 60);
+  --night-raised: oklch(0.24 0.008 60);
+  --on-night: oklch(0.95 0.006 85);
+  --on-night-muted: oklch(0.72 0.01 70);
+  /* The name Standard Response, and numbers and big display text. See the @font-face rules above. */
+  --brand-face: "Hotdogs", "Verlag", var(--font-league-spartan), sans-serif;
+  --big-face: "Nexa Rust Sans", var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
 }
 
 @theme inline {
@@ -57,8 +88,14 @@
   --color-unknown: var(--unknown);
   --color-map-paper: var(--map-paper);
   --color-map-ink: var(--map-ink);
+  --color-night: var(--night);
+  --color-night-raised: var(--night-raised);
+  --color-on-night: var(--on-night);
+  --color-on-night-muted: var(--on-night-muted);
   --font-sans: var(--font-public-sans);
   --font-display: var(--font-sofia-condensed);
+  --font-brand: var(--brand-face);
+  --font-big: var(--big-face);
   --shadow-float: var(--shadow-float);
   --shadow-popover: var(--shadow-popover);
   --shadow-device: var(--shadow-device);
@@ -79,7 +116,7 @@ body {
 /* Type scale: Public Sans for reading, Sofia Sans Condensed for anything read from across the room. */
 @layer components {
   .type-display {
-    font-family: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
+    font-family: var(--big-face);
     font-size: clamp(2.25rem, 4vw, 3.75rem);
     line-height: 1;
     font-weight: 800;
@@ -123,8 +160,53 @@ body {
   .hatch {
     background-image: repeating-linear-gradient(135deg, currentColor 0 1.5px, transparent 1.5px 7px);
   }
-  .type-figure {
+  /* The pitch deck draws on a fixed 1920 by 1080 stage, so its sizes are pixels read from across a room. */
+  .type-deck-figure {
+    font-family: var(--big-face);
+    font-size: 300px;
+    line-height: 0.85;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .type-deck-display {
+    font-family: var(--big-face);
+    font-size: 200px;
+    line-height: 0.9;
+    font-weight: 800;
+    text-wrap: balance;
+  }
+  .type-deck-title {
+    font-family: var(--big-face);
+    font-size: 104px;
+    line-height: 1;
+    font-weight: 800;
+    text-wrap: balance;
+  }
+  .type-deck-quote {
     font-family: var(--font-sofia-condensed), var(--font-public-sans), sans-serif;
+    font-size: 68px;
+    line-height: 1.08;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .type-deck-lede {
+    font-size: 44px;
+    line-height: 1.3;
+    font-weight: 400;
+    text-wrap: pretty;
+  }
+  .type-deck-label {
+    font-size: 30px;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+  .type-deck-note {
+    font-size: 22px;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+  .type-figure {
+    font-family: var(--big-face);
     font-weight: 800;
     line-height: 1;
   }

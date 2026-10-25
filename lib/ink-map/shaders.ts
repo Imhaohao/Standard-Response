@@ -275,6 +275,8 @@ uniform float uPixelRatio;
 uniform float uBaseElevation;
 uniform vec3 uPaper;
 uniform vec3 uInk;
+// Dark and burned-out homes. The ink by day; the pitch deck's night map sets its own.
+uniform vec3 uCharcoal;
 uniform vec3 uRed;
 uniform vec3 uEmber;
 uniform float uPulse;
@@ -607,7 +609,7 @@ void main() {
   float left = step(0.25, state.b) * (1.0 - step(0.75, state.b));
   if (stillHome > 0.0) {
     float wash = surface == S_ROOF ? 0.82 : 0.6;
-    color = mix(color, uInk, wash * (1.0 - lines * 0.5));
+    color = mix(color, uCharcoal, wash * (1.0 - lines * 0.5));
   }
   if (left > 0.0) color = mix(color, paper, (surface == S_ROOF ? 0.75 : 0.4) * (1.0 - lines));
   // Alpha marks a pulsing roof and how strongly it is washed red; the fire pass breathes it.
@@ -635,9 +637,9 @@ void main() {
     // Ash: the ground goes a warm grey, darkest just behind the front, and pales as it cools.
     vec3 ash = mix(vec3(0.88, 0.85, 0.82), vec3(0.7, 0.62, 0.57), fresh);
     color = mix(color, color * ash, burned * (building ? 0.3 : 0.6 + 0.3 * fresh));
-    color = mix(color, uInk, scorch * (0.16 + 0.16 * fresh) * (1.0 - lines));
-    if (surface == S_ROOF) color = mix(color, uInk * 1.2, burned * 0.75);
-    if (surface == S_WALL) color = mix(color, uInk * 1.5, burned * 0.6);
+    color = mix(color, uCharcoal, scorch * (0.16 + 0.16 * fresh) * (1.0 - lines));
+    if (surface == S_ROOF) color = mix(color, uCharcoal * 1.2, burned * 0.75);
+    if (surface == S_WALL) color = mix(color, uCharcoal * 1.5, burned * 0.6);
   }
 
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole

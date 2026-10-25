@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
-import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
+import { AREA_NAME, PRODUCT_NAME, WORDMARK } from "@/lib/brand";
 import { AccountChip } from "../account/account-chip";
+import { BrandMark } from "./brand-mark";
 import { formatSinceWarning } from "@/lib/time";
 import { useSimNow } from "@/lib/use-sim-now";
 
@@ -66,8 +67,10 @@ export function AppBar({ children }: { children?: ReactNode }) {
   return (
     <header className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface/95 px-4 py-2 text-ink backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="size-3 shrink-0 rounded-full bg-signal" aria-hidden />
-        <span className="type-heading">{PRODUCT_NAME}</span>
+        <BrandMark className="size-5" />
+        <span className="type-heading font-brand" role="img" aria-label={PRODUCT_NAME}>
+          {WORDMARK}
+        </span>
         <span className="type-small hidden truncate text-ink-muted sm:inline">{AREA_NAME}</span>
       </div>
       <ScreenNav />
