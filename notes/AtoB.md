@@ -92,3 +92,7 @@ Changes from our two Palo Alto Fire station visits, in your voice code. `npm run
 ## 2026-10-24 16:40
 
 - `planCheck.ts`: when a helper says yes, they hear the resident's number ("Wen's number is 6 5 0, 6 5 6, ..."), and the resident's "on the way" notice gives the helper's number. Both come from `callQueue` (`residentPhone`, `helperPhone`), spoken with `readyCall`'s `spokenDigits`. These only take effect on calls once Fly is redeployed.
+
+## 2026-10-24 18:42
+
+`households.inZone` for homes added after a zone is drawn: `ready:submit` (and `ready:reregister`) and `riders:importCsv` now mark a new home in the zone when it falls inside the zone drawn last. With no zone drawn, a home that signs up after the warning is out counts as covered, the same as `coverAreaIfNoZone` gave the homes already on file. Until now every new home started with `inZone: false`, so a home that signed up inside a zone that was already drawn was never called, and no neighbor was asked for it, until somebody redrew the zone. A sign-up that moves an existing home to a new address also gets its `inZone` recomputed. The helper is `warningCovers` in `convex/riders.ts`. Nothing in the contract changed.

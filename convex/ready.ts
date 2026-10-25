@@ -12,6 +12,7 @@ import { helperFor, profileFromPersona } from "./readySim";
 import { seededRandom } from "./roll";
 import { simNow } from "./clock";
 import { syncRequest } from "./requests";
+import { warningCovers } from "./riders";
 
 // The Ready check: before any disaster, every household tells us who lives there, what help they
 // need getting out, where they sleep, and who has agreed to pick them up. The agent calls each
@@ -64,8 +65,9 @@ type Place = { phone: string; address: string; lat: number; lng: number; languag
 
 async function findOrCreateHome(ctx: MutationCtx, place: Place) {
   const existing = await householdByPhone(ctx, place.phone);
+  const inZone = await warningCovers(ctx, place);
   if (existing) {
-    await ctx.db.patch("households", existing._id, { address: place.address, lat: place.lat, lng: place.lng });
+    await ctx.db.patch("households", existing._id, { address: place.address, lat: place.lat, lng: place.lng, inZone });
     return existing._id;
   }
   const now = await simNow(ctx);
@@ -78,7 +80,7 @@ async function findOrCreateHome(ctx: MutationCtx, place: Place) {
     language: fileLanguageOf(place.language),
     callStatus: "not_called",
     outcome: "unknown",
-    inZone: false,
+    inZone,
     attempts: 0,
     needPrior: UNKNOWN_NEED_PRIOR,
     needProbability: UNKNOWN_NEED_PRIOR,

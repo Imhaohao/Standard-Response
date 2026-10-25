@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, MutationCtx } from "./_generated/server";
+import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { Doc } from "./_generated/dataModel";
 import { assistanceRequired, mobility, point } from "./schema";
@@ -74,7 +74,6 @@ function householdFromRow(row: Row, now: number) {
     assistanceRequired: assistanceOf(row),
     callStatus: "not_called" as const,
     outcome: "unknown" as const,
-    inZone: false,
     attempts: 0,
     needPrior,
     needProbability: needPrior,
@@ -106,7 +105,7 @@ export const importCsv = mutation({
         skippedLines.push(index + 2);
         continue;
       }
-      await ctx.db.insert("households", household);
+      await ctx.db.insert("households", { ...household, inZone: await warningCovers(ctx, household) });
       imported += 1;
     }
     return { imported, skippedLines };
@@ -122,6 +121,14 @@ async function markZone(ctx: MutationCtx, polygon: Point[]) {
     if (inZone !== household.inZone) await ctx.db.patch("households", household._id, { inZone });
   }
   return covered;
+}
+
+// Whether the warning covers a home added now: the zone drawn last, or with none drawn, the whole
+// area once the warning is out (what `coverAreaIfNoZone` gave the homes already on file).
+export async function warningCovers(ctx: QueryCtx, place: Point) {
+  const zone = await ctx.db.query("zones").order("desc").first();
+  if (zone) return insidePolygon(place, zone.polygon);
+  return (await ctx.db.query("control").first())?.warningIssuedAt !== undefined;
 }
 
 // A warning issued with no zone drawn covers the whole area, as it does for the simulated town.

@@ -98,3 +98,7 @@ The night now runs on a shared clock that the rescue map can pause or play at 1Ã
 ## 2026-10-24 17:30
 
 The simulation loop in `convex/sim.ts` is now a heartbeat plus a work step. Until now the tick scheduled the next tick at the end of its own work, so a single tick that threw ended the night silently. That happened to me once on a private backend right after switching playback to 10x: re-plans stuck at 5 for six minutes. Now `sim.tick` only checks that the loop is current and not paused, applies the 45-minute stop, and schedules `sim.step` plus the next `sim.tick`. `sim.step` does what the tick used to do. Tested by making 30% of steps throw on a private backend: 25 failures, and the night kept re-planning and taking requests. Nothing else changed, and `control.ts` still schedules `sim.tick` as before.
+
+## 2026-10-24 18:42
+
+`households.inZone` for homes added after a zone is drawn: `ready:submit` (and `ready:reregister`) and `riders:importCsv` now mark a new home in the zone when it falls inside the zone drawn last. With no zone drawn, a home that signs up after the warning is out counts as covered, the same as `coverAreaIfNoZone` gave the homes already on file. Until now every new home started with `inZone: false`, so a home that signed up inside a zone that was already drawn was never called, and no neighbor was asked for it, until somebody redrew the zone. A sign-up that moves an existing home to a new address also gets its `inZone` recomputed. The helper is `warningCovers` in `convex/riders.ts`. Nothing in the contract changed.

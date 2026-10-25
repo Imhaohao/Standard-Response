@@ -49,6 +49,24 @@ describe("real households on the night", () => {
     expect(queued.map((home) => home.address).sort()).toEqual([RESIDENT.address, NEIGHBOR.address]);
   });
 
+  test("a home that signs up inside a zone already drawn is called, and one outside it isn't", async () => {
+    const t = setup();
+    await t.mutation(api.control.reset, {});
+    const around = (lat: number, lng: number, d = 0.0002) => [
+      { lat: lat - d, lng: lng - d },
+      { lat: lat - d, lng: lng + d },
+      { lat: lat + d, lng: lng + d },
+      { lat: lat + d, lng: lng - d },
+    ];
+    await t.mutation(api.riders.setZone, { polygon: around(RESIDENT.lat, RESIDENT.lng) });
+    const profile = { language: "en", care: [] };
+    await t.mutation(api.ready.submit, { ...profile, ...RESIDENT, exitPlan: "needs_ride", hasCar: false });
+    await t.mutation(api.ready.submit, { ...profile, ...NEIGHBOR, exitPlan: "own_car", hasCar: true });
+    await t.mutation(api.control.issueWarning, {});
+    const queued = await t.query(api.voice.dialQueue, { limit: 10 });
+    expect(queued.map((home) => home.address)).toEqual([RESIDENT.address]);
+  });
+
   test("a resident who can't leave gets the neighbor with a car asked, whoever signed up first", async () => {
     const t = setup();
     const { resident, neighbor } = await signUpBoth(t);
