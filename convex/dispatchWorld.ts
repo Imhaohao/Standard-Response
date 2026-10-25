@@ -3,7 +3,8 @@ import type { Snapshot } from "./dispatchSnapshot";
 import { isSolution, PlannedStop, Problem, ProblemRequest, Solution } from "./dispatchProblem";
 import { solveHeuristic } from "./heuristic";
 import { OFFER_TTL_MS, vehicleCanServe } from "./model";
-import { closedEdgeSet, closedEdgesFor, edgeKeysOf, nearestNode, nodePoint, shortestPathsFrom, ShortestPaths, streetNames } from "./roadGraph";
+import { closedEdgeSet, closedEdgesFor, edgeKeysOf, EdgeTime, nearestNode, nodePoint, shortestPathsFrom, ShortestPaths, streetNames } from "./roadGraph";
+import { trafficEdgeTime } from "./traffic";
 import { forecastRun, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
 
 // The pure half of re-planning: snapshot in, problem out; solution in, commit arguments out.
@@ -18,15 +19,21 @@ const OXYGEN_MAX_RIDE_SECONDS = 45 * 60;
 const REVOKE_TOLERANCE_MS = 10 * 60_000;
 const ETA_REFRESH_MS = 60_000;
 
+// Drive times between intersections, in the forecast traffic for a trip setting out now. A leg of
+// a run that sets out later is priced as if it left now; every re-plan prices again from the
+// present, so the leg a van is on is always priced for when it drives it.
 class TravelTable {
   private rows = new Map<number, ShortestPaths>();
 
-  constructor(private closed: ReadonlySet<number>) {}
+  constructor(
+    private closed: ReadonlySet<number>,
+    private edgeTime: EdgeTime,
+  ) {}
 
   seconds = (from: number, to: number) => {
     let row = this.rows.get(from);
     if (!row) {
-      row = shortestPathsFrom(from, this.closed);
+      row = shortestPathsFrom(from, this.closed, this.edgeTime);
       this.rows.set(from, row);
     }
     const seconds = row.seconds[to];
@@ -223,7 +230,8 @@ export function buildWorld(snap: Snapshot, now: number) {
     if (located) requests.set(entry.request._id, located);
   }
   const shelterNodes = snap.shelters.map((shelter) => ({ shelter, node: nearestNode(shelter) }));
-  const context: Context = { snap, now, travel: new TravelTable(closed), requests, shelterNodes };
+  const travel = new TravelTable(closed, trafficEdgeTime(snap.traffic, now));
+  const context: Context = { snap, now, travel, requests, shelterNodes };
   const vehicles = snap.vehicles.filter((vehicle) => vehicle.shiftEndsAt > now);
   const vehiclePlans = vehicles.map((vehicle) => planVehicle(context, vehicle));
   const revoke = vehiclePlans.flatMap((plan) => plan.revoke);

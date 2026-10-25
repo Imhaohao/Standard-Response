@@ -33,3 +33,7 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 
 - The crowd model's car following is reworked (drivers react to the car ahead, keep their lane, queue in it; a lane now discharges at about 1,800 cars an hour where it used to manage 3,940). `data/flow-results.json` is regenerated (same 4 seeds, 30% sample) and the results table in `docs/mesh.md` is updated. If you lifted any figures, take them again: households out of the zone is now 2,945 (was 3,010), and the agency now hears of a blocked street about 2 minutes sooner with the mesh in every seed (it was a wash before). The file's shape is unchanged.
 - `/flow`'s "Traffic moving under 1 m/s" and the street speeds now use each car's speed along its route rather than |v|, so jams read as slower than before. No component change needed.
+
+## 2026-10-24 18:52
+
+- The dispatcher's drive times now include the Langevin traffic forecast (see `notes/MtoC.md`), so with `npm run forecast:traffic` running, ETAs on the rescue map and driver page are longer where evacuation traffic is, and simulated vans visibly drive slower on jammed streets. No component change needed. If you show the ETA somewhere a judge will ask "how did you set that?", the answer is: shortest road path, each street slowed by the forecast for that direction of it in the window the van reaches it.

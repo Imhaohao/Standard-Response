@@ -1,6 +1,7 @@
 import { internalQuery, QueryCtx } from "./_generated/server";
 import { simTime } from "../lib/sim-clock";
 import { Doc } from "./_generated/dataModel";
+import { trafficForDispatch } from "./traffic";
 
 // Everything one re-plan reads, in one consistent read.
 
@@ -39,8 +40,9 @@ async function onboardRiders(ctx: QueryCtx) {
 
 export async function readSnapshot(ctx: QueryCtx) {
   const control = await ctx.db.query("control").first();
+  const now = simTime(control?.clock, Date.now());
   return {
-    now: simTime(control?.clock, Date.now()),
+    now,
     requests: await openRequests(ctx),
     live: await assignmentsWith(ctx, ["proposed", "offered", "accepted"]),
     // A driver who declined, cancelled or let the offer expire isn't offered the same rider again.
@@ -51,6 +53,8 @@ export async function readSnapshot(ctx: QueryCtx) {
     closures: await ctx.db.query("roadClosures").take(1000),
     routes: await ctx.db.query("vehicleRoutes").take(200),
     autoApprove: control?.autoApprove ?? false,
+    // Forecast evacuation traffic for drive times, or null for free flow.
+    traffic: await trafficForDispatch(ctx, now),
   };
 }
 

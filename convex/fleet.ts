@@ -7,7 +7,8 @@ import { completeAssignment } from "./offers";
 import { maybeReplan } from "./dispatch";
 import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
-import { closedEdgeSet, edgePath, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
+import { closedEdgeSet, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
+import { trafficEdgeTime, trafficForDispatch } from "./traffic";
 import { nextStop, positionAt, RunState, SIMULATED_TIME_LAPSE } from "./vehicleRun";
 import { simNow } from "./clock";
 
@@ -31,6 +32,9 @@ type Fleet = {
   closed: ReadonlySet<number>;
   closuresSeen: number;
   shelters: Doc<"shelters">[];
+  // Drive times in the forecast traffic, the same the re-planner prices ETAs with. Read only on a
+  // tick where some vehicle needs a new path.
+  edgeTime: () => Promise<EdgeTime>;
 };
 
 type Rider = Doc<"vehicleLoads">["riders"][number];
@@ -88,15 +92,15 @@ function curbSeconds(a: Point, b: Point) {
 }
 
 // Road path from the van to the destination, avoiding closed roads. Null when no road gets there.
-function roadPath(fromRow: Point, toRow: Point, closed: ReadonlySet<number>) {
+function roadPath(fromRow: Point, toRow: Point, closed: ReadonlySet<number>, edgeTime: EdgeTime) {
   const from = { lat: fromRow.lat, lng: fromRow.lng };
   const to = { lat: toRow.lat, lng: toRow.lng };
   const start = nearestNode(from);
   const end = nearestNode(to);
-  const paths = shortestPathsFrom(start, closed);
+  const paths = shortestPathsFrom(start, closed, edgeTime);
   const edges = edgePath(paths, end);
   if (!edges) return null;
-  const { points, legSeconds } = legsFor(edges);
+  const { points, legSeconds } = legsFor(edges, edgeTime);
   const roadPoints = points.length > 0 ? points : [from];
   return {
     path: [from, ...roadPoints, to],
@@ -104,9 +108,9 @@ function roadPath(fromRow: Point, toRow: Point, closed: ReadonlySet<number>) {
   };
 }
 
-function nearestShelter(fleet: Fleet, from: Point) {
+function nearestShelter(fleet: Fleet, from: Point, edgeTime: EdgeTime) {
   const start = nearestNode(from);
-  const paths = shortestPathsFrom(start, fleet.closed);
+  const paths = shortestPathsFrom(start, fleet.closed, edgeTime);
   let best: Doc<"shelters"> | null = null;
   for (const shelter of fleet.shelters) {
     const seconds = paths.seconds[nearestNode(shelter)];
@@ -115,16 +119,18 @@ function nearestShelter(fleet: Fleet, from: Point) {
   return best;
 }
 
-function resolveWish(fleet: Fleet, vehicle: Doc<"vehicles">, wish: Wish): Target | null {
+function resolveWish(fleet: Fleet, vehicle: Doc<"vehicles">, wish: Wish, edgeTime: EdgeTime): Target | null {
   if (wish.kind === "pickup") return wish;
   if (wish.shelterId) return { kind: "shelter", shelterId: wish.shelterId };
-  const shelter = nearestShelter(fleet, vehicle);
+  const shelter = nearestShelter(fleet, vehicle, edgeTime);
   return shelter ? { kind: "shelter", shelterId: shelter._id } : null;
 }
 
-async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, target: Target, existing: Doc<"vehicleRoutes"> | null) {
+type NewPath = { target: Target; edgeTime: EdgeTime };
+
+async function freshRoute(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicles">, { target, edgeTime }: NewPath, existing: Doc<"vehicleRoutes"> | null) {
   const destination = await destinationOf(ctx, target);
-  const route = destination && roadPath(vehicle, destination, fleet.closed);
+  const route = destination && roadPath(vehicle, destination, fleet.closed, edgeTime);
   const fields = {
     target,
     path: route?.path ?? [{ lat: vehicle.lat, lng: vehicle.lng }],
@@ -222,21 +228,24 @@ async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicle
   }
   let route = existing;
   if (needsNewPath(existing, wish, fleet)) {
-    const target = resolveWish(fleet, vehicle, wish);
+    const edgeTime = await fleet.edgeTime();
+    const target = resolveWish(fleet, vehicle, wish, edgeTime);
     if (!target) return;
-    route = await freshRoute(ctx, fleet, vehicle, target, existing);
+    route = await freshRoute(ctx, fleet, vehicle, { target, edgeTime }, existing);
   }
   if (route) await drive(ctx, { fleet, vehicle, route, load });
 }
 
 export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {
   const closures = await ctx.db.query("roadClosures").take(1000);
+  let edgeTime: Promise<EdgeTime> | undefined;
   const fleet: Fleet = {
     now,
     tickSeconds: tickMs / 1000,
     closed: closedEdgeSet(closures.filter((closure) => closure.confirmed)),
     closuresSeen: closures.filter((closure) => closure.edgeKeys !== undefined).length,
     shelters: await ctx.db.query("shelters").take(50),
+    edgeTime: () => (edgeTime ??= trafficForDispatch(ctx, now).then((traffic) => trafficEdgeTime(traffic, now))),
   };
   for (const vehicle of await ctx.db.query("vehicles").take(200)) await moveVehicle(ctx, fleet, vehicle);
 }

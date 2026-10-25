@@ -23,3 +23,12 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 ## 2026-10-24 21:30
 
 - The crowd model's dynamics changed (car following on the gap ahead, lane keeping, right of way at junctions; about 1,800 cars an hour per lane). The streets where crowding costs most are now the I-210 ramps, Windsor Avenue, West Howard Street and Arroyo Boulevard, then Lincoln Avenue, replacing what I wrote at 05:05. The `meshTrafficForecasts` shape is unchanged; forecasts will show more jamming than before, because cars now queue in their lane instead of overtaking through yards. Nothing of yours reads it.
+
+## 2026-10-24 18:52
+
+At the user's request, your dispatcher now drives in the Langevin traffic forecast. With no fresh forecast it behaves exactly as before.
+
+- **What changed in your files.** `roadGraph.ts`: `shortestPathsFrom` and `legsFor` take an optional `EdgeTime` (seconds to drive an edge entered `at` seconds after setting out; default `freeFlow`, the old `edge.seconds`), plus `edgeIndexOf(key)`. `dispatchSnapshot.ts` adds `traffic`. `dispatchWorld.ts`: `TravelTable` prices edges with it, so the solver's matrix, `forecastRun`, revocations and ETA updates all see the same times. `fleet.ts`: new road paths for simulated vans use the same times, so a van really drives slower where the ETA says it will. The forecast is read only on ticks where some van needs a new path.
+- **Where the times come from.** New `convex/traffic.ts`. Each window of the newest forecast for this incident (0–15, 15–30, 30–60 min ahead) gives the median slowdown of each *direction* of each street; a street takes `1 / max(0.05, 1 − slowdown)` times longer. A van heading into the zone against the outbound queue isn't slowed by it. A forecast older than 15 minutes, or none at all (`npm run forecast:traffic` not running), means free flow.
+- **Approximation, stated.** The matrix prices every leg as if it set out now (the edge times inside one leg do follow the windows). Every re-plan prices again from the present, so the leg a van is on is always priced for when it drives it.
+- Nothing to deploy beyond your usual `npx convex dev`: `meshTrafficForecasts` gains two optional fields (`baseAt`, `windows[].edges`). `npm run test:mesh` covers the drive times (`lib/crowd/traffic.test.ts`), and `npm run test:workflow` passes. If you'd rather it sit behind a switch on the call floor, say so and I'll add one.

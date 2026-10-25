@@ -1,6 +1,6 @@
 # Mesh add-on: phones that share, learn and move together
 
-Three features built beside the core Rider Check flow. Nothing in the core flow reads or writes any of them: they have their own tables (`meshReports`, `meshModels`, `meshRound`), their own Convex module (`convex/mesh.ts`) and their own pages.
+Three features built beside the core Rider Check flow. They have their own tables (`meshReports`, `meshModels`, `meshRound`, `meshTrafficForecasts`), their own Convex module (`convex/mesh.ts`) and their own pages. The core flow reads one thing from them: the traffic forecast, which sets the dispatcher's drive times and so the ETAs riders hear (see "In the dispatcher's drive times" below).
 
 1. **Road reports shared phone to phone.** A resident marks a street blocked or open. The report spreads to nearby phones with no internet and no server, and reaches the agency when any phone carrying it gets a connection.
 2. **Federated learning over that mesh.** Phones train a street-blockage model on what they saw. Updates are noised on the phone, mixed with other phones' updates as phones meet, and uploaded only as mixes of at least five phones. The agency gets a model, never anyone's observations or identity.
@@ -110,10 +110,16 @@ The model also records flow by street: cars through each segment, their sampled 
 
 - **An ensemble follows the incident.** Six simulations of all 11,855 synthetic households (one worker thread each, seeds differ) run on the wall clock from the warning (`control.warningIssuedAt`), so each holds a plausible present: who has left, where the cars are.
 - **Every 5 minutes, each is forked and run an hour ahead** (`CrowdSim.fork`): same state, fresh noise. The forecast is the spread across the six: cars on the road every 5 minutes, and for 0–15, 15–30 and 30–60 minutes ahead each street's slowdown (1 − mean speed / free-flow speed), cars through, and car-minutes lost to crowding. Every figure is a median with the 5th to 95th percentile over the runs.
+- **By direction.** Each window also gives the slowdown of each direction of each street (the road graph's directed edges), with members that had too few cars on it to measure counted as free flow. Evacuees drive out, so the lanes heading in are mostly clear, and the dispatcher reads this list rather than the per-street figures.
 - **What it knows.** Confirmed road closures and streets the phone mesh reports blocked, held fixed for the hour; the scenario fire keeps advancing as a wall. Blockages nobody has reported yet are not in it.
 - **On the map**, streets forecast to slow are a wide soft ink band, darker meaning slower and wider meaning more driving time lost. Red stays fire and people.
 - **Cost.** At minute 30, six runs take about 100 s on one thread (measured: 14 s to reach minute 30, 84 s to run each an hour ahead); the runner puts each on its own thread, so a forecast takes about 15 s. With the earlier dynamics, a runner started 517 minutes after the warning caught up and forecast in 85 s on a 10-core laptop. Keep at least five runs: with fewer, the range is just the spread of two or three samples.
-- **Limits.** It forecasts the simulated town, not measured traffic: there is no live traffic feed, and the population is synthetic. It is advisory; Track C's dispatcher does not read it.
+- **Clock.** Minute 0 is the warning on the night's clock, so a paused or sped-up night is followed; each forecast records where on that clock it starts (`baseAt`).
+- **Limits.** It forecasts the simulated town, not measured traffic: there is no live traffic feed, and the population is synthetic.
+
+### In the dispatcher's drive times
+
+`convex/traffic.ts` turns the newest forecast into the time a vehicle takes to drive each street: `1 / max(0.05, 1 − slowdown)` times its free-flow time, using the ensemble median for that direction in the window the drive reaches it, and the last window past the hour. A drive that crosses from one window into the next covers the rest of the street at the next window's speed, so leaving later never arrives sooner and Dijkstra stays exact. Track C's re-planner (the solver's matrix, the accepted-run forecast, revocations, ETA updates) and the simulated vans' road paths all use these times, so the ETA in a rider's callback is the drive through the traffic the model expects, and the van on the map drives it. Vans get no right of way. With no forecast for this incident, or one older than 15 minutes, every street is at free flow, as before. One approximation: the solver's matrix prices each leg as if it set out now; every re-plan prices again from the present. `lib/crowd/traffic.test.ts` tests it.
 
 ## Results (simulation, not a prediction)
 

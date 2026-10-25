@@ -2,7 +2,8 @@ import graphFile from "../data/roads/altadena.json";
 import { metersBetween, Point } from "./model";
 
 // The west Altadena drive network from OpenStreetMap (dispatch/build_graph.py writes the file).
-// Free-flow travel times; closures remove edges. Dijkstra on ~1,850 nodes takes about a millisecond.
+// Free-flow travel times unless an EdgeTime says otherwise (convex/traffic.ts slows them by the
+// forecast evacuation traffic); closures remove edges. Dijkstra on ~1,850 nodes takes about a millisecond.
 
 type EdgeRecord = {
   u: number;
@@ -31,6 +32,14 @@ for (const [index, edge] of EDGES.entries()) {
   const pair = `${edge.u}-${edge.v}`;
   edgesBetween.set(pair, [...(edgesBetween.get(pair) ?? []), index]);
 }
+
+export function edgeIndexOf(key: string) {
+  return edgeByKey.get(key);
+}
+
+// Seconds to drive an edge entered `at` seconds after setting out.
+export type EdgeTime = (edgeIndex: number, at: number) => number;
+export const freeFlow: EdgeTime = (edgeIndex) => EDGES[edgeIndex].seconds;
 
 export function nodePoint(node: number): Point {
   const [lat, lng] = graph.nodes[node];
@@ -95,7 +104,10 @@ class MinHeap {
 
 export type ShortestPaths = { seconds: Float64Array; viaEdge: Int32Array };
 
-export function shortestPathsFrom(source: number, closed: ReadonlySet<number>): ShortestPaths {
+// Seconds from setting out at `source`. With a time-dependent EdgeTime each edge is priced at the
+// time the drive reaches it; that is still exact Dijkstra as long as leaving later never arrives
+// sooner, which convex/traffic.ts guarantees.
+export function shortestPathsFrom(source: number, closed: ReadonlySet<number>, edgeTime: EdgeTime = freeFlow): ShortestPaths {
   const seconds = new Float64Array(NODE_COUNT).fill(Infinity);
   const viaEdge = new Int32Array(NODE_COUNT).fill(-1);
   seconds[source] = 0;
@@ -107,7 +119,7 @@ export function shortestPathsFrom(source: number, closed: ReadonlySet<number>): 
     for (const edgeIndex of outgoing[node]) {
       if (closed.has(edgeIndex)) continue;
       const edge = EDGES[edgeIndex];
-      const arrival = time + edge.seconds;
+      const arrival = time + edgeTime(edgeIndex, time);
       if (arrival >= seconds[edge.v]) continue;
       seconds[edge.v] = arrival;
       viaEdge[edge.v] = edgeIndex;
@@ -127,10 +139,13 @@ export function edgePath(paths: ShortestPaths, target: number): number[] | null 
 }
 
 // Points along each edge with the seconds it takes to drive each piece, for moving a vehicle.
-export function legsFor(edges: number[]) {
+export function legsFor(edges: number[], edgeTime: EdgeTime = freeFlow) {
   const points: Point[] = [];
   const legSeconds: number[] = [];
+  let clock = 0;
   for (const edgeIndex of edges) {
+    const seconds = edgeTime(edgeIndex, clock);
+    clock += seconds;
     const edge = EDGES[edgeIndex];
     const shape = edge.geometry?.map(([lat, lng]) => ({ lat, lng })) ?? [nodePoint(edge.u), nodePoint(edge.v)];
     if (points.length === 0) points.push(shape[0]);
@@ -138,7 +153,7 @@ export function legsFor(edges: number[]) {
     const total = pieces.reduce((sum, m) => sum + m, 0) || 1;
     for (const [i, meters] of pieces.entries()) {
       points.push(shape[i + 1]);
-      legSeconds.push((edge.seconds * meters) / total);
+      legSeconds.push((seconds * meters) / total);
     }
   }
   return { points, legSeconds };

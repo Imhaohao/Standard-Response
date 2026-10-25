@@ -5,12 +5,13 @@ import { DEFAULT_TRAINING, GlobalModel, INITIAL_MODEL, isValidMix, Mix, UPLOAD_M
 import { coarsenTime, consensusOf, isValidReport, REPORT_TTL_MS, RoadReport } from "../lib/mesh/reports";
 import { addToRound, closeRound, emptyRound, freshOptimizerState, OpenRound, roundIsReady } from "../lib/mesh/rounds";
 import { trafficForecastFields } from "./schema";
+import { currentTrafficForecast } from "./traffic";
 
 // Mesh add-on: what phones upload when one of them has internet, and what the agency reads back.
 // Uploads carry no phone or person id. Road reports are kept as sent (with their random report id,
 // so the same report relayed by two gateways counts once). Model updates arrive only as mixes of at
 // least UPLOAD_MIN_MASS phones' worth of noised updates; this file refuses anything smaller.
-// Nothing in the core flow reads these tables.
+// The core flow reads only the traffic forecast: the dispatcher's drive times (convex/traffic.ts).
 
 const MAX_REPORTS_PER_UPLOAD = 400;
 const MAX_MIXES_PER_UPLOAD = 8;
@@ -196,12 +197,7 @@ export const publishTrafficForecast = mutation({
 // The agency view: the newest forecast for the current incident, or null.
 export const trafficForecast = query({
   args: {},
-  handler: async (ctx) => {
-    const control = await ctx.db.query("control").first();
-    const latest = await ctx.db.query("meshTrafficForecasts").withIndex("by_issuedAt").order("desc").first();
-    if (!latest || control?.warningIssuedAt === undefined || latest.warningIssuedAt !== control.warningIssuedAt) return null;
-    return latest;
-  },
+  handler: async (ctx) => await currentTrafficForecast(ctx),
 });
 
 // Clears every mesh table, from the command line only: `npx convex run mesh:clear`.
