@@ -2,7 +2,7 @@
 
 Standard Response gets people who can't evacuate on their own into a vehicle that can actually carry them. When an evacuation warning goes out, our voice agent calls every home in the zone to find out who can't leave and what help they need. Each answer becomes a ride request on a live map. A routing optimizer matches every request to a van with the right space and crew. Nobody is told help is coming until a driver has accepted the pickup on their own phone.
 
-Wildfire is our first hazard. The demo runs on a real map of Altadena, California.
+It works for any disaster that forces people out of their homes, including wildfires, floods, earthquakes, landslides and hurricanes. Each hazard changes what the agent tells people to do and how fast the deadline moves. The calls, the ride requests and the dispatch work the same way for all of them. Our demo replays a wildfire on a real map of Altadena, California.
 
 ## Why we built it
 
@@ -36,7 +36,7 @@ A UN survey of about 6,000 people with disabilities found that only 1 in 5 could
 
 | Screen | Path | Who it's for |
 | --- | --- | --- |
-| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup, van and the fire front on one map |
+| Rescue map | `/map` | Dispatchers. Every home, ride request, neighbor pickup and van on one map, with the hazard spreading across it |
 | Call floor | `/` | Dispatchers. Every live call, what the agent heard, and the queue |
 | Driver page | `/driver` | Drivers. Ride offers to accept, and the run once accepted |
 | Simulated phone | `/phone` | Demos. A resident's side of the call and texts, without dialing a real number |
@@ -52,7 +52,7 @@ On October 24 we visited two Palo Alto fire stations, University Park (Station 1
 | "Oh, you said wheelchair, I thought wheelchair. And then you get there, and it's a battery-operated wheelchair, and they're 400 pounds." | When someone says "wheelchair" without saying which kind, the agent now asks whether it has a motor. It asks on the night and on the Ready check call. 911 never asks a neighbor to pick up someone in a power chair in their own car. The sign-up form and the house card now say "Manual chair" instead of just "Wheelchair". |
 | A neighbor who offers to help needs to know "what they're getting into right away." | Before asking a helper whether they can come, the agent tells them what the pickup takes: "They use a walker. They need one person to help them to the car." |
 | On the call they'd just come back from, nobody at the home spoke English. The crew had to track down a relative to translate. | The house card, which a crew reads before going in, now shows the language the household speaks. |
-| Asking neighbors on the night risks "sending more people into a danger zone," or a helper "going backwards into a one-way street." | 911 now asks only neighbors whose home the fire reaches no later than the resident's. Driving over to help them means driving away from the fire. |
+| Asking neighbors on the night risks "sending more people into a danger zone," or a helper "going backwards into a one-way street." | 911 now asks only neighbors whose home the hazard reaches no later than the resident's. Driving over to help them means driving away from the danger. |
 
 They also confirmed a choice we'd already made. Station 1 said the most useful thing would be "pre-gathered information about what's going on at an individual residence," down to which rooms people sleep in. The Ready check collects exactly that.
 
