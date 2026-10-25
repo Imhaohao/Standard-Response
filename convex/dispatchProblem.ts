@@ -24,6 +24,9 @@ export type ProblemRequest = {
   allowedVehicles: number[];
   openOfferVehicle: number | null;
   maxRideSeconds: number | null;
+  // Their driver can no longer reach them, and they were told they're still at the top of the list:
+  // the heuristic places them first, and the solvers price dropping them higher.
+  reassigned?: boolean;
 };
 
 export type Problem = {

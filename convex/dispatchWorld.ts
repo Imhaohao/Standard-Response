@@ -208,7 +208,9 @@ class Locations {
   }
 }
 
-function problemRequest(context: Context, entry: Located, locations: Locations, allowed: number[], openVehicle: number | null): ProblemRequest {
+type Placement = { allowed: number[]; openVehicle: number | null; reassigned: boolean };
+
+function problemRequest(context: Context, entry: Located, locations: Locations, { allowed, openVehicle, reassigned }: Placement): ProblemRequest {
   const { request } = entry;
   return {
     id: request._id,
@@ -220,6 +222,7 @@ function problemRequest(context: Context, entry: Located, locations: Locations, 
     allowedVehicles: allowed,
     openOfferVehicle: openVehicle,
     maxRideSeconds: entry.oxygen ? OXYGEN_MAX_RIDE_SECONDS : null,
+    reassigned,
   };
 }
 
@@ -270,7 +273,8 @@ export function buildWorld(snap: Snapshot, now: number) {
     );
     const open = offers.get(entry.request._id);
     const openVehicle = open && !open.stale ? vehicles.findIndex((vehicle) => vehicle._id === open.assignment.vehicleId) : -1;
-    return problemRequest(context, entry, locations, allowed, openVehicle >= 0 ? openVehicle : null);
+    const reassigned = entry.request.status === "reassigning" || revokingRequests.has(entry.request._id);
+    return problemRequest(context, entry, locations, { allowed, openVehicle: openVehicle >= 0 ? openVehicle : null, reassigned });
   });
   const shelters = shelterNodes.map(({ shelter, node }) => ({
     id: shelter._id,

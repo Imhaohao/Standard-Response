@@ -9,7 +9,8 @@ Input is the problem the Convex dispatcher builds (convex/dispatchProblem.ts has
                     "seats", "wheelchairSpaces", "stretcherSpaces"}],
       "requests": [{"id", "location", "load": {"seats", "wheelchairSpaces", "stretcherSpaces"},
                     "boardingSeconds", "deadline", "weight", "allowedVehicles": [vehicle index],
-                    "openOfferVehicle": vehicle index | null, "maxRideSeconds": seconds | null}],
+                    "openOfferVehicle": vehicle index | null, "maxRideSeconds": seconds | null,
+                    "reassigned": bool (optional; their driver can no longer reach them)}],
       "shelters": [{"id", "location", "capacity"}],  # capacity = people the shelter can still take
       "timeLimitSeconds": 3
     }
@@ -39,6 +40,10 @@ DEATH_COST = 10_000_000
 # vehicle when the two tie, and the late pickup is escalated to a human either way.
 UNSERVED_SURCHARGE = 2 * 3600
 CHANGED_OFFER_COST = 600  # nu: moving an open offer must save 10 vehicle-minutes
+# A rider whose driver can no longer reach them was told they're still at the top of the list.
+# Dropping them costs this much more, so among plans with the same expected deaths the solver keeps
+# that promise; it never trades a life for it.
+REASSIGNED_DROP_COST = 2 * 3600
 UNLOAD_SECONDS = 120
 NO_ROUTE = 10**7
 CAPACITY_FIELDS = ("seats", "wheelchairSpaces", "stretcherSpaces")
@@ -58,7 +63,8 @@ def worst_case_cost(request: dict) -> float:
 
 
 def drop_penalty(request: dict) -> int:
-    return int(worst_case_cost(request)) + UNSERVED_SURCHARGE
+    reassigned = REASSIGNED_DROP_COST if request.get("reassigned") else 0
+    return int(worst_case_cost(request)) + UNSERVED_SURCHARGE + reassigned
 
 
 def lateness_cost_per_second(request: dict) -> int:

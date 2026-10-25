@@ -155,3 +155,20 @@ def test_solver_reaches_the_rider_more_likely_to_die_first():
     far = request("oxygen_lift", 3, [0], deadline=650, weight=4)
     result = solver.solve(problem([vehicle("a", 0)], [near, far]))
     assert pickups(result)["a"][0] == "oxygen_lift"
+
+
+def test_a_rider_being_reassigned_goes_first_in_the_heuristic():
+    # Told they're still at the top of the list: the van goes to them before a rider waiting longer.
+    waiting = request("waiting", 2, [0], deadline=1500)
+    reassigned = request("reassigned", 3, [0], deadline=2500, reassigned=True)
+    result = heuristic.solve(problem([vehicle("a", 0)], [waiting, reassigned]))
+    assert pickups(result)["a"][0] == "reassigned"
+
+
+def test_when_only_one_rider_can_be_carried_the_reassigned_one_is_kept():
+    import alns
+
+    p = problem([vehicle("a", 0)], [request("waiting", 2, [0]), request("reassigned", 3, [0], reassigned=True)])
+    p["shelters"] = [{"id": "s", "location": 4, "capacity": 1}]
+    for result in [solver.solve(p), alns.solve(p), heuristic.solve(p)]:
+        assert result["dropped"] == ["waiting"]

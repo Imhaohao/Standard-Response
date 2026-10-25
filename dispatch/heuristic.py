@@ -7,7 +7,9 @@ whole party at the nearest shelter with room, and joins the open trip only when 
 shelter still has room, and everyone's ride time stays legal; otherwise the vehicle drops off first.
 The rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle can reach
 before their deadline wait until everyone reachable in time is placed, like a dispatcher's triage.
-A rider with no road to a shelter that has room can't be served and is dropped.
+A rider with no road to a shelter that has room can't be served and is dropped. A rider whose
+driver can no longer reach them was told they're still at the top of the list, so riders being
+reassigned go first, earliest deadline first among them.
 """
 
 from __future__ import annotations
@@ -154,7 +156,8 @@ def solve(problem: dict) -> dict:
     shelters = Shelters(problem)
     states = [VehicleState(v) for v in problem["vehicles"]]
     dropped, late = [], []
-    _place(problem, shelters, states, sorted(problem["requests"], key=lambda r: r["deadline"]), dropped, late)
+    order = sorted(problem["requests"], key=lambda r: (not r.get("reassigned", False), r["deadline"]))
+    _place(problem, shelters, states, order, dropped, late)
     _place(problem, shelters, states, late, dropped)
     for state in states:
         _drop_off(shelters, state)

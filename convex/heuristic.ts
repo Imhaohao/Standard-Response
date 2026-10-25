@@ -10,7 +10,9 @@ import { Load, UNLOAD_SECONDS } from "./vehicleRun";
 // trip's shelter still has room, and everyone's ride time stays legal; otherwise the vehicle drops
 // off first. The rider goes to the compatible vehicle that reaches them soonest. Riders no vehicle
 // can reach before their deadline wait until everyone reachable in time is placed, like a
-// dispatcher's triage. A rider with no road to a shelter that has room can't be served.
+// dispatcher's triage. A rider with no road to a shelter that has room can't be served. A rider
+// whose driver can no longer reach them was told they're still at the top of the list, so riders
+// being reassigned go first, earliest deadline first among them.
 
 const LOAD_FIELDS = ["seats", "wheelchairSpaces", "stretcherSpaces"] as const;
 
@@ -148,7 +150,8 @@ export function solveHeuristic(problem: Problem): Solution {
   }));
   const placing: Placing = { problem, shelters, states, dropped: [] };
   const late: ProblemRequest[] = [];
-  place(placing, [...problem.requests].sort((a, b) => a.deadline - b.deadline), late);
+  const order = (a: ProblemRequest, b: ProblemRequest) => Number(Boolean(b.reassigned)) - Number(Boolean(a.reassigned)) || a.deadline - b.deadline;
+  place(placing, [...problem.requests].sort(order), late);
   place(placing, late);
   for (const state of states) dropOff(shelters, state);
   return {
