@@ -51,3 +51,12 @@ def test_carmen_correction_reaches_the_record():
     assert run.done and run.correction_said
     for name in ("peopleCount", "mobility", "assistanceRequired", "address"):
         assert field_correct(run, name), name
+
+
+def test_spanish_if_is_not_a_yes():
+    from rollcall_d.scripted_agent import interpret
+
+    book = ScriptedAgent().book
+    assert interpret("Sí, es correcto.", book)["answer"] == "yes"
+    assert interpret("Si me promete que vienen, me quedo en la línea.", book)["answer"] is None
+    assert interpret("Si tuviera que salir, no podría.", book)["updates"].get("canLeave") != "yes"

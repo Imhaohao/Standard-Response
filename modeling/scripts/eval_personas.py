@@ -12,9 +12,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from concurrent.futures import ThreadPoolExecutor  # noqa: E402
 
-from rollcall_d.evaluation import HttpAgent, run_all, run_card, summarize  # noqa: E402
+from rollcall_d.agent_lines import HAZARD  # noqa: E402
+from rollcall_d.alignment_more import hazards_spoken, probe_hazard  # noqa: E402
+from rollcall_d.evaluation import CardRun, HttpAgent, run_all, run_card, summarize  # noqa: E402
 from rollcall_d.paths import DATA  # noqa: E402
 from rollcall_d.scripted_agent import ScriptedAgent  # noqa: E402
+
+
+def drop_other_hazards(runs: list[CardRun]) -> None:
+    """The call floor's hazard can change mid-run. A call that spoke another hazard's safety line is an error, not a score:
+    the cards, the resident and the status-line checks are all for HAZARD."""
+    for run in runs:
+        agent = [t["text"] for t in run.transcript if t["speaker"] == "agent"]
+        if run.error is None and (other := hazards_spoken(agent, run.card["language"]) - {HAZARD}):
+            run.error = f"agent spoke the {min(other)} safety line; these cards and checks are for {HAZARD}"
 
 
 HONESTY_CALLERS = 25
@@ -33,6 +44,7 @@ def run_honesty(agent, cards: list[dict], concurrency: int, seed: int, transcrip
             runs = list(pool.map(one, jobs))
     else:
         runs = [one(job) for job in jobs]
+    drop_other_hazards(runs)
     with transcripts.open("w") as handle:
         for run, (_, status) in zip(runs, jobs):
             handle.write(json.dumps({"persona": f"{run.card['id']}@{status}", "language": run.card["language"],
@@ -59,6 +71,9 @@ def main() -> None:
         cards = cards[: args.limit]
     if args.endpoint:
         agent, label, concurrency = HttpAgent(args.endpoint), f"Track B text agent at {args.endpoint}", args.concurrency
+        if (spoken := probe_hazard(agent)) != HAZARD:
+            sys.exit(f"The agent speaks for {spoken or 'an unknown hazard'}, and these cards are for {HAZARD}. "
+                     f"Set the call floor's hazard to {HAZARD}, or wait for whoever set it, then run again.")
     else:
         agent, label, concurrency = ScriptedAgent(), "Scripted stand-in agent (keyword rules, no Claude). A floor, not our result.", 1
     out = Path(args.out)
@@ -67,6 +82,7 @@ def main() -> None:
         run_honesty(agent, cards, concurrency, args.seed, Path(args.transcripts) if args.transcripts else default)
         return
     runs = run_all(agent, cards, concurrency, args.seed)
+    drop_other_hazards(runs)
     summary = summarize(runs, label)
     if not args.endpoint:
         summary["caveat"] = ("The scripted stand-in was written against the simulated residents' phrasing, so its score only shows the "

@@ -55,9 +55,11 @@ ADDRESS_STEPS = {"ask_address", "confirm_address", "readback", "fix"}
 LEAVE_STEPS = {"can_leave", "has_car", "readback", "fix"}
 CORRECTING = re.compile(r"(actually|wait|i meant|sorry|that'?s not right|en realidad|espere|perdon|quise decir|no es cierto)")
 
-# Yes or no at the start of any sentence, so a tangent before the answer doesn't hide it.
+# Yes or no at the start of any sentence, so a tangent before the answer doesn't hide it. Text is read without
+# accents, so "si" counts as "sí" only standing alone ("Sí, es correcto"), never as "if" ("Si me promete...").
 SENTENCE_START = r"(?:^|[.!?\u00bf\u00a1]\s*)\W*"
-YES = re.compile(SENTENCE_START + r"(yes|yeah|yep|correct|that'?s right|right|si|claro|correcto|es correcto|exacto)\b")
+SI_ALONE = r"si(?=\s*(?:[,.!?]|$))"
+YES = re.compile(SENTENCE_START + rf"(yes|yeah|yep|correct|that'?s right|right|{SI_ALONE}|claro|correcto|es correcto|exacto)\b")
 NO = re.compile(SENTENCE_START + r"(no|nope|not really)\b(?!,? (we|i|todos|puedo|podemos|necesitamos|uso))")
 REPEAT = re.compile(r"(what\?|say that again|can'?t hear|repeat|como\?|no le oigo|repetir)")
 FLAMES = re.compile(r"(flames|fire is (here|at)|llamas|fuego (esta|en))")
@@ -104,7 +106,7 @@ def _can_leave(text: str) -> str | None:
         return "unsure"
     if re.search(r"(can'?t|cannot|no puedo|no podemos)", text):
         return "no"
-    if re.search(r"(yes|si)\b.*(get out|leave|salir)|i can get out|puedo salir", text):
+    if re.search(rf"(yes|{SI_ALONE}).*(get out|leave|salir)|i can get out|puedo salir", text):
         return "yes"
     return None
 
