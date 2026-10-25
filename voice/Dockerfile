@@ -5,7 +5,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY convex ./convex
 COPY voice ./voice
-# The night's clock, shared with Convex: pickup times are on it, not the wall clock.
-COPY lib/sim-clock.ts ./lib/sim-clock.ts
+# Shared with the app (the night's clock, names on file). All of it, so a new import can't crash the
+# server on boot the way lib/name-on-file did.
+COPY lib ./lib
 EXPOSE 8080
 CMD ["npx", "tsx", "voice/server.ts"]

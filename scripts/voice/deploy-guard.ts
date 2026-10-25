@@ -1,7 +1,10 @@
 // Runs before `npm run deploy:voice`. A deploy restarts the one voice machine, which drops every call
 // on it, so it stops while any call is live. FORCE_VOICE_DEPLOY=1 deploys anyway (a broken server).
+// It also stops when the image's sources have uncommitted changes: the build copies this folder, and
+// a deploy once shipped another session's half-done edits, which crashed the server on boot.
 //   npx tsx --env-file=.env.local scripts/voice/deploy-guard.ts
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
@@ -38,7 +41,21 @@ async function liveRealCalls() {
   return calls.filter((call) => !call.simulated && now - call._creationTime < STALE_CALL_MS);
 }
 
+// What the Dockerfile copies into the image.
+const IMAGE_SOURCES = ["voice", "convex", "lib", "package.json", "package-lock.json"];
+
+function uncommittedSources() {
+  const status = execFileSync("git", ["status", "--porcelain", "--", ...IMAGE_SOURCES], { cwd: root, encoding: "utf8" });
+  return status.split("\n").filter((line) => line.trim() !== "" && !line.includes("convex/_generated/"));
+}
+
 async function main() {
+  const uncommitted = uncommittedSources();
+  if (uncommitted.length > 0) {
+    for (const line of uncommitted) console.error(`[deploy-guard] uncommitted: ${line.trim()}`);
+    console.error("[deploy-guard] the image would ship these. Commit them, or deploy from a clean worktree of main.");
+    process.exit(1);
+  }
   if (process.env.FORCE_VOICE_DEPLOY === "1") {
     console.log("[deploy-guard] FORCE_VOICE_DEPLOY=1: deploying without checking for live calls");
     return;
