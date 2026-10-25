@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 import numpy as np
 import shapely
 import simpy
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
 from shapely.geometry import shape
 
 from .constants import CALL_TAKERS, MINUTE, REPO, Config
@@ -30,7 +32,7 @@ from .fleetstate import Night
 from .hazard_rules import RULES, ArrivalContext, HazardRule
 from .metrics import boarded_at
 from .optimizer_policy import OptimizerPolicy
-from .population import Household, file_traits, ride_need_for
+from .population import Household, file_traits
 from .rng import generator
 from .roads import TravelTimes, network, use_roads
 from .streams import emergency_stream, outreach_stream
@@ -40,6 +42,47 @@ from .world import World
 CITIES = REPO / "data" / "cities"
 SCENARIOS = REPO / "public" / "scenarios"
 FLEET_SIZES = [10, 25, 50]
+
+
+class LazyTravelTimes(TravelTimes):
+    """Travel times that compute a node's row only when something drives from it. A whole city's households as
+    sources would hold a table of (homes x road nodes) per closure epoch, gigabytes for Buffalo; the dispatcher only
+    ever drives from a few hundred places an epoch. The numbers are the same Dijkstra on the same open streets."""
+
+    def __init__(self, closure_seconds: np.ndarray):
+        self.net = network()
+        self.closure_seconds = closure_seconds
+        self._graphs: dict[int, tuple[int, csr_matrix]] = {}
+        self._rows: dict[int, dict[int, np.ndarray]] = {}
+
+    def _graph(self, epoch: int) -> csr_matrix:
+        if epoch not in self._graphs:
+            mask = self.open_edges(epoch)
+            key = hash(mask.tobytes())
+            reuse = next((graph for k, graph in self._graphs.values() if k == key), None)
+            if reuse is None:
+                keep = self.net.cheapest_parallel_edges(mask)
+                reuse = csr_matrix((self.net.edge_seconds[keep], (self.net.edge_from[keep], self.net.edge_to[keep])), shape=(self.net.size, self.net.size))
+            self._graphs = {e: v for e, v in self._graphs.items() if e >= epoch - 3 or e == 0}
+            self._graphs[epoch] = (key, reuse)
+        return self._graphs[epoch][1]
+
+    def _rows_for(self, nodes, epoch: int) -> dict[int, np.ndarray]:
+        rows = self._rows.setdefault(epoch, {})
+        missing = sorted({int(n) for n in nodes} - rows.keys())
+        if missing:
+            table = np.atleast_2d(dijkstra(self._graph(epoch), directed=True, indices=missing))
+            rows.update(zip(missing, table))
+            self._rows = {e: r for e, r in self._rows.items() if e >= epoch - 3 or e == 0}
+        return rows
+
+    def seconds(self, a: int, b: int, t: float) -> float:
+        return float(self._rows_for([a], self.epoch_of(t))[a][b])
+
+    def matrix(self, nodes: list[int], t: float) -> list[list[float | None]]:
+        rows = self._rows_for(nodes, self.epoch_of(t))
+        block = np.array([rows[n][nodes] for n in nodes])
+        return [[None if not np.isfinite(x) else float(x) for x in line] for line in block]
 
 
 @dataclass(frozen=True)
@@ -135,7 +178,7 @@ def city_household(index: int, record: dict, node: int, inputs: CityInputs, rng)
         index=index, node=node, lat=record["lat"], lng=record["lng"], age=traits["age"],
         answers_phone=float(np.clip(traits["answersPhone"], 0.0, 0.99)), replies_to_text=traits["repliesToText"],
         need_prior=traits["needPrior"], fire_arrival_s=arrival if at_risk else inputs.window_end_s,
-        need=ride_need_for(traits["truth"]), has_car=bool(record["hasCar"]), at_risk=at_risk,
+        need=inputs.rule.ride_need({**traits["truth"], "age": traits["age"]}), has_car=bool(record["hasCar"]), at_risk=at_risk,
         margin_s=float(inputs.margin_s[index]),
     )
 
@@ -144,8 +187,7 @@ def build_city_world(seed: int, fleet_size: int, inputs: CityInputs) -> World:
     net = network()
     rng = generator(seed, "population")
     households = [city_household(i, r, inputs.nodes[i], inputs, rng) for i, r in enumerate(inputs.records)]
-    sources = [h.node for h in households] + [inputs.staging_node, inputs.shelter_node]
-    travel = TravelTimes(sources, 1.0, inputs.closures_s)
+    travel = LazyTravelTimes(inputs.closures_s)
     takers = max(CALL_TAKERS, round(CALL_TAKERS * len(households) / SAMPLED_HOUSEHOLDS))
     config = Config(fleet_size=fleet_size, households=len(households), call_takers=takers)
     return World(seed, config, net, households, scaled_fleet(fleet_size), [inputs.staging_node] * fleet_size, inputs.shelter_node, travel)
@@ -198,6 +240,7 @@ def assumptions(inputs: CityInputs) -> list[dict]:
         ("Households", f"all {len(inputs.records):,} in data/cities/{city['id']}/population.json, none sampled",
          "real ACS household records reweighted to the town's block groups; not real people; see population-meta.json for the census year"),
         ("When the hazard reached a home", f"the first front in public/scenarios/{city['id']}.json that covers it", "the research agents' reconstruction, cited in sources.md"),
+        ("Needs a ride", rule.need_rule, "the hazard decides who is at risk at home"),
         ("On time", rule.on_time, rule.on_time_why),
         ("Road closures", rule.closure_rule, rule.closure_why),
         ("Driving", "free-flow OpenStreetMap times on open streets", "no traffic, which flatters both processes"),

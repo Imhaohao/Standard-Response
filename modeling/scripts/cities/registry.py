@@ -97,12 +97,21 @@ CITIES_TS = REPO / "lib" / "cities.ts"
 DETAIL_PATTERN = r'id: "{id}".*?detail: \{{ south: ([-\d.]+), north: ([-\d.]+), west: ([-\d.]+), east: ([-\d.]+) \}}'
 
 
+PAD_PATTERN = r'id: "{id}".*?pad: \{{ extent: ([-\d.]+),'
+# Cities whose households fill the whole baked extent, not just the detail box the camera keeps to, so the red on
+# the map doesn't stop at a hard rectangle inside the picture.
+POPULATION_ON_EXTENT = {"buffalo"}
+
+
 def detail_from_cities_ts(city_id: str) -> dict | None:
-    match = re.search(DETAIL_PATTERN.format(id=re.escape(city_id)), CITIES_TS.read_text(), re.S)
+    text = CITIES_TS.read_text()
+    match = re.search(DETAIL_PATTERN.format(id=re.escape(city_id)), text, re.S)
     if not match:
         return None
     south, north, west, east = (float(value) for value in match.groups())
-    return {"south": south, "north": north, "west": west, "east": east}
+    pad = re.search(PAD_PATTERN.format(id=re.escape(city_id)), text, re.S) if city_id in POPULATION_ON_EXTENT else None
+    grow = float(pad.group(1)) if pad else 0.0
+    return {"south": round(south - grow, 4), "north": round(north + grow, 4), "west": round(west - grow, 4), "east": round(east + grow, 4)}
 
 
 def city(city_id: str) -> dict:

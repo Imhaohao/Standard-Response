@@ -17,6 +17,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 from .constants import MINUTE
+from .population import RideNeed, ride_need_for
 
 METERS_PER_DEGREE = 111_320.0
 BURNOVER_RADIUS_M = 150.0
@@ -191,6 +192,22 @@ def surge_shelter_by(arrival_s, context: ArrivalContext) -> np.ndarray:
     return np.minimum(arrival_s, SURGE_SHELTER_BY_MINUTE * MINUTE)
 
 
+def evacuation_need(truth: dict) -> RideNeed | None:
+    """Fire, water and tsunami: a household needs a ride when it can't leave on its own (rule from convex/model.ts)."""
+    return ride_need_for(truth)
+
+
+def blizzard_need(truth: dict) -> RideNeed | None:
+    """In a driving ban nobody drives, so having no car doesn't put a home at risk. A home needs moving to a warming
+    center when it can't stay safe through days without heat or power: someone 65+ living alone, someone with a
+    mobility or self-care limitation, or someone on oxygen or dialysis."""
+    alone_65 = truth["peopleCount"] == 1 and truth["age"] >= 65
+    limited = truth["mobility"] != "walks" or truth["assistanceRequired"] != "none"
+    if not (alone_65 or limited or truth["medical"]):
+        return None
+    return ride_need_for({**truth, "canLeave": "no"})
+
+
 def keep_arrival(arrival_s, context: ArrivalContext) -> np.ndarray:
     return arrival_s
 
@@ -207,6 +224,8 @@ class HazardRule:
     after_last_front_s: float = 3600.0
     closures: Callable = front_closures
     adjust_arrival: Callable = keep_arrival
+    ride_need: Callable = evacuation_need
+    need_rule: str = "can't leave on its own: no car, or a mobility or medical need a car can't carry (convex/model.ts)"
     notes: list = field(default_factory=list)
 
     def margins(self, count: int) -> np.ndarray:
@@ -260,5 +279,7 @@ RULES: dict[str, HazardRule] = {
         after_last_front_s=30 * MINUTE,
         closures=street_class_closures,
         adjust_arrival=blizzard_deadline,
+        ride_need=blizzard_need,
+        need_rule="someone 65+ living alone, someone with a mobility or self-care limitation, or someone on oxygen or dialysis; having no car doesn't count in a driving ban",
     ),
 }
