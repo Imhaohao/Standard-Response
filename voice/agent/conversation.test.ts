@@ -810,6 +810,13 @@ describe("a resident who isn't at the home", () => {
     assert.ok(!turn.sentences.includes(EN.awaySafe));
   });
 
+  it("doesn't ask when the same answer says someone is there", () => {
+    const { conversation } = awayCall();
+    const turn = conversation.respond("Just him. He's alone in the house.", heard({ awayFromHome: true, updates: { peopleCount: 1 } }));
+    assert.ok(!turn.sentences.includes(EN.confirmAway));
+    assert.notEqual(conversation.step, "confirm_away");
+  });
+
   it("keeps the call going after two unclear answers to the confirming question", () => {
     const { conversation, markedAway } = awayCall();
     conversation.respond("we just walked outside", heard({ awayFromHome: true }));

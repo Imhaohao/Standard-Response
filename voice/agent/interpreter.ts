@@ -250,6 +250,14 @@ const countFrom = (value: string) => {
   return Number.isFinite(count) && count >= 1 ? count : undefined;
 };
 
+// A place to drive to names a house number or a street. "Mom's house" was recorded as the address,
+// so the agent never asked for a real one and never flagged it for a dispatcher.
+const STREET_OR_NUMBER =
+  /\d|\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|way|lane|ln|court|ct|circle|terrace|trail|parkway|highway|calle|avenida|camino)\b/i;
+
+const addressFrom = (value: string) =>
+  value !== "" && !PLACEHOLDERS.has(value.toLowerCase()) && STREET_OR_NUMBER.test(value) ? value : undefined;
+
 const medicalFrom = (value: string) => value.split(",").map((item) => item.trim()).filter((item) => MEDICAL.has(item));
 
 // Turns one listed change into a typed record value, or undefined when the value isn't allowed.
@@ -260,7 +268,7 @@ function valueFor(field: Field, raw: string): unknown {
   if (BOOLEAN_FIELDS.has(field)) return BOOLEAN_VALUES[value];
   if (field === "peopleCount") return countFrom(value);
   if (field === "medical") return medicalFrom(value);
-  return value === "" || PLACEHOLDERS.has(value.toLowerCase()) ? undefined : value;
+  return addressFrom(value);
 }
 
 // "peopleCount=2" to a field and its typed value, or undefined when either isn't allowed.

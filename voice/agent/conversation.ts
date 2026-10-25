@@ -601,7 +601,8 @@ export class Conversation {
   // unless they confirm nobody is there.
   private awayTurn(heard: Interpretation): AgentTurn | null {
     if (this.step === "confirm_away") return this.confirmsAway(heard) ? this.markAway(heard) : null;
-    const mayBeAway = heard.awayFromHome && !this.record.away && !this.dangerAtHome();
+    // "Just him, he's alone in the house" gives a head count: someone is there.
+    const mayBeAway = heard.awayFromHome && heard.updates.peopleCount === undefined && !this.record.away && !this.dangerAtHome();
     return mayBeAway ? this.askAway(heard) : null;
   }
 
