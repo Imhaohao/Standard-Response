@@ -9,6 +9,7 @@ import { standInDrivers } from "./dispatchStandIn";
 import { transitionRequest } from "./requests";
 import { closedEdgeSet, closureSetKey, edgePath, EdgeTime, legsFor, nearestNode, shortestPathsFrom } from "./roadGraph";
 import { trafficEdgeTime, trafficForDispatch } from "./traffic";
+import { readClosures } from "./roads";
 import { nextStop, positionAt, RunState } from "./vehicleRun";
 import { simNow } from "./clock";
 
@@ -239,7 +240,7 @@ async function moveVehicle(ctx: MutationCtx, fleet: Fleet, vehicle: Doc<"vehicle
 }
 
 export async function moveFleet(ctx: MutationCtx, now: number, tickMs: number) {
-  const closures = await ctx.db.query("roadClosures").take(1000);
+  const closures = await readClosures(ctx);
   let edgeTime: Promise<EdgeTime> | undefined;
   const fleet: Fleet = {
     now,

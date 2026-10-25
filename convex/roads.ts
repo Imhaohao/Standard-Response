@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { MutationCtx, query } from "./_generated/server";
+import { MutationCtx, query, QueryCtx } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 import { mutation } from "./functions";
 import { closureSource, point } from "./schema";
@@ -7,9 +7,18 @@ import { simNow } from "./clock";
 import type { Point } from "./model";
 import { closedEdgesFor, edgeKeysOf, streetNames } from "./roadGraph";
 
+// Room for every street segment on the road graph (1,248, and a fire that crosses the whole town
+// closes them all) plus closures from outside feeds. A cap below that would leave the newest
+// closures, the ones in front of the fire, out of every route.
+const MAX_CLOSURES = 4000;
+
+export async function readClosures(ctx: QueryCtx) {
+  return await ctx.db.query("roadClosures").take(MAX_CLOSURES);
+}
+
 export const closures = query({
   args: {},
-  handler: async (ctx) => await ctx.db.query("roadClosures").take(1000),
+  handler: async (ctx) => await readClosures(ctx),
 });
 
 type ClosureInput = {

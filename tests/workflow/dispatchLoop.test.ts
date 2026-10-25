@@ -285,3 +285,27 @@ describe("a driver who declined late in a long night", () => {
     expect(planned.allowedVehicles).not.toContain(declined);
   });
 });
+
+describe("a closure late in a night the fire has crossed", () => {
+  test("still cuts the route, however many streets closed before it", { timeout: 60_000 }, async () => {
+    const t = setup();
+    const homes = await night(t);
+    await replan(t);
+    const request = await requestOf(t, homes[0]);
+    const [offer] = await liveFor(t, request._id);
+    await t.mutation(api.offers.accept, { assignmentId: offer._id });
+    const corner = new Set(cutOff(HOMES[0]).map((closure) => closure.edgeKey));
+    const north = EDGES.filter((edge) => !corner.has(edge.key) && nodePoint(edge.u).lat > 34.196);
+    const elsewhere = Array.from({ length: 1100 }, (_, i) => north[i % north.length]);
+    await t.run(async (ctx) => {
+      for (const edge of elsewhere) {
+        await ctx.db.insert("roadClosures", { path: [nodePoint(edge.u), nodePoint(edge.v)], edgeKey: edge.key, edgeKeys: [edge.key], source: "hazard", confirmed: true, at: 0 });
+      }
+    });
+    await replan(t);
+    expect((await requestOf(t, homes[0])).status).toBe("driver_accepted");
+    await t.mutation(api.roads.addClosures, { closures: cutOff(HOMES[0]) });
+    await replan(t);
+    expect((await requestOf(t, homes[0])).status).toBe("reassigning");
+  });
+});

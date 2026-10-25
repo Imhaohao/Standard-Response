@@ -2,6 +2,7 @@ import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { metersBetween, Point } from "./model";
 import { closedEdgeSet, edgePath, EDGES, nearestNode, shortestPathsFrom } from "./roadGraph";
+import { readClosures } from "./roads";
 
 // The road miles of a volunteer's pickup: from the volunteer's home (when they live in the area) to
 // the resident, then on to the nearest shelter the roads still reach. Each leg is the fastest
@@ -41,7 +42,7 @@ export async function completedRouteMiles(ctx: MutationCtx, plan: Doc<"pickupPla
   const resident = located(await ctx.db.get("households", plan.householdId));
   if (!resident) return { miles: 0, distanceSource: "straight_line" };
   const helper = plan.helperHouseholdId ? located(await ctx.db.get("households", plan.helperHouseholdId)) : null;
-  const closures = await ctx.db.query("roadClosures").take(1000);
+  const closures = await readClosures(ctx);
   const closed = closedEdgeSet(closures.filter((closure) => closure.confirmed));
   const shelters = await ctx.db.query("shelters").take(50);
   const legs = [helper ? legBetween(helper, resident, closed) : null, legToNearestShelter(resident, shelters, closed)].filter(

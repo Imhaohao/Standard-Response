@@ -8,6 +8,7 @@ import { dialableNow } from "./reachLadder";
 import { DEFAULT_HAZARD, hazard as hazardKind } from "./hazards";
 import { hazardReaches } from "./fireArrival";
 import { escapeRoute } from "./escapeRoute";
+import { readClosures } from "./roads";
 
 // What the real voice server reads. Only real riders (simulated: false) appear here;
 // the stand-in keeps handling the simulated households.
@@ -193,7 +194,7 @@ export const situation = query({
     const point = home.lat !== undefined && home.lng !== undefined ? { lat: home.lat, lng: home.lng } : null;
     const [shelters, closures, waiting, vehicles] = await Promise.all([
       ctx.db.query("shelters").take(50),
-      ctx.db.query("roadClosures").take(1000),
+      readClosures(ctx),
       ctx.db.query("households").withIndex("by_callStatus_and_callPriority", (q) => q.eq("callStatus", "door_check")).take(1000),
       ctx.db.query("vehicles").take(500),
     ]);
