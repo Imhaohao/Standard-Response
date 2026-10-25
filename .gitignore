@@ -56,8 +56,8 @@ scripts/map/.cache/
 /.cache/
 data/eaton/fsri-timeline-eaton.csv
 
-# Brand fonts we have no license to publish (Verlag is Hoefler & Co.'s, Nexa Rust a Fontfabric trial, hotdogs
-# personal-use only). They stay on the presenting laptop, and every page falls back to League Spartan without them.
+# Brand fonts we have no license to publish (Verlag is Hoefler & Co.'s, Nexa Rust a Fontfabric trial).
+# They stay on the presenting laptop, and every page falls back to League Spartan without them.
 /public/brand-fonts/
 # The pitch deck's photos show real people, so they stay on the presenting laptop too.
 /public/present/*.jpg

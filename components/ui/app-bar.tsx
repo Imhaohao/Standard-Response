@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
-import { AREA_NAME, PRODUCT_NAME, WORDMARK } from "@/lib/brand";
+import { AREA_NAME, PRODUCT_NAME } from "@/lib/brand";
 import { AccountChip } from "../account/account-chip";
 import { BrandMark } from "./brand-mark";
 import { formatSinceWarning } from "@/lib/time";
@@ -68,9 +68,7 @@ export function AppBar({ children }: { children?: ReactNode }) {
     <header className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface/95 px-4 py-2 text-ink backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-2.5">
         <BrandMark className="size-5" />
-        <span className="type-heading font-brand" role="img" aria-label={PRODUCT_NAME}>
-          {WORDMARK}
-        </span>
+        <span className="type-heading font-brand">{PRODUCT_NAME}</span>
         <span className="type-small hidden truncate text-ink-muted sm:inline">{AREA_NAME}</span>
       </div>
       <ScreenNav />
