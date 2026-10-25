@@ -136,7 +136,7 @@ async function ensureSolver(root: string, dir: string, state: State) {
     cwd: path.join(root, "dispatch"),
     env: { ...process.env, PORT: String(PORTS.solver), SOLVER_HOST: "127.0.0.1", SOLVER_TOKEN: "" },
   });
-  await waitFor(url, "Solver service", 180_000, child);
+  await waitFor(url, "Solver service", 60_000, child);
   state.pids.solver = child.pid!;
   writeState(dir, state);
 }

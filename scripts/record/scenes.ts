@@ -4,8 +4,9 @@
 
 import path from "node:path";
 import type { Browser, BrowserContext, Page } from "playwright-core";
-import { Aspect, FrameRecorder, memoryLowForFilming, openPage, Take, webglReady } from "./capture";
-import { sleep, Speed, World } from "./world";
+import { Aspect, FrameRecorder, openPage, Take, webglReady } from "./capture";
+import { watchdog } from "./watchdog";
+import { MAX_WAIT_MS, sleep, Speed, World } from "./world";
 
 export type SceneContext = { world: World; browser: Browser; root: string; outDir: string; appUrl: string; homes: number };
 export type Scene = { name: string; about: string; run: (context: SceneContext) => Promise<Take[]> };
@@ -26,7 +27,10 @@ async function waitForPage(page: Page, map: boolean) {
   await page.addStyleTag({ content: CLEAN_CSS });
   if (map) {
     const until = Date.now() + 45_000;
-    while (!(await webglReady(page)) && Date.now() < until) await sleep(500);
+    while (!(await webglReady(page)) && Date.now() < until) {
+      watchdog.assertHealthy();
+      await sleep(500);
+    }
     if (!(await webglReady(page))) console.warn("  (no WebGL canvas: the map fell back to the flat view)");
   }
   // Fonts, the baked map and the first Convex results.
@@ -53,23 +57,12 @@ async function film(context: SceneContext, shot: Shot, action: (page: Page) => P
 async function filmPage(context: SceneContext, page: Page, shot: Shot, action: (page: Page) => Promise<void>): Promise<Take> {
   const recorder = new FrameRecorder(page, framesDir(context, `${shot.name}-${shot.aspect}`), shot.aspect);
   await recorder.start(shot.everyNth ?? 1);
-  const watch = { filming: true };
   // A failed step still keeps what was filmed up to it, and the screencast never outlives the shot.
-  const acted = action(page).catch((error) => console.warn(`  (${shot.name}: ${error instanceof Error ? error.message.split("\n")[0] : error})`));
-  const memoryRanLow = await Promise.race([acted.then(() => false), memoryWatch(watch)]);
-  watch.filming = false;
+  await action(page).catch((error) => console.warn(`  (${shot.name}: ${error instanceof Error ? error.message.split("\n")[0] : error})`));
   const take = await recorder.stop(path.join(context.outDir, `${shot.name}-${shot.aspect}.mp4`), shot.speedUp ?? 1);
-  if (memoryRanLow) throw new Error(`Free memory fell under the filming floor during ${shot.name}; stopped everything`);
+  // If the watchdog killed Chrome, the whole run stops here rather than going on to the next shot.
+  watchdog.assertHealthy();
   return take;
-}
-
-// Resolves true if free memory runs low while the shot is filming.
-async function memoryWatch(watch: { filming: boolean }) {
-  while (watch.filming) {
-    if (await memoryLowForFilming()) return true;
-    await sleep(3000);
-  }
-  return false;
 }
 
 async function seed(context: SceneContext) {
@@ -78,7 +71,7 @@ async function seed(context: SceneContext) {
 }
 
 // Runs the night off camera until `ready` says the scene can start, at `speed`.
-async function fastForward(world: World, speed: Speed, label: string, ready: () => Promise<boolean>, timeoutMs = 240_000) {
+async function fastForward(world: World, speed: Speed, label: string, ready: () => Promise<boolean>, timeoutMs = MAX_WAIT_MS) {
   await world.setSpeed(speed);
   await world.waitUntil(label, ready, timeoutMs, 1000);
 }
@@ -87,13 +80,18 @@ async function fastForward(world: World, speed: Speed, label: string, ready: () 
 async function readyCheckOffCamera(context: SceneContext) {
   const { world } = context;
   await world.startReadyCheck();
-  await fastForward(world, 60, "the Ready check", async () => (await world.readyProfiles()) >= context.homes * 0.6, 180_000);
+  await fastForward(world, 60, "the Ready check", async () => (await world.readyProfiles()) >= context.homes * 0.6);
   await world.stopReadyCheck();
   await world.setSpeed(0);
 }
 
+// A shot holding on the screen, checking the memory watchdog every second.
 async function holdFor(seconds: number) {
-  await sleep(seconds * 1000);
+  const until = Date.now() + seconds * 1000;
+  while (Date.now() < until) {
+    watchdog.assertHealthy();
+    await sleep(Math.min(1000, until - Date.now()));
+  }
 }
 
 // Holds until `done` or `maxSeconds`, whichever comes first, checking every second.
@@ -116,7 +114,7 @@ const census: Scene = {
       await world.startReadyCheck();
       await world.setSpeed(60);
       const target = Math.round(context.homes * 0.7);
-      await holdUntil(world, 100, async () => (await world.readyProfiles()) >= target);
+      await holdUntil(world, 60, async () => (await world.readyProfiles()) >= target);
       await holdFor(3);
     });
     await world.setSpeed(0);
@@ -221,7 +219,7 @@ const driver: Scene = {
     await world.drawWarningZone();
     await world.issueWarning();
     const { maria, hasOffer } = await untilMariaHasAnOffer(world);
-    await fastForward(world, 30, "an offer on Maria's van", hasOffer, 300_000);
+    await fastForward(world, 30, "an offer on Maria's van", hasOffer);
     await world.setSpeed(1);
     const takes: Take[] = [];
     const accept = async (page: Pick<Page, "getByRole">) => {
@@ -238,7 +236,7 @@ const driver: Scene = {
       }),
     );
     await world.setSpeed(30);
-    await world.waitUntil("another offer on Maria's van", hasOffer, 240_000, 1000);
+    await world.waitUntil("another offer on Maria's van", hasOffer, MAX_WAIT_MS, 1000);
     await world.setSpeed(1);
     const { context: browserContext, page } = await openPage(context.browser, "wide");
     try {

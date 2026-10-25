@@ -7,6 +7,7 @@ import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AREA } from "../../convex/model";
 import { censusTown } from "./census";
+import { watchdog } from "./watchdog";
 
 const asPublic = <R extends FunctionReference<"query" | "mutation", "internal">>(ref: R) =>
   makeFunctionReference<R["_type"], R["_args"], R["_returnType"]>(getFunctionName(ref));
@@ -14,6 +15,8 @@ const asPublic = <R extends FunctionReference<"query" | "mutation", "internal">>
 const SEED_BATCH = 100;
 
 export type Speed = 0 | 1 | 10 | 30 | 60;
+
+export const MAX_WAIT_MS = 60_000;
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -44,13 +47,15 @@ export class World {
     return this.client.mutation(ref, args);
   }
 
-  async waitUntil(label: string, check: () => Promise<boolean>, timeoutMs = 120_000, everyMs = 500) {
-    const until = Date.now() + timeoutMs;
+  // Never longer than a minute, and it stops the moment the memory watchdog fires.
+  async waitUntil(label: string, check: () => Promise<boolean>, timeoutMs = MAX_WAIT_MS, everyMs = 500) {
+    const until = Date.now() + Math.min(timeoutMs, MAX_WAIT_MS);
     while (Date.now() < until) {
+      watchdog.assertHealthy();
       if (await check()) return true;
       await sleep(everyMs);
     }
-    console.warn(`  (gave up waiting for ${label} after ${timeoutMs / 1000}s)`);
+    console.warn(`  (gave up waiting for ${label} after ${Math.min(timeoutMs, MAX_WAIT_MS) / 1000}s)`);
     return false;
   }
 
@@ -78,7 +83,7 @@ export class World {
         if (String(error).includes("PENDING_OPERATIONS")) return false;
         throw error;
       }
-    }, 120_000, 1000);
+    }, MAX_WAIT_MS, 1000);
   }
 
   setSpeed(speed: Speed) {

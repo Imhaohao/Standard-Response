@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { buildApp, startStack, stopStack } from "./stack";
 import { World } from "./world";
-import { Clip, encode, launchBrowser, requireFreeMemory, Take } from "./capture";
+import { Clip, closeBrowser, encode, launchBrowser, requireFreeMemory, Take } from "./capture";
 import { Scene, SCENES } from "./scenes";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
@@ -47,7 +47,7 @@ async function film(scene: Scene, homes: number): Promise<Take[]> {
   try {
     return await scene.run({ world, browser, root, outDir, appUrl: stack.appUrl, homes });
   } finally {
-    await browser.close().catch(() => undefined);
+    await closeBrowser(browser);
     await world.setSpeed(0).catch(() => undefined);
     stopStack(root);
   }

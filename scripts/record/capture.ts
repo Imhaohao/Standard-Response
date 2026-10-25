@@ -8,6 +8,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { Browser, BrowserContext, CDPSession, chromium, Page } from "playwright-core";
+import { freeMemoryPercent, MIN_FREE_PERCENT, watchdog } from "./watchdog";
 
 const run = promisify(execFile);
 
@@ -42,25 +43,17 @@ const CHROME_ARGS = [
   "--window-position=0,0",
 ];
 
-// The team shares one 16 GB laptop, and GPU memory comes out of the same RAM. Below this much free
-// memory nothing starts; below the second line a shot in progress ends early.
-const MIN_FREE_TO_START = 25;
-const MIN_FREE_WHILE_FILMING = 15;
-
-export async function freeMemoryPercent() {
-  const { stdout } = await run("memory_pressure", []);
-  const match = stdout.match(/free percentage:\s*(\d+)%/);
-  if (!match) throw new Error("Couldn't read memory_pressure; not recording blind");
-  return Number(match[1]);
-}
-
-export async function requireFreeMemory(minimum = MIN_FREE_TO_START) {
-  const free = await freeMemoryPercent();
-  if (free < minimum) throw new Error(`Only ${free}% of memory is free (need ${minimum}%). Close something and run again.`);
+// Before anything starts: enough free memory, waiting up to a minute for it and no longer.
+export async function requireFreeMemory() {
+  const until = Date.now() + 60_000;
+  let free = await freeMemoryPercent();
+  while (free < MIN_FREE_PERCENT && Date.now() < until) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    free = await freeMemoryPercent();
+  }
+  if (free < MIN_FREE_PERCENT) throw new Error(`Only ${free}% of memory is free (need ${MIN_FREE_PERCENT}%). Close something and run again.`);
   return free;
 }
-
-export const memoryLowForFilming = async () => (await freeMemoryPercent()) < MIN_FREE_WHILE_FILMING;
 
 // A Chrome that fell back to software WebGL draws the map on the CPU and can take the machine down.
 const SOFTWARE_RENDERER = /swiftshader|llvmpipe|softpipe|software|microsoft basic render/i;
@@ -82,15 +75,31 @@ async function gpuRenderer(browser: Browser) {
 }
 
 // Headed Chrome on the Metal GPU, or nothing: the browser is closed and the run stops otherwise.
+// Playwright passes --enable-unsafe-swiftshader by default, which lets WebGL fall back to the CPU;
+// it is left out so a lost GPU means no WebGL rather than a map drawn in gigabytes of RAM. The
+// watchdog runs from here until closeBrowser.
 export async function launchBrowser(): Promise<Browser> {
-  const browser = await chromium.launch({ channel: "chrome", headless: false, args: CHROME_ARGS });
+  watchdog.start();
+  const browser = await chromium
+    .launch({ channel: "chrome", headless: false, args: CHROME_ARGS, ignoreDefaultArgs: ["--enable-unsafe-swiftshader"] })
+    .catch((error) => {
+      watchdog.stop();
+      throw error;
+    });
   const renderer = await gpuRenderer(browser).catch((error) => `unreadable (${error})`);
   if (renderer === "no WebGL" || SOFTWARE_RENDERER.test(renderer) || renderer.startsWith("unreadable")) {
-    await browser.close();
+    await closeBrowser(browser);
     throw new Error(`Chrome isn't drawing on the GPU (WebGL renderer: ${renderer}). Not recording.`);
   }
   console.log(`  Chrome on ${renderer}`);
   return browser;
+}
+
+export async function closeBrowser(browser: Browser) {
+  await Promise.race([browser.close().catch(() => undefined), new Promise((resolve) => setTimeout(resolve, 10_000))]);
+  watchdog.stop();
+  const { treeBytes, lowestFree } = watchdog.peak;
+  console.log(`  Chrome peaked at ${(treeBytes / 1024 ** 3).toFixed(1)} GB; free memory never fell below ${lowestFree}%`);
 }
 
 export async function openPage(browser: Browser, aspect: Aspect): Promise<{ context: BrowserContext; page: Page }> {

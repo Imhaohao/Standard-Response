@@ -31,7 +31,8 @@
     "moss:check": "tsx --env-file=.env.local scripts/moss/answer-check.ts",
     "apify:drill": "tsx --env-file=.env.local scripts/apify/drill.ts",
     "knowledge:index": "tsx --env-file=.env.local voice/knowledge/upload.ts",
-    "record": "tsx scripts/record/run.ts"
+    "record": "tsx scripts/record/run.ts",
+    "test:record": "tsx --test scripts/record/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
