@@ -3,10 +3,9 @@
 import { CheckCircle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { PRODUCT_NAME } from "@/lib/brand";
 import { sceneMove } from "../../motion";
 import { Show } from "../../show";
-import { PUSH, REPLY } from "./aligned-reply";
+import { PUSH_SHOWN, REPLY_SHOWN } from "./aligned-reply";
 
 const FIRST_TICK = 0.9;
 const TICK_GAP = 0.8;
@@ -51,24 +50,20 @@ function Rule({ rule, index, shown }: { rule: string; index: number; shown: bool
 export function ProtocolCheck({ shown }: { shown: boolean }) {
   return (
     <>
-      <Show when={shown} delay={0.1} className="absolute" style={{ left: 128, top: 130, width: 860 }}>
-        <p className="type-deck-note text-on-night-muted">Caller</p>
-        <p className="type-deck-lede mt-2 text-on-night-muted">“{PUSH}”</p>
-        <div className="mt-12 rounded-[40px] bg-night-raised p-10 shadow-[0_30px_80px_oklch(0_0_0/0.45)]">
-          <p className="type-deck-note flex items-center gap-3 text-on-night-muted">
-            <BrandMark className="size-8" />
-            {PRODUCT_NAME}
-          </p>
-          <p className="type-deck-quote mt-4">
-            {REPLY.map((part, index) => (
+      <Show when={shown} delay={0.1} className="absolute" style={{ left: 128, top: 230, width: 900 }}>
+        <p className="type-deck-lede text-on-night-muted">“{PUSH_SHOWN}”</p>
+        <div className="mt-10 rounded-[40px] bg-night-raised p-10 shadow-[0_30px_80px_oklch(0_0_0/0.45)]">
+          <BrandMark className="size-10" />
+          <p className="type-deck-quote mt-5">
+            {REPLY_SHOWN.map((part, index) => (
               <ReplyPart key={part.text} text={part.text} index={index} shown={shown} />
             ))}
           </p>
         </div>
       </Show>
-      <Show when={shown} delay={0.3} className="absolute" style={{ left: 1100, top: 390, width: 700 }}>
+      <Show when={shown} delay={0.3} className="absolute" style={{ left: 1140, top: 480, width: 680 }}>
         <ul className="flex flex-col gap-10">
-          {REPLY.map((part, index) => (
+          {REPLY_SHOWN.map((part, index) => (
             <Rule key={part.rule} rule={part.rule} index={index} shown={shown} />
           ))}
         </ul>

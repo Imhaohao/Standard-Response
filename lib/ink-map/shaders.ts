@@ -150,6 +150,7 @@ uniform mat4 uCameraWorld;
 uniform vec4 uFireRegion;
 uniform float uFireNow;
 uniform float uFireOn;
+uniform float uNextFrontOn;
 uniform float uFireLast;
 uniform float uTime;
 
@@ -556,7 +557,10 @@ vec3 burningNow(vec3 color, float surface, float minutes, float lines) {
   else if (surface == S_WALL) color = mix(color, uRed, share * 0.85 * (1.0 - lines * 0.4));
   else color = mix(color, mix(uEmber, uPaper, 0.35), share * 0.55);
   float width = max(fwidth(minutes), 1e-3);
-  float edge = (1.0 - smoothstep(0.6, 1.8, abs(minutes - uFireNow) / width)) * uFireOn * step(minutes, uFireLast + 1.0);
+  // Where the fire field stops, minutes jump from a real time to "never burns" across one pixel. That
+  // jump is not a front, so a step this steep draws no edge.
+  float realFront = step(width, 60.0);
+  float edge = (1.0 - smoothstep(0.6, 1.8, abs(minutes - uFireNow) / width)) * uFireOn * step(minutes, uFireLast + 1.0) * realFront;
   return mix(color, uRed, edge * 0.95);
 }
 
@@ -644,7 +648,7 @@ void main() {
 
   // Only the next front is worth drawing. Every front out to the last one would stripe the whole
   // town in red and drown out the roofs that mean somebody is waiting.
-  float future = step(uFireNow, minutes) * step(minutes, uFireNow + 31.0) * uFireOn;
+  float future = step(uFireNow, minutes) * step(minutes, uFireNow + 31.0) * uFireOn * uNextFrontOn;
   float fm = minutes / 30.0;
   float iso = 1.0 - smoothstep(0.0, 1.3, abs(fract(fm + 0.5) - 0.5) / max(fwidth(fm), 1e-4));
   float dashPeriod = 9.0 * uPixelRatio * OCTAVE_MIDDLE;

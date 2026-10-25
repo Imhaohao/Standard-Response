@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Household } from "@/lib/crowd/langevin";
 import { createProjection, type Point } from "@/lib/ink-map/data";
-import { contains } from "@/lib/ink-map/fire-field";
+import { arrivalMinutesAt, contains } from "@/lib/ink-map/fire-field";
 import type { StoryMap } from "./use-story-map";
 
 // What the network census finds in the evacuation zone, in the rescue map's colours.
@@ -46,16 +46,42 @@ function nearestTo(homes: Home[], census: Census, [x, y]: Point, meters: number)
   return best;
 }
 
-// The scenario fire's own front at that minute: the ground it has reached by then.
-function zoneRing(story: StoryMap) {
+// The zone is drawn around the homes the fire reaches in time, a little way out from them, so it
+// covers the households we have rather than the fire front's whole reach into the hills.
+const ZONE_MARGIN_METERS = 180;
+
+function hull(points: Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: Point, a: Point, b: Point) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: Point[]) => {
+    const out: Point[] = [];
+    for (const p of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    return out.slice(0, -1);
+  };
+  return [...half(sorted), ...half(sorted.reverse())];
+}
+
+function padded(ring: Point[], meters: number): Point[] {
+  const [cx, cy] = centroid(ring);
+  return ring.map(([x, y]) => {
+    const length = Math.hypot(x - cx, y - cy) || 1;
+    return [x + ((x - cx) / length) * meters, y + ((y - cy) / length) * meters];
+  });
+}
+
+function zoneRing(story: StoryMap, points: Point[]) {
   const reach = story.house.arrives * ZONE_REACH;
-  return story.fire.fronts.find((front) => front.minutes >= reach)?.ring ?? story.fire.fronts.at(-1)?.ring ?? null;
+  const reached = points.filter((point) => (arrivalMinutesAt(story.fire, point) ?? Infinity) <= reach);
+  return reached.length >= 3 ? padded(hull(reached), ZONE_MARGIN_METERS) : null;
 }
 
 function buildTown(story: StoryMap, households: Household[]): Town | null {
   const toLocal = createProjection(story.data.origin).toLocal;
   const points = households.map(toLocal);
-  const zone = zoneRing(story);
+  const zone = zoneRing(story, points);
   if (!zone) return null;
   const homes: Home[] = [];
   for (const [i, household] of households.entries()) {

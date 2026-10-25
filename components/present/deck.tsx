@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PRODUCT_NAME } from "@/lib/brand";
 import type { ScreenPoint } from "@/lib/ink-map/renderer";
 import { NightMap } from "./night-map/night-map";
+import { useTown } from "./night-map/town";
 import { useStoryMap } from "./night-map/use-story-map";
 import { Rehearsal, toggleNotes, useNotesShown } from "./rehearsal";
 import { CallScene } from "./scenes/call-scene";
@@ -30,6 +31,7 @@ export function Deck({ initial }: { initial: Position }) {
   const beat = beatAt(position);
   const notesShown = useNotesShown();
   const story = useStoryMap();
+  const town = useTown(story);
   const [houseAt, setHouseAt] = useState<ScreenPoint | null>(null);
 
   const commands = useMemo(
@@ -55,14 +57,14 @@ export function Deck({ initial }: { initial: Position }) {
         <h1 className="sr-only">{PRODUCT_NAME} pitch</h1>
         <p className="sr-only" aria-live="polite">{`Slide ${position.slide + 1} of ${slides.length}, beat ${position.beat + 1}`}</p>
         <Stage>
-          {story && <NightMap beat={beat} story={story} houseAt={houseAt} setHouseAt={setHouseAt} />}
+          {story && <NightMap beat={beat} story={story} town={town} houseAt={houseAt} setHouseAt={setHouseAt} />}
           <TitleScene beat={beat} />
-          <StoryScene beat={beat} houseAt={houseAt} />
+          <StoryScene beat={beat} />
           <UsScene beat={beat} />
           <StationsScene beat={beat} />
           <DispatchScene beat={beat} />
           <CallsAtOnceScene beat={beat} />
-          <CensusScene beat={beat} />
+          <CensusScene beat={beat} town={town} />
           <CallScene beat={beat} />
           <VoiceScene beat={beat} />
           <RescueScene beat={beat} />

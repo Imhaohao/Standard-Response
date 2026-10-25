@@ -193,6 +193,7 @@ export class InkMapRenderer {
       uFireRegion: { value: new THREE.Vector4(0, 0, 1, 1) },
       uFireNow: { value: 0 },
       uFireOn: { value: 0 },
+      uNextFrontOn: { value: 1 },
       uFireLast: { value: 0 },
       uTime: { value: 0 },
       uPulse: { value: 1 },
@@ -515,6 +516,12 @@ export class InkMapRenderer {
   }
 
   // `burning` false shades the area the hazard reaches without flames or embers (an earthquake).
+  // The dashed line where the fire will be in half an hour. The pitch deck turns it off.
+  setNextFront(shown: boolean) {
+    this.composite.material.uniforms.uNextFrontOn.value = shown ? 1 : 0;
+    this.renderFrame();
+  }
+
   setFire(field: FireField | null, burning = true) {
     const u = this.composite.material.uniforms;
     this.fireTexture?.dispose();

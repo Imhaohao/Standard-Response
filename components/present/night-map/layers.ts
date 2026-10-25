@@ -30,14 +30,15 @@ const NONE: Layers = {
 const CENSUS: Layers = { ...NONE, zone: "shown", homes: "census" };
 const ROSELAND: Layers = { ...CENSUS, zone: "faint", homes: "dim", roseland: "lift" };
 const REQUESTS: Layers = { ...ROSELAND, roseland: "request", requests: true };
-const PLANNING: Layers = { ...REQUESTS, rescuers: true };
+// While the dispatcher plans, the only red dots are the requests in the plan, so every one on screen gets a route.
+const PLANNING: Layers = { ...REQUESTS, homes: "off", rescuers: true };
 
 export const LAYERS: Partial<Record<Beat, Layers>> = {
   zone: { ...NONE, zone: "draw", homes: "ring" },
   census: CENSUS,
   roseland: ROSELAND,
   testCall: ROSELAND,
-  request: REQUESTS,
+  request: { ...REQUESTS, homes: "off" },
   alns: { ...PLANNING, candidates: true },
   routes: { ...PLANNING, routes: "draw" },
   crowd: { ...NONE, zone: "faint", routes: "faint", crowd: "flow" },

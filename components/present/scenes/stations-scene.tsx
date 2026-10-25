@@ -28,6 +28,7 @@ export function StationsScene({ beat }: { beat: Beat }) {
         <blockquote className="type-deck-quote">
           “It would be really helpful if we could get the information about what’s going on at an individual residence ahead of time.”
         </blockquote>
+        <p className="type-deck-lede mt-6 text-on-night-muted">Jesus, firefighter at Palo Alto Fire Station 6</p>
       </Show>
     </>
   );

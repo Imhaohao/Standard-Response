@@ -4,7 +4,7 @@ import { ImageSquare } from "@phosphor-icons/react";
 import { useState } from "react";
 import { PHOTOS, type PhotoName } from "./photos";
 
-// A photo in grey, or, while the file is missing, a hatched slot that says which file to add.
+// A photo, or, while the file is missing, a hatched slot that says which file to add.
 export function Photo({ name, compact = false }: { name: PhotoName; compact?: boolean }) {
   const photo = PHOTOS[name];
   const [missing, setMissing] = useState(false);
@@ -19,7 +19,7 @@ export function Photo({ name, compact = false }: { name: PhotoName; compact?: bo
         if (image?.complete && image.naturalWidth === 0) setMissing(true);
       }}
       onError={() => setMissing(true)}
-      className="size-full object-cover grayscale"
+      className="size-full object-cover"
       style={{ objectPosition: "focus" in photo ? photo.focus : undefined }}
     />
   );

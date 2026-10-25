@@ -6,7 +6,7 @@ import { InkMapCanvas, InkMapHandle } from "@/components/ink-map/ink-map-canvas"
 import { TOWN_FRAME } from "@/components/map/projection";
 import type { InkMapView } from "@/lib/ink-map/camera";
 import type { BuildingState, InkMapRenderer, ScreenPoint } from "@/lib/ink-map/renderer";
-import { cameraMove } from "../motion";
+import { CAMERA_GLIDE_SECONDS, cameraMove } from "../motion";
 import type { Beat } from "../script";
 import { CallWave } from "./call-wave";
 import { HouseMark } from "./house-mark";
@@ -14,7 +14,7 @@ import { MapOverlay, useCloseRoutes } from "./overlay";
 import { useDeckCrowd } from "./crowd";
 import { useRescuePlan } from "./rescue-plan";
 import { HouseState, SHOTS, type Focus, type Shot } from "./shots";
-import { centroid, useTown, type Town } from "./town";
+import { centroid, type Town } from "./town";
 import type { Point } from "@/lib/ink-map/data";
 import { STAGE } from "../stage";
 import type { StoryMap } from "./use-story-map";
@@ -24,7 +24,6 @@ const NIGHT_PAPER = [0.071, 0.057, 0.047] as const;
 const NIGHT_INK = [0.662, 0.641, 0.62] as const;
 const NIGHT_CHARCOAL = [0.025, 0.02, 0.017] as const;
 
-const GLIDE_MS = 2200;
 const FIRE_RUN_SECONDS = 3.2;
 
 const ROOFS: Record<HouseState, BuildingState | null> = {
@@ -40,6 +39,7 @@ function useNightRenderer(handle: InkMapHandle | null, story: StoryMap) {
     if (!renderer) return;
     renderer.setPalette(NIGHT_PAPER, NIGHT_INK, NIGHT_CHARCOAL);
     renderer.setFire(story.fire);
+    renderer.setNextFront(false);
     renderer.start();
     return () => renderer.stop();
   }, [renderer, story.fire]);
@@ -85,7 +85,7 @@ function useCamera(renderer: InkMapRenderer | null, center: Point | null, shot: 
   const [x, y] = center ?? [NaN, NaN];
   useEffect(() => {
     if (!renderer) return;
-    renderer.glideTo(focusFor(renderer, center, shot), zoom, GLIDE_MS);
+    renderer.glideTo(focusFor(renderer, center, shot), zoom, CAMERA_GLIDE_SECONDS * 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the framing fields move the camera
   }, [renderer, x, y, zoom, offsetX]);
 }
@@ -126,14 +126,13 @@ function useHouseOnStage(renderer: InkMapRenderer | null, story: StoryMap, setHo
   }, [renderer, story.house.center, setHouseAt]);
 }
 
-type NightMapProps = { beat: Beat; story: StoryMap; houseAt: ScreenPoint | null; setHouseAt: Dispatch<SetStateAction<ScreenPoint | null>> };
+type NightMapProps = { beat: Beat; story: StoryMap; town: Town | null; houseAt: ScreenPoint | null; setHouseAt: Dispatch<SetStateAction<ScreenPoint | null>> };
 
-export function NightMap({ beat, story, houseAt, setHouseAt }: NightMapProps) {
+export function NightMap({ beat, story, town, houseAt, setHouseAt }: NightMapProps) {
   const shot = SHOTS[beat];
   const [handle, setHandle] = useState<InkMapHandle | null>(null);
   const view = useMemo<InkMapView>(() => ({ kind: "overview", fit: TOWN_FRAME }), []);
   const renderer = useNightRenderer(handle, story);
-  const town = useTown(story);
   const plan = useRescuePlan(story.data, town);
   const crowd = useDeckCrowd(story.data, story.scenario, town);
   const close = useCloseRoutes(story.data, town, story.house.center);

@@ -17,7 +17,7 @@ const SEED = 7;
 export const JAMMED_PACE = 0.45;
 // The night is run ahead to this minute in the background, so cars are already on the road when the
 // crowd beat opens.
-const WARM_MINUTES = 22;
+const WARM_MINUTES = 40;
 const WARM_SLICE_MS = 24;
 
 export type CrowdDot = { at: Point; jammed: boolean };

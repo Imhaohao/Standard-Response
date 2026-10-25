@@ -139,7 +139,10 @@ export function MapOverlay({ renderer, beat, scene }: OverlayProps) {
     let last = performance.now();
     const tick = (now: number) => {
       const { beat: current, at } = beatStarted.current;
-      if (CROWD_RUNS.includes(current)) scene.crowd.run(((now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
+      if (CROWD_RUNS.includes(current)) {
+        scene.crowd.run(((now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
+        renderer.setFireMinutes(scene.crowd.sim.minutes);
+      }
       last = now;
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       ctx.clearRect(0, 0, STAGE.width, STAGE.height);

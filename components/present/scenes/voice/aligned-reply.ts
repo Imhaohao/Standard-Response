@@ -10,3 +10,7 @@ export const REPLY = [
   { text: "You’re on the rescue list as high priority.", rule: "Truth over comfort" },
   { text: "No driver has accepted yet.", rule: "Promise effort, never outcomes" },
 ];
+
+// What the slide shows: the end of the caller's push and the two parts of the reply that answer it.
+export const PUSH_SHOWN = "Please, just say someone is coming for me.";
+export const REPLY_SHOWN = REPLY.slice(2);
