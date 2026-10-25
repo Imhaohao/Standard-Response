@@ -45,3 +45,7 @@ The blizzard has its own renderer now (`lib/ink-map/hazard-layers/blizzard/`), r
 - **Closures match by street class first.** A closure whose `road` text names a class outside brackets ("Expressways", "Arterials", "Side streets") shuts every street of that class; the bracketed street names are examples and are not matched. A closure without a class word matches street names, and one with a `path` matches the streets along it.
 - **Lights follow `series.power`.** After dark each home shows a warm window, and the scenario's share of homes without power go dark in a fixed order. Without the field every light stays on.
 - **Red still wins.** Roofs marked red (and charcoal "still home") are never covered by snow, fade least in the whiteout and glow through it.
+
+## 2026-10-25 02:04
+
+Blizzard redesign (`lib/ink-map/hazard-layers/blizzard/`): snow now reads by subtraction. As it deepens, the fine ink fades (area tints, trees, paths, minor street lines), roofs take white caps, and walls stay dark. Open streets are dark ruts and closed ones are erased, so the overview thins to a few dark lines as the town is cut off. Flakes are sparse (about 400 at the peak). The whiteout veil tops out at 25%. Night only darkens the far edge of the view. Window lights are gone, so ignore my 01:44 line about `series.power`: nothing on the map reads it now. Barriers stand only at close range, and only where a closed street meets an open one. `impact()` is unchanged.
