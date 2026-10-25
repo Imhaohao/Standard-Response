@@ -84,8 +84,20 @@ export async function scrubPage(ctx: MutationCtx, table: ScrubbedTable, cursor: 
 }
 
 // Call plans list homes with the model's reason for each; the real ones come out.
-export async function scrubCallPlans(ctx: MutationCtx, counts: Counts) {
+// Volunteer mileage payments key on the volunteer's phone digits and carry their first name. The
+// transfers themselves stay in Nessie's ledger; our copies of who was paid go with the incident.
+async function scrubVolunteerPay(ctx: MutationCtx, counts: Counts) {
   let next = counts;
+  for (const table of ["reimbursements", "volunteerAccounts"] as const) {
+    const rows = await ctx.db.query(table).take(500);
+    for (const row of rows) await ctx.db.delete(table, row._id);
+    next = addCount(next, table, rows.length);
+  }
+  return next;
+}
+
+export async function scrubCallPlans(ctx: MutationCtx, counts: Counts) {
+  let next = await scrubVolunteerPay(ctx, counts);
   for (const plan of await ctx.db.query("callPlans").take(100)) {
     const ranked: typeof plan.ranked = [];
     for (const entry of plan.ranked) if (!(await isRealHome(ctx, entry.householdId))) ranked.push(entry);

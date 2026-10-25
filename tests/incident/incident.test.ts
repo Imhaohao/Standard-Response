@@ -84,7 +84,7 @@ async function leaveFootprint(t: T, householdId: Id<"households">, simulated: bo
   });
 }
 
-type CountedTable = "households" | "calls" | "transcriptLines" | "texts" | "requests" | "events" | "auditLog" | "nominations";
+type CountedTable = "households" | "calls" | "transcriptLines" | "texts" | "requests" | "events" | "auditLog" | "nominations" | "volunteerAccounts";
 
 const count = (t: T, table: CountedTable) => t.run(async (ctx) => (await ctx.db.query(table).collect()).length);
 
@@ -183,6 +183,18 @@ describe("the purge", () => {
     const summary = events.find((event) => event.message.startsWith("Incident rider data deleted"));
     expect(summary?.message).toContain("1 households");
     expect((await control(t))?.incidentPurgedAt).toBeDefined();
+  });
+
+  test("deletes volunteers' payment ids with the incident", async () => {
+    process.env.INCIDENT_RETENTION_HOURS = "0";
+    const t = setup();
+    await insertHousehold(t, false);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("volunteerAccounts", { volunteerKey: "16265550142", nessieCustomerId: "c1", nessieAccountId: "a1", updatedAt: 1 });
+    });
+    await t.mutation(api.incident.close, {});
+    await runScheduled(t);
+    expect(await count(t, "volunteerAccounts")).toBe(0);
   });
 
   test("scrubs the archived copies of a night", async () => {
