@@ -189,7 +189,8 @@ function flamesBehind(grid: Grid, col: number, row: number, index: number): Flam
     const x = cx + (hash(seed) - 0.5) * grid.cellX;
     const y = cy + (hash(seed + 0.5) - 0.5) * grid.cellY;
     const burning = 1 - (grid.minutes - sampleField(grid, x, y)) / STILL_BURNING_MINUTES;
-    if (!(burning > 0) || hash(seed + 0.9) > burning ** 1.6 * BEHIND_DENSITY) continue;
+    // Over 1 is a spot the fire hasn't reached: the sample blends toward unburned ground beside it.
+    if (!(burning > 0 && burning <= 1) || hash(seed + 0.9) > burning ** 1.6 * BEHIND_DENSITY) continue;
     flames.push({
       x,
       y,

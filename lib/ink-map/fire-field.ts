@@ -118,8 +118,9 @@ export function buildFireField(fronts: ScenarioFront[], width = 320): FireField 
   const region = regionAround(fronts[fronts.length - 1], 200);
   const height = Math.round((width * (region.y1 - region.y0)) / (region.x1 - region.x0));
   const raster: Raster = { width, height, region };
-  // Points no front reaches ramp gently past the last front instead of jumping, so filtering stays smooth.
-  const minutes = new Float32Array(width * height).fill(fronts[fronts.length - 1].minutes + 45);
+  // Points no front reaches, islands inside the perimeter included, never burn. The map's texture
+  // softens the edge where the fire is still advancing (hazard-layers/arrival.ts edgeBlended).
+  const minutes = new Float32Array(width * height).fill(NEVER_BURNS);
   const settled = new Uint8Array(width * height);
   let inner: Band["inner"] = null;
   for (const front of fronts) {

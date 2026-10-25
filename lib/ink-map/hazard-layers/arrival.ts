@@ -4,23 +4,28 @@ import { arrivalMinutesAt, NEVER_BURNS, type FireField } from "../fire-field";
 import type { HazardImpact } from "./types";
 
 // Minutes past its latest burning neighbour that a cell the hazard never reaches is given in the
-// texture. See edgeBlended.
+// texture, and how close to the hazard's last minute that neighbour must have been reached. See
+// edgeBlended.
 const PAST_THE_EDGE_MINUTES = 10;
+const STILL_ADVANCING_MINUTES = 15;
 
 // A cell the hazard never reaches holds NEVER_BURNS, and the texture's blend from a reached cell's
 // few hundred minutes up to ten thousand crosses any clock minute right beside the reached cell, so
-// the edge comes out in the grid's stair steps. Each unreached cell beside a reached one instead
-// holds a little past its latest reached neighbour: still past the hazard's last minute, so it still
-// reads as never reached, but the blend now crosses the edge partway between cells and the edge runs
-// smoothly across the grid.
+// where the hazard is still advancing at its last front the edge comes out in the grid's stair steps.
+// There, each unreached cell beside a reached one holds a little past its latest reached neighbour
+// and past the last minute, so it still reads as never reached but the blend crosses partway
+// between cells and the edge runs smoothly. Everywhere else (an island the fire went round, a flank
+// it left long ago) the cell keeps NEVER_BURNS: a softened value there would draw a slow, false
+// front creeping into ground that never burns.
 function edgeBlended(field: FireField) {
   const { width, height, minutes } = field;
+  const last = field.fronts[field.fronts.length - 1].minutes;
   const out = Float32Array.from(minutes);
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       if (minutes[row * width + col] < NEVER_BURNS) continue;
       const latest = latestReachedNeighbour(field, col, row);
-      if (latest !== null) out[row * width + col] = latest + PAST_THE_EDGE_MINUTES;
+      if (latest !== null && latest >= last - STILL_ADVANCING_MINUTES) out[row * width + col] = Math.max(latest + PAST_THE_EDGE_MINUTES, last + 2);
     }
   }
   return out;

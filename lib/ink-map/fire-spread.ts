@@ -1,5 +1,5 @@
 import type { Point } from "./data";
-import type { FireField } from "./fire-field";
+import { NEVER_BURNS, type FireField } from "./fire-field";
 
 // How fast and which way the front moves, read off the arrival-time field. Arrival time T(x, y) rises
 // in the direction the fire travels, and a front that covers d metres in dt minutes has |∇T| = dt/d,
@@ -20,11 +20,15 @@ function cellSize(field: FireField) {
 const minutesAt = (field: FireField, col: number, row: number) =>
   field.minutes[Math.min(field.height - 1, Math.max(0, row)) * field.width + Math.min(field.width - 1, Math.max(0, col))];
 
+// No speed where the fire meets ground it never reaches (an island it went round, a flank it left):
+// it isn't moving there, and the jump to NEVER_BURNS would read as a crawl.
 function spreadAtCell(field: FireField, col: number, row: number): Omit<SpreadVector, "at"> | null {
   const { dx, dy } = cellSize(field);
   const k = DIFFERENCE_CELLS;
-  const gx = (minutesAt(field, col + k, row) - minutesAt(field, col - k, row)) / (2 * k * dx);
-  const gy = (minutesAt(field, col, row + k) - minutesAt(field, col, row - k)) / (2 * k * dy);
+  const [east, west, north, south] = [minutesAt(field, col + k, row), minutesAt(field, col - k, row), minutesAt(field, col, row + k), minutesAt(field, col, row - k)];
+  if (Math.max(east, west, north, south) >= NEVER_BURNS) return null;
+  const gx = (east - west) / (2 * k * dx);
+  const gy = (north - south) / (2 * k * dy);
   const slope = Math.hypot(gx, gy);
   if (slope < 1e-6) return null;
   return { direction: [gx / slope, gy / slope], metersPerMinute: 1 / slope };
