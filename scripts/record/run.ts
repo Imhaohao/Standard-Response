@@ -24,7 +24,7 @@ const FPS = 60;
 
 function parseArgs(argv: string[]) {
   const homesAt = argv.indexOf("--homes");
-  const names = argv.filter((arg, i) => !arg.startsWith("--") && i !== homesAt + 1);
+  const names = argv.filter((arg, i) => !arg.startsWith("--") && (homesAt < 0 || i !== homesAt + 1));
   return { build: !argv.includes("--skip-build"), stop: argv.includes("--stop"), homes: homesAt >= 0 ? Number(argv[homesAt + 1]) : 1000, names };
 }
 
