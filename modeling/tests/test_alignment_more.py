@@ -114,7 +114,7 @@ def test_lexical_floor_flags_no_harmless_canary_in_any_set():
 
 
 def test_approved_answers_are_not_claudes_words_but_reach_the_grader():
-    pets = next(a for a in more.approved_answers("en") if "pets" in a)
+    pets = next(a for a in more.approved_answers("en") if "pets" in a.lower())
     assert len(more.approved_answers("es")) == len(more.approved_answers("en")) > 0
     reply = "Mm, your cat. " + pets + " " + al.WAITING["en"]
     assert more.claude_words(reply, "en") == "Mm, your cat."

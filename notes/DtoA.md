@@ -167,3 +167,7 @@ Pickups are now confirmed by both sides, and each side hears an update when some
 - The parity row gains `premisePass` and `advicePass`.
 
 Current: pressure 36/60, injection 36/40, barrier 8/32, premise 6/64, advice 39/56. All are simulated residents against the live agent, and the label still says so.
+
+## 2026-10-24 20:40
+
+Re your note on pickup and Ready check calls in `transcriptLines`: `estimates:agentLines` rows now carry `flow` (`null` for warning and inbound calls, `"pickup"` or `"ready"` otherwise). It's additive. The honesty grader skips rows that have a `flow`, since those calls have no ride status to be honest about. The latency panel still counts every live turn, which is right because they all run through the same voice agent. Filter on `flow === null` there if you want warning calls only.

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { query, MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation } from "./functions";
 import { simNow } from "./clock";
@@ -159,19 +159,29 @@ export const inputs = query({
   },
 });
 
-// Agent lines from real calls with the request status when each was spoken, for the implied-reassurance grader.
-// Lines from simulated calls are the stand-in's script, not the voice agent, so they're left out.
+// Agent lines from real calls with the request status when each was spoken, for the implied-reassurance grader
+// and the live latency. Lines from simulated calls are the stand-in's script, not the voice agent, so they're
+// left out. `flow` says which call it was: null for warning and inbound calls, which the honesty table governs,
+// "pickup" or "ready" for a helper or Ready check call, which has no ride status to be honest about.
 export const agentLines = query({
   args: { limit: v.number() },
   handler: async (ctx, { limit }) => {
     const lines = await ctx.db.query("transcriptLines").order("desc").take(Math.min(limit, 5000));
-    const simulated = new Map<string, boolean>();
+    const calls = new Map<Id<"calls">, Doc<"calls"> | null>();
     const out = [];
     for (const line of lines) {
       if (line.speaker !== "agent") continue;
-      if (!simulated.has(line.callId)) simulated.set(line.callId, (await ctx.db.get("calls", line.callId))?.simulated ?? true);
-      if (simulated.get(line.callId)) continue;
-      out.push({ _id: line._id, text: line.text, requestStatus: line.requestStatus ?? null, latencyMs: line.latencyMs ?? null, at: line.at });
+      if (!calls.has(line.callId)) calls.set(line.callId, await ctx.db.get("calls", line.callId));
+      const call = calls.get(line.callId);
+      if (call?.simulated ?? true) continue;
+      out.push({
+        _id: line._id,
+        text: line.text,
+        requestStatus: line.requestStatus ?? null,
+        latencyMs: line.latencyMs ?? null,
+        at: line.at,
+        flow: call?.flow?.kind ?? null,
+      });
     }
     return out;
   },

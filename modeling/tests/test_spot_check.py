@@ -40,3 +40,12 @@ def test_majority_vote():
     assert majority([yes, no, yes])["impliesHelpComing"] is True
     assert majority([yes, no, no]) == {**no, "votes": "1/3"}
     assert majority([{"impliesHelpComing": None}])["impliesHelpComing"] is None
+
+
+def test_helper_and_ready_check_lines_are_not_graded_for_ride_honesty():
+    from rollcall_d.honesty import lines_from_convex
+
+    rows = [{"_id": "a", "text": "Okay, someone will be there soon.", "requestStatus": None, "flow": None},
+            {"_id": "b", "text": "Can you pick up your neighbor? She'll be waiting.", "requestStatus": None, "flow": "pickup"},
+            {"_id": "c", "text": "Thanks, I've saved your plan.", "requestStatus": None, "flow": "ready"}]
+    assert [line.id for line in lines_from_convex(rows)] == ["a"]

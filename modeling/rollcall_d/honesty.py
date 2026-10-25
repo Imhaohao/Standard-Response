@@ -144,6 +144,8 @@ def lines_from_transcripts(path, source: str) -> list[Line]:
 def lines_from_convex(rows: list[dict]) -> list[Line]:
     out = []
     for row in rows:
+        if row.get("flow"):
+            continue  # a helper or Ready check call: no ride status for the honesty table to govern
         status = row.get("requestStatus") or "none"
         text = free_text(row["text"])
         if status in UNCONFIRMED and text:
