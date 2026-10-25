@@ -138,19 +138,49 @@ export function vanAt(replay: Replay, vehicle: number, seconds: number): VanAt {
   return { vehicle, at, driving: true, ahead: [at, ...leg.path.slice(next)] };
 }
 
-export type ReplayCount = { outOnTime: number; waiting: number; atRisk: number };
+// What a household in the hazard's path looks like at one moment. Homes outside it, and homes that never needed a
+// ride, have no risk state and draw nothing.
+export type RiskState = "waiting" | "vanComing" | "out" | "missed";
 
-// Out on time: at-risk homes whose whole party boarded by the deadline, counted from that moment.
-// Waiting: at-risk homes that asked for a ride and are not aboard yet.
+export function riskStateAt(replay: Replay, home: number, seconds: number): RiskState | null {
+  const { homes } = replay.file;
+  if (!homes.atRisk[home] || homes.need[home] === 0) return null;
+  const boarded = homes.boardedS[home];
+  if (boarded >= 0 && boarded <= seconds) return "out";
+  if (homes.hazardS[home] >= 0 && seconds >= homes.hazardS[home]) return "missed";
+  const state = homeStateAt(replay, home, seconds);
+  if (state === "needsRide") return "waiting";
+  return state === "vanComing" ? "vanComing" : null;
+}
+
+// Every home with a risk state at this moment, by home index.
+export function riskStates(replay: Replay, seconds: number): Map<number, RiskState> {
+  const states = new Map<number, RiskState>();
+  for (let home = 0; home < replay.homes.length; home++) {
+    const state = riskStateAt(replay, home, seconds);
+    if (state) states.set(home, state);
+  }
+  return states;
+}
+
+export type ReplayCount = { outOnTime: number; waiting: number; missed: number; atRisk: number };
+
+const isWaiting = (state: RiskState | undefined) => state === "waiting" || state === "vanComing";
+
+// Out on time: homes in the hazard's path whose whole party boarded by the deadline, counted from that moment.
+// Waiting: homes in its path that asked for a ride, aren't aboard, and the hazard hasn't reached yet.
+// Missed: homes in its path the hazard reached before their party was aboard.
 export function countAt(replay: Replay, seconds: number): ReplayCount {
   const { homes } = replay.file;
-  let [outOnTime, waiting, atRisk] = [0, 0, 0];
+  const states = riskStates(replay, seconds);
+  let [outOnTime, waiting, missed, atRisk] = [0, 0, 0, 0];
   for (let i = 0; i < homes.atRisk.length; i++) {
     if (!homes.atRisk[i] || homes.need[i] === 0) continue;
     atRisk++;
-    const boarded = homes.boardedS[i];
-    if (boarded >= 0 && boarded <= seconds && boarded <= homes.deadlineS[i]) outOnTime++;
-    else if (homeStateAt(replay, i, seconds) === "needsRide" || homeStateAt(replay, i, seconds) === "vanComing") waiting++;
+    const state = states.get(i);
+    if (state === "out" && homes.boardedS[i] <= homes.deadlineS[i]) outOnTime++;
+    if (isWaiting(state)) waiting++;
+    if (state === "missed") missed++;
   }
-  return { outOnTime, waiting, atRisk };
+  return { outOnTime, waiting, missed, atRisk };
 }

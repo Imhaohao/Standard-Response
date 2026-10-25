@@ -2,12 +2,11 @@
 
 import { Van as VanIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
-import { HomeMark, MAP_TONE } from "@/components/floor/household-mark";
 import { GeoAnchor, GeoLine } from "@/components/map/layers";
 import { buildPlaceIndex, buildingForPoint } from "@/lib/ink-map/place";
 import { BuildingState } from "@/lib/ink-map/renderer";
 import { createProjection, InkMapData } from "@/lib/ink-map/data";
-import { countAt, decodeReplay, homeStateAt, HomeState, Replay, ReplayCount, ReplayFile, vanAt } from "@/lib/replay/replay";
+import { countAt, decodeReplay, Replay, ReplayCount, ReplayFile, riskStates, RiskState, vanAt } from "@/lib/replay/replay";
 
 const INK = "var(--map-ink)";
 const PAPER = "var(--map-paper)";
@@ -28,13 +27,14 @@ export function useReplay(city: string | null): Replay | null {
   return replay && replay.city === city ? replay.replay : null;
 }
 
-// How a household's roof reads at one moment. Red is a person who needs a ride; it stays red until
-// they are aboard, so nobody who was missed fades out of the picture.
-const ROOF: Partial<Record<HomeState, BuildingState>> = {
-  needsRide: { level: 0.95, pulse: true },
-  vanComing: { level: 0.6, pulse: false },
-  leaving: { level: 0, pulse: false, occupancy: "left" },
-  aboard: { level: 0, pulse: false, occupancy: "left" },
+// The roof is the mark. Red is a household in the hazard's path that asked for a ride and is still waiting; it
+// pulses until a van has it. A home the hazard reached first goes dark with a trace of red, so it reads as lost, not
+// as still waiting. Everything else keeps its ordinary ink roof.
+const ROOF: Record<RiskState, BuildingState | null> = {
+  waiting: { level: 0.95, pulse: true },
+  vanComing: { level: 0.7, pulse: false },
+  missed: { level: 0.2, pulse: false, occupancy: "stillHome" },
+  out: null,
 };
 
 function useHomeBuildings(replay: Replay | null, data: InkMapData | null) {
@@ -46,51 +46,23 @@ function useHomeBuildings(replay: Replay | null, data: InkMapData | null) {
   }, [replay, data]);
 }
 
-// Roofs for MapStage's `highlights`, recomputed once a scene minute: the renderer repaints every
-// building it is handed, so a per-frame map would cost far more than the minute it shows.
+// Roofs for MapStage's `highlights`, recomputed once a scene minute: the renderer repaints every building it is
+// handed, so a per-frame map would cost far more than the minute it shows.
 export function useReplayHighlights(replay: Replay | null, data: InkMapData | null, minute: number) {
   const buildings = useHomeBuildings(replay, data);
   const wholeMinute = Math.floor(minute);
   return useMemo(() => {
-    const states = new Map<number, BuildingState>();
-    if (!replay) return states;
-    buildings.forEach((building, home) => {
-      if (building === null) return;
-      const roof = ROOF[homeStateAt(replay, home, wholeMinute * 60)];
-      const held = states.get(building);
-      if (roof && (!held || roof.level > held.level)) states.set(building, roof);
-    });
-    return states;
+    const roofs = new Map<number, BuildingState>();
+    if (!replay) return roofs;
+    for (const [home, state] of riskStates(replay, wholeMinute * 60)) {
+      const building = buildings[home];
+      const roof = ROOF[state];
+      if (building === null || building === undefined || !roof) continue;
+      const held = roofs.get(building);
+      if (!held || roof.level > held.level) roofs.set(building, roof);
+    }
+    return roofs;
   }, [replay, buildings, wholeMinute]);
-}
-
-type Marked = { home: number; state: HomeState };
-const HOME_STEP_S = 15;
-
-function markedHomes(replay: Replay, seconds: number): Marked[] {
-  const out: Marked[] = [];
-  for (let home = 0; home < replay.homes.length; home++) {
-    const state = homeStateAt(replay, home, seconds);
-    if (state === "calling" || state === "needsRide" || state === "vanComing") out.push({ home, state });
-  }
-  return out;
-}
-
-function HomeDot({ replay, mark }: { replay: Replay; mark: Marked }) {
-  const accessible = replay.file.homes.need[mark.home] === 2;
-  if (mark.state === "calling") {
-    return (
-      <GeoAnchor at={replay.homes[mark.home]}>
-        <HomeMark kind="on_phone" r={3.5} tone={MAP_TONE} />
-      </GeoAnchor>
-    );
-  }
-  return (
-    <GeoAnchor at={replay.homes[mark.home]}>
-      {mark.state === "vanComing" && <circle r={8} fill="none" stroke={INK} strokeWidth={1.5} />}
-      <HomeMark kind={accessible ? "needs_accessible" : "needs_ride"} r={mark.state === "needsRide" ? 5 : 4} tone={MAP_TONE} />
-    </GeoAnchor>
-  );
 }
 
 function VanDot({ replay, vehicle, seconds }: { replay: Replay; vehicle: number; seconds: number }) {
@@ -106,24 +78,10 @@ function VanDot({ replay, vehicle, seconds }: { replay: Replay; vehicle: number;
   );
 }
 
-// Drawn inside MapStage: who is on the phone, who is waiting for a ride, and every van on its street.
-// Red pins draw last so a person waiting is never under a van.
+// Drawn inside MapStage. Households are told by their roofs alone; the vans, on their streets, are the only marks.
 export function ReplayOverlay({ replay, minute }: { replay: Replay; minute: number }) {
   const seconds = minute * 60;
-  const bucket = Math.floor(seconds / HOME_STEP_S) * HOME_STEP_S;
-  // Built once a step, so a frame that only moves the vans reuses the same home elements.
-  const homes = useMemo(() => {
-    const marks = markedHomes(replay, bucket);
-    const dot = (mark: Marked) => <HomeDot key={mark.home} replay={replay} mark={mark} />;
-    return { calling: marks.filter((mark) => mark.state === "calling").map(dot), waiting: marks.filter((mark) => mark.state !== "calling").map(dot) };
-  }, [replay, bucket]);
-  return (
-    <g>
-      {homes.calling}
-      {replay.file.vehicles.map((_, vehicle) => <VanDot key={vehicle} replay={replay} vehicle={vehicle} seconds={seconds} />)}
-      {homes.waiting}
-    </g>
-  );
+  return <g>{replay.file.vehicles.map((_, vehicle) => <VanDot key={vehicle} replay={replay} vehicle={vehicle} seconds={seconds} />)}</g>;
 }
 
 export const replayLastMinute = (replay: Replay | null) => (replay ? Math.ceil(replay.file.endS / 60) : 0);
@@ -133,24 +91,34 @@ export function useReplayCount(replay: Replay | null, minute: number): ReplayCou
   return useMemo(() => (replay ? countAt(replay, wholeMinute * 60) : null), [replay, wholeMinute]);
 }
 
-// One small running count: households out on time (ink) against households still waiting (red),
-// as a bar over everyone the hazard reached, with the two numbers that bar stands for.
+// One running count for everyone the hazard reached: a single bar whose ink part is the homes already out on time
+// and whose red part is the homes that asked for a ride and are still waiting. The rest of the track is everyone else
+// in the hazard's path. The two figures under it carry the same colors as their parts of the bar.
 export function ReplayTally({ count }: { count: ReplayCount }) {
   const share = (n: number) => `${(100 * n) / Math.max(count.atRisk, 1)}%`;
   return (
     <div
       role="status"
-      aria-label={`${count.outOnTime} of ${count.atRisk} households out on time, ${count.waiting} still waiting`}
-      className="pointer-events-none w-56 rounded-xl bg-map-paper/95 p-3 text-map-ink shadow-[var(--shadow-float)]"
+      aria-label={`${count.outOnTime} of ${count.atRisk} households in the hazard's path out on time, ${count.waiting} still waiting for a ride`}
+      className="pointer-events-none w-64 rounded-xl bg-map-paper/95 p-3 text-map-ink shadow-[var(--shadow-float)]"
     >
-      <div className="flex items-baseline justify-between tabular-nums">
-        <span className="text-3xl font-bold">{count.outOnTime}</span>
-        <span className="text-xl font-bold text-signal">{count.waiting}</span>
-      </div>
-      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-map-ink/10">
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-map-ink/10">
         <div className="bg-map-ink transition-[width] duration-150" style={{ width: share(count.outOnTime) }} />
         <div className="bg-signal transition-[width] duration-150" style={{ width: share(count.waiting) }} />
       </div>
+      <div className="mt-2.5 flex items-end justify-between gap-4 tabular-nums">
+        <TallyFigure value={count.outOnTime} label="out on time" tone="text-map-ink" />
+        <TallyFigure value={count.waiting} label="waiting" tone="text-signal" alignEnd />
+      </div>
     </div>
+  );
+}
+
+function TallyFigure({ value, label, tone, alignEnd = false }: { value: number; label: string; tone: string; alignEnd?: boolean }) {
+  return (
+    <p className={`flex flex-col ${alignEnd ? "items-end" : "items-start"}`}>
+      <span className={`type-title ${tone}`}>{value.toLocaleString()}</span>
+      <span className="type-caption text-map-ink/70">{label}</span>
+    </p>
   );
 }

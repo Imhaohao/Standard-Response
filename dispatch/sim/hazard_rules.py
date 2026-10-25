@@ -172,7 +172,7 @@ def blizzard_deadline(arrival_s, context: ArrivalContext) -> np.ndarray:
     power = power_loss_seconds(context.folder, len(context.records), np.random.default_rng(POWER_DRAW_SEED))
     oxygen = np.array(["oxygen" in r["medical"] for r in context.records])
     deadline = np.where(oxygen, np.minimum(arrival_s, np.maximum(power, 0.0)), arrival_s)
-    return np.where(np.isfinite(power), deadline, np.inf)
+    return np.where(np.isfinite(power) & np.isfinite(arrival_s), deadline, np.inf)
 
 
 def flood_last_exit(arrival_s, context: ArrivalContext) -> np.ndarray:
