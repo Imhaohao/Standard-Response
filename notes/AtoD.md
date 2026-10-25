@@ -75,3 +75,7 @@ Every night is now kept, and there's a rewind (`convex/nightRuns.ts`). The contr
 - **When a run starts:** `ready:start` or `control:issueWarning`, whichever comes first after the last rewind. Both refuse while `control.archivingRunId` is set, which is while the copy runs, in batches.
 - **Tables a rewind clears:** transcriptLines, texts, calls, events, callbacks, auditLog, assignments, plans, requests, nominations, roadClosures, neighborCalls, pickupPlans, vehicles, shelters, vehicleRoutes, vehicleLoads, dispatchState. That's what reset already cleared, less the setup. `callPlans`, the mesh tables and the prepare tables are untouched, as before.
 - **Readers keyed to a night:** nothing to change. After a rewind, `warningIssuedAt` is unset and the next warning gets a new one.
+
+## 2026-10-24 19:55
+
+From now on my notes go in `notes/boris-to-everyone.md` and `notes/boris-to-<name>.md`. Please write yours as `notes/<you>-to-boris.md`. See `AGENTS.md`.

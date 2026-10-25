@@ -29,27 +29,27 @@ We connect an evacuation warning to a confirmed, needs-matched ride for people w
 
 **Core line.** "The vans were ready at 4am. The call came at 6:03. Nothing connected them."
 
-## How the tracks work together
+## How we work together
 
-Four tracks build in parallel. Track A is all of the UI. Tracks B, C and D are backend pieces that never wait on each other: each one builds against the shared Convex contract and the stand-ins already in the repo, then flips its stand-in to Real on the call floor once its own piece writes.
+Nobody owns a piece of the app. Whoever finds something that needs fixing fixes it, wherever it is. The app has four parts, and each builds against the shared Convex contract and the stand-ins already in the repo. A part flips its stand-in to Real on the call floor once its own code writes.
 
-| Track | Owner | Builds | Setup it owns |
-| --- | --- | --- | --- |
-| A: interface | Boris | Every screen: call floor, rescue map, driver page, under-the-hood screen, simulated phone panel | None |
-| B: voice and calls | Brendan | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks | Twilio, Cartesia and Anthropic keys; hosting the call server |
-| C: dispatch and simulator | To pick | Road graph, closures, the OR-Tools solver, the heuristic, vehicle movement, the simulator | The shared Convex cloud deployment; deploying the app; hosting the solver service |
-| D: modeling and evaluation | To pick | Hazard scenario, door-check queue, address matching, synthetic population, persona cards, the persona eval and grader | None. B and C put every key and URL D needs in the shared env file |
+| Part | Builds | Setup |
+| --- | --- | --- |
+| Interface | Every screen: call floor, rescue map, driver page, under-the-hood screen, simulated phone panel | None |
+| Voice and calls | Telephony, the voice agent, dialer, reach ladder, text handling, callbacks | Twilio, Cartesia and Anthropic keys; hosting the call server |
+| Dispatch and simulator | Road graph, closures, the OR-Tools solver, the heuristic, vehicle movement, the simulator | The shared Convex cloud deployment; deploying the app; hosting the solver service |
+| Modeling and evaluation | Hazard scenario, door-check queue, address matching, synthetic population, persona cards, the persona eval and grader | None |
 
 ### Rules for every agent and teammate
 
 These are also in `AGENTS.md`, which every coding agent reads.
 
 1. **Commit only to `main`.** Pull with rebase before starting a task and before every commit. Push right after each commit. Never force-push or rewrite history.
-2. **Watch `main` for pushes.** Fetch `origin` at least every 5 minutes while working. When new commits land, pull them, read any changed notes addressed to your track, and re-run `npm run typecheck`.
-3. **Talk through notes files.** `notes/AtoB.md` holds notes from Track A to Track B, and so on for every pair. Only the sending track writes its file. Add each note at the bottom under a timestamp heading. Reply in your own file to that track.
-4. **Change the contract only for tables you own** (see [Contract](#contract)). Write a note to every track that reads the table before pushing the change, and keep old fields working until the readers confirm.
+2. **Watch `main` for pushes.** Fetch `origin` at least every 5 minutes while working. When new commits land, pull them, read any changed notes addressed to you, and re-run `npm run typecheck`.
+3. **Talk through notes files.** `notes/boris-to-brendan.md` holds notes from Boris to Brendan, and so on for every pair; `notes/boris-to-everyone.md` is for the whole team. Only the sender writes their file. Add each note at the bottom under a timestamp heading. Reply in your own file to that person.
+4. **Tell readers before changing the contract** (see [Contract](#contract)). Write a note to everyone who reads the table before pushing the change, and keep old fields working until nothing reads them.
 5. **Secrets never go in git.** The shared env file (`CONVEX_URL`, `ANTHROPIC_API_KEY` and the rest) is pinned in the team chat. Save it locally as `.env.local`, which git ignores.
-6. **Stand-ins stay working.** Never break a stand-in another track is still building against. Turn yours off with its switch instead of deleting it.
+6. **Stand-ins stay working.** Never break a stand-in someone is still building against. Turn it off with its switch instead of deleting it.
 
 ## The problem
 
@@ -170,7 +170,7 @@ arranged ──warning──► checking ──helper says yes──► coming �
 
 ## Contract
 
-One real-time database (Convex) that every track reads and writes. Nobody calls anybody else directly. The schema is `convex/schema.ts`.
+One real-time database (Convex) that every part of the app reads and writes. Nobody calls anybody else directly. The schema is `convex/schema.ts`.
 
 > **The hard problem, in one sentence for judges.** "This is dynamic vehicle routing where the deadlines move with the fire, you don't know who needs a ride until you reach them, and every promise has to stay true while the plan changes underneath it." Say it early in every pitch.
 
@@ -178,21 +178,21 @@ One real-time database (Convex) that every track reads and writes. Nobody calls 
 
 ### Tables
 
-| Table | Owner (may change it) | Written by | Read by |
-| --- | --- | --- | --- |
-| `households` record fields (`canLeave`, `mobility`, `assistanceRequired`, ...) and `corrections` | B | B (`households:update`) | all |
-| `households.needProbability`, `fireArrivalAt`, `doorPriority`, location | D | D (`households:setEstimates`, `doorChecks:setPriorities`, `households:setLocation`) | all |
-| `households.inZone`, rider import | A | A (`riders:importCsv`, `riders:setZone`) | B, C |
-| `calls`, `transcriptLines`, `texts` | B | B; A writes resident replies on the phone panel (`texts:reply`) | A, D |
-| `requests` and every status change | C | `convex/requests.ts` only | all |
-| `vehicles`, `shelters`, `plans`, `assignments`, `auditLog` | C | C (`plans:propose`, `vehicles:setPositions`); A calls `offers:approve`, `offers:accept`, `offers:decline`, `offers:cancelByDriver` | all |
-| `callbacks` | C queues, B places | `offers.ts` queues; B calls `callbacks:markPlaced`, `markPlayed`, `markUnanswered` | A, B |
-| `roadClosures` | C | D (hazard), A (manual control), B (resident mentions), C (driver reports) through `roads:addClosures` | all |
-| `nominations` | D | B (`nominations:add`), D (`nominations:resolve`) | A |
-| `personas` | D | Seed and D only | Stand-ins and D's eval. Real agents must never read it |
-| `households.ready` (the Ready check profile: `at`, `via`, `exitPlan`, `bedroom`, `care`, `note`) | A | A (`ready:submit`, the Ready check stand-in), B (`ready:saveFromCall`) | all |
-| `pickupPlans` (prearranged helpers and the pickup check) | A | A (`ready:submit`), the stand-in; B through `pickups:startAttempt`, `pickups:helperAnswered`, `pickups:residentAnswered`, `pickups:unanswered` | A, B, C |
-| `control` | A | A (stand-in switches) | stand-ins |
+| Table | Written by | Read by |
+| --- | --- | --- |
+| `households` record fields (`canLeave`, `mobility`, `assistanceRequired`, ...) and `corrections` | The voice agent (`households:update`) | everything |
+| `households.needProbability`, `fireArrivalAt`, `doorPriority`, location | The models (`households:setEstimates`, `doorChecks:setPriorities`, `households:setLocation`) | everything |
+| `households.inZone`, rider import | The interface (`riders:importCsv`, `riders:setZone`) | voice, dispatch |
+| `calls`, `transcriptLines`, `texts` | The voice agent; the phone panel writes resident replies (`texts:reply`) | interface, evals |
+| `requests` and every status change | `convex/requests.ts` only | everything |
+| `vehicles`, `shelters`, `plans`, `assignments`, `auditLog` | The dispatcher (`plans:propose`, `vehicles:setPositions`); the interface calls `offers:approve`, `offers:accept`, `offers:decline`, `offers:cancelByDriver` | everything |
+| `callbacks` | `offers.ts` queues; the voice server calls `callbacks:markPlaced`, `markPlayed`, `markUnanswered` | interface, voice |
+| `roadClosures` | The hazard runner, the manual control, resident mentions on calls and driver reports, through `roads:addClosures` | everything |
+| `nominations` | The voice agent (`nominations:add`), address matching (`nominations:resolve`) | interface |
+| `personas` | Seed and the evals only | Stand-ins and the evals. Real agents must never read it |
+| `households.ready` (the Ready check profile: `at`, `via`, `exitPlan`, `bedroom`, `care`, `note`) | The interface (`ready:submit`), the Ready check stand-in, the voice agent (`ready:saveFromCall`) | everything |
+| `pickupPlans` (prearranged helpers and the pickup check) | `ready:submit`, the stand-in; the voice server through `pickups:startAttempt`, `pickups:helperAnswered`, `pickups:residentAnswered`, `pickups:unanswered` | interface, voice, dispatch |
+| `control` | The call floor's stand-in switches | stand-ins |
 
 ### Rules the contract already enforces
 
@@ -209,28 +209,28 @@ These live in `convex/offers.ts`, `convex/plans.ts` and `convex/requests.ts`, so
 
 | File | Written by | Read by | Shape |
 | --- | --- | --- | --- |
-| `data/sample-riders.csv` | D (A has a starter) | A's upload | `rider_id,name,address,lat,lng,phone,language,mobility,assistance` |
-| `data/population.json` | D | C's simulator | Array of `{ id, lat, lng, age, peopleCount, mobility, assistanceRequired, medical, hasCar, canLeave, answersPhone, language }` |
-| `data/hazard/scenario.geojson` | D | C's simulator, A's map | Polygons with a `minutesAfterWarning` property |
-| `data/personas.json` | D | D's eval, B's tests | Array of persona cards with `truth` (as in the `personas` table) and an optional `correction` |
-| Text agent endpoint | B | D's eval | `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }` |
+| `data/sample-riders.csv` | The models (the interface has a starter) | The CSV upload | `rider_id,name,address,lat,lng,phone,language,mobility,assistance` |
+| `data/population.json` | The models | The simulator | Array of `{ id, lat, lng, age, peopleCount, mobility, assistanceRequired, medical, hasCar, canLeave, answersPhone, language }` |
+| `data/hazard/scenario.geojson` | The models | The simulator, the maps | Polygons with a `minutesAfterWarning` property |
+| `data/personas.json` | The models | The persona eval, the voice tests | Array of persona cards with `truth` (as in the `personas` table) and an optional `correction` |
+| Text agent endpoint | The voice server | The persona eval | `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }` |
 
-Until a file exists, its reader uses a stand-in: C generates a population from `convex/seed.ts`, A and C use the radial stand-in fire in `convex/model.ts`, and D's eval runs against its own scripted agent behind the same endpoint shape.
+Until a file exists, its reader uses a stand-in: the simulator generates a population from `convex/seed.ts`, the maps and the simulator use the radial stand-in fire in `convex/model.ts`, and the persona eval runs against its own scripted agent behind the same endpoint shape.
 
 ### Stand-ins already running
 
 Press **Issue evacuation warning** on the call floor. That seeds 200 simulated households, 8 vehicles (Maria's and Luis's vans are left for the driver page) and one shelter, then starts the loop. Each switch on the call floor turns one stand-in off.
 
-| Switch | Fakes | Owner |
-| --- | --- | --- |
-| Voice agent, dialer and callbacks | Rings, scripted calls in English and Spanish, retries, texts and replies, callbacks heard | B |
-| Dispatcher and vehicle movement | Nearest compatible free vehicle for each waiting request, vehicles driving to pickups | C |
-| Drivers not on the driver page | Simulated drivers accept their offers after 6 seconds | C |
-| Dispatcher approval | Approves every proposed offer at once | A |
-| Need model | Census prior shrunk toward nearby answered calls | D |
-| Ready check and pickup check (under the voice switch) | Ready check calls before the warning, filled from persona cards; helpers answering, confirming and sometimes not showing up | A (B's real calls replace it) |
+| Switch | Fakes |
+| --- | --- |
+| Voice agent, dialer and callbacks | Rings, scripted calls in English and Spanish, retries, texts and replies, callbacks heard |
+| Dispatcher and vehicle movement | Nearest compatible free vehicle for each waiting request, vehicles driving to pickups |
+| Drivers not on the driver page | Simulated drivers accept their offers after 6 seconds |
+| Dispatcher approval | Approves every proposed offer at once |
+| Need model | Census prior shrunk toward nearby answered calls |
+| Ready check and pickup check (under the voice switch) | Ready check calls before the warning, filled from persona cards; helpers answering, confirming and sometimes not showing up; the voice server's real calls replace it |
 
-## Track A: interface (Boris)
+## Interface
 
 Every screen, built against the stand-ins. No setup.
 
@@ -250,13 +250,13 @@ Every screen, built against the stand-ins. No setup.
 
 **Call floor.** Already built. Keep it working as the contract grows.
 
-**Track A's list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, and the full under-the-hood screen. The Auth0 dispatcher login is built but dropped from the demo; it stays off unless `AUTH0_DOMAIN` is set.
+**The list:** rescue map with approval, driver page on a second phone, CSV upload and zone drawing, the "Close this road" control, the phone panel, and the full under-the-hood screen. The Auth0 dispatcher login is built but dropped from the demo; it stays off unless `AUTH0_DOMAIN` is set.
 
-## Track B: voice and calls (Brendan)
+## Voice and calls
 
 Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; places the calls in `callbacks`.
 
-**Setup this track owns.** Take Twilio off trial, buy the number and request a higher call rate. Get Cartesia and Anthropic keys. Host the call server at a public URL (Twilio Media Streams needs a WebSocket server, which Convex can't host). Put `ANTHROPIC_API_KEY` in the shared env file for Track D.
+**Setup.** Take Twilio off trial, buy the number and request a higher call rate. Get Cartesia and Anthropic keys. Host the call server at a public URL (Twilio Media Streams needs a WebSocket server, which Convex can't host). Put `ANTHROPIC_API_KEY` in the shared env file for the evals.
 
 **Telephony.** Twilio Programmable Voice. Each call streams 8 kHz μ-law audio over Media Streams to the call server, one async session per call.
 
@@ -268,13 +268,13 @@ Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; 
 
 **Languages.** English and Spanish end to end, covering recognition, extraction, voice and templates. Don't claim "any language."
 
-**Model and latency.** Haiku 4.5 (`claude-haiku-4-5-20251001`) runs the turns. Switch to Sonnet 5.5 (`claude-sonnet-5-5`) only if Haiku misses corrections in the persona eval. The budget is under 1 second per turn: stream Claude's text to Cartesia sentence by sentence, make record writes fire-and-forget, and cover tool calls with a short backchannel ("okay, got it"). Log per-turn latency so Track A can show p50 and p95.
+**Model and latency.** Haiku 4.5 (`claude-haiku-4-5-20251001`) runs the turns. Switch to Sonnet 5.5 (`claude-sonnet-5-5`) only if Haiku misses corrections in the persona eval. The budget is under 1 second per turn: stream Claude's text to Cartesia sentence by sentence, make record writes fire-and-forget, and cover tool calls with a short backchannel ("okay, got it"). Log per-turn latency so the under-the-hood screen can show p50 and p95.
 
 **Outbound dialer.** Calls `households:queue` (in-zone households only, highest priority first), drained by a token bucket sized to Twilio's default of 1 call per second. A 200-rider zone takes about 3.5 minutes to dial. Answering-machine detection leaves a short voicemail and schedules a retry.
 
 **Reach ladder.** Call, retry at 2 minutes, retry at 5, text, door-check queue (`calls:end` and `calls:resolveFollowUp`). Status callbacks use the same ladder; an unanswered `reassigning` call is retried and then texted.
 
-**Text fallback.** After two failed voice attempts, send a text with numbered replies (`texts:send`) and parse replies from `texts` with Claude. SMS registration won't clear this weekend, so texts live in Convex and show on Track A's simulated phone panel.
+**Text fallback.** After two failed voice attempts, send a text with numbered replies (`texts:send`) and parse replies from `texts` with Claude. SMS registration won't clear this weekend, so texts live in Convex and show on the simulated phone panel.
 
 **Live status during calls.** Subscribe to `requests:forHousehold` for the length of a call. When status changes, interrupt at the next sentence boundary and play the new template. Write `requestStatus` on every agent line in `transcriptLines` so the grader can check it.
 
@@ -286,19 +286,19 @@ Hands off to: `households`, `calls`, `transcriptLines`, `texts`, `nominations`; 
 
 **Hard escalations.** `requests:escalate` with `medical`, `flames` or `address_unconfirmed`.
 
-**Text agent endpoint** for Track D's eval: `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }`, running the same state machine and prompt as phone calls.
+**Text agent endpoint** for the persona eval: `POST /turn` with `{ sessionId, language, text }` returns `{ reply, stage, record, done }`, running the same state machine and prompt as phone calls.
 
-**Test without the other tracks.** Turn off the voice stand-in. The seeded households give you a queue, and the dispatch stand-in produces `callbacks`. To drive a status change mid-call, call `offers:accept` or `offers:cancelByDriver` from `npx convex run`.
+**Test without the other parts.** Turn off the voice stand-in. The seeded households give you a queue, and the dispatch stand-in produces `callbacks`. To drive a status change mid-call, call `offers:accept` or `offers:cancelByDriver` from `npx convex run`.
 
-**Track B's list:** real calls fill household records on the call floor, corrections reach the record, English and Spanish work, honesty templates (including `reassigning`) play by status, status changes interrupt live calls, callbacks play, latency is logged, the full red-team set runs (with Track D's grader), and the audio eval is done.
+**The list:** real calls fill household records on the call floor, corrections reach the record, English and Spanish work, honesty templates (including `reassigning`) play by status, status changes interrupt live calls, callbacks play, latency is logged, the full red-team set runs (with the honesty grader), and the audio eval is done.
 
-## Track C: dispatch and simulator
+## Dispatch and simulator
 
-Hands off to: rescue map (plans, offers, vehicles), Track B (status changes, callbacks).
+Hands off to: rescue map (plans, offers, vehicles), the voice agent (status changes, callbacks).
 
-**Setup this track owns.** Create the shared Convex cloud deployment (`npx convex login`, then `npx convex dev`) and invite the team. Put `CONVEX_URL` in the shared env file. Deploy the Next app so the driver page opens on a phone. Host the Python solver service at a public URL for Convex actions to call. All of this is live by 12pm Saturday.
+**Setup.** Create the shared Convex cloud deployment (`npx convex login`, then `npx convex dev`) and invite the team. Put `CONVEX_URL` in the shared env file. Deploy the Next app so the driver page opens on a phone. Host the Python solver service at a public URL for Convex actions to call. All of this is live by 12pm Saturday.
 
-**Road network.** OpenStreetMap through OSMnx: edges with length, speed limit and lanes, and free-flow travel times. Snap closures from `roadClosures` to edges (`roads:setEdgeKey`). Closures come from Track D's hazard, drivers' reports ("Lincoln Ave blocked"), residents' mentions on calls (unconfirmed until checked) and the manual control. Dijkstra on the west Altadena graph takes milliseconds, so recompute every vehicle, request and shelter path on each change.
+**Road network.** OpenStreetMap through OSMnx: edges with length, speed limit and lanes, and free-flow travel times. Snap closures from `roadClosures` to edges (`roads:setEdgeKey`). Closures come from the hazard runner, drivers' reports ("Lincoln Ave blocked"), residents' mentions on calls (unconfirmed until checked) and the manual control. Dijkstra on the west Altadena graph takes milliseconds, so recompute every vehicle, request and shelter path on each change.
 
 **Dispatch optimizer.** A dynamic dial-a-ride problem: a mixed fleet, pickups and drop-offs, deadlines, re-solved whenever the world changes. Reads `requests:open`, `vehicles:list`, `offers:active` and `roads:closures`; writes through `plans:propose`.
 
@@ -335,21 +335,21 @@ Hands off to: rescue map (plans, offers, vehicles), Track B (status changes, cal
 - Metric: additional simulated pickups completed before the scenario deadline, plus worst wait, wait for wheelchair and bedbound riders, and vehicle-minutes. About 100 seeds, reported with ranges. Never "lives saved."
 - Expect a modest dispatch gap; single digits to low double digits is a good result. Script it now: "A good dispatcher with a whiteboard does fine when it's quiet. The gap opens when [the fleet is tight / closures stack up]; here's by how much."
 - Sensitivity panel: fleet size, answer rate and hazard speed, plus one honest line about where we don't help (for example, below a certain fleet size nothing reaches the last households in time).
-- Ground truth comes from `data/population.json`. The simulator evaluates a policy; it doesn't validate predictions about real households, and the screen says so. Write results to `data/sim-results.json` for Track A.
+- Ground truth comes from `data/population.json`. The simulator evaluates a policy; it doesn't validate predictions about real households, and the screen says so. Write results to `data/sim-results.json` for the under-the-hood screen.
 
-**Test without the other tracks.** The voice stand-in fills households and requests; the radial stand-in fire gives deadlines; add closures yourself with `roads:addClosures`.
+**Test without the other parts.** The voice stand-in fills households and requests; the radial stand-in fire gives deadlines; add closures yourself with `roads:addClosures`.
 
-**Track C's list:** the solver writing compatible offers through `plans:propose`, re-routing around closures, revocation when a pickup becomes unreachable, the heuristic running as fallback, vehicle movement, and simulator results with the three-way split and the sensitivity panel. Congestion and departure timing come as labeled exploration ("What happens if everyone leaves at once?"):
+**The list:** the solver writing compatible offers through `plans:propose`, re-routing around closures, revocation when a pickup becomes unreachable, the heuristic running as fallback, vehicle movement, and simulator results with the three-way split and the sensitivity panel. Congestion and departure timing come as labeled exploration ("What happens if everyone leaves at once?"):
 
 - Edge travel time from the BPR curve, t = t₀ (1 + 0.15 (v/c)⁴), with residents who drive loaded onto the network by departure time.
 - Departures from a drift-diffusion model, dX = μ(t) dt + σ dW, leaving when X crosses a threshold. Two classes (evacuation-keen and evacuation-reluctant, per Berkeley's survey of California evacuees), with shape fit to published departure curves.
 - The effect of a phone call on departure is an assumption explored in simulation, not a finding. Skip the time-expanded min-cost flow and the coupling loop unless everything else is done.
 
-## Track D: modeling and evaluation
+## Modeling and evaluation
 
-Hands off to: Track C (population, hazard file), field teams (door order), Track A (sample CSV), Track B (personas, nomination matches).
+Hands off to: the simulator (population, hazard file), field teams (door order), the interface (sample CSV), the voice agent (personas, nomination matches).
 
-**No setup.** `CONVEX_URL` and `ANTHROPIC_API_KEY` arrive in the shared env file from Tracks C and B. Until then, work on files. Call Convex from Python with `pip install convex`.
+**No setup.** `CONVEX_URL` and `ANTHROPIC_API_KEY` are in the shared env file. Until then, work on files. Call Convex from Python with `pip install convex`.
 
 **Sample rider list.** Replace the starter `data/sample-riders.csv` with about 40 fictional riders at real west Altadena address points, including Carmen and Walter for the demo.
 
@@ -362,7 +362,7 @@ priority_h = (p_h · u_h) / τ_h + α · wait_h
 ```
 
 - `p_h` is the need estimate. Known need from the rider list or a call comes first, and a neighbor nomination raises it sharply. Otherwise it's the census base rate: age 65+, no vehicle and 65+ living alone by block group, and disability by tract, since ACS publishes disability status (table B18101) only down to the tract. Spatial smoothing from answered neighbors is one term we can switch on and off on screen.
-- `u_h` is urgency from the hazard deadline, and `τ_h` is travel time for the nearest team (compute it with OSMnx yourself; don't wait on Track C).
+- `u_h` is urgency from the hazard deadline, and `τ_h` is travel time for the nearest team (compute it with OSMnx).
 - `wait_h` is minutes on the list. This aging term guarantees no household, however isolated, stays last forever. State how α was set.
 - Guardrails: the score only orders visits and nobody is skipped because of it. Estimates are shown as estimates, and no individual risk scores appear on screen.
 
@@ -372,33 +372,33 @@ priority_h = (p_h · u_h) / τ_h + α · wait_h
 
 **Persona cards.** About 200 in `data/personas.json`: hard of hearing, partial address, panic, Spanish, tangents, a second voice and mid-call corrections.
 
-**Persona eval.** Runs each card against the text agent endpoint. Until Track B's endpoint is up, run against your own scripted agent with the same request and response shape. Report accuracy separately for address, passenger count, mobility and assistance required, plus correction success rate and completion time, to `data/eval-results.json` for Track A.
+**Persona eval.** Runs each card against the text agent endpoint. Until the voice server's endpoint is up, run against your own scripted agent with the same request and response shape. Report accuracy separately for address, passenger count, mobility and assistance required, plus correction success rate and completion time, to `data/eval-results.json` for the under-the-hood screen.
 
 **Implied-reassurance grader.** A separate grader model reads agent lines with their `requestStatus` and flags implied promises, with a human spot check.
 
-**Track D's list:** the sample rider list, the hazard runner writing deadlines and closures, the door-check score with the smoothing toggle, address matching, persona cards with corrections, and:
+**The list:** the sample rider list, the hazard runner writing deadlines and closures, the door-check score with the smoothing toggle, address matching, persona cards with corrections, and:
 
 1. Door-check fairness tests in your own door-team simulation: 30% of nominations wrong, one neighborhood answering at half the rate, and isolated homes with no answering neighbors. Report worst-case time to check, not only the average, against random and nearest-first orderings.
 2. A simple spread model as a scenario generator: wind-driven elliptical spread with fast marching (scikit-fmm) on a uniform fuel grid, so closures emerge from simulated spread instead of a script. Claim "conservative within our assumptions," never "validated against satellite data": MODIS and VIIRS detections are about 1 km and 375 m, intermittent, and blocked by smoke.
 
-## Team work outside the tracks
+## Team work beyond the app
 
 These need an owner each at the next sync.
 
 - **Practitioner conversation (highest priority).** An Access Services dispatcher or manager, a paratransit driver, or an emergency manager. Ask how an assignment would reach a driver today, who is allowed to approve, and what would make them distrust this.
 - **Advocates.** Disability Rights California, an LA independent living center, LA County CERT. Ask each one question: what would make you trust or distrust an AI agent calling people during an evacuation? Their answer shapes the "if you can leave safely" script.
 - **Usability tests.** 5 to 10 older adults playing persona cards, recorded with permission.
-- **Pitch script, demo rehearsal and the Devpost video (Brendan, alongside Track B).** The pitch runs from a `/present` page in this app, so slides can show the live rescue map and call floor. Brendan owns `app/present/`; Track A keeps the shared components and tokens it reuses working.
+- **Pitch script, demo rehearsal and the Devpost video (Brendan).** The pitch runs from a `/present` page in this app, so slides can show the live rescue map and call floor. Brendan owns `app/present/`; whoever changes the shared components and tokens it reuses keeps it working.
 - **Notability notes,** only if they're kept as we go.
 
 ## Timeline
 
-Every track finishes its whole list. Run the full Rider Check flow end to end (CSV, call, correction, compatible offer, approval, driver acceptance on a second phone, callback, closure, revocation, `reassigning` call, stale offer rejected, new acceptance) as soon as real calls work, and again after every big change, so anything that breaks shows up while there's time to fix it.
+Every part finishes its whole list. Run the full Rider Check flow end to end (CSV, call, correction, compatible offer, approval, driver acceptance on a second phone, callback, closure, revocation, `reassigning` call, stale offer rejected, new acceptance) as soon as real calls work, and again after every big change, so anything that breaks shows up while there's time to fix it.
 
 | When | What |
 | --- | --- |
-| Now to Sun early morning | Build every track's list and the add-ons, film the video, and keep running the full flow. |
-| Sun to 8:30am | Edit the video, write Devpost and READMEs, rehearse both pitch versions and the Q&A, opt into every track. |
+| Now to Sun early morning | Build every part's list and the add-ons, film the video, and keep running the full flow. |
+| Sun to 8:30am | Edit the video, write Devpost and READMEs, rehearse both pitch versions and the Q&A, opt into every prize track. |
 | Sun 8:50am | Submitted on Devpost |
 | Sun 10:30am | Judging at our table |
 
@@ -406,7 +406,7 @@ Every track finishes its whole list. Run the full Rider Check flow end to end (C
 
 Call quality is reported per field.
 
-1. **Persona eval (scale).** The 200 text personas from Track D.
+1. **Persona eval (scale).** The 200 text personas.
 2. **Audio eval.** About 30 synthetic-voice callers from a different TTS provider (so we don't test Cartesia against itself) calling our real Twilio number, with noise and slow speech. Report the drop from text.
 3. **Usability tests.** Ask what confused people, whether they trusted it and whether they'd have left. Fix one thing and re-test one person. Present these honestly as usability tests, not as evidence about riders or dispatchers.
 
@@ -499,9 +499,9 @@ The goal is one sentence: "We asked X. A dispatcher told us Y. We changed Z."
 
 ## Prize tracks
 
-Each track gets work a judge can see, and every sponsor tool gets a README line saying where it runs. Each add-on has one owner.
+Each prize track gets work a judge can see, and every sponsor tool gets a README line saying where it runs. Each add-on has one owner.
 
-| Track | Prize | What the judge must see | Tier |
+| Prize track | Prize | What the judge must see | Tier |
 | --- | --- | --- | --- |
 | Cal Hacks: Overall, Most Technically Complex, People-First | MacBook Air down to Apple Watch | People-First is our clearest fit. Most Technically Complex comes from dispatch staying correct under changing constraints, shown live on the under-the-hood screen. | Core |
 | Cartesia | Meta glasses (to be confirmed) | Voice is core. One complete flow including a correction and an interruption, per-field accuracy, latency and Spanish. The 2-minute demo-first version, and a README listing Cartesia features used and known limitations. | Core |
@@ -518,7 +518,7 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 
 | Risk | Backup |
 | --- | --- |
-| Tracks drift apart | One contract in Convex, notes files between tracks, everyone on `main` |
+| Work drifts apart | One contract in Convex, notes files between people, everyone on `main` |
 | The agent promises help that isn't coming | Statuses in code, ETAs only by template, the implied-reassurance grader, and the red-team set run before the demo |
 | A promise becomes false after acceptance | Re-route first, then `reassigning` status, revocation and measured time to notify |
 | Re-planning churns drivers | Accepted runs frozen in the contract; only open offers can change, at a cost |
@@ -537,7 +537,7 @@ Each track gets work a judge can see, and every sponsor tool gets a README line 
 
 ## Open decisions
 
-- Owners for Tracks C and D, and for the rest of the team work outside the tracks
+- Owners for the team work beyond the app
 - Whether Cartesia's speech-to-text holds up on 8 kHz phone audio
 - Which neighbor-question and "can't leave" wording residents and advocates find natural
 - Who plays the driver at the table (they need to be free for the whole judging window)

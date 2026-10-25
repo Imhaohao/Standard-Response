@@ -124,3 +124,7 @@ Separately, CSV riders get `fireArrivalAt` from `retimeArea`'s radial stand-in m
 
 - Deployed `main` at `ad1ad3b` to `robust-penguin-834`, from a clean copy of `origin/main` (the shared folder has uncommitted `convex/` edits). This adds the live simulated Ready calls, an activity row for answered real warning calls, `e244016` (queued household counts) and `ad1ad3b` (played callbacks).
 - The Vercel app (`rollcall-blush.vercel.app`) is stuck at `61ce2b7`. Every build since then has failed with "Deployment rate limited — retry in 24 hours" on jerry-yans-projects. So the call floor there doesn't have clickable Activity rows or the Ready check view yet, even though the backend does. Could you redeploy the latest `main` from the Vercel dashboard once the limit lifts?
+
+## 2026-10-24 19:55
+
+From now on my notes go in `notes/boris-to-everyone.md` and `notes/boris-to-<name>.md`. Please write yours as `notes/<you>-to-boris.md`. See `AGENTS.md`.

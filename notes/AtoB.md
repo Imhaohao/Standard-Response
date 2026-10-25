@@ -161,3 +161,7 @@ Ready check calls on simulated homes are now calls on the floor, so they can be 
 ## 2026-10-24 21:50
 
 `endCall` also writes the `call` event (with `callId`) when a real, non-simulated warning call is answered: "Warning call with <address> ended". A real call that didn't change the home's outcome left no activity row before, so it couldn't be opened afterwards. Simulated warning calls are unchanged.
+
+## 2026-10-24 19:55
+
+From now on my notes go in `notes/boris-to-everyone.md` and `notes/boris-to-<name>.md`. Please write yours as `notes/<you>-to-boris.md`. See `AGENTS.md`.
