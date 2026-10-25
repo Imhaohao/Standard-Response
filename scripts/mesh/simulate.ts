@@ -166,7 +166,7 @@ const results = {
     { name: "Everyone who reaches safety is online", value: "yes", why: "Shelter Wi-Fi or working networks outside the zone" },
     { name: "Street blockages", value: "logistic in fire proximity, road class and time, spatially clustered", why: "lib/flow/blockage.ts; no published per-street data exists" },
     { name: "Departures", value: "drift-diffusion, keen and reluctant classes", why: "UC Berkeley survey of California wildfire evacuees" },
-    { name: "Crowd motion", value: "underdamped Langevin, BAOAB, density-slowed speed", why: "lib/crowd/langevin.ts" },
+    { name: "Crowd motion", value: "underdamped Langevin, BAOAB; speed slowed by the gap to the car ahead, lane keeping, about 1,800 cars an hour per lane", why: "lib/crowd/langevin.ts" },
     {
       name: "Route choice",
       value: `fastest route with drive times slowed by traffic, refreshed every ${DEFAULT_WORLD.crowd.refreshMinutes} min; logit spread of ${DEFAULT_WORLD.crowd.routeSpreadSeconds} s`,

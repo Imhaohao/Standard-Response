@@ -28,3 +28,8 @@ The mesh add-on is three features built beside the core flow: phones sharing roa
 - The crowd model's route choice now accounts for traffic: drive times are slowed by the cars on each street, refreshed every 5 minutes, and drivers spread over near-equal streets with logit odds. `data/flow-results.json` is regenerated (same 4 seeds, 30% sample) and the results table in `docs/mesh.md` is updated. If you lifted any figures from the old table, take them again. The "shared model matches a central fit" claim is now three of four seeds within 0.01 AUC; the fourth trails by 0.04.
 - `/mesh/agency`'s traffic forecast will show much less jamming than before; the old model put every driver on the same arterials.
 - `convex/roadGraph.ts`'s edge type now lists `lanes`, which was already in the road data. No runtime change for anyone reading `EDGES`.
+
+## 2026-10-24 21:30
+
+- The crowd model's car following is reworked (drivers react to the car ahead, keep their lane, queue in it; a lane now discharges at about 1,800 cars an hour where it used to manage 3,940). `data/flow-results.json` is regenerated (same 4 seeds, 30% sample) and the results table in `docs/mesh.md` is updated. If you lifted any figures, take them again: households out of the zone is now 2,945 (was 3,010), and the agency now hears of a blocked street about 2 minutes sooner with the mesh in every seed (it was a wash before). The file's shape is unchanged.
+- `/flow`'s "Traffic moving under 1 m/s" and the street speeds now use each car's speed along its route rather than |v|, so jams read as slower than before. No component change needed.

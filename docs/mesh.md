@@ -102,7 +102,7 @@ dv_c = [ −v_c / τ_c  −  k_lane d_c  +  F_rep,c ] dt                  +  sqr
 - **Departures** follow a drift-diffusion decision, dX = μ(t) dt + σ dW, leaving when X reaches 1. There are two classes, evacuation-keen and evacuation-reluctant, per UC Berkeley's survey of California wildfire evacuees, and the drift rises as the fire nears.
 - **Who stays.** Households that can't leave without help stay put and are shown in red. They are who the core flow is for.
 
-The model also records flow by street: cars through each segment, their sampled speeds, and the driving time lost to crowding (each 30-second sample counts 30 s times the share of free-flow speed the car didn't get). A speed sample is the car's velocity along its route, not |v|: the noise alone gives a stopped car an |v| near 1 m/s, which made jams look faster than they were and under-counted lost time by about 15%. The streets where crowding costs the most driving time come out as Lincoln Avenue, West Howard Street and the I-210 ramps.
+The model also records flow by street: cars through each segment, their sampled speeds, and the driving time lost to crowding (each 30-second sample counts 30 s times the share of free-flow speed the car didn't get). A speed sample is the car's velocity along its route, not |v|, which counted a car turning a corner, or one jittering in a jam, as making way. That had under-counted lost time by about 15%. The streets where crowding costs the most driving time come out as the I-210 ramps, Windsor Avenue, West Howard Street and Arroyo Boulevard, then Lincoln Avenue.
 
 ### Traffic forecast for the agency
 
@@ -112,7 +112,7 @@ The model also records flow by street: cars through each segment, their sampled 
 - **Every 5 minutes, each is forked and run an hour ahead** (`CrowdSim.fork`): same state, fresh noise. The forecast is the spread across the six: cars on the road every 5 minutes, and for 0–15, 15–30 and 30–60 minutes ahead each street's slowdown (1 − mean speed / free-flow speed), cars through, and car-minutes lost to crowding. Every figure is a median with the 5th to 95th percentile over the runs.
 - **What it knows.** Confirmed road closures and streets the phone mesh reports blocked, held fixed for the hour; the scenario fire keeps advancing as a wall. Blockages nobody has reported yet are not in it.
 - **On the map**, streets forecast to slow are a wide soft ink band, darker meaning slower and wider meaning more driving time lost. Red stays fire and people.
-- **Cost.** At minute 30, six runs take 190 s on one thread (measured); the runner puts each on its own thread. A runner started 517 minutes after the warning caught up and forecast in 85 s on a 10-core laptop. Keep at least five runs: with fewer, the range is just the spread of two or three samples.
+- **Cost.** At minute 30, six runs take about 100 s on one thread (measured: 14 s to reach minute 30, 84 s to run each an hour ahead); the runner puts each on its own thread, so a forecast takes about 15 s. With the earlier dynamics, a runner started 517 minutes after the warning caught up and forecast in 85 s on a 10-core laptop. Keep at least five runs: with fewer, the range is just the spread of two or three samples.
 - **Limits.** It forecasts the simulated town, not measured traffic: there is no live traffic feed, and the population is synthetic. It is advisory; Track C's dispatcher does not read it.
 
 ## Results (simulation, not a prediction)
@@ -121,19 +121,21 @@ The model also records flow by street: cars through each segment, their sampled 
 
 | | Mesh on | Mesh off | Difference |
 | --- | --- | --- | --- |
-| Phones that know of a blocked street, 30 min in | 1,715 | 524 | +1,332 (+1,160 to +1,349) |
-| Phones that know of a blocked street, 60 min in | 2,589 | 837 | +1,836 (+1,666 to +1,849) |
-| Drivers who drove into a blocked street unaware | 1,125 | 1,334 | −207 (−433 to −159) |
-| Shared model, AUC ranking blocked streets | 0.94 | no model | |
-| Same model fitted centrally on all raw data (no privacy) | 0.93 | 0.94 | |
-| Time from a street blocking to the agency hearing, median | 15.2 min | 15.3 min | −0.5 (−1.4 to +1.2) |
-| Households out of the zone | 3,010 | 3,011 | −1 (−23 to +6) |
+| Phones that know of a blocked street, 30 min in | 1,697 | 457 | +1,257 (+1,146 to +1,352) |
+| Phones that know of a blocked street, 60 min in | 2,532 | 784 | +1,850 (+1,626 to +1,878) |
+| Drivers who drove into a blocked street unaware | 993 | 1,255 | −223 (−307 to −156) |
+| Shared model, AUC ranking blocked streets | 0.93 | no model | |
+| Same model fitted centrally on all raw data (no privacy) | 0.93 | 0.93 | |
+| Time from a street blocking to the agency hearing, median | 12.8 min | 15.3 min | −2.0 (−3.2 to −1.6) |
+| Households out of the zone | 2,945 | 2,952 | +21 (−7 to +53) |
+
+Regenerated after the crowd model's car following and lane keeping changed (section 3); the earlier dynamics, which let cars overtake through yards, got more households out (3,010) and showed no gain in how soon the agency hears.
 
 What this does and doesn't show:
 
 - **People in the zone learn about blocked streets far sooner, and fewer drive into them.** This is the mesh's clearest effect.
-- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model matches a central fit on raw data to within 0.01 AUC in three of the four seeds and trails it by 0.04 in the fourth (0.89 against 0.92).
-- **The agency's own coverage barely changes,** and how soon it hears of a blocked street moves by about a minute at most, either way across seeds. In these runs most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
+- **Private learning can only happen with the mesh.** Without phones mixing their updates, no phone ever holds five phones' worth, so nothing can be uploaded without exposing someone. With the mesh, the shared model matches a central fit on raw data to within 0.01 AUC in three of the four seeds and trails it by 0.015 in the fourth (0.91 against 0.92).
+- **The agency hears about 2 minutes sooner with the mesh, in every seed (1.6 to 3.2), but its coverage barely changes.** In these runs most blocked streets that phones see are seen by drivers, who upload directly once they reach safety. Streets that block around people still at home block after the area has emptied, when nobody passes to carry the news out. More gateways inside the zone (working cell service, or a fire engine running a gateway) is what would change this.
 - **Evacuation totals don't move.** West Altadena's grid has plenty of detours, so a known blockage costs a driver little. The gain is in not being surprised. Denser blockages or a tighter grid would change that, and we haven't simulated it.
 
 ## How it got there
