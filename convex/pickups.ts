@@ -112,10 +112,13 @@ async function markDone(ctx: MutationCtx, plan: Plan) {
   await logPickup(ctx, plan, `${plan.helperName} picked up ${await placeOf(ctx, plan)}`);
 }
 
-// The warning reached these homes: start calling their helpers.
+// The warning reached these homes: start calling the helpers they named. A neighbor the Ready check
+// paired them with (`recruited`) waits until the resident's own call says they can't get out
+// (neighborPickups.ts), so nobody is sent to a house that may be empty.
 export async function startPickupChecks(ctx: MutationCtx, now: number) {
   const arranged = await ctx.db.query("pickupPlans").withIndex("by_status", (q) => q.eq("status", "arranged")).take(200);
   for (const plan of arranged) {
+    if (plan.recruited) continue;
     const household = await ctx.db.get("households", plan.householdId);
     if (!household?.inZone) continue;
     await ctx.db.patch("pickupPlans", plan._id, { status: "checking", checkStartedAt: now, updatedAt: now });

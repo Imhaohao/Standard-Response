@@ -105,10 +105,43 @@ async function askToPickUp(ctx: MutationCtx, resident: Located, neighbor: Househ
   });
 }
 
+// The neighbor the Ready check paired with this home (readyPairing.ts) is asked first, now that the
+// resident's own call says they can't get out. One who can no longer drive, is busy with someone
+// else, or would have to drive toward the fire is let go, and the nearest other neighbor is asked.
+async function startPairedAsk(ctx: MutationCtx, resident: Located, plans: Doc<"pickupPlans">[]) {
+  const paired = plans.find((plan) => plan.status === "arranged" && plan.recruited);
+  if (!paired) return "none";
+  const helper = paired.helperHouseholdId ? await ctx.db.get("households", paired.helperHouseholdId) : null;
+  const now = await simNow(ctx);
+  const free = helper !== null && !(await busyHelpers(ctx)).has(helper._id);
+  if (helper && free && canDrive(helper) && awayFromTheFire(helper, resident)) {
+    await ctx.db.patch("pickupPlans", paired._id, { status: "checking", checkStartedAt: now, updatedAt: now });
+    await ctx.db.patch("households", resident._id, { neighborSearch: { reachMeters: reachOf(resident) } });
+    await ctx.db.insert("events", {
+      kind: "dispatch",
+      message: `Asking ${paired.helperName}, the neighbor paired at the Ready check, to pick up ${resident.residentName ?? resident.address}`,
+      householdId: resident._id,
+      at: now,
+    });
+    return "started";
+  }
+  await ctx.db.delete("pickupPlans", paired._id);
+  await ctx.db.insert("events", {
+    kind: "dispatch",
+    message: `${paired.helperName} can't be asked to pick up ${resident.residentName ?? resident.address} tonight. Asking the nearest other neighbor`,
+    householdId: resident._id,
+    at: now,
+  });
+  return "released";
+}
+
 export async function askNearbyDriver(ctx: MutationCtx, householdId: Id<"households">) {
   const resident = await ctx.db.get("households", householdId);
   if (!waitingForANeighbor(resident)) return;
-  const plans = await plansFor(ctx, householdId);
+  let plans = await plansFor(ctx, householdId);
+  const paired = await startPairedAsk(ctx, resident, plans);
+  if (paired === "started") return;
+  if (paired === "released") plans = await plansFor(ctx, householdId);
   if (!mayAskAnother(plans)) return;
   const skip = await busyHelpers(ctx);
   for (const plan of plans) if (plan.helperHouseholdId) skip.add(plan.helperHouseholdId);

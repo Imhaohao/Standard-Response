@@ -2,6 +2,7 @@ import { MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { callPriorityFor } from "./model";
 import { simNow } from "./clock";
+import { pairAfterProfile } from "./readyPairing";
 
 // Writing a Ready check profile. Shared by the resident's sign-up page, the agent's Ready check call
 // and the stand-in. The record fields are written straight to the household without touching
@@ -78,4 +79,5 @@ export async function saveProfile(
   });
   const helper = profile.ready.exitPlan === "helper" ? profile.helper : undefined;
   await arrangePickup(ctx, household, helper, household.simulated);
+  await pairAfterProfile(ctx, householdId);
 }
