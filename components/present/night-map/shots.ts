@@ -35,8 +35,9 @@ export const SHOTS: Record<Beat, Shot> = {
   eighty: { ...OFF, zoom: 3.2, focus: "house", fire: 0, house: "out" },
   howSave: { ...TOWN, zoom: 3.2, focus: "house", offsetX: -380, fire: 0, house: "out", dark: 0.35 },
   stations: { ...OFF, zoom: 3.2, focus: "house", fire: 0, house: "out" },
-  dispatch: OFF,
-  built: OFF,
+  // The fire holds at 0 from 2.4 to 2.7, so it isn't re-placed for a run nobody sees.
+  dispatch: { ...OFF, fire: 0 },
+  built: { ...OFF, fire: 0 },
   tenThousand: { ...TOWN, fire: 0, dark: 0.1, wave: true },
   zone: { ...TOWN, zoom: 1.1, focus: "zone", offsetX: 180, fire: 0.15, dark: 0.15 },
   census: { ...TOWN, zoom: 1.1, focus: "zone", offsetX: 180, fire: 0.2, dark: 0.15 },

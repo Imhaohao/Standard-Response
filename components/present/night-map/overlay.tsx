@@ -175,7 +175,7 @@ function runOverlay(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, re
     const { beat, at } = started.current;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, STAGE.width, STAGE.height);
-    const paint = { ctx, project, elapsed: now - at, palette };
+    const paint = { ctx, project, elapsed: Math.max(0, now - at), palette };
     const layers = layersFor(beat);
     paintTown(paint, layers, scene);
     paintPlan(paint, layers, scene);
@@ -186,7 +186,7 @@ function runOverlay(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, re
   let last = performance.now();
   const tick = (now: number) => {
     if (CROWD_RUNS.includes(started.current.beat)) {
-      scene.crowd.run(((now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
+      scene.crowd.run((Math.max(0, now - last) / 1000) * CROWD_SPEED, CROWD_BUDGET_MS);
       renderer.setFireMinutes(scene.crowd.sim.minutes);
     }
     last = now;

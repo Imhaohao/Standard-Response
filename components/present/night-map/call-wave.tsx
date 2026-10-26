@@ -60,23 +60,36 @@ function drawCalled(ctx: CanvasRenderingContext2D, placed: Placed[], from: numbe
   ctx.fill();
 }
 
-// The rings still spreading, grouped by how far along they are so each group is one stroke.
-function drawRings(ctx: CanvasRenderingContext2D, placed: Placed[], from: number, to: number, elapsed: number, colors: Colors) {
-  ctx.clearRect(0, 0, STAGE.width, STAGE.height);
-  ctx.strokeStyle = colors.called;
-  ctx.lineWidth = 1.2;
-  for (let step = 0; step < RING_STEPS; step++) {
+const RING_MAX_RADIUS = 3 + 14;
+const RING_LINE = 1.2;
+const RING_SPRITE = Math.ceil(2 * (RING_MAX_RADIUS + RING_LINE));
+
+// Each ring step is drawn once into a small sprite, so a frame stamps images instead of tracing arcs.
+function ringSprites(color: string, ratio: number) {
+  return Array.from({ length: RING_STEPS }, (_, step) => {
     const k = (step + 0.5) / RING_STEPS;
-    const radius = 3 + k * 14;
-    ctx.beginPath();
-    for (let i = from; i < to; i++) {
-      const home = placed[i];
-      if (Math.min(Math.floor(((elapsed - home.at) / RING_MS) * RING_STEPS), RING_STEPS - 1) !== step) continue;
-      ctx.moveTo(home.x + radius, home.y);
-      ctx.arc(home.x, home.y, radius, 0, Math.PI * 2);
-    }
+    const sprite = document.createElement("canvas");
+    sprite.width = sprite.height = Math.ceil(RING_SPRITE * ratio);
+    const ctx = sprite.getContext("2d");
+    if (!ctx) return sprite;
+    ctx.scale(ratio, ratio);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = RING_LINE;
     ctx.globalAlpha = 0.7 * (1 - k);
+    ctx.beginPath();
+    ctx.arc(RING_SPRITE / 2, RING_SPRITE / 2, 3 + k * 14, 0, Math.PI * 2);
     ctx.stroke();
+    return sprite;
+  });
+}
+
+// The rings still spreading, each stamped from the sprite for how far along it is.
+function drawRings(ctx: CanvasRenderingContext2D, placed: Placed[], from: number, to: number, elapsed: number, sprites: HTMLCanvasElement[]) {
+  ctx.clearRect(0, 0, STAGE.width, STAGE.height);
+  for (let i = from; i < to; i++) {
+    const home = placed[i];
+    const step = Math.min(Math.floor(((elapsed - home.at) / RING_MS) * RING_STEPS), RING_STEPS - 1);
+    ctx.drawImage(sprites[Math.max(0, step)], home.x - RING_SPRITE / 2, home.y - RING_SPRITE / 2, RING_SPRITE, RING_SPRITE);
   }
 }
 
@@ -95,6 +108,7 @@ function prepare(canvas: HTMLCanvasElement) {
 // the homes whose ring is still spreading.
 function runWave(dots: CanvasRenderingContext2D, rings: CanvasRenderingContext2D, placed: Placed[]) {
   const colors = readColors();
+  const sprites = ringSprites(colors.called, stageCanvasRatio());
   drawWaiting(dots, placed, colors);
   const began = performance.now();
   let [fading, called, frame] = [0, 0, 0];
@@ -104,7 +118,7 @@ function runWave(dots: CanvasRenderingContext2D, rings: CanvasRenderingContext2D
     drawCalled(dots, placed, called, nextCalled, colors);
     called = nextCalled;
     fading = firstAfter(placed, elapsed - RING_MS, fading);
-    drawRings(rings, placed, fading, called, elapsed, colors);
+    drawRings(rings, placed, fading, called, elapsed, sprites);
     if (fading < placed.length) frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);

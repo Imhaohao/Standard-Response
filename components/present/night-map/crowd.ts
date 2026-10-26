@@ -76,16 +76,30 @@ export class DeckCrowd {
   }
 }
 
+// The warm-up only takes the time the browser has left over between frames, so it never drops one.
+// Browsers without idle callbacks get short slices on a timer instead.
+const FALLBACK_SLICE_MS = 6;
+
+type IdleScheduler = { schedule: (work: (budgetMs: number) => void) => number; cancel: (handle: number) => void };
+
+const idleScheduler = (): IdleScheduler =>
+  typeof window.requestIdleCallback === "function"
+    ? {
+        schedule: (work) => window.requestIdleCallback((deadline) => work(Math.min(deadline.timeRemaining(), WARM_SLICE_MS))),
+        cancel: (handle) => window.cancelIdleCallback(handle),
+      }
+    : { schedule: (work) => window.setTimeout(() => work(FALLBACK_SLICE_MS), 0), cancel: (handle) => window.clearTimeout(handle) };
+
 function useWarmUp(crowd: DeckCrowd | null) {
   useEffect(() => {
     if (!crowd) return;
-    let frame = 0;
-    const warm = () => {
-      crowd.run(WARM_MINUTES * 60 - crowd.sim.seconds, WARM_SLICE_MS);
-      if (crowd.sim.seconds < WARM_MINUTES * 60) frame = requestAnimationFrame(warm);
+    const scheduler = idleScheduler();
+    const warm = (budgetMs: number) => {
+      crowd.run(WARM_MINUTES * 60 - crowd.sim.seconds, budgetMs);
+      if (crowd.sim.seconds < WARM_MINUTES * 60) handle = scheduler.schedule(warm);
     };
-    frame = requestAnimationFrame(warm);
-    return () => cancelAnimationFrame(frame);
+    let handle = scheduler.schedule(warm);
+    return () => scheduler.cancel(handle);
   }, [crowd]);
 }
 

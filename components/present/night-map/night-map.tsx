@@ -110,6 +110,10 @@ function useFireMinutes(renderer: InkMapRenderer | null, minutes: number, pace: 
   const current = useRef(minutes);
   useEffect(() => {
     if (!renderer) return;
+    if (current.current === minutes) {
+      renderer.setFireMinutes(minutes);
+      return;
+    }
     const controls = animate(current.current, minutes, {
       duration: FIRE_RUN_SECONDS / pace,
       ease: [0.4, 0, 0.2, 1],
