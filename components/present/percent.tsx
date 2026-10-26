@@ -1,5 +1,13 @@
-// The Nexa Rust trial has no % glyph (it draws "TRIAL FONT" instead), so the sign is set in the
-// condensed display face beside the Nexa figure.
+// The Nexa Rust trial has no % or × glyph (it draws "TRIAL FONT" instead), so those signs are set in
+// the condensed display face beside the Nexa figure.
+function OutsideTrial({ glyph }: { glyph: string }) {
+  return <span className="font-display">{glyph}</span>;
+}
+
 export function Percent() {
-  return <span className="font-display">%</span>;
+  return <OutsideTrial glyph="%" />;
+}
+
+export function Times() {
+  return <OutsideTrial glyph="×" />;
 }

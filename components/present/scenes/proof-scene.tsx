@@ -5,7 +5,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { sceneMove } from "../motion";
 import { Photo } from "../photo";
 import type { Beat } from "../script";
-import { Percent } from "../percent";
+import { Percent, Times } from "../percent";
 import { Show } from "../show";
 import { FireNights, NIGHTS_SIZE } from "./proof/fire-nights";
 import { NIGHT_OUTCOME } from "./proof/night-outcome";
@@ -18,10 +18,11 @@ const percentOf = (out: number) => Math.round((out / NIGHT_OUTCOME.households) *
 const BAR = { width: 260, height: 640, bottom: 150 };
 
 // One bar of the night: a grey track for every at-risk household, filled to the share that got out in time.
+// The label hangs under the track on one line, so every track ends on the same baseline.
 function OutcomeBar({ shown, out, label, left }: { shown: boolean; out: number; label: string; left: number }) {
   const share = out / NIGHT_OUTCOME.households;
   return (
-    <Show when={shown} rise={0} className="absolute" style={{ left, bottom: BAR.bottom - 80, width: BAR.width }}>
+    <Show when={shown} rise={0} className="absolute" style={{ left, bottom: BAR.bottom, width: BAR.width }}>
       <p className="type-deck-quote text-center">
         {percentOf(out)}
         <Percent />
@@ -34,7 +35,7 @@ function OutcomeBar({ shown, out, label, left }: { shown: boolean; out: number; 
           transition={{ ...sceneMove, duration: 1.6, delay: shown ? 0.3 : 0 }}
         />
       </div>
-      <p className="type-deck-label mt-5 text-center">{label}</p>
+      <p className="type-deck-label absolute left-1/2 top-full mt-5 -translate-x-1/2 whitespace-nowrap">{label}</p>
     </Show>
   );
 }
@@ -47,7 +48,10 @@ function Outcomes({ beat }: { beat: Beat }) {
   return (
     <>
       <Show when={beat === "ours"} delay={1.2} className="absolute" style={{ left: 128, top: 200, width: 820 }}>
-        <p className="type-deck-figure">{TIMES}×</p>
+        <p className="type-deck-figure">
+          {TIMES}
+          <Times />
+        </p>
         <p className="type-deck-lede mt-8">as many people out in time as today’s “caveman” system</p>
       </Show>
       <Show when={comparing} delay={0.2} className="absolute" style={{ left: 128, bottom: 96, width: 820 }}>
