@@ -9,7 +9,7 @@ import { STAGE, stageCanvasRatio } from "../stage";
 import { Wordmark } from "../wordmark";
 import { AREA as ROOM, CALL_RADIUS, CallTubes, TUBE, tubeCenter, type Call } from "./dispatch/call-tubes";
 
-const AREA = { left: STAGE.width - ROOM.width - 140, top: 50, ...ROOM };
+const AREA = { left: STAGE.width - ROOM.width - 140, top: 0, ...ROOM };
 const SEAT = { size: 112, top: AREA.top + AREA.height + 22 };
 // With reduced motion the room is shown this far into the beat, already backed up, and holds still.
 const STILL_SECONDS = 10;
@@ -25,24 +25,35 @@ function drawCall(ctx: CanvasRenderingContext2D, call: Call) {
   ctx.fill();
 }
 
-function drawTubes(ctx: CanvasRenderingContext2D, color: string) {
-  ctx.fillStyle = color;
-  for (let tube = 0; tube < TUBE.count; tube++) {
-    ctx.beginPath();
-    ctx.roundRect(tubeCenter(tube) - TUBE.width / 2, TUBE.top, TUBE.width, TUBE.bottom - TUBE.top + 4, TUBE.width / 2);
+// How strongly a full tube glows red behind the calls packed into it.
+const FULL_TUBE_RED = 0.4;
+
+function tubePath(ctx: CanvasRenderingContext2D, tube: number) {
+  ctx.beginPath();
+  ctx.roundRect(tubeCenter(tube) - TUBE.width / 2, TUBE.top, TUBE.width, TUBE.bottom - TUBE.top + 4, TUBE.width / 2);
+}
+
+function drawTubes(ctx: CanvasRenderingContext2D, room: CallTubes, colors: Colors) {
+  for (const [tube, line] of room.lines.entries()) {
+    tubePath(ctx, tube);
+    ctx.fillStyle = colors.tube;
     ctx.fill();
+    ctx.globalAlpha = line.red * FULL_TUBE_RED;
+    ctx.fillStyle = colors.call;
+    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 }
 
 function drawRoom(ctx: CanvasRenderingContext2D, room: CallTubes, colors: Colors) {
   ctx.clearRect(0, 0, AREA.width, AREA.height);
-  drawTubes(ctx, colors.tube);
+  drawTubes(ctx, room, colors);
   ctx.fillStyle = colors.call;
   for (const line of room.lines) {
     if (line.answering) drawCall(ctx, line.answering);
     for (const call of line.waiting) drawCall(ctx, call);
   }
-  for (const call of room.spilled) drawCall(ctx, call);
+  for (const column of room.columns) for (const call of column.calls) drawCall(ctx, call);
   ctx.globalAlpha = 1;
 }
 
