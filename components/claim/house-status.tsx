@@ -12,6 +12,7 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { HouseFacts, HouseStage, isVerdict, stageOf } from "@/lib/claim-stage";
 import { simTime } from "@/lib/sim-clock";
 import { useNow } from "@/lib/time";
+import { FireStatus } from "./fire-status";
 import { copyFor } from "./house-status-copy";
 import { NightTrack } from "./night-track";
 import { forgetStatusToken, rememberStatusToken } from "./status-link";
@@ -129,6 +130,7 @@ export function HouseStatus({ token }: { token: string }) {
             {ready ? <Body stage={stage} facts={facts} now={now} /> : <div className="h-64 animate-pulse rounded-2xl bg-surface-sunk" aria-hidden />}
           </motion.div>
         </AnimatePresence>
+        {ready && stage.kind !== "given_back" && <FireStatus />}
       </div>
     </PhoneScreen>
   );
