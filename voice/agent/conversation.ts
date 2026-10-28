@@ -311,7 +311,8 @@ export class Conversation {
     this.quietCheckIns = 0;
     this.quietOnHold = 0;
     if (!heard) return this.say("", [LINES[this.language].repeatPrompt], false);
-    const turn = this.done ? this.afterGoodbye(heard) : this.answer(this.spokenAddressOnly(this.householdAddress(heard)));
+    const read = complaintIsNotRepeat(heard, this.lastResidentLine());
+    const turn = this.done ? this.afterGoodbye(read) : this.answer(this.spokenAddressOnly(this.householdAddress(read)));
     return heard.heardAs ? { ...turn, heardAs: heard.heardAs } : turn;
   }
 
@@ -415,7 +416,9 @@ export class Conversation {
     const { ack, next } = this.turnEnd(heard, asked, { status, silent, stalled, givesTime, passedOn });
     const sentences = this.notSilentInDanger(ack.text, [...new Set([...greeting, ...feeling, ...told, ...said, ...next])].filter((line) => line !== ""));
     // "You need help fast. You need help fast.": Claude's acknowledgment and feeling were the same words.
-    const acknowledgment = sentences.some((line) => normalizeAck(line) === normalizeAck(ack.text)) ? "" : ack.text;
+    // "Yes, I'm still here. Yes, I'm still here, and I'm staying on the line with you.": the reply
+    // began with the acknowledgment.
+    const acknowledgment = sentences.some((line) => normalizeAck(line).startsWith(normalizeAck(ack.text))) ? "" : ack.text;
     const turn = this.say(acknowledgment, sentences, ack.blocked || answer.blocked || asked.blocked);
     const deliveryCue = { emergency: heard.emergency !== "none", slower: heard.wantsRepeat };
     return { ...turn, acknowledgmentIsEcho: ack.isEcho, transfer, givesTime, deliveryCue };
@@ -562,7 +565,7 @@ export class Conversation {
   }
 
   private rideLines(heard: Interpretation) {
-    if (this.holding && heard.wantsRepeat) return [this.repeatOnHold()];
+    if (this.holding && heard.wantsRepeat) return [this.repeatOnHold(heard)];
     if (this.holding && heard.emergency !== "none") return this.rideJustSaid() ? [] : [this.rideLine()];
     if (heard.asksToStay && this.rideJustSaid()) return [];
     return heard.asksAboutRide ? [this.rideUpdate(heard)] : [];
@@ -572,10 +575,18 @@ export class Conversation {
   // caller said it twice and heard the same five sentences twice. Asked again after hearing it in
   // full twice running, it isn't said a third time: "What was the first question I asked?" was read
   // as a repeat request and got the whole status four times.
-  private repeatOnHold() {
+  // "Are you still there?" answered by Claude ("Yes, I'm still here.") needs no "Hello? I'm still on
+  // the line." after it.
+  private repeatOnHold(heard: Interpretation) {
     const checkingTheLine = isLineCheck(this.lastResidentLine()) && this.rideJustSaid();
-    if (checkingTheLine) return LINES[this.language].stillThere[STILL_ON_THE_LINE];
+    if (checkingTheLine) return this.claudeReplies(heard) ? "" : LINES[this.language].stillThere[STILL_ON_THE_LINE];
     return this.rideSaidInLastTurns(2) ? "" : this.rideLine();
+  }
+
+  // Claude's own words will be spoken this turn, not the status line standing in for a blocked reply.
+  private claudeReplies(heard: Interpretation) {
+    const answer = guardAcknowledgment(heard.reply, this.effects.rideStatus()?.status ?? "none", this.language, heard.approvedAnswer !== undefined);
+    return !answer.blocked && this.isFreshReply(answer.text);
   }
 
   private rideSaidInLastTurns(turns: number) {
@@ -1285,6 +1296,12 @@ const STILL_ON_THE_LINE = 1;
 const LINE_CHECK =
   /^(\s*(hello|hi|hey|are you (still )?there|you there|hola|bueno|al[oóô]|allô|oiga|喂|もしもし|여보세요|ал+о|हेलो)( po)?[\s?？¿!.,。]*)+$/iu;
 export const isLineCheck = (text: string) => LINE_CHECK.test(text.trim());
+// "Why do you repeat yourself so much?" was read as a request to hear it again, so the caller
+// complaining about the status heard it once more.
+const REPETITION_COMPLAINT = /repeat(ing)? yourself|keep (saying|repeating)|stop repeating|already (said|told)|said that (already|before)|ya (lo )?(dijo|dijiste)|otra vez lo mismo|又说|别重复|老是重复/iu;
+function complaintIsNotRepeat(heard: Interpretation, said: string): Interpretation {
+  return heard.wantsRepeat && REPETITION_COMPLAINT.test(said) ? { ...heard, wantsRepeat: false } : heard;
+}
 // "I'm not leaving without my son" after "I can't get out" was read as unsure, and the agent then
 // said "Thanks, I've fixed that" for a change nobody made. Unsure never replaces a recorded no.
 function keepCantLeave(record: AgentRecord, updates: AgentRecord): AgentRecord {

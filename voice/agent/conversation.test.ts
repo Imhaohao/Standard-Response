@@ -1367,4 +1367,25 @@ describe("a repeat request on hold", () => {
     const again = conversation.respond("sorry, say that again?", heard({ wantsRepeat: true }));
     assert.ok(again.sentences.includes(conversation.rideLine()));
   });
+
+  // Real call, 2026-10-28: "Why do you repeat yourself so much?" was read as asking to hear it again,
+  // and the caller heard the full status once more.
+  it("doesn't read a complaint about repeating as a request to repeat", () => {
+    const { conversation } = atHold();
+    conversation.respond("Are you still there?", heard({ wantsRepeat: true, reply: "Yes, I'm still here, and I'm staying on the line with you." }));
+    const complaint = conversation.respond("Why do you repeat yourself so much?", heard({ wantsRepeat: true, reply: "I repeat the key steps so you have them clearly." }));
+    assert.deepEqual(complaint.sentences, ["I repeat the key steps so you have them clearly."]);
+  });
+
+  it("answers a line check once when Claude already says they're here", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("Are you still there?", heard({ wantsRepeat: true, acknowledgment: "Yes, I'm still here.", reply: "Yes, I'm still here, and I'm staying on the line with you." }));
+    assert.equal([turn.acknowledgment, ...turn.sentences].filter(Boolean).join(" "), "Yes, I'm still here, and I'm staying on the line with you.");
+  });
+
+  it("still answers a bare line check with the line's own words", () => {
+    const { conversation } = atHold();
+    const turn = conversation.respond("Hello?", heard({ wantsRepeat: true }));
+    assert.ok(turn.sentences.includes(EN.stillThere[1]));
+  });
 });
