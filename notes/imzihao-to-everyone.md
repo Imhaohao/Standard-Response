@@ -269,3 +269,9 @@ A Ready check's "no help needed" no longer survives a caller who says on the cal
 - If the caller can't say, the read-back leaves help out rather than state the file's "none". **Dispatch still sees the file's "none" in that case**: clearing a household field from a call needs a Convex contract change, and I haven't made one.
 - Exam items: polk-they-know and lahaina-door-es now get the help question, so each caller has an answer for it ("Someone has to help me get out the door." / "Necesito que alguien me ayude a salir."), recorded in `filled`, and `fields` expects `one_person_assist`.
 - polk-they-know, 3 runs, fully judged: honesty 15/18 → 18/18, and data entry 12/12. lahaina-door-es and marshall-fence: 0 critical failures, and nothing failed except turn-time misses during tonight's network drops.
+
+## 2026-10-28 14:55
+
+**standardresponse.us had been stuck on an old build since 7a6879a (the deck's phone clicker).** Every production build after it failed: `/present/remote` awaited `searchParams` outside `<Suspense>`, which `cacheComponents` refuses to prerender. 5cf10fe wraps it the way `/join` and `/you` already do. `next build` passes on a clean copy of main. If you pushed something since 10-25 and thought it was live, it wasn't until now.
+
+- dc66f7d: the judge's phone (`/you/<token>`) shows the fire. It says "There's no fire right now." before the warning, and the rescue map's fire (no vans, no crews) after it. Front end only, no Convex deploy needed.
