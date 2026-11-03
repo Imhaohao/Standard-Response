@@ -5,8 +5,7 @@ import { BrandMark } from "@/components/ui/brand-mark";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { PhoneForm } from "./phone-form";
 import { QrCode } from "./qr-code";
-
-const CAL_HACKS_WRITE_UP_URL = "https://www.borisnezlobin.com/writing/calhacks-record";
+import { RecordBanner } from "./record-banner";
 
 const noSubscription = () => () => {};
 const browserOrigin = () => window.location.origin;
@@ -23,42 +22,36 @@ function useJoinUrl(code: string | null) {
 export function SignInCard({ code, error }: { code: string | null; error: string | null }) {
   const joinUrl = useJoinUrl(code);
   return (
-    <section aria-labelledby="sign-in-heading" className="card w-full max-w-4xl p-6 sm:p-10">
-      <div className="flex items-center gap-2.5">
-        <BrandMark className="size-6" />
-        <span className="type-heading font-brand">{PRODUCT_NAME}</span>
-      </div>
-      <h1 id="sign-in-heading" className="type-display mt-6 max-w-[18ch]">
-        Our agent will call you at a house you pick
-      </h1>
-      <p className="type-body mt-3 max-w-[52ch] text-ink-muted">
-        When the evacuation warning goes out, you answer as the person who lives there.
-      </p>
-
-      <div className="mt-8 grid items-center gap-6 md:grid-cols-[auto_auto_1fr] md:gap-8">
-        <QrCode text={joinUrl} label="QR code that opens the sign-in page on your phone" className="w-32 shrink-0 md:w-52" />
-        <div className="flex items-center gap-3 md:h-full md:flex-col" aria-hidden>
-          <span className="h-px flex-1 bg-line md:h-auto md:w-px" />
-          <span className="type-small font-semibold text-ink-muted">or</span>
-          <span className="h-px flex-1 bg-line md:h-auto md:w-px" />
+    <div className="flex w-full max-w-4xl flex-col gap-3">
+      <RecordBanner />
+      <section aria-labelledby="sign-in-heading" className="card w-full p-6 sm:p-10">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="size-6" />
+          <span className="type-heading font-brand">{PRODUCT_NAME}</span>
         </div>
-        <PhoneForm code={code} submitLabel="Continue" />
-      </div>
-
-      {error && (
-        <p role="alert" className="type-small mt-4 font-semibold text-signal">
-          {error}
+        <h1 id="sign-in-heading" className="type-display mt-6 max-w-[18ch]">
+          Our agent will call you at a house you pick
+        </h1>
+        <p className="type-body mt-3 max-w-[52ch] text-ink-muted">
+          When the evacuation warning goes out, you answer as the person who lives there.
         </p>
-      )}
 
-      <a
-        href={CAL_HACKS_WRITE_UP_URL}
-        target="_blank"
-        rel="noopener"
-        className="type-small mt-6 inline-block py-1 text-ink-muted underline underline-offset-2"
-      >
-        How we won six prizes at Cal Hacks 13.0
-      </a>
-    </section>
+        <div className="mt-8 grid items-center gap-6 md:grid-cols-[auto_auto_1fr] md:gap-8">
+          <QrCode text={joinUrl} label="QR code that opens the sign-in page on your phone" className="w-32 shrink-0 md:w-52" />
+          <div className="flex items-center gap-3 md:h-full md:flex-col" aria-hidden>
+            <span className="h-px flex-1 bg-line md:h-auto md:w-px" />
+            <span className="type-small font-semibold text-ink-muted">or</span>
+            <span className="h-px flex-1 bg-line md:h-auto md:w-px" />
+          </div>
+          <PhoneForm code={code} submitLabel="Continue" />
+        </div>
+
+        {error && (
+          <p role="alert" className="type-small mt-4 font-semibold text-signal">
+            {error}
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
