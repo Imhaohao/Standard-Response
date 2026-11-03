@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title,
   description,
   alternates: { canonical: `${SITE_URL}/` },
+  verification: { google: "o3wqLfIJyV07JwURqNHP50x6UeUuu2XLc_HdBrE7Qa8" },
   openGraph: {
     title,
     description,
