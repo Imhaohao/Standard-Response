@@ -2,6 +2,8 @@
 
 Live at [standardresponse.us](https://standardresponse.us).
 
+Standard Response won six prizes at Cal Hacks 13.0, the most of any team. [Read how we built it and see the Cal Hacks 13.0 winners with the most prizes](https://www.borisnezlobin.com/writing/calhacks-record).
+
 **When a disaster forces people out of their homes, Standard Response calls every household in the evacuation zone at the same time. It learns who needs help, who can help, and where they are, then routes neighbors and first responders to the people who need them most.**
 
 ![Every home in the warning zone, sorted by the calls: red needs help, orange can help a neighbor, green has left, grey not reached yet](public/devpost/census.jpg)
