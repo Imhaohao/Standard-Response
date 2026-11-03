@@ -6,6 +6,8 @@ import { PRODUCT_NAME } from "@/lib/brand";
 import { PhoneForm } from "./phone-form";
 import { QrCode } from "./qr-code";
 
+const CAL_HACKS_WRITE_UP_URL = "https://www.borisnezlobin.com/writing/calhacks-record";
+
 const noSubscription = () => () => {};
 const browserOrigin = () => window.location.origin;
 const noOrigin = () => null;
@@ -48,6 +50,15 @@ export function SignInCard({ code, error }: { code: string | null; error: string
           {error}
         </p>
       )}
+
+      <a
+        href={CAL_HACKS_WRITE_UP_URL}
+        target="_blank"
+        rel="noopener"
+        className="type-small mt-6 inline-block py-1 text-ink-muted underline underline-offset-2"
+      >
+        How we won six prizes at Cal Hacks 13.0
+      </a>
     </section>
   );
 }
